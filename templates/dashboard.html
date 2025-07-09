@@ -91,6 +91,37 @@
     </div>
 </div>
 
+html<!-- Add Account Modal (YOUR EXISTING MODAL - KEEP AS IS) -->
+<div id="addAccountModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeAddAccountModal()">&times;</span>
+        <h3>Add Account Manually</h3>
+        <form id="addAccountForm">
+            <!-- Your existing form content -->
+        </form>
+    </div>
+</div>
+
+<!-- OAuth Authorization Modal (ADD THIS NEW MODAL RIGHT HERE) -->
+<div id="oauthModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">🔗 OAuth Authorization Required</h3>
+            <button class="modal-close" onclick="closeOAuthModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Please copy this link and open it in your browser to authorize the account:</p>
+            <div id="oauthUrl" class="account-details"></div>
+            <p><small>💡 <strong>Tip:</strong> You can copy this link to use in another browser or app for authorization.</small></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-copy" onclick="copyOAuthUrl()">📋 Copy Link</button>
+            <button class="btn-close" onclick="openOAuthUrl()">🌐 Open Link</button>
+            <button class="btn-close" onclick="closeOAuthModal()">Close</button>
+        </div>
+    </div>
+</div>
+
     <!-- User Listing & Actions -->
     <div class="section">
         <h3>🧑‍💻 User Listing & Basic Actions</h3>
@@ -353,6 +384,7 @@
         <div id="email-template-preview" class="template-preview"></div>
     </div>
     -->
+
 </div>
 
 <script>
@@ -470,20 +502,57 @@ function authenticateAccount() {
             updateAuthStatus(accountName, true, data.message);
         } else if (data.oauth_required) {
             updateAuthStatus(accountName, false, 'OAuth required');
-            const message = `Manual authentication required for ${accountName}\n\nPlease visit this URL to authenticate:\n${data.oauth_url}\n\nAfter completing authentication, try again.`;
-            alert(message);
-            // Copy URL to clipboard if possible
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(data.oauth_url);
-                alert('OAuth URL copied to clipboard!');
-            }
-        } else {
+            showOAuthModal(data.oauth_url);
+        }
+         else {
             updateAuthStatus(accountName, false, data.error);
         }
     })
     .catch(error => {
         updateAuthStatus(accountName, false, 'Network error: ' + error);
     });
+}
+
+// OAuth Modal functions
+function showOAuthModal(authUrl) {
+    const modal = document.getElementById('oauthModal');
+    const urlDiv = document.getElementById('oauthUrl');
+    
+    urlDiv.textContent = authUrl;
+    modal.style.display = 'block';
+    
+    // Store URL globally for copying
+    window.currentOAuthUrl = authUrl;
+}
+
+function closeOAuthModal() {
+    document.getElementById('oauthModal').style.display = 'none';
+}
+
+function copyOAuthUrl() {
+    if (window.currentOAuthUrl) {
+        copyToClipboard(window.currentOAuthUrl).then(success => {
+            if (success) {
+                alert('✅ OAuth URL copied to clipboard!');
+            } else {
+                alert('❌ Copy failed - please select and copy manually');
+            }
+        });
+    }
+}
+
+function openOAuthUrl() {
+    if (window.currentOAuthUrl) {
+        window.open(window.currentOAuthUrl, '_blank');
+    }
+}
+
+// Update existing window click handler
+window.onclick = function(event) {
+    const modal = document.getElementById('oauthModal');
+    if (event.target === modal) {
+        closeOAuthModal();
+    }
 }
 
 function retrieveUsers() {
