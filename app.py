@@ -27,8 +27,6 @@ app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
 
-# Load users from SFTP on startup
-users = load_users_from_server()
 
 
 # Used domains
@@ -175,6 +173,9 @@ def save_used_domains_to_server():
     except Exception as e:
         print(f"Error saving used domains to server: {e}")
         return False
+
+# Load users from SFTP on startup
+users = load_users_from_server()
 
 # User storage persistent functions
 USERS_FILENAME = 'users.json'
@@ -356,7 +357,7 @@ def api_delete_user():
         # Delete user
         del users[username]
         save_users_to_server()
-        
+
         return jsonify({'success': True, 'message': f'User {username} deleted successfully'})
         
     except Exception as e:
