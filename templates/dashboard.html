@@ -396,8 +396,12 @@ function clearResultsLog() {
 function copyResultsLog() {
     const logContent = document.getElementById('results-log').textContent;
     if (logContent.trim()) {
-        navigator.clipboard.writeText(logContent).then(() => {
-            alert('📋 Log copied to clipboard!');
+        copyToClipboard(logContent).then(success => {
+            if (success) {
+                alert('📋 Log copied to clipboard!');
+            } else {
+                alert('❌ Copy failed - please try manually selecting the text');
+            }
         });
     } else {
         alert('No log content to copy');
@@ -497,16 +501,27 @@ function clearUserList() {
 }
 
 function copyAllUsers() {
-    const userItems = document.querySelectorAll('.user-item .email');
-    const emails = Array.from(userItems).map(item => item.textContent);
-    
-    if (emails.length > 0) {
-        navigator.clipboard.writeText(emails.join('\n')).then(() => {
-            alert(`Copied ${emails.length} email addresses to clipboard!`);
-        });
-    } else {
+    const userElements = document.querySelectorAll('.user-item');
+    if (userElements.length === 0) {
         alert('No users to copy');
+        return;
     }
+    
+    const emails = Array.from(userElements).map(element => {
+        const emailElement = element.querySelector('.user-email');
+        return emailElement ? emailElement.textContent.trim() : '';
+    }).filter(email => email);
+    
+    const emailText = emails.join('\n');
+    
+    copyToClipboard(emailText).then(success => {
+        if (success) {
+            alert(`✅ Copied ${emails.length} user emails to clipboard`);
+            logResult(`📋 Copied ${emails.length} user emails to clipboard`);
+        } else {
+            alert('❌ Copy failed - please try manually selecting the text');
+        }
+    });
 }
 
 function updateAllPasswords() {
@@ -599,8 +614,12 @@ function copySuspendedUsers() {
     const emails = Array.from(suspendedItems).map(item => item.textContent);
     
     if (emails.length > 0) {
-        navigator.clipboard.writeText(emails.join('\n')).then(() => {
-            alert(`Copied ${emails.length} suspended email addresses to clipboard!`);
+        copyToClipboard(emails.join('\n')).then(success => {
+            if (success) {
+                alert(`✅ Copied ${emails.length} suspended email addresses to clipboard!`);
+            } else {
+                alert('❌ Copy failed - please try manually selecting the text');
+            }
         });
     } else {
         alert('No suspended users to copy');
