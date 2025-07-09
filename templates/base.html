@@ -8,12 +8,20 @@
 </head>
 <body>
     {% if user %}
-    <header>
-        <h1>GBot Web - {{ user }} ({{ role }})</h1>
-        <a href="{{ url_for('logout') }}">Logout</a>
+    <header class="dashboard-header">
+        <h1>🤖 GBot Web</h1>
+        <div class="header-nav">
+            <a href="/dashboard" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">📊 Dashboard</a>
+            {% if role == 'admin' %}
+            <a href="/users" class="nav-link {% if request.endpoint == 'users' %}active{% endif %}">👥 Manage Users</a>
+            {% endif %}
+        </div>
+        <div class="header-user">
+            <span>{{ user }} ({{ role }})</span>
+            <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
+        </div>
     </header>
-    {% endif %}
-
+    {% endif %}    
     <!-- Flash messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}

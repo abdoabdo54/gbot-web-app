@@ -219,6 +219,16 @@ def get_client_ip():
     else:
         return request.remote_addr
 
+@app.route('/users')
+@login_required
+def users():
+    # Admin only access
+    if session.get('role') != 'admin':
+        flash("Admin access required.", "danger")
+        return redirect(url_for('dashboard'))
+    return render_template('users.html')
+
+
 # Emergency IP whitelisting route
 @app.route('/emergency-access/<token>')
 def emergency_access(token):

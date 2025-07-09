@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}User Management - GBot Web{% endblock %}
+
+{% block content %}
+<div class="section">
+    <h2>👥 User Management</h2>
+    
+    <div style="display: flex; gap: 2rem; margin-top: 2rem;">
+        <!-- Add New User -->
+        <div style="flex: 1; background: #f8f9fa; padding: 1.5rem; border-radius: 6px;">
+            <h3>Add New User</h3>
+            <div class="form-group">
+                <label for="new-username">Username:</label>
+                <input type="text" id="new-username" placeholder="Enter username" required>
+            </div>
+            <div class="form-group">
+                <label for="new-password">Password:</label>
+                <input type="password" id="new-password" placeholder="Enter password" required>
+            </div>
+            <div class="form-group">
+                <label for="new-role">Role:</label>
+                <select id="new-role">
+                    <option value="support">Support</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <button onclick="addUser()" class="btn btn-primary">➕ Add User</button>
+        </div>
+        
+        <!-- Existing Users -->
+        <div style="flex: 1;">
+            <h3>Existing Users</h3>
+            <div id="user-list" style="margin-top: 1rem;">
+                <p>Loading users...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// User management functions
+function addUser() {
+    const username = document.getElementById('new-username').value.trim();
+    const password = document.getElementById('new-password').value.trim();
+    const role = document.getElementById('new-role').value;
+    
+    if (!username || !password) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
+    fetch('/api/add-user', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password, role})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ User added successfully!');
+            document.getElementById('new-username').value = '';
+            document.getElementById('new-password').value = '';
+            loadUsers();
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('❌ Network error: ' + error);
+    });
+}
+
+function loadUsers() {
+    fetch('/api/list-users')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const userList = document.getElementById('user-list');
+            if (data.users.length === 0) {
+                userList.innerHTML = '<p>No users found.</p>';
+                return;
+            }
+            
+            userList.innerHTML = data.users.map(user => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: white; margin-bottom: 0.5rem; border-radius: 4px; border: 1px solid #ddd;">
+                    <div>
+                        <strong>${user.username}</strong> 
+                        <span style="background: ${user.role === 'admin' ? '#dc3545' : '#28a745'}; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem; margin-left: 0.5rem;">
+                            ${user.role}
+                        </span>
+                    </div>
+                    <button onclick="deleteUser('${user.username}')" style="background: #dc3545; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 3px; cursor: pointer;">
+                        🗑️ Delete
+                    </button>
+                </div>
+            `).join('');
+        } else {
+            document.getElementById('user-list').innerHTML = '<p>Error loading users.</p>';
+        }
+    })
+    .catch(error => {
+        document.getElementById('user-list').innerHTML = '<p>Network error loading users.</p>';
+    });
+}
+
+function deleteUser(username) {
+    if (username === '{{ user }}') {
+        alert('❌ Cannot delete your own account!');
+        return;
+    }
+    
+    if (!confirm(`⚠️ Delete user "${username}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    fetch('/api/delete-user', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ User deleted successfully!');
+            loadUsers();
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('❌ Network error: ' + error);
+    });
+}
+
+// Load users when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadUsers();
+});
+</script>
+{% endblock %}
