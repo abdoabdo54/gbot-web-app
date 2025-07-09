@@ -504,7 +504,7 @@ function retrieveUsers() {
             let html = '';
             data.users.forEach(user => {
                 html += `<div class="user-item">
-                    <span class="email">${.email}</span>
+                    <span class="email">${user.email}</span>
                     <span class="name">${user.first_name} ${user.last_name}</span>
                     ${user.admin ? '<span class="badge admin">👑 Admin</span>' : ''}
                     ${user.suspended ? '<span class="badge suspended">🚫 Suspended</span>' : ''}
