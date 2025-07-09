@@ -212,6 +212,7 @@ def load_users_from_server():
 
 def save_users_to_server():
     """Save users to SFTP server"""
+    global users
     try:
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp_file:
             json.dump(users, tmp_file, indent=2)
@@ -248,6 +249,22 @@ def save_users_to_server():
 # Load users from SFTP on startup
 users = load_users_from_server()
 
+# Login routes
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        if username in users and users[username]['password'] == password:
+            session['user'] = username
+            session['role'] = users[username]['role']
+            flash(f'Welcome {username}!', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid credentials', 'error')
+    
+    return render_template('login.html')
 
 # Load used domains on startup from SFTP
 used_domains = load_used_domains_from_server()
@@ -385,22 +402,6 @@ def emergency_access(token):
     else:
         return "Invalid token", 403
 
-# Login routes
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        if username in users and users[username]['password'] == password:
-            session['user'] = username
-            session['role'] = users[username]['role']
-            flash(f'Welcome {username}!', 'success')
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Invalid credentials', 'error')
-    
-    return render_template('login.html')
 
 @app.route('/logout')
 def logout():
