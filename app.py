@@ -174,8 +174,6 @@ def save_used_domains_to_server():
         print(f"Error saving used domains to server: {e}")
         return False
 
-# Load users from SFTP on startup
-users = load_users_from_server()
 
 # User storage persistent functions
 USERS_FILENAME = 'users.json'
@@ -245,6 +243,11 @@ def save_users_to_server():
     except Exception as e:
         print(f"Error saving users to server: {e}")
         return False
+
+
+# Load users from SFTP on startup
+users = load_users_from_server()
+
 
 # Load used domains on startup from SFTP
 used_domains = load_used_domains_from_server()
