@@ -181,20 +181,11 @@ def save_used_domains_to_server():
 # Load used domains on startup from SFTP
 used_domains = load_used_domains_from_server()
 
-@app.before_request  
 def check_ip():
-    # Skip IP check for emergency access
-    if request.path.startswith('/emergency-access/'):
-        return None
-        
-    # Skip IP check for static files
-    if request.endpoint == 'static':
-        return None
-        
-    client_ip = get_client_ip()
-    if client_ip not in allowed_ips:
-        return f"Access denied. IP {client_ip} not whitelisted.", 403
-        
+    """Check if current IP is whitelisted"""
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    return client_ip in allowed_ips
+
 def login_required(f):
     """Decorator to require login"""
     def wrapper(*args, **kwargs):
@@ -207,8 +198,16 @@ def login_required(f):
 @app.before_request
 def before_request():
     """Check IP whitelist before every request"""
-    if request.endpoint not in ['whitelist_ip', 'login'] and not check_ip():
-        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    # Skip IP check for emergency access
+    if request.path.startswith('/emergency-access/'):
+        return None
+        
+    # Skip IP check for static files and login
+    if request.endpoint in ['static', 'login']:
+        return None
+        
+    client_ip = get_client_ip()
+    if client_ip not in allowed_ips:
         return f"Access denied. IP {client_ip} not whitelisted.", 403
 
 def get_client_ip():
