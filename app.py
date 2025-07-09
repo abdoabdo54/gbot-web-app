@@ -247,7 +247,7 @@ def save_users_to_server():
 
 
 # Load users from SFTP on startup
-users = load_users_from_server()
+app_users = load_users_from_server()
 
 # Login routes
 @app.route('/login', methods=['GET', 'POST'])
@@ -256,9 +256,9 @@ def login():
         username = request.form['username']
         password = request.form['password']
         
-        if username in users and users[username]['password'] == password:
+        if username in app_users and app_users[username]['password'] == password:
             session['user'] = username
-            session['role'] = users[username]['role']
+            session['role'] = app_users[username]['role']
             flash(f'Welcome {username}!', 'success')
             return redirect(url_for('dashboard'))
         else:
@@ -331,11 +331,11 @@ def api_add_user():
         if not username or not password:
             return jsonify({'success': False, 'error': 'Username and password required'})
         
-        if username in users:
+        if username in app_users:
             return jsonify({'success': False, 'error': 'Username already exists'})
         
         # Add user
-        users[username] = {'password': password, 'role': role}
+        app_users[username] = {'password': password, 'role': role}
         save_users_to_server()
         
         return jsonify({'success': True, 'message': f'User {username} created successfully'})
