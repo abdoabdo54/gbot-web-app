@@ -112,8 +112,10 @@ print("DEBUG: Function exists?", 'load_whitelist_ips_from_server' in locals())
 
 
 # Simple IP whitelist storage (in memory for now)
-allowed_ips = set(['127.0.0.1', '::1', '102.97.161.4'])
-print("DEBUG: Using hardcoded IPs:", allowed_ips)
+allowed_ips = load_whitelist_ips_from_server()
+# Add your IP as fallback if not in SFTP file
+allowed_ips.add('102.97.161.4')
+print("DEBUG: Loaded IPs from SFTP:", allowed_ips)
 
 
 def load_used_domains_from_server():
