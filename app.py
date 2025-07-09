@@ -27,11 +27,9 @@ app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
 
-# Simple user storage (admin/support)
-users = {
-    'admin': {'password': 'admin123', 'role': 'admin'},
-    'support': {'password': 'support123', 'role': 'support'}
-}
+# Load users from SFTP on startup
+users = load_users_from_server()
+
 
 # Used domains
 used_domains = set()
@@ -178,6 +176,75 @@ def save_used_domains_to_server():
         print(f"Error saving used domains to server: {e}")
         return False
 
+# User storage persistent functions
+USERS_FILENAME = 'users.json'
+
+def load_users_from_server():
+    """Load users from SFTP server"""
+    for remote_path in [f"{REMOTE_DIR}{USERS_FILENAME}", f"{REMOTE_ALT_DIR}{USERS_FILENAME}"]:
+        try:
+            transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
+            transport.connect(username=USERNAME, password=PASSWORD)
+            sftp = paramiko.SFTPClient.from_transport(transport)
+            
+            with sftp.open(remote_path, 'r') as f:
+                content = f.read()
+            
+            sftp.close()
+            transport.close()
+            
+            if content.strip():
+                users_data = json.loads(content)
+                print(f"STARTUP: Loaded {len(users_data)} users from SFTP")
+                return users_data
+                
+        except FileNotFoundError:
+            print(f"Users file not found at {remote_path}, trying next location...")
+            continue
+        except Exception as e:
+            print(f"Error loading users from {remote_path}: {e}")
+            continue
+    
+    print("STARTUP: No users file found, using default admin/support")
+    return {
+        'admin': {'password': 'admin123', 'role': 'admin'},
+        'support': {'password': 'support123', 'role': 'support'}
+    }
+
+def save_users_to_server():
+    """Save users to SFTP server"""
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp_file:
+            json.dump(users, tmp_file, indent=2)
+            tmp_file_path = tmp_file.name
+        
+        success = False
+        for remote_path in [f"{REMOTE_DIR}{USERS_FILENAME}", f"{REMOTE_ALT_DIR}{USERS_FILENAME}"]:
+            try:
+                transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
+                transport.connect(username=USERNAME, password=PASSWORD)
+                sftp = paramiko.SFTPClient.from_transport(transport)
+                
+                sftp.put(tmp_file_path, remote_path)
+                
+                sftp.close()
+                transport.close()
+                
+                print(f"DEBUG: Users saved to SFTP: {remote_path}")
+                success = True
+                break
+                
+            except Exception as e:
+                print(f"Failed to save users to {remote_path}: {e}")
+                continue
+        
+        os.unlink(tmp_file_path)
+        return success
+        
+    except Exception as e:
+        print(f"Error saving users to server: {e}")
+        return False
+
 # Load used domains on startup from SFTP
 used_domains = load_used_domains_from_server()
 
@@ -228,6 +295,72 @@ def users():
         return redirect(url_for('dashboard'))
     return render_template('users.html')
 
+@app.route('/api/add-user', methods=['POST'])
+@login_required
+def api_add_user():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin access required'})
+    
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        password = data.get('password', '').strip()
+        role = data.get('role', 'support')
+        
+        if not username or not password:
+            return jsonify({'success': False, 'error': 'Username and password required'})
+        
+        if username in users:
+            return jsonify({'success': False, 'error': 'Username already exists'})
+        
+        # Add user
+        users[username] = {'password': password, 'role': role}
+        save_users_to_server()
+        
+        return jsonify({'success': True, 'message': f'User {username} created successfully'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/list-users', methods=['GET'])
+@login_required
+def api_list_users():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin access required'})
+    
+    try:
+        user_list = [{'username': username, 'role': data['role']} for username, data in users.items()]
+        return jsonify({'success': True, 'users': user_list})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/delete-user', methods=['POST'])
+@login_required
+def api_delete_user():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin access required'})
+    
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        
+        if not username:
+            return jsonify({'success': False, 'error': 'Username required'})
+        
+        if username not in users:
+            return jsonify({'success': False, 'error': 'User not found'})
+        
+        if username == session.get('user'):
+            return jsonify({'success': False, 'error': 'Cannot delete your own account'})
+        
+        # Delete user
+        del users[username]
+        save_users_to_server()
+        
+        return jsonify({'success': True, 'message': f'User {username} deleted successfully'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 # Emergency IP whitelisting route
 @app.route('/emergency-access/<token>')
