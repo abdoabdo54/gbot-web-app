@@ -350,7 +350,7 @@ def api_list_users():
         return jsonify({'success': False, 'error': 'Admin access required'})
     
     try:
-        user_list = [{'username': username, 'role': data['role']} for username, data in users.items()]
+        user_list = [{'username': username, 'role': data['role']} for username, data in app_users.items()]
         return jsonify({'success': True, 'users': user_list})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
