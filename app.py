@@ -26,9 +26,6 @@ print(f"DEBUG: SECRET_KEY loaded: {'âœ“' if os.environ.get('SECRET_KEY') else 'â
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
-# Simple IP whitelist storage (in memory for now)
-allowed_ips = load_whitelist_ips_from_server()
-
 # Simple user storage (admin/support)
 users = {
     'admin': {'password': 'admin123', 'role': 'admin'},
@@ -174,6 +171,7 @@ def save_used_domains_to_server():
 
 # Load used domains on startup from SFTP
 used_domains = load_used_domains_from_server()
+allowed_ips = load_whitelist_ips_from_server()
 
 def check_ip():
     """Check if current IP is whitelisted"""
