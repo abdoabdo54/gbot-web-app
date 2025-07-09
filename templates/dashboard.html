@@ -393,6 +393,32 @@ function clearResultsLog() {
     document.getElementById('results-log').textContent = '';
 }
 
+async function copyToClipboard(text) {
+    try {
+        // Try modern clipboard API first
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } else {
+            // Fallback method for HTTP sites
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            return successful;
+        }
+    } catch (err) {
+        console.error('Copy failed:', err);
+        return false;
+    }
+}
+
 function copyResultsLog() {
     const logContent = document.getElementById('results-log').textContent;
     if (logContent.trim()) {
