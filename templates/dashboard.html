@@ -534,7 +534,7 @@ function copyAllUsers() {
     }
     
     const emails = Array.from(userElements).map(element => {
-        const emailElement = element.querySelector('.user-email');
+        const emailElement = element.querySelector('.email');
         return emailElement ? emailElement.textContent.trim() : '';
     }).filter(email => email);
     
