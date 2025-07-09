@@ -209,6 +209,15 @@ def before_request():
         client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
         return f"Access denied. IP {client_ip} not whitelisted.", 403
 
+def get_client_ip():
+    """Get the real client IP address"""
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    elif request.headers.get('X-Real-IP'):
+        return request.headers.get('X-Real-IP')
+    else:
+        return request.remote_addr
+
 # Emergency IP whitelisting route
 @app.route('/emergency-access/<token>')
 def emergency_access(token):
@@ -224,10 +233,7 @@ def emergency_access(token):
             message = f"IP {client_ip} has been whitelisted locally (SFTP save failed)"
             print(f"EMERGENCY ACCESS: {client_ip} whitelisted locally only")
         
-        return render_template('emergency_success.html', 
-                             ip=client_ip, 
-                             message=message,
-                             dashboard_url=url_for('dashboard'))
+        return f"<h1>✅ Access Granted</h1><p>{message}</p><p><a href='/'>Go to Dashboard</a></p>"
     else:
         return "Invalid token", 403
 
