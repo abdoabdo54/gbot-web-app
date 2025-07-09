@@ -33,8 +33,11 @@ users = {
     'support': {'password': 'support123', 'role': 'support'}
 }
 
+# Used domains
 used_domains = set()
 USED_DOMAINS_FILENAME = 'used_domains.json'
+
+# Whitelist IPs
 WHITELIST_IPS_FILENAME = 'whitelist_ips.json'
 
 def load_whitelist_ips_from_server():
@@ -103,8 +106,14 @@ def save_whitelist_ips_to_server():
         print(f"Error saving whitelist IPs to server: {e}")
         return False
 
+# Add this debug line
+print("DEBUG: About to call load_whitelist_ips_from_server")
+print("DEBUG: Function exists?", 'load_whitelist_ips_from_server' in locals())
+
+
 # Simple IP whitelist storage (in memory for now)
-allowed_ips = load_whitelist_ips_from_server()
+allowed_ips = set(['127.0.0.1', '::1', '102.97.161.4'])
+print("DEBUG: Using hardcoded IPs:", allowed_ips)
 
 
 def load_used_domains_from_server():
