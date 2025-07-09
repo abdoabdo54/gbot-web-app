@@ -36,6 +36,9 @@ USED_DOMAINS_FILENAME = 'used_domains.json'
 # Whitelist IPs
 WHITELIST_IPS_FILENAME = 'whitelist_ips.json'
 
+# User storage persistent functions
+USERS_FILENAME = 'users.json'
+
 def load_whitelist_ips_from_server():
     """Load whitelisted IPs from SFTP server"""
     for remote_path in [f"{REMOTE_DIR}{WHITELIST_IPS_FILENAME}", f"{REMOTE_ALT_DIR}{WHITELIST_IPS_FILENAME}"]:
@@ -174,9 +177,6 @@ def save_used_domains_to_server():
         print(f"Error saving used domains to server: {e}")
         return False
 
-
-# User storage persistent functions
-USERS_FILENAME = 'users.json'
 
 def load_users_from_server():
     """Load users from SFTP server"""
