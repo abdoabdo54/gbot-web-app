@@ -27,7 +27,7 @@ app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
 # Simple IP whitelist storage (in memory for now)
-allowed_ips = set(['127.0.0.1', '::1'])  # localhost by default
+allowed_ips = load_whitelist_ips_from_server()
 
 # Simple user storage (admin/support)
 users = {
@@ -37,6 +37,73 @@ users = {
 
 used_domains = set()
 USED_DOMAINS_FILENAME = 'used_domains.json'
+WHITELIST_IPS_FILENAME = 'whitelist_ips.json'
+
+def load_whitelist_ips_from_server():
+    """Load whitelisted IPs from SFTP server"""
+    for remote_path in [f"{REMOTE_DIR}{WHITELIST_IPS_FILENAME}", f"{REMOTE_ALT_DIR}{WHITELIST_IPS_FILENAME}"]:
+        try:
+            transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
+            transport.connect(username=USERNAME, password=PASSWORD)
+            sftp = paramiko.SFTPClient.from_transport(transport)
+            
+            with sftp.open(remote_path, 'r') as f:
+                content = f.read()
+            
+            sftp.close()
+            transport.close()
+            
+            if content.strip():
+                ips_list = json.loads(content)
+                print(f"STARTUP: Loaded {len(ips_list)} whitelisted IPs from SFTP: {ips_list}")
+                return set(ips_list)
+                
+        except FileNotFoundError:
+            print(f"Whitelist IPs file not found at {remote_path}, trying next location...")
+            continue
+        except Exception as e:
+            print(f"Error loading whitelist IPs from {remote_path}: {e}")
+            continue
+    
+    print("STARTUP: No whitelist IPs file found, starting with localhost only")
+    return set(['127.0.0.1', '::1'])  # Default localhost
+
+def save_whitelist_ips_to_server():
+    """Save whitelisted IPs to SFTP server"""
+    try:
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp_file:
+            json.dump(list(allowed_ips), tmp_file, indent=2)
+            tmp_file_path = tmp_file.name
+        
+        # Upload to both server locations
+        success = False
+        for remote_path in [f"{REMOTE_DIR}{WHITELIST_IPS_FILENAME}", f"{REMOTE_ALT_DIR}{WHITELIST_IPS_FILENAME}"]:
+            try:
+                transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
+                transport.connect(username=USERNAME, password=PASSWORD)
+                sftp = paramiko.SFTPClient.from_transport(transport)
+                
+                sftp.put(tmp_file_path, remote_path)
+                
+                sftp.close()
+                transport.close()
+                
+                print(f"DEBUG: Whitelist IPs saved to SFTP: {remote_path}")
+                success = True
+                break
+                
+            except Exception as e:
+                print(f"Failed to save whitelist IPs to {remote_path}: {e}")
+                continue
+        
+        # Clean up temp file
+        os.unlink(tmp_file_path)
+        return success
+        
+    except Exception as e:
+        print(f"Error saving whitelist IPs to server: {e}")
+        return False
 
 def load_used_domains_from_server():
     """Load used domains from SFTP server"""
@@ -130,11 +197,26 @@ def before_request():
         return f"Access denied. IP {client_ip} not whitelisted.", 403
 
 # Emergency IP whitelisting route
-@app.route(f'/emergency-access/{WHITELIST_TOKEN}')
-def whitelist_ip():
-    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    allowed_ips.add(client_ip)
-    return f"IP {client_ip} has been whitelisted. You can now access the application."
+@app.route('/emergency-access/<token>')
+def emergency_access(token):
+    if token == WHITELIST_TOKEN:
+        client_ip = get_client_ip()
+        allowed_ips.add(client_ip)
+        
+        # Save to SFTP
+        if save_whitelist_ips_to_server():
+            message = f"IP {client_ip} has been whitelisted and saved to SFTP!"
+            print(f"EMERGENCY ACCESS: {client_ip} whitelisted and saved")
+        else:
+            message = f"IP {client_ip} has been whitelisted locally (SFTP save failed)"
+            print(f"EMERGENCY ACCESS: {client_ip} whitelisted locally only")
+        
+        return render_template('emergency_success.html', 
+                             ip=client_ip, 
+                             message=message,
+                             dashboard_url=url_for('dashboard'))
+    else:
+        return "Invalid token", 403
 
 # Login routes
 @app.route('/login', methods=['GET', 'POST'])
