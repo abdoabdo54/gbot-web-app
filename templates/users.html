@@ -2,6 +2,7 @@
 {% block title %}User Management - GBot Web{% endblock %}
 
 {% block content %}
+<!-- Top Navigation (Same as Dashboard) -->
 <div class="section">
     <h2>👥 User Management</h2>
     
@@ -36,6 +37,7 @@
         </div>
     </div>
 </div>
+
 
 <script>
 // User management functions
@@ -74,24 +76,32 @@ function loadUsers() {
     fetch('/api/list-users')
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
+        if (data.success && Array.isArray(data.users)) {
             const userList = document.getElementById('user-list');
             if (data.users.length === 0) {
                 userList.innerHTML = '<p>No users found.</p>';
                 return;
             }
             
-            userList.innerHTML = data.users.map(user => `
+            userList.innerHTML = data.users.map((user, index) => `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: white; margin-bottom: 0.5rem; border-radius: 4px; border: 1px solid #ddd;">
-                    <div>
-                        <strong>${user.username}</strong> 
-                        <span style="background: ${user.role === 'admin' ? '#dc3545' : '#28a745'}; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem; margin-left: 0.5rem;">
-                            ${user.role}
-                        </span>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span style="font-weight: bold; min-width: 30px;">${index + 1}</span>
+                        <div>
+                            <div style="font-weight: bold; font-size: 1.1rem;">${user.username}</div>
+                            <span style="background: ${user.role === 'admin' ? '#dc3545' : '#28a745'}; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem;">
+                                ${user.role}
+                            </span>
+                        </div>
                     </div>
-                    <button onclick="deleteUser('${user.username}')" style="background: #dc3545; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 3px; cursor: pointer;">
-                        🗑️ Delete
-                    </button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button onclick="editUser('${user.username}', '${user.role}')" style="background: #007bff; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 3px; cursor: pointer;">
+                            ✏️ Edit
+                        </button>
+                        <button onclick="deleteUser('${user.username}')" style="background: #dc3545; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 3px; cursor: pointer;">
+                            🗑️ Delete
+                        </button>
+                    </div>
                 </div>
             `).join('');
         } else {
@@ -99,7 +109,39 @@ function loadUsers() {
         }
     })
     .catch(error => {
+        console.error("Fetch error:", error);
         document.getElementById('user-list').innerHTML = '<p>Network error loading users.</p>';
+    });
+}
+
+function editUser(username, currentRole) {
+    const newPassword = prompt(`Enter new password for user "${username}":`);
+    if (!newPassword) return;
+    
+    const newRole = prompt(`Enter role for "${username}" (admin/support):`, currentRole);
+    if (!newRole) return;
+    
+    if (newRole !== 'admin' && newRole !== 'support') {
+        alert('Role must be either "admin" or "support"');
+        return;
+    }
+    
+    fetch('/api/edit-user', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password: newPassword, role: newRole})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ User updated successfully!');
+            loadUsers();
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('❌ Network error: ' + error);
     });
 }
 

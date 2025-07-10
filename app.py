@@ -212,10 +212,10 @@ def load_users_from_server():
 
 def save_users_to_server():
     """Save users to SFTP server"""
-    global users
+    global app_users
     try:
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp_file:
-            json.dump(users, tmp_file, indent=2)
+            json.dump(app_users, tmp_file, indent=2)
             tmp_file_path = tmp_file.name
         
         success = False
@@ -314,7 +314,9 @@ def users():
     if session.get('role') != 'admin':
         flash("Admin access required.", "danger")
         return redirect(url_for('dashboard'))
-    return render_template('users.html')
+    return render_template('users.html',
+                         user=session.get('user'),
+                         role=session.get('role'))
 
 @app.route('/api/add-user', methods=['POST'])
 @login_required
@@ -355,6 +357,42 @@ def api_list_users():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/edit-user', methods=['POST'])
+@login_required
+def api_edit_user():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin access required'})
+    
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        new_password = data.get('password', '').strip()
+        new_role = data.get('role', '').strip()
+        
+        if not username:
+            return jsonify({'success': False, 'error': 'Username required'})
+        
+        if username not in app_users:
+            return jsonify({'success': False, 'error': 'User not found'})
+        
+        if not new_password:
+            return jsonify({'success': False, 'error': 'Password required'})
+        
+        if new_role not in ['admin', 'support']:
+            return jsonify({'success': False, 'error': 'Role must be admin or support'})
+        
+        # Update user
+        app_users[username]['password'] = new_password
+        app_users[username]['role'] = new_role
+        
+        # Save to SFTP
+        save_users_to_server()
+        
+        return jsonify({'success': True, 'message': f'User {username} updated successfully'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/delete-user', methods=['POST'])
 @login_required
 def api_delete_user():
@@ -368,16 +406,16 @@ def api_delete_user():
         if not username:
             return jsonify({'success': False, 'error': 'Username required'})
         
-        if username not in users:
+        if username not in app_users:  # Change from 'users' to 'app_users'
             return jsonify({'success': False, 'error': 'User not found'})
         
         if username == session.get('user'):
             return jsonify({'success': False, 'error': 'Cannot delete your own account'})
         
         # Delete user
-        del users[username]
+        del app_users[username]  # Change from 'users' to 'app_users'
         save_users_to_server()
-
+        
         return jsonify({'success': True, 'message': f'User {username} deleted successfully'})
         
     except Exception as e:
@@ -411,6 +449,7 @@ def logout():
 
 # Main dashboard
 @app.route('/')
+@app.route('/dashboard')
 @login_required
 def dashboard():
     # Load accounts from SFTP

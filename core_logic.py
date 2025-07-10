@@ -134,17 +134,28 @@ class WebGoogleAPI:
                     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                     "token_uri": "https://oauth2.googleapis.com/token",
                     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                    "redirect_uris": ["urn:ietf:wg:oauth:2.0:oob", "http://localhost"]
+                    "redirect_uris": ["http://localhost:8080", "urn:ietf:wg:oauth:2.0:oob"]
                 }
             }
             
             flow = InstalledAppFlow.from_client_config(flow_config, SCOPES)
-            auth_url, _ = flow.authorization_url(prompt='consent')
+            
+            # Set a specific redirect URI
+            flow.redirect_uri = "http://localhost:8080"
+            
+            # Generate URL with proper parameters
+            auth_url, _ = flow.authorization_url(
+                access_type='offline',
+                prompt='select_account',
+                include_granted_scopes='true'
+            )
+            
             return auth_url
+            
         except Exception as e:
             logging.error(f"Failed to generate OAuth URL: {e}")
             return None
-    
+                    
     def retrieve_active_users(self):
         """Get all users from Google Workspace"""
         if not self.service:
