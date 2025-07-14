@@ -59,7 +59,9 @@
             </button>
         </div>
     </div>
-    
+    <div id="account-count-display" class="count-display">
+        <span id="account-stats">Loading account statistics...</span>
+    </div>
     <div id="auth-status" class="status-box">
         <p>No account authenticated</p>
     </div>
@@ -91,16 +93,7 @@
     </div>
 </div>
 
-html<!-- Add Account Modal (YOUR EXISTING MODAL - KEEP AS IS) -->
-<div id="addAccountModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeAddAccountModal()">&times;</span>
-        <h3>Add Account Manually</h3>
-        <form id="addAccountForm">
-            <!-- Your existing form content -->
-        </form>
-    </div>
-</div>
+
 
 <!-- OAuth Authorization Modal (ADD THIS NEW MODAL RIGHT HERE) -->
 <div id="oauthModal" class="modal">
@@ -393,6 +386,259 @@ let isAuthenticated = false;
 let selectedAccountFromList = null;
 let smtpTesting = false;
 let selectedDomain = null;
+
+async function loadTokenStatusWithLive() {
+    try {
+        console.log('=== Starting LIVE token status check ===');
+        
+        // Reset counters
+        let totalAccounts = 0;
+        let validAccounts = 0;
+        let invalidAccounts = 0;
+        
+        // Get list of accounts first
+        const accountItems = document.querySelectorAll('.account-item');
+        totalAccounts = accountItems.length;
+        
+        // Initialize display
+        updateAccountStats(totalAccounts, 0, 0, 'Checking...');
+        
+        // Check each account individually (LIVE UPDATES)
+        for (let item of accountItems) {
+            const accountName = item.textContent.trim();
+            
+            try {
+                // Show "checking" status
+                showAccountChecking(item, accountName);
+                
+                // Check this specific account
+                const isValid = await checkSingleAccountLive(accountName);
+                
+                // Update visual immediately
+                updateAccountVisual(item, accountName, isValid);
+                
+                // Update counters
+                if (isValid) {
+                    validAccounts++;
+                } else {
+                    invalidAccounts++;
+                }
+                
+                // Update stats in real-time
+                updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Checking...');
+                
+                // Update dropdown too
+                updateDropdownOption(accountName, isValid);
+                
+            } catch (error) {
+                console.error(`Error checking ${accountName}:`, error);
+                updateAccountVisual(item, accountName, false);
+                invalidAccounts++;
+                updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Checking...');
+            }
+        }
+        
+        // Final update
+        updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Complete');
+        
+        // Save results to cache/SFTP for persistence
+        await saveTokenStatusResults();
+        
+        console.log(`✅ Live check complete: ${validAccounts}/${totalAccounts} authenticated`);
+        
+    } catch (error) {
+        console.error('Live token status check failed:', error);
+    }
+}
+
+// Check single account status
+async function checkSingleAccountLive(accountName) {
+    try {
+        const response = await fetch('/api/check-token-status', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({account_name: accountName})
+        });
+        
+        const data = await response.json();
+        return data.success && data.is_valid;
+        
+    } catch (error) {
+        console.error(`Token check failed for ${accountName}:`, error);
+        return false;
+    }
+}
+
+// Show account being checked
+function showAccountChecking(item, accountName) {
+    const oldStatus = item.querySelector('.token-status');
+    if (oldStatus) oldStatus.remove();
+    
+    const statusSpan = document.createElement('span');
+    statusSpan.className = 'token-status checking';
+    statusSpan.textContent = ' 🔄';
+    statusSpan.style.cssText = 'float: right; margin-left: 10px; color: orange;';
+    item.appendChild(statusSpan);
+}
+
+// Update account visual status
+function updateAccountVisual(item, accountName, isValid) {
+    const oldStatus = item.querySelector('.token-status');
+    if (oldStatus) oldStatus.remove();
+    
+    const statusSpan = document.createElement('span');
+    statusSpan.className = isValid ? 'token-status valid' : 'token-status invalid';
+    statusSpan.textContent = isValid ? ' ✅' : ' ❌';
+    statusSpan.style.cssText = 'float: right; margin-left: 10px;';
+    item.appendChild(statusSpan);
+    
+    console.log(`✅ Updated ${accountName}: ${isValid ? 'Valid' : 'Invalid'}`);
+}
+
+// Update dropdown option
+function updateDropdownOption(accountName, isValid) {
+    const option = document.querySelector(`#account-select option[value="${accountName}"]`);
+    if (option) {
+        const cleanName = accountName;
+        option.textContent = `${cleanName} ${isValid ? '✅' : '❌'}`;
+    }
+}
+
+// Update stats counter in real-time
+function updateAccountStats(total, valid, invalid, status) {
+    const statsElement = document.getElementById('account-stats');
+    if (statsElement) {
+        const checked = valid + invalid;
+        statsElement.innerHTML = `
+            <span class="stat-item">Total: <strong>${total}</strong></span>
+            <span class="stat-item">Checked: <strong>${checked}/${total}</strong></span>
+            <span class="stat-item stat-valid">✅ Authenticated: <strong>${valid}</strong></span>
+            <span class="stat-item stat-invalid">❌ Need Auth: <strong>${invalid}</strong></span>
+            <span class="stat-item" style="color: #007bff;">Status: <strong>${status}</strong></span>
+        `;
+    }
+}
+
+// Save results for persistence (survives restart)
+async function saveTokenStatusResults() {
+    try {
+        // Collect current status with CLEAN account names
+        const results = {};
+        const accountItems = document.querySelectorAll('.account-item');
+        
+        accountItems.forEach(item => {
+            // Get ONLY the account name text, exclude status symbols
+            const accountNameElement = item.cloneNode(true);
+            
+            // Remove the status span to get clean account name
+            const statusSpan = accountNameElement.querySelector('.token-status');
+            if (statusSpan) {
+                statusSpan.remove();
+            }
+            
+            // Get clean account name
+            const accountName = accountNameElement.textContent.trim();
+            
+            // Get the actual status
+            const statusElement = item.querySelector('.token-status');
+            
+            if (statusElement && accountName) {
+                const isValid = statusElement.textContent.includes('✅');
+                results[accountName] = {
+                    is_valid: isValid,
+                    last_checked: new Date().toISOString()
+                };
+                
+                console.log(`Clean save: "${accountName}" = ${isValid}`);
+            }
+        });
+        
+        console.log('Saving results for', Object.keys(results).length, 'accounts');
+        
+        // Save to server for persistence
+        const response = await fetch('/api/save-token-status-cache', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({status_results: results})
+        });
+        
+        const data = await response.json();
+        console.log('Save response:', data);
+        
+    } catch (error) {
+        console.error('Failed to save token status results:', error);
+    }
+}
+
+// Load saved results on page load (for persistence)
+async function loadSavedTokenStatus() {
+    try {
+        const response = await fetch('/api/load-token-status-cache', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.status) {
+            console.log('Loading saved token status...');
+            displaySavedTokenStatus(data.status);
+            return true;
+        }
+        
+        return false;
+        
+    } catch (error) {
+        console.error('Failed to load saved token status:', error);
+        return false;
+    }
+}
+
+// Display saved status from cache
+function displaySavedTokenStatus(statusData) {
+    const accountItems = document.querySelectorAll('.account-item');
+    let totalAccounts = accountItems.length;
+    let validAccounts = 0;
+    let invalidAccounts = 0;
+    
+    accountItems.forEach(item => {
+        const accountName = item.textContent.trim();
+        
+        if (statusData[accountName]) {
+            const isValid = statusData[accountName].is_valid;
+            updateAccountVisual(item, accountName, isValid);
+            updateDropdownOption(accountName, isValid);
+            
+            if (isValid) {
+                validAccounts++;
+            } else {
+                invalidAccounts++;
+            }
+        }
+    });
+    
+    updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Loaded from cache');
+    console.log(`Loaded cached status: ${validAccounts}/${totalAccounts} authenticated`);
+}
+
+// Main function - try to load cache first, then do live check
+async function initializeTokenStatus() {
+    const hasCache = await loadSavedTokenStatus();
+    
+    if (!hasCache) {
+        console.log('No cache found, starting live check...');
+        await loadTokenStatusWithLive();
+    }
+}
+
+// Auto-refresh every 4 hours (but user can manually refresh anytime)
+setInterval(loadTokenStatusWithLive, 4 * 60 * 60 * 1000);
+
+// Load on page load
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initializeTokenStatus, 1000);
+});
+
 
 // Tab switching function
 function showTab(tabId) {
@@ -1566,6 +1812,7 @@ function generateUserCSV() {
     });
 }
 
+
 function previewCSV() {
     const numUsers = Math.min(document.getElementById('csv-num-users').value || 5, 10); // Preview max 10
     const domain = document.getElementById('csv-domain').value.trim() || 'example.com';
@@ -1595,6 +1842,8 @@ function previewCSV() {
         alert('Network error: ' + error);
     });
 }
+
+
 
 /*
 

@@ -965,3 +965,58 @@ textarea {
     text-decoration: none;
     border-radius: 4px;
 }
+
+.token-status {
+    font-size: 0.9rem;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+.token-status.valid {
+    color: #28a745;
+}
+
+.token-status.invalid {
+    color: #dc3545;
+}
+
+.account-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.account-item:hover {
+    background-color: #f8f9fa;
+}
+
+.account-item.selected {
+    background-color: #007bff;
+    color: white;
+}
+
+.count-display {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+.count-display .stat-item {
+    margin-right: 1rem;
+}
+
+.stat-valid {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.stat-invalid {
+    color: #dc3545;
+    font-weight: bold;
+}

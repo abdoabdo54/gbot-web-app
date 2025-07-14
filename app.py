@@ -206,8 +206,8 @@ def load_users_from_server():
     
     print("STARTUP: No users file found, using default admin/support")
     return {
-        'admin': {'password': 'admin123', 'role': 'admin'},
-        'support': {'password': 'support123', 'role': 'support'}
+        'admin': {'password': 'A9B3nX#Q8k$mZ6vw', 'role': 'admin'},
+        'support': {'password': 'SK7pW@R5j#nM4u2t', 'role': 'support'}
     }
 
 def save_users_to_server():
@@ -307,6 +307,103 @@ def get_client_ip():
     else:
         return request.remote_addr
 
+def load_token_status_cache():
+    """Load cached token status from SFTP"""
+    try:
+        for remote_path in [f"{REMOTE_DIR}token_status.json", f"{REMOTE_ALT_DIR}token_status.json"]:
+            try:
+                transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
+                transport.connect(username=USERNAME, password=PASSWORD)
+                sftp = paramiko.SFTPClient.from_transport(transport)
+                
+                with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                    sftp.get(remote_path, tmp_file.name)
+                    
+                with open(tmp_file.name, 'r') as f:
+                    cache_data = json.load(f)
+                
+                os.unlink(tmp_file.name)
+                sftp.close()
+                transport.close()
+                
+                return cache_data
+                
+            except Exception:
+                continue
+                
+        return {'status': {}, 'last_updated': '2000-01-01T00:00:00'}
+        
+    except Exception as e:
+        return {'status': {}, 'last_updated': '2000-01-01T00:00:00'}
+
+def save_token_status_cache(cache_data):
+    """Save token status cache to SFTP"""
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp_file:
+            json.dump(cache_data, tmp_file, indent=2)
+            tmp_file_path = tmp_file.name
+        
+        for remote_path in [f"{REMOTE_DIR}token_status.json", f"{REMOTE_ALT_DIR}token_status.json"]:
+            try:
+                transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
+                transport.connect(username=USERNAME, password=PASSWORD)
+                sftp = paramiko.SFTPClient.from_transport(transport)
+                
+                sftp.put(tmp_file_path, remote_path)
+                
+                sftp.close()
+                transport.close()
+                print(f"Token status cache saved to {remote_path}")
+                break
+                
+            except Exception:
+                continue
+        
+        os.unlink(tmp_file_path)
+        
+    except Exception as e:
+        print(f"Failed to save token status cache: {e}")
+
+@app.route('/api/save-token-status-cache', methods=['POST'])
+@login_required
+def api_save_token_status_cache():
+    """Save token status results for persistence"""
+    try:
+        data = request.get_json()
+        status_results = data.get('status_results', {})
+        
+        cache_data = {
+            'status': status_results,
+            'last_updated': datetime.now().isoformat(),
+            'total_accounts': len(status_results)
+        }
+        
+        # Save to SFTP
+        save_token_status_cache(cache_data)
+        
+        print(f"Token status saved: {len(status_results)} accounts")
+        return jsonify({'success': True, 'message': 'Token status saved'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/load-token-status-cache', methods=['POST'])
+@login_required
+def api_load_token_status_cache():
+    """Load saved token status for persistence"""
+    try:
+        cache_data = load_token_status_cache()
+        
+        if cache_data and cache_data.get('status'):
+            print(f"Token status loaded: {len(cache_data['status'])} accounts")
+            return jsonify({'success': True, 'status': cache_data['status']})
+        else:
+            print("No token status cache found")
+            return jsonify({'success': False, 'message': 'No cache found'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+        
 @app.route('/users')
 @login_required
 def users():
@@ -535,6 +632,20 @@ def api_add_account():
             
     except Exception as e:
         logging.error(f"Add account error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/check-token-status', methods=['POST'])
+@login_required
+def api_check_token_status():
+    try:
+        data = request.get_json()
+        account_name = data.get('account_name')
+        
+        # Check if token exists and is valid
+        is_valid = google_api.is_token_valid(account_name)
+        
+        return jsonify({'success': True, 'is_valid': is_valid})
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/delete-account', methods=['POST'])
@@ -1241,6 +1352,7 @@ def api_clear_used_domains():
             
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
 
 def test_smtp_credentials(credential_lines, recipient_email, smtp_server, smtp_port):
     """Test SMTP credentials"""

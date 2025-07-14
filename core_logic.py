@@ -58,7 +58,29 @@ class WebGoogleAPI:
                 logging.warning(f"Failed to load tokens from {remote_path}: {e}")
                 continue
         return {}
-    
+
+    def get_credentials(self, account_name):
+        """Get credentials for account"""
+        try:
+            tokens = self.load_tokens_from_server()
+            if account_name not in tokens:
+                return None
+            
+            data = tokens[account_name]
+            creds = Credentials(
+                token=data['token'],
+                refresh_token=data['refresh_token'],
+                token_uri=data['token_uri'],
+                client_id=data['client_id'],
+                client_secret=data['client_secret'],
+                scopes=data.get('scopes', SCOPES)
+            )
+            
+            return creds
+        except Exception as e:
+            logging.error(f"Error getting credentials for {account_name}: {e}")
+            return None
+
     def has_valid_tokens(self, account_name):
         """Check if account has valid tokens"""
         try:
@@ -351,6 +373,42 @@ class WebGoogleAPI:
         except Exception as e:
             logging.error(f"Unexpected error updating email for {old_email}: {e}")
             return {"success": False, "error": str(e)}
+
+    def is_token_valid(self, account_name):
+        """Check if account has a valid token by testing it"""
+        try:
+            tokens = self.load_tokens_from_server()
+            if account_name not in tokens:
+                return False
+            
+            # Get credentials
+            data = tokens[account_name]
+            creds = Credentials(
+                token=data['token'],
+                refresh_token=data['refresh_token'],
+                token_uri=data['token_uri'],
+                client_id=data['client_id'],
+                client_secret=data['client_secret'],
+                scopes=data.get('scopes', SCOPES)
+            )
+            
+            # If expired, try to refresh
+            if creds.expired and creds.refresh_token:
+                creds.refresh(google.auth.transport.requests.Request())
+            
+            # Test the token by making a simple API call
+            if creds.valid:
+                from googleapiclient.discovery import build
+                service = build('admin', 'directory_v1', credentials=creds)
+                # Simple test call
+                service.users().list(customer='my_customer', maxResults=1).execute()
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logging.error(f"Token validation failed for {account_name}: {e}")
+            return False
 
 # Global instance
 google_api = WebGoogleAPI()
