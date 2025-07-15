@@ -33,6 +33,11 @@
         <button onclick="refreshAccounts()">🔄 Refresh List</button>
         <button onclick="addFromServerJSON()">📁 Add from Server JSON</button>
         <button onclick="backupFiles()">💾 Backup Files</button>
+        {% if session.role == 'admin' %}
+        <button onclick="forceTokenStatusCheck()" class="btn btn-warning">
+            🔍 Check Token Status Now (Admin)
+        </button>
+        {% endif %}    
     </div>
     
     <!-- Search and Account List Area -->
@@ -405,7 +410,13 @@ async function loadTokenStatusWithLive() {
         
         // Check each account individually (LIVE UPDATES)
         for (let item of accountItems) {
-            const accountName = item.textContent.trim();
+            // FIX: Clean the account name - remove status symbols
+            const itemCopy = item.cloneNode(true);
+            const statusSpan = itemCopy.querySelector('.token-status');
+            if (statusSpan) {
+                statusSpan.remove();
+            }
+            const accountName = itemCopy.textContent.trim();
             
             try {
                 // Show "checking" status
@@ -427,7 +438,7 @@ async function loadTokenStatusWithLive() {
                 // Update stats in real-time
                 updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Checking...');
                 
-                // Update dropdown too
+                // Update dropdown too (with clean name)
                 updateDropdownOption(accountName, isValid);
                 
             } catch (error) {
@@ -497,10 +508,25 @@ function updateAccountVisual(item, accountName, isValid) {
 
 // Update dropdown option
 function updateDropdownOption(accountName, isValid) {
-    const option = document.querySelector(`#account-select option[value="${accountName}"]`);
-    if (option) {
-        const cleanName = accountName;
-        option.textContent = `${cleanName} ${isValid ? '✅' : '❌'}`;
+    // Clean account name for selector (escape special characters)
+    const cleanAccountName = accountName.replace(/[^a-zA-Z0-9@.\-_]/g, '');
+    
+    try {
+        // Try to find option by value
+        const option = document.querySelector(`#account-select option[value="${accountName}"]`);
+        if (option) {
+            option.textContent = `${accountName} ${isValid ? '✅' : '❌'}`;
+        } else {
+            // If not found, try finding by text content
+            const allOptions = document.querySelectorAll('#account-select option');
+            allOptions.forEach(opt => {
+                if (opt.value === accountName || opt.textContent.includes(accountName)) {
+                    opt.textContent = `${accountName} ${isValid ? '✅' : '❌'}`;
+                }
+            });
+        }
+    } catch (error) {
+        console.error(`Error updating dropdown for ${accountName}:`, error);
     }
 }
 
@@ -631,8 +657,8 @@ async function initializeTokenStatus() {
     }
 }
 
-// Auto-refresh every 4 hours (but user can manually refresh anytime)
-setInterval(loadTokenStatusWithLive, 4 * 60 * 60 * 1000);
+// Auto-refresh every 8 hours (but user can manually refresh anytime)
+setInterval(loadTokenStatusWithLive, 8 * 60 * 60 * 1000);
 
 // Load on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -1081,8 +1107,11 @@ function authenticateFromList() {
     
     // Set the dropdown to selected account and authenticate
     document.getElementById('account-select').value = selectedAccountFromList;
+    
+    // Call the updated authenticate function
     authenticateAccount();
 }
+
 
 function deleteFromList() {
     if (!selectedAccountFromList) {
@@ -1131,6 +1160,112 @@ function refreshAccountsDisplay() {
     .catch(error => {
         alert('❌ Network error: ' + error);
     });
+}
+
+// Admin-only manual token status check
+function forceTokenStatusCheck() {
+    if (confirm('🔍 Force token status check for all 332 accounts?\n\nThis will take 3-5 minutes to complete.')) {
+        console.log('Admin triggered manual token status check');
+        
+        // Clear any existing cache to force fresh check
+        tokenStatusCache = {};
+        lastTokenCheck = null;
+        
+        // Update status display
+        updateAccountStats(0, 0, 0, 'Admin check starting...');
+        
+        // Start live check
+        loadTokenStatusWithLive();
+    }
+}
+
+function authenticateAccount() {
+    const select = document.getElementById('account-select');
+    const accountName = select.value;
+    
+    if (!accountName) {
+        alert('Please select an account first');
+        return;
+    }
+    
+    updateAuthStatus(accountName, false, 'Authenticating...');
+    
+    fetch('/api/authenticate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({account_name: accountName})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateAuthStatus(accountName, true, data.message);
+            
+            // UPDATE THE VISUAL STATUS IMMEDIATELY
+            updateAccountStatusAfterAuth(accountName, true);
+            
+        } else if (data.oauth_required) {
+            updateAuthStatus(accountName, false, 'OAuth required');
+            showOAuthModal(data.oauth_url);
+        } else {
+            updateAuthStatus(accountName, false, data.error);
+        }
+    })
+    .catch(error => {
+        updateAuthStatus(accountName, false, 'Network error: ' + error);
+    });
+}
+
+function updateAccountStatusAfterAuth(accountName, isAuthenticated) {
+    // Update the account in the list
+    const accountItems = document.querySelectorAll('.account-item');
+    
+    accountItems.forEach(item => {
+        const itemAccountName = item.textContent.trim().split('\n')[0].trim();
+        
+        if (itemAccountName === accountName) {
+            // Remove old status
+            const oldStatus = item.querySelector('.token-status');
+            if (oldStatus) oldStatus.remove();
+            
+            // Add new status
+            const statusSpan = document.createElement('span');
+            statusSpan.className = isAuthenticated ? 'token-status valid' : 'token-status invalid';
+            statusSpan.textContent = isAuthenticated ? ' ✅' : ' ❌';
+            statusSpan.style.cssText = 'float: right; margin-left: 10px;';
+            item.appendChild(statusSpan);
+            
+            console.log(`Updated ${accountName} status to: ${isAuthenticated ? 'Valid' : 'Invalid'}`);
+        }
+    });
+    
+    // Update dropdown
+    const option = document.querySelector(`#account-select option[value="${accountName}"]`);
+    if (option) {
+        option.textContent = `${accountName} ${isAuthenticated ? '✅' : '❌'}`;
+    }
+    
+    // Update counter
+    updateCountersAfterChange();
+}
+
+function updateCountersAfterChange() {
+    const accountItems = document.querySelectorAll('.account-item');
+    let totalAccounts = accountItems.length;
+    let validAccounts = 0;
+    let invalidAccounts = 0;
+    
+    accountItems.forEach(item => {
+        const statusElement = item.querySelector('.token-status');
+        if (statusElement) {
+            if (statusElement.textContent.includes('✅')) {
+                validAccounts++;
+            } else {
+                invalidAccounts++;
+            }
+        }
+    });
+    
+    updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Updated');
 }
 
 // Placeholder functions for buttons that need implementation

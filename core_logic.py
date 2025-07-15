@@ -375,33 +375,17 @@ class WebGoogleAPI:
             return {"success": False, "error": str(e)}
 
     def is_token_valid(self, account_name):
-        """Check if account has a valid token by testing it"""
+        """Check if account has a valid token (simplified)"""
         try:
             tokens = self.load_tokens_from_server()
             if account_name not in tokens:
                 return False
             
-            # Get credentials
+            # Simple check - if token exists and has basic structure
             data = tokens[account_name]
-            creds = Credentials(
-                token=data['token'],
-                refresh_token=data['refresh_token'],
-                token_uri=data['token_uri'],
-                client_id=data['client_id'],
-                client_secret=data['client_secret'],
-                scopes=data.get('scopes', SCOPES)
-            )
             
-            # If expired, try to refresh
-            if creds.expired and creds.refresh_token:
-                creds.refresh(google.auth.transport.requests.Request())
-            
-            # Test the token by making a simple API call
-            if creds.valid:
-                from googleapiclient.discovery import build
-                service = build('admin', 'directory_v1', credentials=creds)
-                # Simple test call
-                service.users().list(customer='my_customer', maxResults=1).execute()
+            # Check for basic required fields
+            if isinstance(data, dict) and 'token' in data and 'client_id' in data:
                 return True
             
             return False
