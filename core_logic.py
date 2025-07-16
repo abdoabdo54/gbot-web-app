@@ -146,7 +146,7 @@ class WebGoogleAPI:
             return False
     
     def get_oauth_url(self, account_name, accounts_data):
-        """Generate OAuth URL EXACTLY like working desktop app"""
+        """Generate OAuth URL for web version"""
         try:
             creds_data = accounts_data[account_name]
             
@@ -158,15 +158,15 @@ class WebGoogleAPI:
                     "token_uri": "https://oauth2.googleapis.com/token", 
                     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs", 
                     "client_secret": creds_data['client_secret'], 
-                    # UPDATE THIS TOO:
-                    "redirect_uris": ["http://localhost:3000/oauth-callback"]
+                    # CHANGE THIS TO YOUR DOMAIN:
+                    "redirect_uris": ["http://gworkspace.edutrack.shop/oauth-callback"]
                 }
             }
             
             flow = InstalledAppFlow.from_client_config(flow_config, SCOPES)
             
-            # UPDATE THIS:
-            flow.redirect_uri = "http://localhost:3000/oauth-callback"
+            # CHANGE THIS TO YOUR DOMAIN:
+            flow.redirect_uri = "http://gworkspace.edutrack.shop/oauth-callback"
             
             auth_url, state = flow.authorization_url(
                 access_type='offline',
