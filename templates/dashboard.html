@@ -37,6 +37,7 @@
         <button onclick="forceTokenStatusCheck()" class="btn btn-warning">
             🔍 Check Token Status Now (Admin)
         </button>
+        <button onclick="enterAuthorizationCode()">📝 Enter Authorization Code</button>
         <button onclick="completeOAuthWithCode()">📝 Complete OAuth with Code</button>
         {% endif %}    
     </div>
@@ -722,6 +723,43 @@ async function copyToClipboard(text) {
         console.error('Copy failed:', err);
         return false;
     }
+}
+
+function enterAuthorizationCode() {
+    const accountName = document.getElementById('account-select').value;
+    
+    if (!accountName) {
+        alert('Please select an account first');
+        return;
+    }
+    
+    const authCode = prompt('Paste the authorization code from the authentication page:');
+    
+    if (!authCode) {
+        return;
+    }
+    
+    // Complete authentication with code
+    fetch('/api/complete-oauth', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            auth_code: authCode.trim(),
+            account_name: accountName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Authentication completed successfully!');
+            updateAccountStatusAfterAuth(accountName, true);
+        } else {
+            alert('❌ Authentication failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('❌ Network error: ' + error);
+    });
 }
 
 function copyResultsLog() {

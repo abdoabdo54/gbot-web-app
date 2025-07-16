@@ -636,7 +636,7 @@ def api_add_account():
 
 @app.route('/oauth-callback')
 def oauth_callback():
-    """Handle OAuth callback for localhost testing"""
+    """Show code for manual entry in main app"""
     try:
         code = request.args.get('code')
         
@@ -644,9 +644,43 @@ def oauth_callback():
             return "❌ No authorization code received", 400
         
         return f"""
-        <h2>✅ OAuth Success!</h2>
-        <p>Code: {code}</p>
-        <p><a href="/">Return to Dashboard</a></p>
+        <html>
+        <head><title>✅ Authentication Code Ready</title></head>
+        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5;">
+            <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <h2 style="color: #28a745;">✅ Authentication Successful!</h2>
+                <p style="font-size: 18px; margin: 20px 0;">Copy this authorization code:</p>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border: 2px dashed #28a745; margin: 20px 0;">
+                    <input type="text" value="{code}" readonly onclick="this.select()" 
+                           style="width: 100%; padding: 10px; font-family: monospace; font-size: 14px; border: none; background: transparent; text-align: center;">
+                </div>
+                
+                <p style="color: #666; margin: 20px 0;"><strong>Next Steps:</strong></p>
+                <ol style="text-align: left; max-width: 400px; margin: 0 auto; color: #666;">
+                    <li>Click in the box above to select the code</li>
+                    <li>Copy it (Ctrl+C or Cmd+C)</li>
+                    <li>Return to your main app browser</li>
+                    <li>Paste the code to complete authentication</li>
+                </ol>
+                
+                <div style="margin-top: 30px;">
+                    <button onclick="copyCode()" style="background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
+                        📋 Copy Code
+                    </button>
+                </div>
+            </div>
+            
+            <script>
+                function copyCode() {{
+                    const input = document.querySelector('input');
+                    input.select();
+                    document.execCommand('copy');
+                    alert('✅ Code copied to clipboard!');
+                }}
+            </script>
+        </body>
+        </html>
         """
         
     except Exception as e:
