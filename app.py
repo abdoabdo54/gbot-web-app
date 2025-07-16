@@ -572,7 +572,7 @@ def api_authenticate():
         if account_name not in accounts:
             return jsonify({'success': False, 'error': 'Account not found'})
         
-        # Check for existing tokens first
+        # Check for existing tokens firstn 
         if google_api.has_valid_tokens(account_name):
             success = google_api.authenticate_with_tokens(account_name)
             if success:
@@ -632,6 +632,73 @@ def api_add_account():
             
     except Exception as e:
         logging.error(f"Add account error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/oauth-callback')
+def oauth_callback():
+    """Handle OAuth callback for localhost testing"""
+    try:
+        code = request.args.get('code')
+        
+        if not code:
+            return "❌ No authorization code received", 400
+        
+        return f"""
+        <h2>✅ OAuth Success!</h2>
+        <p>Code: {code}</p>
+        <p><a href="/">Return to Dashboard</a></p>
+        """
+        
+    except Exception as e:
+        return f"❌ Error: {str(e)}", 500
+
+@app.route('/api/complete-oauth', methods=['POST'])
+@login_required
+def api_complete_oauth():
+    """Complete OAuth with authorization code"""
+    try:
+        data = request.get_json()
+        auth_code = data.get('auth_code')
+        account_name = data.get('account_name')
+        
+        if not auth_code or not account_name:
+            return jsonify({'success': False, 'error': 'Code and account name required'})
+        
+        # Load account credentials
+        accounts = google_api.load_accounts_from_server()
+        if account_name not in accounts:
+            return jsonify({'success': False, 'error': 'Account not found'})
+        
+        creds_data = accounts[account_name]
+        
+        # Exchange code for tokens (same as V13 desktop)
+        flow_config = {
+            "installed": {
+                "client_id": creds_data['client_id'],
+                "project_id": "gbot-project",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth", 
+                "token_uri": "https://oauth2.googleapis.com/token", 
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs", 
+                "client_secret": creds_data['client_secret'], 
+                "redirect_uris": ["http://localhost:3000/oauth-callback"]
+            }
+        }
+        
+        flow = InstalledAppFlow.from_client_config(flow_config, SCOPES)
+        flow.redirect_uri = "http://localhost:3000/oauth-callback"
+        
+        # Exchange code for credentials (like V13 desktop)
+        flow.fetch_token(code=auth_code)
+        credentials = flow.credentials
+        
+        # Save tokens (like V13 desktop)
+        current_tokens = google_api.load_tokens_from_server()
+        current_tokens[account_name] = json.loads(credentials.to_json())
+        google_api.save_tokens_to_server(current_tokens)
+        
+        return jsonify({'success': True, 'message': f'Authentication completed for {account_name}'})
+        
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/check-token-status', methods=['POST'])

@@ -37,6 +37,7 @@
         <button onclick="forceTokenStatusCheck()" class="btn btn-warning">
             🔍 Check Token Status Now (Admin)
         </button>
+        <button onclick="completeOAuthWithCode()">📝 Complete OAuth with Code</button>
         {% endif %}    
     </div>
     
@@ -761,6 +762,7 @@ function authenticateAccount() {
         return;
     }
     
+    console.log('DEBUG: Authenticating account:', accountName);
     updateAuthStatus(accountName, false, 'Authenticating...');
     
     fetch('/api/authenticate', {
@@ -770,20 +772,63 @@ function authenticateAccount() {
     })
     .then(response => response.json())
     .then(data => {
+        console.log('DEBUG: API response:', data);
+        
         if (data.success) {
             updateAuthStatus(accountName, true, data.message);
-        } else if (data.oauth_required) {
-            updateAuthStatus(accountName, false, 'OAuth required');
+            
+            // UPDATE THE VISUAL STATUS IMMEDIATELY
+            updateAccountStatusAfterAuth(accountName, true);
+            
+        } else if (data.oauth_required && data.oauth_url) {
+            console.log('DEBUG: OAuth URL received:', data.oauth_url);
+            updateAuthStatus(accountName, false, 'OAuth URL generated - opening...');
+            
+            // Show OAuth modal with the URL
             showOAuthModal(data.oauth_url);
-        }
-         else {
-            updateAuthStatus(accountName, false, data.error);
+            
+        } else {
+            console.error('DEBUG: Authentication failed:', data.error);
+            updateAuthStatus(accountName, false, data.error || 'Authentication failed');
         }
     })
     .catch(error => {
+        console.error('DEBUG: Network error:', error);
         updateAuthStatus(accountName, false, 'Network error: ' + error);
     });
 }
+
+function completeOAuthWithCode() {
+    const authCode = prompt('Paste the authorization code from the OAuth success page:');
+    const accountName = document.getElementById('account-select').value;
+    
+    if (!authCode || !accountName) {
+        alert('Code and account selection required');
+        return;
+    }
+    
+    fetch('/api/complete-oauth', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            auth_code: authCode.trim(),
+            account_name: accountName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Authentication completed successfully!');
+            updateAccountStatusAfterAuth(accountName, true);
+        } else {
+            alert('❌ Authentication failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('❌ Network error: ' + error);
+    });
+}
+
 
 // OAuth Modal functions
 function showOAuthModal(authUrl) {
@@ -1177,42 +1222,6 @@ function forceTokenStatusCheck() {
         // Start live check
         loadTokenStatusWithLive();
     }
-}
-
-function authenticateAccount() {
-    const select = document.getElementById('account-select');
-    const accountName = select.value;
-    
-    if (!accountName) {
-        alert('Please select an account first');
-        return;
-    }
-    
-    updateAuthStatus(accountName, false, 'Authenticating...');
-    
-    fetch('/api/authenticate', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({account_name: accountName})
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            updateAuthStatus(accountName, true, data.message);
-            
-            // UPDATE THE VISUAL STATUS IMMEDIATELY
-            updateAccountStatusAfterAuth(accountName, true);
-            
-        } else if (data.oauth_required) {
-            updateAuthStatus(accountName, false, 'OAuth required');
-            showOAuthModal(data.oauth_url);
-        } else {
-            updateAuthStatus(accountName, false, data.error);
-        }
-    })
-    .catch(error => {
-        updateAuthStatus(accountName, false, 'Network error: ' + error);
-    });
 }
 
 function updateAccountStatusAfterAuth(accountName, isAuthenticated) {
