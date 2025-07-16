@@ -159,14 +159,14 @@ class WebGoogleAPI:
                     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs", 
                     "client_secret": creds_data['client_secret'], 
                     # CHANGE THIS TO YOUR DOMAIN:
-                    "redirect_uris": ["http://gworkspace.edutrack.shop/oauth-callback"]
+                    "redirect_uris": ["https://gworkspace.edutrack.shop/oauth-callback"]
                 }
             }
             
             flow = InstalledAppFlow.from_client_config(flow_config, SCOPES)
             
             # CHANGE THIS TO YOUR DOMAIN:
-            flow.redirect_uri = "http://gworkspace.edutrack.shop/oauth-callback"
+            flow.redirect_uri = "https://gworkspace.edutrack.shop/oauth-callback"
             
             auth_url, state = flow.authorization_url(
                 access_type='offline',
