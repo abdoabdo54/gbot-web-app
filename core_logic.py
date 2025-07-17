@@ -170,7 +170,7 @@ class WebGoogleAPI:
             
             auth_url, state = flow.authorization_url(
                 access_type='offline',
-                prompt='select_account',
+                prompt='consent',
                 include_granted_scopes='true'
             )
             
