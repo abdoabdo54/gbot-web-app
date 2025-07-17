@@ -113,7 +113,40 @@ class WebGoogleAPI:
         except Exception as e:
             logging.error(f"Error checking tokens for {account_name}: {e}")
             return False
-    
+
+    def save_tokens_to_server(self, tokens_data):
+        """Save tokens.json to SFTP server"""
+        try:
+            # Convert to JSON string
+            json_content = json.dumps(tokens_data, indent=2)
+            
+            # Try to save to both possible locations
+            for remote_path in [f"{REMOTE_DIR}tokens.json", f"{REMOTE_ALT_DIR}tokens.json"]:
+                try:
+                    transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
+                    transport.connect(username=USERNAME, password=PASSWORD)
+                    sftp = paramiko.SFTPClient.from_transport(transport)
+                    
+                    with sftp.open(remote_path, 'w') as f:
+                        f.write(json_content)
+                    
+                    sftp.close()
+                    transport.close()
+                    
+                    logging.info(f"Tokens saved to {remote_path}")
+                    return True
+                    
+                except Exception as e:
+                    logging.warning(f"Failed to save tokens to {remote_path}: {e}")
+                    continue
+            
+            logging.error("Failed to save tokens to any location")
+            return False
+            
+        except Exception as e:
+            logging.error(f"Error saving tokens: {e}")
+            return False
+
     def authenticate_with_tokens(self, account_name):
         """Authenticate using existing tokens"""
         try:
@@ -229,39 +262,6 @@ class WebGoogleAPI:
         except Exception as e:
             logging.error(f"Unexpected error retrieving users: {e}")
             return {"error": f"Error: {e}"}
-    
-    def save_tokens_to_server(self, tokens_data):
-    """Save tokens.json to SFTP server"""
-    try:
-        # Convert to JSON string
-        json_content = json.dumps(tokens_data, indent=2)
-        
-        # Try to save to both possible locations
-        for remote_path in [f"{REMOTE_DIR}tokens.json", f"{REMOTE_ALT_DIR}tokens.json"]:
-            try:
-                transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
-                transport.connect(username=USERNAME, password=PASSWORD)
-                sftp = paramiko.SFTPClient.from_transport(transport)
-                
-                with sftp.open(remote_path, 'w') as f:
-                    f.write(json_content)
-                
-                sftp.close()
-                transport.close()
-                
-                logging.info(f"Tokens saved to {remote_path}")
-                return True
-                
-            except Exception as e:
-                logging.warning(f"Failed to save tokens to {remote_path}: {e}")
-                continue
-        
-        logging.error("Failed to save tokens to any location")
-        return False
-        
-    except Exception as e:
-        logging.error(f"Error saving tokens: {e}")
-        return False
     
     def list_suspended_users(self):
         """Get suspended users"""
