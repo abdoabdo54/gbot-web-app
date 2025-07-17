@@ -714,12 +714,12 @@ def api_complete_oauth():
                 "token_uri": "https://oauth2.googleapis.com/token", 
                 "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs", 
                 "client_secret": creds_data['client_secret'], 
-                "redirect_uris": ["http://localhost:3000/oauth-callback"]
+                "redirect_uris": ["https://gworkspace.edutrack.shop/oauth-callback"]
             }
         }
         
         flow = InstalledAppFlow.from_client_config(flow_config, SCOPES)
-        flow.redirect_uri = "http://localhost:3000/oauth-callback"
+        flow.redirect_uri = "https://gworkspace.edutrack.shop/oauth-callback"
         
         # Exchange code for credentials (like V13 desktop)
         flow.fetch_token(code=auth_code)
