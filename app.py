@@ -5,6 +5,7 @@ import logging
 import tempfile
 import os
 from datetime import datetime
+from google_auth_oauthlib.flow import InstalledAppFlow
 from core_logic import google_api
 from config import SECRET_KEY, WHITELIST_TOKEN, REMOTE_DIR, REMOTE_ALT_DIR, SERVER_ADDRESS, SERVER_PORT, USERNAME, PASSWORD
 import paramiko
@@ -22,6 +23,11 @@ import json
 import os
 print(f"DEBUG: SFTP_PASSWORD loaded: {'✓' if os.environ.get('SFTP_PASSWORD') else '✗'}")
 print(f"DEBUG: SECRET_KEY loaded: {'✓' if os.environ.get('SECRET_KEY') else '✗'}")
+
+SCOPES = [
+    'https://www.googleapis.com/auth/admin.directory.user',
+    'https://www.googleapis.com/auth/admin.directory.domain'
+]
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
