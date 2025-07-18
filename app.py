@@ -1317,6 +1317,8 @@ def api_change_domain_all_users():
 @app.route('/api/mark-domain-used', methods=['POST'])
 @login_required
 def api_mark_domain_used():
+    print(f"DEBUG: mark-domain-used called from IP: {get_client_ip()}")
+    print(f"DEBUG: allowed_ips: {list(allowed_ips)}")
     try:
         data = request.get_json()
         domain = data.get('domain')

@@ -1786,7 +1786,6 @@ function changeDomainForAllUsers() {
     }
     
     logBulkDomain(`🔄 Starting bulk domain change: ${currentDomain} → ${newDomain}`);
-    logBulkDomain(`📋 Targeting all non-admin users with domain: ${currentDomain}`);
     
     fetch('/api/change-domain-all-users', {
         method: 'POST',
@@ -1797,10 +1796,18 @@ function changeDomainForAllUsers() {
             exclude_admin: true
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        // Check if response is actually JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             if (data.successful > 0) {
+                // Only mark domain as used if there were successful changes
                 fetch('/api/mark-domain-used', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -1827,8 +1834,9 @@ function changeDomainForAllUsers() {
         }
     })
     .catch(error => {
-        logBulkDomain(`❌ Network error: ${error}`);
-        alert('Network error: ' + error);
+        logBulkDomain(`❌ Network error: ${error.message}`);
+        console.error('Full error:', error);
+        alert('Network error: ' + error.message);
     });
 }
 
