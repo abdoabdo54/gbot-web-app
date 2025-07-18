@@ -1253,51 +1253,60 @@ def api_change_domain_all_users():
         failed = 0
         skipped = 0
         
-        for user in target_users:
+        # FAST VERSION - Process in parallel
+        from concurrent.futures import ThreadPoolExecutor
+        import threading
+        
+        def process_single_user(user):
             old_email = user.get('email')
             
             # Skip admin users
             if exclude_admin and user.get('admin', False):
-                results.append({
+                return {
                     'email': old_email,
                     'skipped': True,
                     'reason': 'Admin user excluded'
-                })
-                skipped += 1
-                continue
+                }
             
             # Generate new email
             new_email = old_email.replace(current_domain, new_domain)
             
-            # In a real implementation, you would call Google API to update the user
-            # For now, simulate the update
             try:
-                # Simulate API call
                 update_success = update_user_domain_real(old_email, new_email)
                 
                 if update_success:
-                    results.append({
+                    return {
                         'old_email': old_email,
                         'new_email': new_email,
                         'success': True
-                    })
-                    successful += 1
+                    }
                 else:
-                    results.append({
+                    return {
                         'email': old_email,
                         'success': False,
                         'error': 'Domain update failed'
-                    })
-                    failed += 1
+                    }
                     
             except Exception as e:
-                results.append({
+                return {
                     'email': old_email,
                     'success': False,
                     'error': str(e)
-                })
-                failed += 1
+                }
         
+        # Process all users in parallel (MUCH FASTER)
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            results = list(executor.map(process_single_user, target_users))
+        
+        # Count results
+        for result in results:
+            if result.get('skipped'):
+                skipped += 1
+            elif result.get('success'):
+                successful += 1
+            else:
+                failed += 1
+                        
         return jsonify({
             'success': True,
             'results': results,
