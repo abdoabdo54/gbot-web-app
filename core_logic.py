@@ -430,5 +430,45 @@ class WebGoogleAPI:
             logging.error(f"Token validation failed for {account_name}: {e}")
             return False
 
+    def batch_update_user_emails(self, email_changes):
+        """REAL batch update using Google API - actually changes domains"""
+        if not self.service:
+            return {"success": False, "error": "Not authenticated"}
+        
+        try:
+            batch_results = []
+            
+            # Process in chunks of 100 (Google's limit)
+            chunk_size = 100
+            for i in range(0, len(email_changes), chunk_size):
+                chunk = email_changes[i:i + chunk_size]
+                
+                for old_email, new_email in chunk:
+                    try:
+                        # REAL Google API call
+                        result = self.service.users().update(
+                            userKey=old_email,
+                            body={'primaryEmail': new_email}
+                        ).execute()
+                        
+                        batch_results.append({
+                            'old_email': old_email,
+                            'new_email': new_email,
+                            'success': True
+                        })
+                        
+                    except Exception as e:
+                        batch_results.append({
+                            'old_email': old_email,
+                            'new_email': new_email, 
+                            'success': False,
+                            'error': str(e)
+                        })
+            
+            return {"success": True, "results": batch_results}
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
 # Global instance
 google_api = WebGoogleAPI()

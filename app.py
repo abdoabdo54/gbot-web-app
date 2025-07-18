@@ -1247,17 +1247,16 @@ def api_change_domain_all_users():
                 'message': f'No users found with domain {current_domain}'
             })
         
-        # Process domain changes
+# Process domain changes - REAL BATCH VERSION
         results = []
         successful = 0
         failed = 0
         skipped = 0
         
-        # INSTANT VERSION - No API calls during bulk operation
+        # Prepare email changes for batch processing
+        email_changes = []
         for user in target_users:
             old_email = user.get('email')
-            
-            # Skip admin users
             if exclude_admin and user.get('admin', False):
                 results.append({
                     'email': old_email,
@@ -1266,20 +1265,28 @@ def api_change_domain_all_users():
                 })
                 skipped += 1
                 continue
-            
-            # Generate new email
             new_email = old_email.replace(current_domain, new_domain)
-            
-            # INSTANT - Just mark as successful without API call
-            results.append({
-                'old_email': old_email,
-                'new_email': new_email,
-                'success': True
-            })
-            successful += 1
+            email_changes.append((old_email, new_email))
         
-        print(f"DEBUG: Instant processing - marked {successful} users for domain change")
-                        
+        # REAL batch processing that actually changes domains
+        if email_changes:
+            print(f"DEBUG: Batch processing {len(email_changes)} users...")
+            batch_result = google_api.batch_update_user_emails(email_changes)
+            
+            if batch_result.get('success'):
+                results.extend(batch_result['results'])
+                successful = sum(1 for r in batch_result['results'] if r['success'])
+                failed = sum(1 for r in batch_result['results'] if not r['success'])
+                print(f"DEBUG: Batch complete - {successful} success, {failed} failed")
+            else:
+                failed = len(email_changes)
+                for old_email, new_email in email_changes:
+                    results.append({
+                        'email': old_email,
+                        'success': False,
+                        'error': batch_result['error']
+                    })
+                                            
         return jsonify({
             'success': True,
             'results': results,
