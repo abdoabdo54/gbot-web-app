@@ -579,7 +579,7 @@ def api_authenticate():
             return jsonify({'success': False, 'error': 'Account not found'})
         
         # Check for existing tokens firstn 
-        if google_api.has_valid_tokens(account_name):
+        if google_api.is_token_valid(account_name):
             success = google_api.authenticate_with_tokens(account_name)
             if success:
                 session['authenticated_account'] = account_name
