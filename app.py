@@ -1340,6 +1340,7 @@ def api_get_used_domains():
 
 def save_accounts_to_server(accounts):
     """Save accounts back to SFTP server"""
+    print(f"DEBUG: save_accounts_to_server called with {len(accounts)} accounts")
     try:
         import tempfile
         import json
