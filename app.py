@@ -1286,7 +1286,7 @@ def api_change_domain_all_users():
                         'success': False,
                         'error': batch_result['error']
                     })
-                                            
+
         return jsonify({
             'success': True,
             'results': results,
@@ -1349,6 +1349,8 @@ def save_accounts_to_server(accounts):
             json.dump(accounts, tmp_file, indent=2)
             tmp_file_path = tmp_file.name
         
+        success = False
+        
         # Upload to server
         for remote_path in [f"{REMOTE_DIR}accounts.json", f"{REMOTE_ALT_DIR}accounts.json"]:
             try:
@@ -1361,17 +1363,46 @@ def save_accounts_to_server(accounts):
                 sftp.close()
                 transport.close()
                 
-                # Clean up temp file
-                os.unlink(tmp_file_path)
-                
                 logging.info(f"Accounts saved to {remote_path}")
-                return True
+                success = True
+                break
                 
             except Exception as e:
                 logging.warning(f"Failed to save to {remote_path}: {e}")
                 continue
         
-        return False
+        # BACKUP 1: Save to SFTP backup location  
+        for backup_remote_path in [f"{REMOTE_DIR}accounts_backup.json", f"{REMOTE_ALT_DIR}accounts_backup.json"]:
+            try:
+                transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
+                transport.connect(username=USERNAME, password=PASSWORD)
+                sftp = paramiko.SFTPClient.from_transport(transport)
+                
+                sftp.put(tmp_file_path, backup_remote_path)
+                
+                sftp.close()
+                transport.close()
+                
+                print(f"✅ BACKUP 1: Saved to {backup_remote_path}")
+                break
+                
+            except Exception as e:
+                print(f"❌ BACKUP 1 failed: {backup_remote_path}: {e}")
+                continue
+        
+        # BACKUP 2: Save to local server backup
+        try:
+            local_backup_path = "/home/gbot/gbot_webapp/backup/accounts_backup.json"
+            with open(local_backup_path, 'w') as f:
+                json.dump(accounts, f, indent=2)
+            print(f"✅ BACKUP 2: Saved to {local_backup_path}")
+        except Exception as e:
+            print(f"❌ BACKUP 2 failed: {e}")
+        
+        # Clean up temp file
+        os.unlink(tmp_file_path)
+        
+        return success
         
     except Exception as e:
         logging.error(f"Save accounts error: {e}")
