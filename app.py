@@ -1351,7 +1351,7 @@ def save_accounts_to_server(accounts):
         
         success = False
         
-        # Upload to server
+        # Upload to server (main accounts file)
         for remote_path in [f"{REMOTE_DIR}accounts.json", f"{REMOTE_ALT_DIR}accounts.json"]:
             try:
                 transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
@@ -1371,31 +1371,65 @@ def save_accounts_to_server(accounts):
                 logging.warning(f"Failed to save to {remote_path}: {e}")
                 continue
         
-        # BACKUP 1: Save to SFTP backup location  
+        # BACKUP 1: ARCHIVE-style SFTP backup (only add, never remove)
         for backup_remote_path in [f"{REMOTE_DIR}accounts_backup.json", f"{REMOTE_ALT_DIR}accounts_backup.json"]:
             try:
                 transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
                 transport.connect(username=USERNAME, password=PASSWORD)
                 sftp = paramiko.SFTPClient.from_transport(transport)
                 
-                sftp.put(tmp_file_path, backup_remote_path)
+                # Load existing backup
+                existing_backup = {}
+                try:
+                    with sftp.open(backup_remote_path, 'r') as f:
+                        existing_backup = json.loads(f.read())
+                except:
+                    pass  # File doesn't exist yet
+                
+                # Merge: keep all old accounts + add new ones
+                merged_backup = existing_backup.copy()
+                merged_backup.update(accounts)  # Add new accounts, keep old ones
+                
+                # Save merged backup
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as backup_tmp:
+                    json.dump(merged_backup, backup_tmp, indent=2)
+                    backup_tmp_path = backup_tmp.name
+                
+                sftp.put(backup_tmp_path, backup_remote_path)
+                os.unlink(backup_tmp_path)
                 
                 sftp.close()
                 transport.close()
                 
-                print(f"✅ BACKUP 1: Saved to {backup_remote_path}")
+                print(f"✅ BACKUP 1: Archived to {backup_remote_path} ({len(merged_backup)} total accounts)")
                 break
                 
             except Exception as e:
                 print(f"❌ BACKUP 1 failed: {backup_remote_path}: {e}")
                 continue
         
-        # BACKUP 2: Save to local server backup
+        # BACKUP 2: ARCHIVE-style local backup (only add, never remove)
         try:
             local_backup_path = "/home/gbot/gbot_webapp/backup/accounts_backup.json"
+            
+            # Load existing local backup
+            existing_local_backup = {}
+            try:
+                with open(local_backup_path, 'r') as f:
+                    existing_local_backup = json.load(f)
+            except:
+                pass  # File doesn't exist yet
+            
+            # Merge: keep all old accounts + add new ones
+            merged_local_backup = existing_local_backup.copy()
+            merged_local_backup.update(accounts)  # Add new accounts, keep old ones
+            
+            # Save merged backup
             with open(local_backup_path, 'w') as f:
-                json.dump(accounts, f, indent=2)
-            print(f"✅ BACKUP 2: Saved to {local_backup_path}")
+                json.dump(merged_local_backup, f, indent=2)
+            
+            print(f"✅ BACKUP 2: Archived to {local_backup_path} ({len(merged_local_backup)} total accounts)")
+            
         except Exception as e:
             print(f"❌ BACKUP 2 failed: {e}")
         
@@ -1407,7 +1441,7 @@ def save_accounts_to_server(accounts):
     except Exception as e:
         logging.error(f"Save accounts error: {e}")
         return False
-
+        
 @app.route('/api/retrieve-users', methods=['POST'])
 @login_required
 def api_retrieve_users():
