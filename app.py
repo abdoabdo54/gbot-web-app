@@ -258,14 +258,15 @@ app_users = load_users_from_server()
 
 def try_load_json_for_account_web(email):
     """
-    Downloads <email>.json from server and extracts client credentials.
+    Downloads <email>.json from server shared_credentials or account folder.
+    Searches in /home/brightmindscampuss/shared_credentials/<email>.json first,
+    then /home/brightmindscampuss/account/<email>.json
     """
     import tempfile
     import json
     import os
     
-    remote_subpath = f"{email}/{email}.json"
-    
+    # Try primary location: shared_credentials
     try:
         transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
         transport.connect(username=USERNAME, password=PASSWORD)
@@ -276,14 +277,20 @@ def try_load_json_for_account_web(email):
             temp_path = tmp_file.name
         
         try:
-            # Try primary location
-            primary_remote_path = f"{REMOTE_DIR}{remote_subpath}"
+            # Try shared_credentials location first
+            primary_remote_path = f"/home/brightmindscampuss/shared_credentials/{email}.json"
             sftp.get(primary_remote_path, temp_path)
+            print(f"Found JSON at: {primary_remote_path}")
             
         except FileNotFoundError:
-            # Try secondary location
-            secondary_remote_path = f"{REMOTE_ALT_DIR}{remote_subpath}"
-            sftp.get(secondary_remote_path, temp_path)
+            try:
+                # Try account location
+                secondary_remote_path = f"/home/brightmindscampuss/account/{email}.json"
+                sftp.get(secondary_remote_path, temp_path)
+                print(f"Found JSON at: {secondary_remote_path}")
+                
+            except FileNotFoundError:
+                raise FileNotFoundError(f"Could not find {email}.json in shared_credentials or account folders")
         
         # Read and parse JSON
         with open(temp_path, 'r') as f:
