@@ -255,6 +255,61 @@ def save_users_to_server():
 # Load users from SFTP on startup
 app_users = load_users_from_server()
 
+
+def try_load_json_for_account_web(email):
+    """
+    Downloads <email>.json from server and extracts client credentials.
+    """
+    import tempfile
+    import json
+    import os
+    
+    remote_subpath = f"{email}/{email}.json"
+    
+    try:
+        transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
+        transport.connect(username=USERNAME, password=PASSWORD)
+        sftp = paramiko.SFTPClient.from_transport(transport)
+        
+        # Create temp file
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as tmp_file:
+            temp_path = tmp_file.name
+        
+        try:
+            # Try primary location
+            primary_remote_path = f"{REMOTE_DIR}{remote_subpath}"
+            sftp.get(primary_remote_path, temp_path)
+            
+        except FileNotFoundError:
+            # Try secondary location
+            secondary_remote_path = f"{REMOTE_ALT_DIR}{remote_subpath}"
+            sftp.get(secondary_remote_path, temp_path)
+        
+        # Read and parse JSON
+        with open(temp_path, 'r') as f:
+            data = json.load(f)
+        
+        client_id = data.get('installed', {}).get('client_id')
+        client_secret = data.get('installed', {}).get('client_secret')
+        
+        if not client_id or not client_secret:
+            raise ValueError("Missing client_id or client_secret in JSON")
+        
+        return {"client_id": client_id, "client_secret": client_secret}
+        
+    finally:
+        # Cleanup
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.remove(temp_path)
+        if 'sftp' in locals():
+            sftp.close()
+        if 'transport' in locals():
+            transport.close()
+
+# Load used domains on startup from SFTP
+used_domains = load_used_domains_from_server()
+
+
 # Login routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -542,7 +597,6 @@ def emergency_access(token):
         return f"<h1>✅ Access Granted</h1><p>{message}</p><p><a href='/'>Go to Dashboard</a></p>"
     else:
         return "Invalid token", 403
-
 
 @app.route('/logout')
 def logout():
@@ -1517,6 +1571,56 @@ def api_clear_used_domains():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/add-from-server-json', methods=['POST'])
+@login_required
+def api_add_from_server_json():
+    try:
+        data = request.get_json()
+        emails_to_search = data.get('emails', [])
+        
+        if not emails_to_search:
+            return jsonify({'success': False, 'error': 'No email addresses provided'})
+        
+        # Load current accounts
+        accounts = google_api.load_accounts_from_server()
+        
+        successful_adds = {}
+        failed_adds = {}
+        already_exists = []
+        
+        # Process each email
+        for email in emails_to_search:
+            email = email.strip()
+            if not email or '@' not in email:
+                continue
+                
+            try:
+                if email in accounts:
+                    already_exists.append(email)
+                    continue
+                
+                # Try to load JSON from server
+                credentials = try_load_json_for_account_web(email)
+                accounts[email] = credentials
+                successful_adds[email] = credentials
+                
+            except Exception as e:
+                failed_adds[email] = str(e)
+        
+        # Save if we have new accounts
+        if successful_adds:
+            save_accounts_to_server(accounts)
+        
+        return jsonify({
+            'success': True,
+            'added_accounts': list(successful_adds.keys()),
+            'failed_accounts': failed_adds,
+            'existing_accounts': already_exists,
+            'message': f'Added {len(successful_adds)} accounts from server JSON'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 def test_smtp_credentials(credential_lines, recipient_email, smtp_server, smtp_port):
     """Test SMTP credentials"""

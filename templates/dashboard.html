@@ -1315,10 +1315,94 @@ function updateCountersAfterChange() {
     updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Updated');
 }
 
-// Placeholder functions for buttons that need implementation
 function addFromServerJSON() {
-    alert('Add from Server JSON feature coming soon!');
+    const emailsInput = prompt(
+        "Enter Google Workspace admin email addresses (one per line):\n\n" +
+        "The system will search for <email>.json credential files on the server.\n\n" +
+        "Example:\n" +
+        "admin@domain1.com\n" +
+        "admin@domain2.com"
+    );
+    
+    if (!emailsInput || !emailsInput.trim()) {
+        return; // User cancelled or entered nothing
+    }
+    
+    // Parse emails from input
+    const emails = emailsInput.trim()
+        .split('\n')
+        .map(email => email.trim())
+        .filter(email => email && email.includes('@'));
+    
+    if (emails.length === 0) {
+        alert('No valid email addresses found. Please enter at least one email address.');
+        return;
+    }
+    
+    // Confirm before proceeding
+    const confirmMsg = `Search for JSON credential files for ${emails.length} email address(es)?\n\n` +
+                      `${emails.slice(0, 5).join('\n')}` + 
+                      (emails.length > 5 ? '\n...' : '');
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    // Show loading state
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = '🔍 Searching...';
+    button.disabled = true;
+    
+    // Make API request
+    fetch('/api/add-from-server-json', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({emails: emails})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = data.message + '\n\n';
+            
+            if (data.added_accounts.length > 0) {
+                message += `✅ Added accounts:\n${data.added_accounts.join('\n')}\n\n`;
+            }
+            
+            if (data.existing_accounts.length > 0) {
+                message += `ℹ️ Already existed:\n${data.existing_accounts.join('\n')}\n\n`;
+            }
+            
+            if (Object.keys(data.failed_accounts).length > 0) {
+                message += `❌ Failed accounts:\n`;
+                for (const [email, error] of Object.entries(data.failed_accounts)) {
+                    message += `${email}: ${error}\n`;
+                }
+            }
+            
+            alert(message);
+            
+            // Refresh the account list if any were added
+            if (data.added_accounts.length > 0) {
+                refreshAccountsDisplay();
+            }
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Network error:', error);
+        alert('❌ Network error: ' + error.message);
+    })
+    .finally(() => {
+        // Restore button state
+        button.textContent = originalText;
+        button.disabled = false;
+    });
 }
+
+
+// Placeholder functions for buttons that need implementation
 
 function backupFiles() {
     alert('Backup Files feature coming soon!');
