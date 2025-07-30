@@ -26,19 +26,19 @@
             {% endfor %}
         </select>
         <button onclick="authenticateAccount()">🔑 Authenticate Selected</button>
-        <button onclick="openAddAccountModal()">➕ Add Manually</button>
     </div>
     
     <div class="form-row">
-        <button onclick="refreshAccounts()">🔄 Refresh List</button>
+        <button onclick="openAddAccountModal()">➕ Add Manually</button>
+        <!-- <button onclick="refreshAccounts()">🔄 Refresh List</button> -->
         <button onclick="addFromServerJSON()">📁 Add from Server JSON</button>
-        <button onclick="backupFiles()">💾 Backup Files</button>
+        <!-- <button onclick="backupFiles()">💾 Backup Files</button> -->
         {% if session.role == 'admin' %}
         <button onclick="forceTokenStatusCheck()" class="btn btn-warning">
             🔍 Check Token Status Now (Admin)
         </button>
         <button onclick="enterAuthorizationCode()">📝 Enter Authorization Code</button>
-        <button onclick="completeOAuthWithCode()">📝 Complete OAuth with Code</button>
+        <!-- <button onclick="completeOAuthWithCode()">📝 Complete OAuth with Code</button> -->
         {% endif %}    
     </div>
     
@@ -144,7 +144,7 @@
         </div>
     </div>
 
-    <!-- Domain Info -->
+    <!-- Domain Info
     <div class="section">
         <h3>🌐 Domain Info & Subdomain Utility</h3>
         
@@ -156,7 +156,7 @@
         <div id="domain-display" class="data-display">
             <p>Click 'Retrieve Domains' to view domains here...</p>
         </div>
-    </div>
+    </div> -->
 
     <!-- Suspended Users -->
     <div class="section">
@@ -1316,40 +1316,136 @@ function updateCountersAfterChange() {
 }
 
 function addFromServerJSON() {
-    const emailsInput = prompt(
-        "Enter Google Workspace admin email addresses (one per line):\n\n" +
-        "The system will search for <email>.json credential files on the server.\n\n" +
-        "Example:\n" +
-        "admin@domain1.com\n" +
-        "admin@domain2.com"
-    );
+    // Create a modal dialog instead of simple prompt
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    `;
     
-    if (!emailsInput || !emailsInput.trim()) {
-        return; // User cancelled or entered nothing
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        width: 600px;
+        max-width: 90vw;
+        max-height: 80vh;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        color: #333;
+    `;
+    
+    dialog.innerHTML = `
+        <h3 style="margin-bottom: 20px; color: #007bff;">📁 Add Accounts from Server JSON</h3>
+        
+        <p style="margin-bottom: 15px; color: #666;">
+            Enter Google Workspace admin email addresses below (one per line).<br>
+            The system will search for corresponding JSON credential files on the server.
+        </p>
+        
+        <div style="margin-bottom: 15px;">
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Email Addresses:</label>
+            <textarea id="emailInput" placeholder="admin@domain1.com&#10;admin@domain2.com&#10;admin@domain3.com&#10;..." 
+                style="width: 100%; height: 250px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: monospace; resize: vertical;"></textarea>
+        </div>
+        
+        <div style="margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px; border-left: 4px solid #007bff;">
+            <strong>💡 Tips:</strong>
+            <ul style="margin: 5px 0 0 20px; color: #666;">
+                <li>Enter one email address per line</li>
+                <li>You can paste multiple emails at once</li>
+                <li>Empty lines will be ignored</li>
+                <li>Files must be named exactly: <code>&lt;email&gt;.json</code></li>
+            </ul>
+        </div>
+        
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="cancelBtn" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                ❌ Cancel
+            </button>
+            <button id="searchBtn" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;" disabled>
+                🔍 Search & Add Accounts
+            </button>
+        </div>
+    `;
+    
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
+    
+    // Get elements
+    const emailInput = dialog.querySelector('#emailInput');
+    const searchBtn = dialog.querySelector('#searchBtn');
+    const cancelBtn = dialog.querySelector('#cancelBtn');
+    
+    // Update button state as user types
+    function updateButtonState() {
+        const text = emailInput.value.trim();
+        if (!text) {
+            searchBtn.disabled = true;
+            return;
+        }
+        
+        const emails = text.split('\n')
+            .map(email => email.trim())
+            .filter(email => email && email.includes('@'));
+        
+        searchBtn.disabled = emails.length === 0;
     }
     
-    // Parse emails from input
-    const emails = emailsInput.trim()
-        .split('\n')
-        .map(email => email.trim())
-        .filter(email => email && email.includes('@'));
+    // Add event listeners
+    emailInput.addEventListener('input', updateButtonState);
+    emailInput.addEventListener('paste', () => setTimeout(updateButtonState, 10));
     
-    if (emails.length === 0) {
-        alert('No valid email addresses found. Please enter at least one email address.');
-        return;
-    }
+    cancelBtn.addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
     
-    // Confirm before proceeding
-    const confirmMsg = `Search for JSON credential files for ${emails.length} email address(es)?\n\n` +
-                      `${emails.slice(0, 5).join('\n')}` + 
-                      (emails.length > 5 ? '\n...' : '');
+    searchBtn.addEventListener('click', () => {
+        const emails = emailInput.value.trim()
+            .split('\n')
+            .map(email => email.trim())
+            .filter(email => email && email.includes('@'));
+        
+        if (emails.length === 0) {
+            alert('No valid email addresses found');
+            return;
+        }
+        
+        // Close modal
+        document.body.removeChild(modal);
+        
+        // Show confirmation
+        if (!confirm(`Search for JSON credential files for ${emails.length} email address(es)?`)) {
+            return;
+        }
+        
+        // Process the search
+        processServerJSONSearch(emails);
+    });
     
-    if (!confirm(confirmMsg)) {
-        return;
-    }
+    // Close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
+    });
     
-    // Show loading state
-    const button = event.target;
+    // Focus on textarea
+    setTimeout(() => emailInput.focus(), 100);
+}
+
+// Separate function to handle the actual API call
+function processServerJSONSearch(emails) {
+    // Show loading in some button (you can modify this)
+    const button = document.querySelector('[onclick="addFromServerJSON()"]');
     const originalText = button.textContent;
     button.textContent = '🔍 Searching...';
     button.disabled = true;
@@ -1366,7 +1462,7 @@ function addFromServerJSON() {
             let message = data.message + '\n\n';
             
             if (data.added_accounts.length > 0) {
-                message += `✅ Added accounts:\n${data.added_accounts.join('\n')}\n\n`;
+                message += `✅ Successfully added:\n${data.added_accounts.join('\n')}\n\n`;
             }
             
             if (data.existing_accounts.length > 0) {
@@ -1401,6 +1497,43 @@ function addFromServerJSON() {
     });
 }
 
+function debugSFTPFiles() {
+    fetch('/api/debug-sftp-files', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = "SFTP Directory Contents:\n\n";
+            
+            if (data.directories.shared_credentials) {
+                if (data.directories.shared_credentials.error) {
+                    message += `❌ shared_credentials: ${data.directories.shared_credentials.error}\n\n`;
+                } else {
+                    message += `📁 shared_credentials (${data.directories.shared_credentials.total_count} files):\n`;
+                    message += data.directories.shared_credentials.files.join('\n') + '\n\n';
+                }
+            }
+            
+            if (data.directories.account) {
+                if (data.directories.account.error) {
+                    message += `❌ account: ${data.directories.account.error}\n\n`;
+                } else {
+                    message += `📁 account (${data.directories.account.total_count} files):\n`;
+                    message += data.directories.account.files.join('\n');
+                }
+            }
+            
+            alert(message);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Network error: ' + error);
+    });
+}
 
 // Placeholder functions for buttons that need implementation
 

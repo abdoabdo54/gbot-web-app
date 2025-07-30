@@ -256,17 +256,18 @@ def save_users_to_server():
 app_users = load_users_from_server()
 
 
+# Load used domains on startup from SFTP
+used_domains = load_used_domains_from_server()
+
 def try_load_json_for_account_web(email):
     """
-    Downloads <email>.json from server shared_credentials or account folder.
-    Searches in /home/brightmindscampuss/shared_credentials/<email>.json first,
-    then /home/brightmindscampuss/account/<email>.json
+    Downloads <email>.json from server and extracts client credentials.
+    Supports both "web" and "installed" JSON structures.
     """
     import tempfile
     import json
     import os
     
-    # Try primary location: shared_credentials
     try:
         transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
         transport.connect(username=USERNAME, password=PASSWORD)
@@ -276,32 +277,51 @@ def try_load_json_for_account_web(email):
         with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as tmp_file:
             temp_path = tmp_file.name
         
+        # Look for the file
+        remote_path = f"/home/brightmindscampuss/shared_credentials/{email}.json"
+        print(f"DEBUG: Trying to get: {remote_path}")
+        
         try:
-            # Try shared_credentials location first
-            primary_remote_path = f"/home/brightmindscampuss/shared_credentials/{email}.json"
-            sftp.get(primary_remote_path, temp_path)
-            print(f"Found JSON at: {primary_remote_path}")
-            
+            sftp.get(remote_path, temp_path)
+            print(f"DEBUG: SUCCESS - Found JSON at: {remote_path}")
         except FileNotFoundError:
-            try:
-                # Try account location
-                secondary_remote_path = f"/home/brightmindscampuss/account/{email}.json"
-                sftp.get(secondary_remote_path, temp_path)
-                print(f"Found JSON at: {secondary_remote_path}")
-                
-            except FileNotFoundError:
-                raise FileNotFoundError(f"Could not find {email}.json in shared_credentials or account folders")
+            print(f"DEBUG: File not found at {remote_path}")
+            raise FileNotFoundError(f"Could not find {email}.json in shared_credentials folder")
         
         # Read and parse JSON
         with open(temp_path, 'r') as f:
             data = json.load(f)
+            print(f"DEBUG: JSON keys at root level: {list(data.keys())}")
         
-        client_id = data.get('installed', {}).get('client_id')
-        client_secret = data.get('installed', {}).get('client_secret')
+        # Try multiple JSON structures
+        client_id = None
+        client_secret = None
+        
+        # Structure 1: {"web": {"client_id": "...", "client_secret": "..."}}
+        if 'web' in data:
+            client_id = data['web'].get('client_id')
+            client_secret = data['web'].get('client_secret')
+            print(f"DEBUG: From 'web' section - client_id found: {bool(client_id)}, client_secret found: {bool(client_secret)}")
+        
+        # Structure 2: {"installed": {"client_id": "...", "client_secret": "..."}}
+        elif 'installed' in data:
+            client_id = data['installed'].get('client_id')
+            client_secret = data['installed'].get('client_secret')
+            print(f"DEBUG: From 'installed' section - client_id found: {bool(client_id)}, client_secret found: {bool(client_secret)}")
+        
+        # Structure 3: {"client_id": "...", "client_secret": "..."}
+        else:
+            client_id = data.get('client_id')
+            client_secret = data.get('client_secret')
+            print(f"DEBUG: From root level - client_id found: {bool(client_id)}, client_secret found: {bool(client_secret)}")
         
         if not client_id or not client_secret:
-            raise ValueError("Missing client_id or client_secret in JSON")
+            print(f"DEBUG: FAILED - Available keys: {list(data.keys())}")
+            if 'web' in data:
+                print(f"DEBUG: Keys in 'web' section: {list(data['web'].keys())}")
+            raise ValueError(f"Missing credentials in JSON file {remote_path}. Available keys: {list(data.keys())}")
         
+        print(f"DEBUG: SUCCESS - Found both credentials for {email}")
         return {"client_id": client_id, "client_secret": client_secret}
         
     finally:
@@ -312,11 +332,7 @@ def try_load_json_for_account_web(email):
             sftp.close()
         if 'transport' in locals():
             transport.close()
-
-# Load used domains on startup from SFTP
-used_domains = load_used_domains_from_server()
-
-
+            
 # Login routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -1168,6 +1184,49 @@ def api_apply_domain_to_csv():
         
     except Exception as e:
         logging.error(f"Apply domain to CSV error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/debug-sftp-files', methods=['POST'])
+@login_required
+def api_debug_sftp_files():
+    """Debug function to see what files exist in the SFTP directories"""
+    try:
+        transport = paramiko.Transport((SERVER_ADDRESS, SERVER_PORT))
+        transport.connect(username=USERNAME, password=PASSWORD)
+        sftp = paramiko.SFTPClient.from_transport(transport)
+        
+        result = {}
+        
+        # Check shared_credentials folder
+        try:
+            shared_creds_path = "/home/brightmindscampuss/shared_credentials"
+            shared_files = sftp.listdir(shared_creds_path)
+            result['shared_credentials'] = {
+                'path': shared_creds_path,
+                'files': shared_files[:20],  # Show first 20 files
+                'total_count': len(shared_files)
+            }
+        except Exception as e:
+            result['shared_credentials'] = {'error': str(e)}
+        
+        # Check account folder
+        try:
+            account_path = "/home/brightmindscampuss/account"
+            account_files = sftp.listdir(account_path)
+            result['account'] = {
+                'path': account_path,
+                'files': account_files[:20],  # Show first 20 files
+                'total_count': len(account_files)
+            }
+        except Exception as e:
+            result['account'] = {'error': str(e)}
+        
+        sftp.close()
+        transport.close()
+        
+        return jsonify({'success': True, 'directories': result})
+        
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/process-csv-domain-changes', methods=['POST'])
