@@ -332,7 +332,7 @@ def try_load_json_for_account_web(email):
             sftp.close()
         if 'transport' in locals():
             transport.close()
-            
+
 # Login routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -1572,6 +1572,76 @@ def api_retrieve_users():
     except Exception as e:
         logging.error(f"Retrieve users error: {e}")
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/update-all-passwords', methods=['POST'])
+@login_required
+def api_update_all_passwords():
+    """Updates password for all users currently displayed in the user list"""
+    try:
+        data = request.get_json()
+        new_password = data.get('password', '').strip()
+        user_emails = data.get('user_emails', [])
+        
+        # Validation
+        if not new_password:
+            return jsonify({'success': False, 'error': 'Password is required'})
+        
+        if len(new_password) < 8:
+            return jsonify({'success': False, 'error': 'Password must be at least 8 characters'})
+        
+        if not user_emails:
+            return jsonify({'success': False, 'error': 'No users provided for password update'})
+        
+        if not isinstance(user_emails, list):
+            return jsonify({'success': False, 'error': 'Invalid user emails format'})
+        
+        # Check authentication
+        if not google_api.service:
+            return jsonify({'success': False, 'error': 'Not authenticated. Please authenticate an account first.'})
+        
+        # Process password updates
+        successful_updates = []
+        failed_updates = []
+        
+        for email in user_emails:
+            email = email.strip()
+            if not email or '@' not in email:
+                failed_updates.append({'email': email, 'error': 'Invalid email format'})
+                continue
+            
+            try:
+                # Use the existing Google API update_user method
+                update_payload = {
+                    'password': new_password,
+                    'changePasswordAtNextLogin': False
+                }
+                
+                result = google_api.service.users().update(
+                    userKey=email, 
+                    body=update_payload
+                ).execute()
+                
+                successful_updates.append(email)
+                logging.info(f"Password updated successfully for: {email}")
+                
+            except Exception as e:
+                error_msg = str(e)
+                failed_updates.append({'email': email, 'error': error_msg})
+                logging.error(f"Password update failed for {email}: {e}")
+        
+        return jsonify({
+            'success': True,
+            'total_attempted': len(user_emails),
+            'successful_updates': len(successful_updates),
+            'failed_updates': len(failed_updates),
+            'successful_emails': successful_updates,
+            'failed_details': failed_updates,
+            'message': f'Password update completed. {len(successful_updates)} successful, {len(failed_updates)} failed.'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error in password update API: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
 
 @app.route('/api/load-suspended-users', methods=['POST'])
 @login_required

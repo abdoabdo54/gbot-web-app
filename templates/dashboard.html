@@ -976,17 +976,91 @@ function copyAllUsers() {
 
 function updateAllPasswords() {
     const password = document.getElementById('new-password').value;
+    
+    // Validation
     if (!password || password.length < 8) {
         alert('Password must be at least 8 characters');
         return;
     }
     
-    if (!confirm('Update password for ALL users? This cannot be undone.')) {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
         return;
     }
     
-    // This would need to be implemented in the backend
-    alert('Password update feature coming soon');
+    // Get emails from the displayed user items
+    const userItems = document.querySelectorAll('.user-item .email');
+    
+    if (userItems.length === 0) {
+        alert('No users found in the list. Please retrieve users first using "📊 Retrieve All Users" button.');
+        return;
+    }
+    
+    // Extract emails from the user display
+    const userEmails = Array.from(userItems).map(item => item.textContent.trim());
+    
+    // Confirmation
+    if (!confirm(`Update password for ALL ${userEmails.length} users?\n\nThis action cannot be undone.\n\nNew password: ${password}`)) {
+        return;
+    }
+    
+    // Show loading state
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = '🔄 Updating Passwords...';
+    button.disabled = true;
+    
+    // Make API request
+    fetch('/api/update-all-passwords', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            password: password,
+            user_emails: userEmails
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = data.message + '\n\n';
+            
+            if (data.successful_emails.length > 0) {
+                message += `✅ Successfully updated (${data.successful_emails.length}):\n`;
+                message += data.successful_emails.slice(0, 10).join('\n');
+                if (data.successful_emails.length > 10) {
+                    message += `\n... and ${data.successful_emails.length - 10} more`;
+                }
+                message += '\n\n';
+            }
+            
+            if (data.failed_details.length > 0) {
+                message += `❌ Failed updates (${data.failed_details.length}):\n`;
+                data.failed_details.slice(0, 5).forEach(failure => {
+                    message += `${failure.email}: ${failure.error}\n`;
+                });
+                if (data.failed_details.length > 5) {
+                    message += `... and ${data.failed_details.length - 5} more failures`;
+                }
+            }
+            
+            alert(message);
+            
+            // Clear password field
+            document.getElementById('new-password').value = '';
+            
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Network error:', error);
+        alert('❌ Network error: ' + error.message);
+    })
+    .finally(() => {
+        // Restore button state
+        button.textContent = originalText;
+        button.disabled = false;
+    });
 }
 
 function retrieveDomains() {
