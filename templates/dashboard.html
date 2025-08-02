@@ -46,7 +46,7 @@
     <div class="account-management-area">
         <div class="search-and-list">
             <input type="text" id="account-search" placeholder="Search accounts in list..." 
-                   oninput="filterAccounts()" class="search-input">
+                   oninput="filterAccounts()" class="search-input" autocomplete="off">
             
             <div id="account-list-area" class="account-list">
                 {% for account_name in accounts %}
@@ -139,7 +139,7 @@
         <div id="user-count" class="count-display">Total Users: 0</div>
         
         <div class="form-row">
-            <input type="password" id="new-password" placeholder="New password for all users">
+            <input type="password" id="new-password" placeholder="New password for all users" autocomplete="off">
             <button onclick="updateAllPasswords()">🔑 Update Password (All)</button>
         </div>
     </div>
