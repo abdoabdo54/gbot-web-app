@@ -4,6 +4,7 @@ import json
 import logging
 import time
 import paramiko
+import uuid
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -11,6 +12,8 @@ from googleapiclient.errors import HttpError
 import google.auth.transport.requests
 from config import *
 from flask import session
+
+_session_services = {}
 
 class WebGoogleAPI:
     def __init__(self):
@@ -471,40 +474,48 @@ class WebGoogleAPI:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def _get_session_id(self):
+        """Get unique session identifier"""
+        if 'session_id' not in session:
+            import uuid
+            session['session_id'] = str(uuid.uuid4())
+        return session['session_id']
+    
     def _get_session_key(self, account_name):
-        """Generate unique session key for account"""
-        return f"service_{account_name}"
+        """Generate unique key for session + account"""
+        session_id = self._get_session_id()
+        return f"{session_id}_{account_name}"
     
     def _get_current_service(self):
-        """Get current authenticated service from session"""
+        """Get current authenticated service"""
         current_account = session.get('current_account_name')
         if not current_account:
             return None
         
         service_key = self._get_session_key(current_account)
-        return session.get(service_key)
+        return _session_services.get(service_key)
     
     def _set_current_service(self, account_name, service):
-        """Store service in session for specific account"""
+        """Store service for this session + account"""
         service_key = self._get_session_key(account_name)
-        session[service_key] = service
+        _session_services[service_key] = service
         session['current_account_name'] = account_name
         
-        # Keep track of authenticated accounts in this session
+        # Track authenticated accounts in session (JSON serializable)
         if 'authenticated_accounts' not in session:
             session['authenticated_accounts'] = []
         
         if account_name not in session['authenticated_accounts']:
             session['authenticated_accounts'].append(account_name)
-
+    
     @property
     def service(self):
-        """Get current service from session"""
+        """Get current service (maintains compatibility)"""
         return self._get_current_service()
     
     @property
     def current_account_name(self):
-        """Get current account name from session"""
+        """Get current account name (maintains compatibility)"""
         return session.get('current_account_name')
 
 # Global instance
