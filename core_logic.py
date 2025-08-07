@@ -10,12 +10,14 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import google.auth.transport.requests
 from config import *
+from flask import session
 
 class WebGoogleAPI:
     def __init__(self):
-        self.service = None
-        self.current_account_name = None
-        self.authenticated_accounts = set()
+        # self.service = None
+        # self.current_account_name = None
+        # self.authenticated_accounts = set()
+        pass
     
     def load_accounts_from_server(self):
         """Load accounts.json from SFTP server"""
@@ -168,9 +170,8 @@ class WebGoogleAPI:
                 creds.refresh(google.auth.transport.requests.Request())
             
             if creds.valid:
-                self.service = build('admin', 'directory_v1', credentials=creds)
-                self.current_account_name = account_name
-                self.authenticated_accounts.add(account_name)
+                service = build('admin', 'directory_v1', credentials=creds)
+                self._set_current_service(account_name, service)
                 return True
             
             return False
@@ -469,6 +470,42 @@ class WebGoogleAPI:
             
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def _get_session_key(self, account_name):
+        """Generate unique session key for account"""
+        return f"service_{account_name}"
+    
+    def _get_current_service(self):
+        """Get current authenticated service from session"""
+        current_account = session.get('current_account_name')
+        if not current_account:
+            return None
+        
+        service_key = self._get_session_key(current_account)
+        return session.get(service_key)
+    
+    def _set_current_service(self, account_name, service):
+        """Store service in session for specific account"""
+        service_key = self._get_session_key(account_name)
+        session[service_key] = service
+        session['current_account_name'] = account_name
+        
+        # Keep track of authenticated accounts in this session
+        if 'authenticated_accounts' not in session:
+            session['authenticated_accounts'] = []
+        
+        if account_name not in session['authenticated_accounts']:
+            session['authenticated_accounts'].append(account_name)
+
+    @property
+    def service(self):
+        """Get current service from session"""
+        return self._get_current_service()
+    
+    @property
+    def current_account_name(self):
+        """Get current account name from session"""
+        return session.get('current_account_name')
 
 # Global instance
 google_api = WebGoogleAPI()

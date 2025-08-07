@@ -655,11 +655,20 @@ def api_authenticate():
         if account_name not in accounts:
             return jsonify({'success': False, 'error': 'Account not found'})
         
-        # Check for existing tokens firstn 
+        # CHECK IF ALREADY AUTHENTICATED IN THIS SESSION
+        service_key = google_api._get_session_key(account_name)
+        if service_key in session and session.get(service_key):
+            # Already authenticated in this session
+            session['current_account_name'] = account_name
+            return jsonify({
+                'success': True, 
+                'message': f'Already authenticated for {account_name} in this session'
+            })
+        
+        # Check for existing tokens first
         if google_api.is_token_valid(account_name):
             success = google_api.authenticate_with_tokens(account_name)
             if success:
-                session['authenticated_account'] = account_name
                 return jsonify({
                     'success': True, 
                     'message': f'Authenticated using cached tokens for {account_name}'
