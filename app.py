@@ -18,6 +18,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import json
+import time
 
 # Add this debug check:
 import os
@@ -1358,10 +1359,6 @@ def api_change_domain_all_users():
             if exclude_admin and is_admin:
                 continue
             
-            # Check if user already has the new domain
-            if new_domain in email:
-                continue  # Skip users who already have the target domain
-                
             # Check if user has the current domain
             if current_domain in email:
                 target_users.append(user)
@@ -1376,46 +1373,91 @@ def api_change_domain_all_users():
                 'message': f'No users found with domain {current_domain}'
             })
         
-# Process domain changes - REAL BATCH VERSION
-        results = []
+        # PROPER BATCH PROCESSING:
         successful = 0
         failed = 0
         skipped = 0
+        results = []
         
-        # Prepare email changes for batch processing
-        email_changes = []
-        for user in target_users:
-            old_email = user.get('email')
-            if exclude_admin and user.get('admin', False):
-                results.append({
-                    'email': old_email,
-                    'skipped': True,
-                    'reason': 'Admin user excluded'
-                })
-                skipped += 1
-                continue
-            new_email = old_email.replace(current_domain, new_domain)
-            email_changes.append((old_email, new_email))
-        
-        # REAL batch processing that actually changes domains
-        if email_changes:
-            print(f"DEBUG: Batch processing {len(email_changes)} users...")
-            batch_result = google_api.batch_update_user_emails(email_changes)
+        # Create callback function for batch
+        def batch_callback(request_id, response, exception):
+            nonlocal successful, failed, results
             
-            if batch_result.get('success'):
-                results.extend(batch_result['results'])
-                successful = sum(1 for r in batch_result['results'] if r['success'])
-                failed = sum(1 for r in batch_result['results'] if not r['success'])
-                print(f"DEBUG: Batch complete - {successful} success, {failed} failed")
+            if exception:
+                results.append({
+                    'old_email': request_id,
+                    'new_email': request_id.replace(current_domain, new_domain),
+                    'success': False,
+                    'error': str(exception)
+                })
+                failed += 1
             else:
-                failed = len(email_changes)
-                for old_email, new_email in email_changes:
-                    results.append({
-                        'email': old_email,
-                        'success': False,
-                        'error': batch_result['error']
-                    })
-
+                new_email = response.get('primaryEmail', request_id.replace(current_domain, new_domain))
+                results.append({
+                    'old_email': request_id,
+                    'new_email': new_email,
+                    'success': True
+                })
+                successful += 1
+        
+        # Process in batches of 100
+        BATCH_SIZE = 100
+        
+        for i in range(0, len(target_users), BATCH_SIZE):
+            batch_users = target_users[i:i + BATCH_SIZE]
+            
+            # Create batch request with callback
+            batch = google_api.service.new_batch_http_request(callback=batch_callback)
+            
+            for user in batch_users:
+                old_email = user.get('email')
+                
+                # Skip invalid emails
+                if not old_email or '@' not in old_email:
+                    skipped += 1
+                    continue
+                
+                new_email = old_email.replace(current_domain, new_domain)
+                update_data = {'primaryEmail': new_email}
+                
+                # Add to batch with email as request_id
+                batch.add(
+                    google_api.service.users().update(userKey=old_email, body=update_data),
+                    request_id=old_email
+                )
+            
+            # Execute batch
+            try:
+                batch.execute()
+                logging.info(f"Processed batch of {len(batch_users)} users")
+            except Exception as batch_error:
+                logging.error(f"Batch execution failed: {batch_error}")
+                # Mark all users in this batch as failed
+                for user in batch_users:
+                    old_email = user.get('email')
+                    if old_email and '@' in old_email:
+                        results.append({
+                            'old_email': old_email,
+                            'new_email': old_email.replace(current_domain, new_domain),
+                            'success': False,
+                            'error': f'Batch failed: {str(batch_error)}'
+                        })
+                        failed += 1
+        
+        # MARK DOMAIN AS USED (if any succeeded)
+        if successful > 0:
+            try:
+                # Call the mark domain used API directly
+                from flask import current_app
+                with current_app.test_request_context():
+                    mark_response = current_app.test_client().post('/api/mark-domain-used', 
+                        json={'domain': new_domain},
+                        headers={'Authorization': request.headers.get('Authorization')}
+                    )
+                logging.info(f"Marked domain as used: {new_domain}")
+            except Exception as mark_error:
+                logging.error(f"Error marking domain as used: {mark_error}")
+        
         return jsonify({
             'success': True,
             'results': results,
@@ -1423,13 +1465,13 @@ def api_change_domain_all_users():
             'failed': failed,
             'skipped': skipped,
             'total_processed': len(target_users),
-            'message': f'Bulk domain change completed: {current_domain} → {new_domain}'
+            'message': f'Batch domain change completed: {current_domain} → {new_domain}'
         })
         
     except Exception as e:
         logging.error(f"Change domain all users error: {e}")
         return jsonify({'success': False, 'error': str(e)})
-
+                        
 # Store used domains in memory (in production, use database)
 
 @app.route('/api/mark-domain-used', methods=['POST'])
