@@ -4,7 +4,7 @@ load_dotenv()
 import os
 
 # SFTP Configuration (same as your V13)
-SERVER_ADDRESS = '104.248.40.252'
+SERVER_ADDRESS = '159.89.19.179'
 SERVER_PORT = 22
 USERNAME = 'root'
 PASSWORD = os.environ.get('SFTP_PASSWORD')
