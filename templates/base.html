@@ -14,6 +14,7 @@
             <a href="/dashboard" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">📊 Dashboard</a>
             {% if role == 'admin' %}
             <a href="/users" class="nav-link {% if request.endpoint == 'users' %}active{% endif %}">👥 Manage Users</a>
+            <a href="/whitelist" class="nav-link {% if request.endpoint == 'whitelist' %}active{% endif %}">🛡️ IP Whitelist</a>
             {% endif %}
         </div>
         <div class="header-user">
