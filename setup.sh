@@ -16,9 +16,23 @@ DB_NAME="gbot_db"
 DB_USER="gbot_user"
 DB_PASS="$(openssl rand -hex 12)"
 
-echo "Creating PostgreSQL user and database..."
-sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;"
-sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
+echo "Checking for existing PostgreSQL database and user..."
+
+# Check if the database already exists
+if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+    echo "Database '$DB_NAME' already exists. Skipping creation."
+else
+    echo "Creating database '$DB_NAME'..."
+    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;"
+fi
+
+# Check if the user already exists
+if sudo -u postgres psql -t -c "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+    echo "User '$DB_USER' already exists. Skipping creation."
+else
+    echo "Creating user '$DB_USER'..."
+    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
+fi
 sudo -u postgres psql -c "ALTER ROLE $DB_USER SET client_encoding TO 'utf8';"
 sudo -u postgres psql -c "ALTER ROLE $DB_USER SET default_transaction_isolation TO 'read committed';"
 sudo -u postgres psql -c "ALTER ROLE $DB_USER SET timezone TO 'UTC';"
