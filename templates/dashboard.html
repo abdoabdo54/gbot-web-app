@@ -179,6 +179,35 @@
 <div id="tab2" class="tab-content">
     <h2>User Create/Delete/Domain</h2>
     
+    <!-- Create Single User -->
+    <div class="section">
+        <h3>👤 Create Single User</h3>
+        <div class="form-row">
+            <input type="text" id="new-user-first-name" placeholder="First Name">
+            <input type="text" id="new-user-last-name" placeholder="Last Name">
+        </div>
+        <div class="form-row">
+            <input type="email" id="new-user-email" placeholder="Email Address">
+            <input type="password" id="new-user-password" placeholder="Password">
+        </div>
+        <button onclick="createSingleUser()">➕ Create User</button>
+    </div>
+
+    <!-- Domain Management -->
+    <div class="section">
+        <h3>🌐 Domain Management</h3>
+        <div class="button-row">
+            <button onclick="getDomainInfo()">🔍 Retrieve Domains</button>
+        </div>
+        <div id="domain-info-display" class="data-display">
+            <p>Click 'Retrieve Domains' to view domains here...</p>
+        </div>
+        <div class="form-row">
+            <input type="text" id="new-domain-alias" placeholder="Enter new domain alias">
+            <button onclick="addDomainAlias()">➕ Add Domain Alias</button>
+        </div>
+    </div>
+
     <!-- Create Users from CSV File -->
     <div class="section">
         <h3>📥 Create Users from CSV File</h3>
@@ -1831,6 +1860,151 @@ function deleteSpecificUsers() {
         logResult(`❌ Network error: ${error}`);
     });
 }
+
+function createSingleUser() {
+    const firstName = document.getElementById('new-user-first-name').value;
+    const lastName = document.getElementById('new-user-last-name').value;
+    const email = document.getElementById('new-user-email').value;
+    const password = document.getElementById('new-user-password').value;
+
+    if (!firstName || !lastName || !email || !password) {
+        alert('Please fill in all fields for the new user.');
+        return;
+    }
+
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+
+    logResult(`➕ Creating user: ${email}...`);
+
+    fetch('/api/create-gsuite-user', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            first_name: firstName,
+            last_name: lastName,
+            email: email,
+            password: password
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ User ${email} created successfully.`);
+        } else {
+            logResult(`❌ Failed to create user ${email}: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error}`);
+    });
+}
+
+function getDomainInfo() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+
+    logResult('🔍 Retrieving domain info...');
+    const display = document.getElementById('domain-info-display');
+    display.innerHTML = '<p>Loading domains...</p>';
+
+    fetch('/api/get-domain-info')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let html = '';
+            if (data.domains.length > 0) {
+                data.domains.forEach(domain => {
+                    html += `<div class="domain-item">
+                        <span>${domain.domainName}</span>
+                        <button class="delete-button" onclick="deleteDomain('${domain.domainName}')">Delete</button>
+                    </div>`;
+                });
+            } else {
+                html = '<p>No domains found.</p>';
+            }
+            display.innerHTML = html;
+            logResult(`✅ Domain info retrieved successfully.`);
+        } else {
+            display.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+            logResult(`❌ Failed to retrieve domain info: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        display.innerHTML = `<p style="color: red;">Network error: ${error}</p>`;
+        logResult(`❌ Network error: ${error}`);
+    });
+}
+
+function addDomainAlias() {
+    const domainAlias = document.getElementById('new-domain-alias').value;
+
+    if (!domainAlias) {
+        alert('Please enter a domain alias.');
+        return;
+    }
+
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+
+    logResult(`➕ Adding domain alias: ${domainAlias}...`);
+
+    fetch('/api/add-domain-alias', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ domain_alias: domainAlias })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ Domain alias ${domainAlias} added successfully.`);
+            getDomainInfo(); // Refresh the domain list
+        } else {
+            logResult(`❌ Failed to add domain alias ${domainAlias}: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error}`);
+    });
+}
+
+function deleteDomain(domainName) {
+    if (!confirm(`Are you sure you want to delete the domain: ${domainName}?`)) {
+        return;
+    }
+
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+
+    logResult(`❌ Deleting domain: ${domainName}...`);
+
+    fetch('/api/delete-domain', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ domain_name: domainName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ Domain ${domainName} deleted successfully.`);
+            getDomainInfo(); // Refresh the domain list
+        } else {
+            logResult(`❌ Failed to delete domain ${domainName}: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error}`);
+    });
+}
+
 
 // Tab 3 Functions - Bulk Domain Change (Desktop App Style)
 

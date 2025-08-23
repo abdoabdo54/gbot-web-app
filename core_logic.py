@@ -99,4 +99,58 @@ class WebGoogleAPI:
     def service(self):
         return self._get_current_service()
 
+    def create_gsuite_user(self, first_name, last_name, email, password):
+        if not self.service:
+            raise Exception("Not authenticated or session expired.")
+        
+        user_body = {
+            "primaryEmail": email,
+            "name": {
+                "givenName": first_name,
+                "familyName": last_name
+            },
+            "password": password,
+            "changePasswordAtNextLogin": False
+        }
+        
+        try:
+            user = self.service.users().insert(body=user_body).execute()
+            return {"success": True, "user": user}
+        except HttpError as e:
+            return {"success": False, "error": str(e)}
+
+    def get_domain_info(self):
+        if not self.service:
+            raise Exception("Not authenticated or session expired.")
+        
+        try:
+            domains = self.service.domains().list(customer="my_customer").execute()
+            return {"success": True, "domains": domains.get("domains", [])}
+        except HttpError as e:
+            return {"success": False, "error": str(e)}
+
+    def add_domain_alias(self, domain_alias):
+        if not self.service:
+            raise Exception("Not authenticated or session expired.")
+        
+        domain_body = {
+            "domainName": domain_alias
+        }
+        
+        try:
+            domain = self.service.domains().insert(customer="my_customer", body=domain_body).execute()
+            return {"success": True, "domain": domain}
+        except HttpError as e:
+            return {"success": False, "error": str(e)}
+
+    def delete_domain(self, domain_name):
+        if not self.service:
+            raise Exception("Not authenticated or session expired.")
+        
+        try:
+            self.service.domains().delete(customer="my_customer", domainName=domain_name).execute()
+            return {"success": True, "message": f"Domain {domain_name} deleted successfully."}
+        except HttpError as e:
+            return {"success": False, "error": str(e)}
+
 google_api = WebGoogleAPI()

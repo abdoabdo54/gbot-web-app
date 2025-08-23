@@ -447,5 +447,65 @@ def api_complete_oauth():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/create-gsuite-user', methods=['POST'])
+@login_required
+def api_create_gsuite_user():
+    try:
+        data = request.get_json()
+        first_name = data.get('first_name')
+        last_name = data.get('last_name')
+        email = data.get('email')
+        password = data.get('password')
+
+        if not all([first_name, last_name, email, password]):
+            return jsonify({'success': False, 'error': 'All fields are required'})
+
+        result = google_api.create_gsuite_user(first_name, last_name, email, password)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/get-domain-info', methods=['GET'])
+@login_required
+def api_get_domain_info():
+    try:
+        result = google_api.get_domain_info()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/add-domain-alias', methods=['POST'])
+@login_required
+def api_add_domain_alias():
+    try:
+        data = request.get_json()
+        domain_alias = data.get('domain_alias')
+
+        if not domain_alias:
+            return jsonify({'success': False, 'error': 'Domain alias is required'})
+
+        result = google_api.add_domain_alias(domain_alias)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/delete-domain', methods=['POST'])
+@login_required
+def api_delete_domain():
+    try:
+        data = request.get_json()
+        domain_name = data.get('domain_name')
+
+        if not domain_name:
+            return jsonify({'success': False, 'error': 'Domain name is required'})
+
+        result = google_api.delete_domain(domain_name)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 if __name__ == '__main__':
     app.run(debug=True)
