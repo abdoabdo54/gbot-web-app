@@ -23,10 +23,20 @@ class GoogleAccount(db.Model):
     client_secret = db.Column(db.String(255), nullable=False)
     tokens = db.relationship('GoogleToken', backref='account', lazy=True, cascade="all, delete-orphan")
 
+google_token_scopes = db.Table('google_token_scopes',
+    db.Column('google_token_id', db.Integer, db.ForeignKey('google_token.id'), primary_key=True),
+    db.Column('scope_id', db.Integer, db.ForeignKey('scope.id'), primary_key=True)
+)
+
+class Scope(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False)
+
 class GoogleToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     account_id = db.Column(db.Integer, db.ForeignKey('google_account.id'), nullable=False)
     token = db.Column(db.Text, nullable=False)
     refresh_token = db.Column(db.Text)
     token_uri = db.Column(db.Text, nullable=False)
-    scopes = db.Column(db.Text)
+    scopes = db.relationship('Scope', secondary=google_token_scopes, lazy='subquery',
+                             backref=db.backref('google_tokens', lazy=True))

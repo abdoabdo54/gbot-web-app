@@ -17,7 +17,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from core_logic import google_api
-from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken
+from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -429,7 +429,15 @@ def api_complete_oauth():
         token.token = credentials.token
         token.refresh_token = credentials.refresh_token
         token.token_uri = credentials.token_uri
-        token.scopes = json.dumps(credentials.scopes)
+        
+        # Clear existing scopes and add new ones
+        token.scopes.clear()
+        for scope_name in credentials.scopes:
+            scope = Scope.query.filter_by(name=scope_name).first()
+            if not scope:
+                scope = Scope(name=scope_name)
+                db.session.add(scope)
+            token.scopes.append(scope)
 
         db.session.add(token)
         db.session.commit()

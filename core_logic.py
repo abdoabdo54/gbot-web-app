@@ -19,13 +19,15 @@ class WebGoogleAPI:
             return None
         
         token = account.tokens[0]
+        scopes = [scope.name for scope in token.scopes]
+        
         return Credentials(
             token=token.token,
             refresh_token=token.refresh_token,
             token_uri=token.token_uri,
             client_id=account.client_id,
             client_secret=account.client_secret,
-            scopes=json.loads(token.scopes)
+            scopes=scopes
         )
 
     def has_valid_tokens(self, account_name):
