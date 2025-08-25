@@ -616,6 +616,57 @@ display_current_credentials() {
     echo ""
 }
 
+inspect_nginx_configuration() {
+    log "Inspecting Nginx configuration..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                NGINX CONFIGURATION INSPECTION               ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    echo -e "\n🔍 Active Nginx Sites:"
+    echo "Sites-enabled:"
+    ls -la /etc/nginx/sites-enabled/ 2>/dev/null || echo "No sites enabled"
+    
+    echo -e "\nSites-available:"
+    ls -la /etc/nginx/sites-available/ 2>/dev/null || echo "No sites available"
+    
+    echo -e "\n📋 Main Nginx Configuration:"
+    echo "Checking for upstream definitions..."
+    if grep -n "upstream\|127.0.0.1:3000" /etc/nginx/nginx.conf 2>/dev/null; then
+        echo "Found upstream or port 3000 references in main nginx.conf"
+    else
+        echo "No upstream or port 3000 references found in main nginx.conf"
+    fi
+    
+    echo -e "\n📋 Individual Site Configurations:"
+    for site in /etc/nginx/sites-available/*; do
+        if [ -f "$site" ]; then
+            echo -e "\n--- $(basename "$site") ---"
+            if grep -q "127.0.0.1:3000" "$site" 2>/dev/null; then
+                echo "❌ CONTAINS PORT 3000 REFERENCE:"
+                grep -n "127.0.0.1:3000" "$site"
+            elif grep -q "unix.*sock" "$site" 2>/dev/null; then
+                echo "✅ CONTAINS UNIX SOCKET REFERENCE:"
+                grep -n "unix.*sock" "$site"
+            else
+                echo "⚠️  NO SOCKET OR PORT REFERENCE FOUND:"
+                cat "$site"
+            fi
+        fi
+    done
+    
+    echo -e "\n🔍 Nginx Process Information:"
+    echo "Nginx processes:"
+    ps aux | grep nginx | grep -v grep || echo "No nginx processes found"
+    
+    echo -e "\n🔍 Nginx Configuration Test:"
+    nginx -t 2>&1 || echo "Nginx configuration test failed"
+    
+    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
 install_missing_dependencies() {
     log "Installing missing Python dependencies..."
     
@@ -814,6 +865,26 @@ fix_nginx_configuration() {
         rm -f /etc/nginx/sites-available/default
     fi
     
+    # Check for other configuration files that might be interfering
+    log "Checking for conflicting nginx configurations..."
+    for config_file in /etc/nginx/sites-available/*; do
+        if [ -f "$config_file" ] && [ "$(basename "$config_file")" != "gbot" ]; then
+            log "Found conflicting config: $config_file"
+            if grep -q "127.0.0.1:3000" "$config_file" 2>/dev/null; then
+                log "Removing conflicting config with port 3000: $config_file"
+                rm -f "$config_file"
+            fi
+        fi
+    done
+    
+    # Check main nginx.conf for any upstream definitions
+    log "Checking main nginx.conf for upstream definitions..."
+    if grep -q "upstream.*127.0.0.1:3000" /etc/nginx/nginx.conf 2>/dev/null; then
+        log "Found upstream definition in main nginx.conf, backing up and removing..."
+        cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup
+        sed -i '/upstream.*127.0.0.1:3000/,/}/d' /etc/nginx/nginx.conf
+    fi
+    
     # Recreate our configuration
     NGINX_CONFIG="/etc/nginx/sites-available/gbot"
     
@@ -852,6 +923,14 @@ EOF
     # Enable only our site
     log "Enabling gbot nginx site..."
     ln -s "$NGINX_CONFIG" "/etc/nginx/sites-enabled/"
+    
+    # Verify our configuration is the only one active
+    log "Verifying nginx configuration..."
+    echo "Active nginx sites:"
+    ls -la /etc/nginx/sites-enabled/
+    
+    echo "Nginx configuration content:"
+    cat "$NGINX_CONFIG"
     
     # Test and start nginx
     if nginx -t; then
@@ -980,6 +1059,7 @@ show_help() {
     echo "  -m, --monitor           Setup monitoring only"
     echo "  --troubleshoot          Troubleshoot connection issues"
     echo "  --fix-nginx             Fix Nginx configuration issues"
+    echo "  --inspect-nginx         Inspect Nginx configuration in detail"
     echo "  --fix-whitelist         Fix IP whitelist issues"
     echo "  --install-deps          Install missing Python dependencies"
     echo "  --clean                 Clean installation files"
@@ -1189,6 +1269,10 @@ main() {
                 ;;
             --fix-nginx)
                 fix_nginx_configuration
+                exit 0
+                ;;
+            --inspect-nginx)
+                inspect_nginx_configuration
                 exit 0
                 ;;
             --fix-whitelist)
