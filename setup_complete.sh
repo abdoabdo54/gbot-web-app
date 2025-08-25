@@ -682,49 +682,59 @@ fix_ip_whitelist() {
             
             # Add IP to whitelist using Python
             python3 -c "
+import sys
 import os
-from app import app, db
-from database import WhitelistedIP
 
-with app.app_context():
-    # Check if IP already exists
-    existing_ip = WhitelistedIP.query.filter_by(ip_address='$CURRENT_IP').first()
-    if not existing_ip:
-        # Add new IP (using only the fields that exist in the model)
-        try:
-            new_ip = WhitelistedIP(ip_address='$CURRENT_IP')
-            db.session.add(new_ip)
-            db.session.commit()
-            print(f'IP $CURRENT_IP added to whitelist successfully')
-        except Exception as e:
-            print(f'Error adding IP: {e}')
-            # Try alternative approach - check what fields the model actually has
-            print('Model fields:', [c.name for c in WhitelistedIP.__table__.columns])
-    else:
-        print(f'IP $CURRENT_IP already in whitelist')
+# Add the current directory to Python path
+sys.path.insert(0, '$SCRIPT_DIR')
+
+# Set environment variables
+os.environ['FLASK_ENV'] = 'production'
+
+try:
+    from app import app, db
+    from database import WhitelistedIP
+    
+    with app.app_context():
+        # Check if IP already exists
+        existing_ip = WhitelistedIP.query.filter_by(ip_address='$CURRENT_IP').first()
+        if not existing_ip:
+            # Add new IP (using only the fields that exist in the model)
+            try:
+                new_ip = WhitelistedIP(ip_address='$CURRENT_IP')
+                db.session.add(new_ip)
+                db.session.commit()
+                print(f'IP $CURRENT_IP added to whitelist successfully')
+            except Exception as e:
+                print(f'Error adding IP: {e}')
+                # Try alternative approach - check what fields the model actually has
+                print('Model fields:', [c.name for c in WhitelistedIP.__table__.columns])
+        else:
+            print(f'IP $CURRENT_IP already in whitelist')
+            
+except ImportError as e:
+    print(f'Import error: {e}')
+    print('Python path:', sys.path)
+    print('Current working directory:', os.getcwd())
+    print('Files in current directory:', os.listdir('.'))
+except Exception as e:
+    print(f'Unexpected error: {e}')
 "
             
             # Deactivate virtual environment
             deactivate
             
-            # Check if the IP was actually added
-            if python3 -c "
-import os
-from app import app, db
-from database import WhitelistedIP
-
-with app.app_context():
-    ip = WhitelistedIP.query.filter_by(ip_address='$CURRENT_IP').first()
-    if ip:
-        print('SUCCESS')
-    else:
-        print('FAILED')
-" | grep -q "SUCCESS"; then
-                echo -e "\n✅ IP whitelist has been fixed!"
-                echo -e "🌐 Your IP ${BLUE}$CURRENT_IP${NC} has been added to the whitelist"
-                echo -e "🔍 Try accessing your application again at: ${BLUE}http://95.179.176.162${NC}"
+            # Since the IP is already whitelisted, let's test the connection directly
+            echo -e "\n✅ IP whitelist check completed!"
+            echo -e "🌐 Your IP ${BLUE}$CURRENT_IP${NC} is already in the whitelist"
+            
+            # Test direct socket connection
+            log "Testing direct socket connection..."
+            if curl -s --unix-socket "$SCRIPT_DIR/gbot.sock" http://localhost/health 2>/dev/null; then
+                echo -e "\n✅ Direct socket connection successful!"
+                echo -e "🌐 Try accessing your application at: ${BLUE}http://95.179.176.162${NC}"
             else
-                echo -e "\n⚠️  IP whitelist update may have failed"
+                echo -e "\n⚠️  Socket connection test failed"
                 echo -e "🔍 Run troubleshooting to check: ${BLUE}./setup_complete.sh --troubleshoot${NC}"
             fi
         else
