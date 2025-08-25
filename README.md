@@ -22,7 +22,7 @@ A comprehensive Google Workspace administration and automation platform designed
 
 ## 🛠️ Installation
 
-### Option 1: Automated Installation (Recommended)
+### Option 1: Complete Automated Installation (Recommended)
 
 #### Quick Start
 ```bash
@@ -30,42 +30,51 @@ A comprehensive Google Workspace administration and automation platform designed
 git clone <repository-url>
 cd gbot-web-app
 
-# Make scripts executable
-chmod +x setup_enhanced.sh
-chmod +x install.py
+# Make script executable
+chmod +x setup_complete.sh
 
-# Run automated installation
-./setup_enhanced.sh --install
+# Run complete installation
+./setup_complete.sh --install
 ```
 
 #### Installation Modes
 
-**Development Setup (SQLite)**
+**Complete Installation (Production Ready)**
 ```bash
-./setup_enhanced.sh --dev
+./setup_complete.sh --install
 ```
 
-**Production Setup (PostgreSQL + Nginx + Systemd)**
+**Force Reinstall Everything**
 ```bash
-./setup_enhanced.sh --prod
-```
-
-**Force Reinstall**
-```bash
-./setup_enhanced.sh --reinstall
+./setup_complete.sh --reinstall
 ```
 
 **Validate Existing Installation**
 ```bash
-./setup_enhanced.sh --validate
+./setup_complete.sh --validate
 ```
 
 **Check System Requirements**
 ```bash
-./setup_enhanced.sh --check
+./setup_complete.sh --check
 ```
 
-### Option 2: Python Installer Only
+**Setup SSL Certificate**
+```bash
+./setup_complete.sh --ssl
+```
+
+**Create Backup**
+```bash
+./setup_complete.sh --backup
+```
+
+**Clean Installation**
+```bash
+./setup_complete.sh --clean
+```
+
+### Option 2: Python Installer Only (Alternative)
 
 ```bash
 # Check prerequisites
@@ -346,33 +355,30 @@ python3 app.py
 
 #### Quick Production Setup
 ```bash
-# Full production deployment with PostgreSQL, Nginx, and SSL
-./setup_enhanced.sh --prod --ssl
+# Complete production deployment with PostgreSQL, Nginx, SSL, and monitoring
+./setup_complete.sh --install
 
-# Production deployment without SSL (for internal use)
-./setup_enhanced.sh --prod
+# Force reinstall everything (clean slate)
+./setup_complete.sh --reinstall
 ```
 
 #### Step-by-Step Production Setup
 ```bash
-# 1. Install system dependencies
+# 1. Install system dependencies (optional - script handles this automatically)
 sudo apt-get update
 sudo apt-get install -y python3-pip python3-dev python3-venv build-essential libssl-dev libffi-dev postgresql postgresql-contrib nginx ufw certbot python3-certbot-nginx
 
-# 2. Run production installation
-./setup_enhanced.sh --prod
+# 2. Run complete production installation (handles everything automatically)
+./setup_complete.sh --install
 
-# 3. Setup SSL certificate (optional)
-./setup_enhanced.sh --ssl
+# 3. Or force reinstall everything (clean slate)
+./setup_complete.sh --reinstall
 
-# 4. Create backup
-./setup_enhanced.sh --backup
+# 4. Create backup anytime
+./setup_complete.sh --backup
 
-# 5. Start services
-sudo systemctl start gbot
-sudo systemctl start nginx
-sudo systemctl enable gbot
-sudo systemctl enable nginx
+# 5. Services start automatically, but you can check status:
+sudo systemctl status gbot nginx postgresql
 ```
 
 #### Production Configuration
@@ -387,7 +393,7 @@ sudo systemctl enable nginx
 #### SSL Certificate Setup
 ```bash
 # Setup SSL with Let's Encrypt
-./setup_enhanced.sh --ssl
+./setup_complete.sh --ssl
 
 # Manual SSL setup
 sudo certbot --nginx -d yourdomain.com
@@ -406,7 +412,13 @@ sudo tail -f /var/log/nginx/error.log
 sudo systemctl restart gbot nginx
 
 # Backup and restore
-./setup_enhanced.sh --backup
+./setup_complete.sh --backup
+
+# Validate installation
+./setup_complete.sh --validate
+
+# Clean installation (removes everything)
+./setup_complete.sh --clean
 ```
 
 ### Docker (Future Enhancement)
