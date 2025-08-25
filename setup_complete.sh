@@ -616,6 +616,48 @@ display_current_credentials() {
     echo ""
 }
 
+install_missing_dependencies() {
+    log "Installing missing Python dependencies..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                INSTALLING MISSING DEPENDENCIES              ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    # Activate virtual environment
+    source venv/bin/activate
+    
+    # Install missing dependencies
+    log "Installing google-auth-oauthlib..."
+    pip install google-auth-oauthlib
+    
+    log "Installing google-auth..."
+    pip install google-auth
+    
+    log "Installing google-api-python-client..."
+    pip install google-api-python-client
+    
+    log "Upgrading pip and setuptools..."
+    pip install --upgrade pip setuptools
+    
+    # Check if requirements.txt exists and install from it
+    if [ -f "requirements.txt" ]; then
+        log "Installing all requirements from requirements.txt..."
+        pip install -r requirements.txt
+    fi
+    
+    # Deactivate virtual environment
+    deactivate
+    
+    log_success "Missing dependencies installed"
+    
+    echo -e "\n✅ Dependencies have been installed!"
+    echo -e "🔍 Now try the whitelist fix again: ${BLUE}./setup_complete.sh --fix-whitelist${NC}"
+    
+    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
 fix_ip_whitelist() {
     log "Fixing IP whitelist..."
     
@@ -653,13 +695,13 @@ with app.app_context():
             new_ip = WhitelistedIP(ip_address='$CURRENT_IP')
             db.session.add(new_ip)
             db.session.commit()
-            print(f'IP {CURRENT_IP} added to whitelist successfully')
+            print(f'IP $CURRENT_IP added to whitelist successfully')
         except Exception as e:
             print(f'Error adding IP: {e}')
             # Try alternative approach - check what fields the model actually has
             print('Model fields:', [c.name for c in WhitelistedIP.__table__.columns])
     else:
-        print(f'IP {CURRENT_IP} already in whitelist')
+        print(f'IP $CURRENT_IP already in whitelist')
 "
             
             # Deactivate virtual environment
@@ -929,6 +971,7 @@ show_help() {
     echo "  --troubleshoot          Troubleshoot connection issues"
     echo "  --fix-nginx             Fix Nginx configuration issues"
     echo "  --fix-whitelist         Fix IP whitelist issues"
+    echo "  --install-deps          Install missing Python dependencies"
     echo "  --clean                 Clean installation files"
     echo ""
     echo "Examples:"
@@ -1140,6 +1183,10 @@ main() {
                 ;;
             --fix-whitelist)
                 fix_ip_whitelist
+                exit 0
+                ;;
+            --install-deps)
+                install_missing_dependencies
                 exit 0
                 ;;
             --clean)
