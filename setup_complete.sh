@@ -350,12 +350,22 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_connect_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
     }
     
     location /static {
         alias $SCRIPT_DIR/static;
         expires 30d;
         add_header Cache-Control "public, immutable";
+    }
+    
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
     }
 }
 EOF
@@ -590,6 +600,47 @@ display_current_credentials() {
     echo ""
 }
 
+troubleshoot_connection() {
+    log "Troubleshooting connection issues..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                TROUBLESHOOTING GUIDE                        ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    # Check if socket exists
+    if [ -S "$SCRIPT_DIR/gbot.sock" ]; then
+        echo -e "✅ Gunicorn socket exists: ${BLUE}$SCRIPT_DIR/gbot.sock${NC}"
+        echo -e "   Socket permissions: ${BLUE}$(ls -la $SCRIPT_DIR/gbot.sock)${NC}"
+    else
+        echo -e "❌ Gunicorn socket missing: ${BLUE}$SCRIPT_DIR/gbot.sock${NC}"
+    fi
+    
+    # Check service status
+    echo -e "\n🔍 Service Status:"
+    echo -e "   GBot service: ${BLUE}$(systemctl is-active gbot)${NC}"
+    echo -e "   Nginx service: ${BLUE}$(systemctl is-active nginx)${NC}"
+    echo -e "   PostgreSQL: ${BLUE}$(systemctl is-active postgresql)${NC}"
+    
+    # Check socket connection
+    echo -e "\n🔌 Socket Connection Test:"
+    if [ -S "$SCRIPT_DIR/gbot.sock" ]; then
+        echo -e "   Testing socket with curl..."
+        curl -s --unix-socket "$SCRIPT_DIR/gbot.sock" http://localhost/health 2>/dev/null || echo "   ❌ Socket connection failed"
+    fi
+    
+    # Check Nginx error logs
+    echo -e "\n📋 Nginx Error Logs (last 5 lines):"
+    tail -n 5 /var/log/nginx/error.log 2>/dev/null || echo "   No error logs found"
+    
+    # Check Gunicorn logs
+    echo -e "\n📋 Gunicorn Logs (last 5 lines):"
+    tail -n 5 "$SCRIPT_DIR/gunicorn-error.log" 2>/dev/null || echo "   No Gunicorn error logs found"
+    
+    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
 start_services() {
     log "Starting services..."
     
@@ -604,6 +655,21 @@ start_services() {
     # Start GBot service
     $SUDO_CMD systemctl start gbot
     $SUDO_CMD systemctl enable gbot
+    
+    # Wait for Gunicorn to create the socket
+    log "Waiting for Gunicorn socket to be ready..."
+    sleep 5
+    
+    # Check if socket exists and has proper permissions
+    if [ -S "$SCRIPT_DIR/gbot.sock" ]; then
+        log_success "Gunicorn socket created successfully"
+        # Set proper permissions on the socket
+        chmod 666 "$SCRIPT_DIR/gbot.sock"
+    else
+        log_error "Gunicorn socket not found. Checking service status..."
+        $SUDO_CMD systemctl status gbot
+        exit 1
+    fi
     
     log_success "All services started and enabled"
 }
@@ -683,6 +749,7 @@ show_help() {
     echo "  -s, --ssl               Setup SSL certificate"
     echo "  -b, --backup            Create backup of current installation"
     echo "  -m, --monitor           Setup monitoring only"
+    echo "  --troubleshoot          Troubleshoot connection issues"
     echo "  --clean                 Clean installation files"
     echo ""
     echo "Examples:"
@@ -824,6 +891,9 @@ run_complete_installation() {
     # Display current credentials
     display_current_credentials
     
+    # Troubleshoot connection issues
+    troubleshoot_connection
+    
     # Show summary
     show_installation_summary
     
@@ -880,6 +950,10 @@ main() {
             -m|--monitor)
                 SETUP_MONITORING=true
                 shift
+                ;;
+            --troubleshoot)
+                troubleshoot_connection
+                exit 0
                 ;;
             --clean)
                 CLEANUP=true
