@@ -734,10 +734,17 @@ def api_retrieve_users():
         # Get the current authenticated account
         account_name = session.get('current_account_name')
         
-        # Use the google_api service to retrieve users
+        # First, try to authenticate using saved tokens if service is not available
         if not google_api.service:
-            return jsonify({'success': False, 'error': 'Google API service not available. Please re-authenticate.'})
+            # Check if we have valid tokens for this account
+            if google_api.is_token_valid(account_name):
+                success = google_api.authenticate_with_tokens(account_name)
+                if not success:
+                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
+            else:
+                return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
         
+        # Now try to retrieve users
         try:
             # Use the google_api method to retrieve users
             result = google_api.get_users(max_results=500)
@@ -792,9 +799,18 @@ def api_update_all_passwords():
         if 'current_account_name' not in session:
             return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
         
-        # Use the google_api service to update passwords
+        # Get the current authenticated account
+        account_name = session.get('current_account_name')
+        
+        # First, try to authenticate using saved tokens if service is not available
         if not google_api.service:
-            return jsonify({'success': False, 'error': 'Google API service not available. Please re-authenticate.'})
+            # Check if we have valid tokens for this account
+            if google_api.is_token_valid(account_name):
+                success = google_api.authenticate_with_tokens(account_name)
+                if not success:
+                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
+            else:
+                return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
         
         successful_emails = []
         failed_details = []
@@ -836,9 +852,18 @@ def api_retrieve_domains():
         if 'current_account_name' not in session:
             return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
         
-        # Use the google_api service to retrieve domains
+        # Get the current authenticated account
+        account_name = session.get('current_account_name')
+        
+        # First, try to authenticate using saved tokens if service is not available
         if not google_api.service:
-            return jsonify({'success': False, 'error': 'Google API service not available. Please re-authenticate.'})
+            # Check if we have valid tokens for this account
+            if google_api.is_token_valid(account_name):
+                success = google_api.authenticate_with_tokens(account_name)
+                if not success:
+                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
+            else:
+                return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
         
         try:
             # Use the existing get_domain_info method
@@ -881,9 +906,18 @@ def api_load_suspended_users():
         if 'current_account_name' not in session:
             return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
         
-        # Use the google_api service to retrieve suspended users
+        # Get the current authenticated account
+        account_name = session.get('current_account_name')
+        
+        # First, try to authenticate using saved tokens if service is not available
         if not google_api.service:
-            return jsonify({'success': False, 'error': 'Google API service not available. Please re-authenticate.'})
+            # Check if we have valid tokens for this account
+            if google_api.is_token_valid(account_name):
+                success = google_api.authenticate_with_tokens(account_name)
+                if not success:
+                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
+            else:
+                return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
         
         try:
             # Retrieve suspended users from Google Admin Directory API
