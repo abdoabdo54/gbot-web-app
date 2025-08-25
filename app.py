@@ -769,9 +769,9 @@ def api_retrieve_users():
             logging.error(f"Google API error: {api_error}")
             return jsonify({'success': False, 'error': f'Failed to retrieve users: {str(api_error)}'})
             
-            except Exception as e:
-            logging.error(f"Retrieve users error: {e}")
-            return jsonify({'success': False, 'error': str(e)})
+    except Exception as e:
+        logging.error(f"Retrieve users error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/update-all-passwords', methods=['POST'])
 @login_required
