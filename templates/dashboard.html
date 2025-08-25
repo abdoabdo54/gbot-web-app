@@ -1181,22 +1181,8 @@ function copySuspendedUsers() {
 }
 
 function refreshAccounts() {
-    fetch('/api/refresh-accounts', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(data.message);
-            location.reload(); // Reload page to show new accounts
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        alert('Network error: ' + error);
-    });
+    // Simply reload the page to refresh accounts from database
+    location.reload();
 }
 
 // Modal functions
@@ -1247,7 +1233,7 @@ function saveNewAccount() {
         if (data.success) {
             alert('✅ Account added successfully!');
             closeAddAccountModal();
-            refreshAccountsDisplay();
+            location.reload(); // Reload to show new account
         } else {
             alert('❌ Error: ' + data.error);
         }
@@ -1310,43 +1296,48 @@ function deleteFromList() {
         return;
     }
     
-    fetch('/api/delete-account', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({account_name: selectedAccountFromList})
+    // First, get the account ID from the account name
+    fetch('/api/list-accounts', {
+        method: 'GET',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.accounts) {
+            const account = data.accounts.find(acc => acc.account_name === selectedAccountFromList);
+            if (account) {
+                // Now delete using the account ID
+                return fetch('/api/delete-account', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({account_id: account.id})
+                });
+            } else {
+                throw new Error('Account not found in database');
+            }
+        } else {
+            throw new Error('Failed to fetch accounts');
+        }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             alert('✅ Account deleted successfully!');
             selectedAccountFromList = null;
-            refreshAccountsDisplay();
+            location.reload(); // Reload to refresh the display
         } else {
             alert('❌ Error: ' + data.error);
         }
     })
     .catch(error => {
-        alert('❌ Network error: ' + error);
+        console.error('Delete error:', error);
+        alert('❌ Error: ' + error.message);
     });
 }
 
 function refreshAccountsDisplay() {
-    fetch('/api/refresh-accounts', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Reload the page to show updated accounts
-            location.reload();
-        } else {
-            alert('❌ Error refreshing: ' + data.error);
-        }
-    })
-    .catch(error => {
-        alert('❌ Network error: ' + error);
-    });
+    // Simply reload the page to refresh accounts from database
+    location.reload();
 }
 
 // Admin-only manual token status check
