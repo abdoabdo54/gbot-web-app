@@ -172,13 +172,13 @@ setup_postgresql() {
     
     # Configure PostgreSQL for production
     log "Configuring PostgreSQL for production..."
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET max_connections = '100';" 2>/dev/null || true
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET shared_buffers = '256MB';" 2>/dev/null || true
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET effective_cache_size = '1GB';" 2>/dev/null || true
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET maintenance_work_mem = '64MB';" 2>/dev/null || true
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET checkpoint_completion_target = '0.9';" 2>/dev/null || true
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET wal_buffers = '16MB';" 2>/dev/null || true
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET default_statistics_target = '100';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET max_connections = '100';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET shared_buffers = '256MB';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET effective_cache_size = '1GB';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET maintenance_work_mem = '64MB';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET checkpoint_completion_target = '0.9';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET wal_buffers = '16MB';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET default_statistics_target = '100';" 2>/dev/null || true
     
     # Restart PostgreSQL to apply changes
     $SUDO_CMD systemctl restart postgresql
@@ -189,26 +189,26 @@ setup_postgresql() {
     DB_PASS=$(openssl rand -hex 12)
     
     # Check if database already exists
-    if $SUDO_CMD -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+    if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
         log "Database '$DB_NAME' already exists"
     else
         log "Creating database '$DB_NAME'..."
-        $SUDO_CMD -u postgres psql -c "CREATE DATABASE $DB_NAME;"
+        sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;"
     fi
     
     # Check if user already exists
-    if $SUDO_CMD -u postgres psql -t -c "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+    if sudo -u postgres psql -t -c "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
         log "User '$DB_USER' already exists"
     else
         log "Creating user '$DB_USER'..."
-        $SUDO_CMD -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
+        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
     fi
     
     # Grant privileges
-    $SUDO_CMD -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
-    $SUDO_CMD -u postgres psql -c "ALTER ROLE $DB_USER SET client_encoding TO 'utf8';"
-    $SUDO_CMD -u postgres psql -c "ALTER ROLE $DB_USER SET default_transaction_isolation TO 'read committed';"
-    $SUDO_CMD -u postgres psql -c "ALTER ROLE $DB_USER SET timezone TO 'UTC';"
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+    sudo -u postgres psql -c "ALTER ROLE $DB_USER SET client_encoding TO 'utf8';"
+    sudo -u postgres psql -c "ALTER ROLE $DB_USER SET default_transaction_isolation TO 'read committed';"
+    sudo -u postgres psql -c "ALTER ROLE $DB_USER SET timezone TO 'UTC';"
     
     # Save database credentials
     echo "DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost/$DB_NAME" > "$SCRIPT_DIR/.db_credentials"
