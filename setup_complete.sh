@@ -784,11 +784,29 @@ EOF
         systemctl enable nginx
         systemctl start nginx
         
-        log_success "Nginx configuration completely nuked and rebuilt!"
+        # Wait for nginx to fully start
+        sleep 3
         
-        echo -e "\n✅ Nginx has been completely rebuilt!"
-        echo -e "🌐 Try accessing your application at: ${BLUE}http://95.179.176.162${NC}"
-        echo -e "🔍 Verify with: ${BLUE}./setup_complete.sh --inspect-nginx${NC}"
+        # Verify nginx is running
+        if systemctl is-active --quiet nginx; then
+            log_success "Nginx configuration completely nuked and rebuilt!"
+            
+            echo -e "\n✅ Nginx has been completely rebuilt and is running!"
+            echo -e "🌐 Try accessing your application at: ${BLUE}http://95.179.176.162${NC}"
+            echo -e "🔍 Verify with: ${BLUE}./setup_complete.sh --inspect-nginx${NC}"
+            
+            # Test the connection immediately
+            echo -e "\n🔍 Testing connection..."
+            if curl -s http://localhost/health 2>/dev/null; then
+                echo -e "✅ Local connection successful!"
+            else
+                echo -e "❌ Local connection failed"
+            fi
+        else
+            log_error "Nginx failed to start after rebuild"
+            systemctl status nginx
+            exit 1
+        fi
     else
         log_error "Nginx configuration test failed after nuke"
         exit 1
@@ -902,10 +920,18 @@ disable_ip_whitelist() {
         sed -i 's/ALLOW_ALL_IPS_IN_DEV=False/ALLOW_ALL_IPS_IN_DEV=True/' .env
         sed -i 's/ALLOW_ALL_IPS_IN_DEV=false/ALLOW_ALL_IPS_IN_DEV=True/' .env
         
+        # Also set DEBUG=True to ensure development mode
+        sed -i 's/DEBUG=False/DEBUG=True/' .env
+        sed -i 's/DEBUG=false/DEBUG=True/' .env
+        
         echo -e "\n✅ IP whitelist has been disabled!"
         echo -e "🌐 All IPs will now be allowed to access the application"
         echo -e "🔧 You'll need to restart the application for changes to take effect:"
         echo -e "   ${BLUE}systemctl restart gbot${NC}"
+        
+        # Show current .env settings
+        echo -e "\n📋 Current .env settings:"
+        grep -E "ENABLE_IP_WHITELIST|ALLOW_ALL_IPS_IN_DEV|DEBUG" .env
         
         # Test direct socket connection
         log "Testing direct socket connection..."
@@ -921,6 +947,65 @@ disable_ip_whitelist() {
     fi
     
     echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
+fix_all_issues() {
+    log "FIXING ALL ISSUES COMPREHENSIVELY..."
+    
+    echo ""
+    echo -e "${GREEN}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}                COMPREHENSIVE FIX ALL ISSUES                ${NC}"
+    echo -e "${GREEN}══════════════════════════════════════════════════════════════${NC}"
+    
+    echo -e "\n🚀 This will fix ALL your issues in the correct order:"
+    echo -e "   1. 🔧 Fix IP whitelist (disable restrictions)"
+    echo -e "   2. 🚀 Restart application with new settings"
+    echo -e "   3. 🌐 Rebuild Nginx completely"
+    echo -e "   4. ✅ Test everything works"
+    
+    echo ""
+    read -p "Continue with comprehensive fix? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log "Comprehensive fix cancelled by user"
+        return
+    fi
+    
+    # Step 1: Fix IP whitelist
+    echo -e "\n🔧 Step 1: Fixing IP whitelist..."
+    disable_ip_whitelist
+    
+    # Step 2: Restart application
+    echo -e "\n🚀 Step 2: Restarting application..."
+    systemctl restart gbot
+    sleep 5
+    
+    # Step 3: Rebuild Nginx
+    echo -e "\n🌐 Step 3: Rebuilding Nginx completely..."
+    nuke_nginx_configuration
+    
+    # Step 4: Test everything
+    echo -e "\n✅ Step 4: Testing everything..."
+    
+    # Test local connection
+    if curl -s http://localhost/health 2>/dev/null; then
+        echo -e "✅ Local connection successful!"
+    else
+        echo -e "❌ Local connection failed"
+    fi
+    
+    # Test external connection
+    if curl -s http://95.179.176.162/health 2>/dev/null; then
+        echo -e "✅ External connection successful!"
+        echo -e "\n🎉 ALL ISSUES FIXED! Your application is now accessible at:"
+        echo -e "   ${BLUE}http://95.179.176.162${NC}"
+    else
+        echo -e "❌ External connection failed"
+        echo -e "\n🔍 Run troubleshooting: ${BLUE}./setup_complete.sh --troubleshoot${NC}"
+    fi
+    
+    echo -e "\n${GREEN}══════════════════════════════════════════════════════════════${NC}"
     echo ""
 }
 
@@ -1320,6 +1405,7 @@ show_help() {
     echo "  --nuke-nginx            COMPLETELY rebuild Nginx from scratch"
     echo "  --add-ip                Add current IP to whitelist"
     echo "  --disable-whitelist     Disable IP whitelist (allow all IPs)"
+    echo "  --fix-all               🔥 FIX ALL ISSUES AT ONCE (RECOMMENDED)"
     echo "  --fix-whitelist         Fix IP whitelist issues"
     echo "  --install-deps          Install missing Python dependencies"
     echo "  --clean                 Clean installation files"
@@ -1545,6 +1631,10 @@ main() {
                 ;;
             --disable-whitelist)
                 disable_ip_whitelist
+                exit 0
+                ;;
+            --fix-all)
+                fix_all_issues
                 exit 0
                 ;;
             --fix-whitelist)

@@ -64,14 +64,13 @@ def before_request():
         return
 
     # IP Whitelist check - configurable via environment variables
-    if app.config.get('ENABLE_IP_WHITELIST', False):
+    # Only check if explicitly enabled AND not in development mode
+    if app.config.get('ENABLE_IP_WHITELIST', False) and not app.debug:
         client_ip = get_client_ip()
         whitelisted_ip = WhitelistedIP.query.filter_by(ip_address=client_ip).first()
         if not whitelisted_ip:
             return f"Access denied. IP {client_ip} not whitelisted.", 403
-    elif app.config.get('ALLOW_ALL_IPS_IN_DEV', True) and app.debug:
-        # Allow all IPs in development mode
-        pass
+    # If IP whitelist is disabled or in development mode, allow all IPs
 
 @app.after_request
 def add_security_headers(response):
