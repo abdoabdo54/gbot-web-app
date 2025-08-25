@@ -63,10 +63,15 @@ def before_request():
     if request.endpoint in ['static', 'login', 'emergency_access']:
         return
 
-    client_ip = get_client_ip()
-    whitelisted_ip = WhitelistedIP.query.filter_by(ip_address=client_ip).first()
-    if not whitelisted_ip:
-        return f"Access denied. IP {client_ip} not whitelisted.", 403
+    # IP Whitelist check - configurable via environment variables
+    if app.config.get('ENABLE_IP_WHITELIST', False):
+        client_ip = get_client_ip()
+        whitelisted_ip = WhitelistedIP.query.filter_by(ip_address=client_ip).first()
+        if not whitelisted_ip:
+            return f"Access denied. IP {client_ip} not whitelisted.", 403
+    elif app.config.get('ALLOW_ALL_IPS_IN_DEV', True) and app.debug:
+        # Allow all IPs in development mode
+        pass
 
 @app.after_request
 def add_security_headers(response):

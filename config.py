@@ -7,6 +7,10 @@ import os
 SECRET_KEY = os.environ.get('SECRET_KEY')
 WHITELIST_TOKEN = os.environ.get('WHITELIST_TOKEN')
 
+# IP Whitelist Configuration
+ENABLE_IP_WHITELIST = os.environ.get('ENABLE_IP_WHITELIST', 'False').lower() == 'true'
+ALLOW_ALL_IPS_IN_DEV = os.environ.get('ALLOW_ALL_IPS_IN_DEV', 'True').lower() == 'true'
+
 # Database Configuration
 SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'postgresql://user:password@localhost/gbot_db')
 SQLALCHEMY_TRACK_MODIFICATIONS = False

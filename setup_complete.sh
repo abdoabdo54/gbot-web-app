@@ -299,13 +299,17 @@ create_environment_file() {
     fi
     
     # Create .env file
-    cat > .env << EOF
+        cat > .env << EOF
 # GBot Web Application Environment Configuration
 # Generated automatically during installation
 
 SECRET_KEY=$SECRET_KEY
 WHITELIST_TOKEN=$WHITELIST_TOKEN
 DATABASE_URL=$DATABASE_URL
+
+# IP Whitelist Configuration
+ENABLE_IP_WHITELIST=False
+ALLOW_ALL_IPS_IN_DEV=True
 
 # Google API Configuration
 GOOGLE_CLIENT_ID=
@@ -794,6 +798,132 @@ EOF
     echo ""
 }
 
+add_ip_to_whitelist() {
+    log "Adding IP to whitelist..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                ADDING IP TO WHITELIST                      ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    # Get current external IP
+    CURRENT_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "unknown")
+    
+    if [ "$CURRENT_IP" != "unknown" ]; then
+        log "Current external IP detected: $CURRENT_IP"
+        
+        # Check if we have a database to add the IP
+        if [ -f ".env" ]; then
+            # Source environment variables
+            export $(grep -v '^#' .env | xargs)
+            
+            # Activate virtual environment
+            source venv/bin/activate
+            
+            # Add IP to whitelist using Python
+            python3 -c "
+import sys
+import os
+
+# Add the current directory to Python path
+sys.path.insert(0, '$SCRIPT_DIR')
+
+# Set environment variables
+os.environ['FLASK_ENV'] = 'production'
+
+try:
+    from app import app, db
+    from database import WhitelistedIP
+    
+    with app.app_context():
+        # Check if IP already exists
+        existing_ip = WhitelistedIP.query.filter_by(ip_address='$CURRENT_IP').first()
+        if not existing_ip:
+            # Add new IP
+            new_ip = WhitelistedIP(ip_address='$CURRENT_IP')
+            db.session.add(new_ip)
+            db.session.commit()
+            print(f'IP $CURRENT_IP added to whitelist successfully')
+        else:
+            print(f'IP $CURRENT_IP already in whitelist')
+            
+except ImportError as e:
+    print(f'Import error: {e}')
+    print('Python path:', sys.path)
+    print('Current working directory:', os.getcwd())
+    print('Files in current directory:', os.listdir('.'))
+except Exception as e:
+    print(f'Unexpected error: {e}')
+"
+            
+            # Deactivate virtual environment
+            deactivate
+            
+            echo -e "\n✅ IP whitelist operation completed!"
+            echo -e "🌐 Your IP ${BLUE}$CURRENT_IP${NC} has been processed"
+            
+            # Test direct socket connection
+            log "Testing direct socket connection..."
+            if curl -s --unix-socket "$SCRIPT_DIR/gbot.sock" http://localhost/health 2>/dev/null; then
+                echo -e "\n✅ Direct socket connection successful!"
+                echo -e "🌐 Try accessing your application at: ${BLUE}http://95.179.176.162${NC}"
+            else
+                echo -e "\n⚠️  Socket connection test failed"
+                echo -e "🔍 Run troubleshooting to check: ${BLUE}./setup_complete.sh --troubleshoot${NC}"
+            fi
+        else
+            log_error "Environment file not found. Cannot update whitelist."
+        fi
+    else
+        log_error "Could not detect current external IP"
+        echo -e "\n⚠️  Manual IP whitelist setup required:"
+        echo -e "   1. Access the application directly via socket: ${BLUE}curl --unix-socket $SCRIPT_DIR/gbot.sock http://localhost/whitelist${NC}"
+        echo -e "   2. Add your IP address to the whitelist"
+    fi
+    
+    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
+disable_ip_whitelist() {
+    log "Disabling IP whitelist..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                DISABLING IP WHITELIST                      ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    if [ -f ".env" ]; then
+        # Update .env file to disable IP whitelist
+        sed -i 's/ENABLE_IP_WHITELIST=True/ENABLE_IP_WHITELIST=False/' .env
+        sed -i 's/ENABLE_IP_WHITELIST=true/ENABLE_IP_WHITELIST=False/' .env
+        
+        # Ensure ALLOW_ALL_IPS_IN_DEV is True
+        sed -i 's/ALLOW_ALL_IPS_IN_DEV=False/ALLOW_ALL_IPS_IN_DEV=True/' .env
+        sed -i 's/ALLOW_ALL_IPS_IN_DEV=false/ALLOW_ALL_IPS_IN_DEV=True/' .env
+        
+        echo -e "\n✅ IP whitelist has been disabled!"
+        echo -e "🌐 All IPs will now be allowed to access the application"
+        echo -e "🔧 You'll need to restart the application for changes to take effect:"
+        echo -e "   ${BLUE}systemctl restart gbot${NC}"
+        
+        # Test direct socket connection
+        log "Testing direct socket connection..."
+        if curl -s --unix-socket "$SCRIPT_DIR/gbot.sock" http://localhost/health 2>/dev/null; then
+            echo -e "\n✅ Direct socket connection successful!"
+            echo -e "🌐 Try accessing your application at: ${BLUE}http://95.179.176.162${NC}"
+        else
+            echo -e "\n⚠️  Socket connection test failed"
+            echo -e "🔍 Run troubleshooting to check: ${BLUE}./setup_complete.sh --troubleshoot${NC}"
+        fi
+    else
+        log_error "Environment file not found. Cannot disable IP whitelist."
+    fi
+    
+    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
 install_missing_dependencies() {
     log "Installing missing Python dependencies..."
     
@@ -1188,6 +1318,8 @@ show_help() {
     echo "  --fix-nginx             Fix Nginx configuration issues"
     echo "  --inspect-nginx         Inspect Nginx configuration in detail"
     echo "  --nuke-nginx            COMPLETELY rebuild Nginx from scratch"
+    echo "  --add-ip                Add current IP to whitelist"
+    echo "  --disable-whitelist     Disable IP whitelist (allow all IPs)"
     echo "  --fix-whitelist         Fix IP whitelist issues"
     echo "  --install-deps          Install missing Python dependencies"
     echo "  --clean                 Clean installation files"
@@ -1405,6 +1537,14 @@ main() {
                 ;;
             --nuke-nginx)
                 nuke_nginx_configuration
+                exit 0
+                ;;
+            --add-ip)
+                add_ip_to_whitelist
+                exit 0
+                ;;
+            --disable-whitelist)
+                disable_ip_whitelist
                 exit 0
                 ;;
             --fix-whitelist)
