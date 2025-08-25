@@ -36,6 +36,10 @@ class WebGoogleAPI:
             return False
         return creds.valid
 
+    def is_token_valid(self, account_name):
+        """Alias for has_valid_tokens for backward compatibility"""
+        return self.has_valid_tokens(account_name)
+
     def authenticate_with_tokens(self, account_name):
         creds = self.get_credentials(account_name)
         if not creds:
