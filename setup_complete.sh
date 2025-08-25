@@ -616,6 +616,67 @@ display_current_credentials() {
     echo ""
 }
 
+fix_ip_whitelist() {
+    log "Fixing IP whitelist..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                FIXING IP WHITELIST                          ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    # Get current external IP
+    CURRENT_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "unknown")
+    
+    if [ "$CURRENT_IP" != "unknown" ]; then
+        log "Current external IP detected: $CURRENT_IP"
+        
+        # Check if we have a database to add the IP
+        if [ -f ".env" ]; then
+            # Source environment variables
+            export $(grep -v '^#' .env | xargs)
+            
+            # Activate virtual environment
+            source venv/bin/activate
+            
+            # Add IP to whitelist using Python
+            python3 -c "
+import os
+from app import app, db
+from database import WhitelistedIP
+
+with app.app_context():
+    # Check if IP already exists
+    existing_ip = WhitelistedIP.query.filter_by(ip_address='$CURRENT_IP').first()
+    if not existing_ip:
+        # Add new IP
+        new_ip = WhitelistedIP(ip_address='$CURRENT_IP', added_by='setup_script')
+        db.session.add(new_ip)
+        db.session.commit()
+        print(f'IP {CURRENT_IP} added to whitelist successfully')
+    else:
+        print(f'IP {CURRENT_IP} already in whitelist')
+"
+            
+            # Deactivate virtual environment
+            deactivate
+            
+            echo -e "\n✅ IP whitelist has been fixed!"
+            echo -e "🌐 Your IP ${BLUE}$CURRENT_IP${NC} has been added to the whitelist"
+            echo -e "🔍 Try accessing your application again at: ${BLUE}http://95.179.176.162${NC}"
+        else
+            log_error "Environment file not found. Cannot update whitelist."
+        fi
+    else
+        log_error "Could not detect current external IP"
+        echo -e "\n⚠️  Manual IP whitelist setup required:"
+        echo -e "   1. Access the application directly via socket: ${BLUE}curl --unix-socket $SCRIPT_DIR/gbot.sock http://localhost/whitelist${NC}"
+        echo -e "   2. Add your IP address to the whitelist"
+    fi
+    
+    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
 troubleshoot_connection() {
     log "Troubleshooting connection issues..."
     
@@ -665,19 +726,19 @@ fix_nginx_configuration() {
     echo -e "${YELLOW}                FIXING NGINX CONFIGURATION                   ${NC}"
     echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
     
-    # Remove conflicting sites
-    if [ -L "/etc/nginx/sites-enabled/default" ]; then
-        log "Removing default nginx site..."
-        rm "/etc/nginx/sites-enabled/default"
-    fi
+    # Stop nginx first
+    log "Stopping Nginx service..."
+    systemctl stop nginx
     
-    # Remove any other sites that might be using port 3000
-    for site in /etc/nginx/sites-enabled/*; do
-        if [ -f "$site" ] && grep -q "127.0.0.1:3000" "$site" 2>/dev/null; then
-            log "Removing conflicting site: $site"
-            rm "$site"
-        fi
-    done
+    # Remove ALL existing sites
+    log "Removing all existing nginx sites..."
+    rm -f /etc/nginx/sites-enabled/*
+    
+    # Remove any conflicting configurations
+    if [ -f "/etc/nginx/sites-available/default" ]; then
+        log "Removing default nginx site..."
+        rm -f /etc/nginx/sites-available/default
+    fi
     
     # Recreate our configuration
     NGINX_CONFIG="/etc/nginx/sites-available/gbot"
@@ -714,15 +775,13 @@ server {
 }
 EOF
     
-    # Enable site
-    if [ -L "/etc/nginx/sites-enabled/gbot" ]; then
-        rm "/etc/nginx/sites-enabled/gbot"
-    fi
+    # Enable only our site
+    log "Enabling gbot nginx site..."
     ln -s "$NGINX_CONFIG" "/etc/nginx/sites-enabled/"
     
-    # Test and restart nginx
+    # Test and start nginx
     if nginx -t; then
-        systemctl restart nginx
+        systemctl start nginx
         log_success "Nginx configuration fixed and restarted"
         
         echo -e "\n✅ Nginx configuration has been fixed!"
@@ -847,6 +906,7 @@ show_help() {
     echo "  -m, --monitor           Setup monitoring only"
     echo "  --troubleshoot          Troubleshoot connection issues"
     echo "  --fix-nginx             Fix Nginx configuration issues"
+    echo "  --fix-whitelist         Fix IP whitelist issues"
     echo "  --clean                 Clean installation files"
     echo ""
     echo "Examples:"
@@ -1054,6 +1114,10 @@ main() {
                 ;;
             --fix-nginx)
                 fix_nginx_configuration
+                exit 0
+                ;;
+            --fix-whitelist)
+                fix_ip_whitelist
                 exit 0
                 ;;
             --clean)
