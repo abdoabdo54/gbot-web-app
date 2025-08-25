@@ -619,20 +619,20 @@ def api_complete_oauth():
         
         creds_data = {'client_id': account.client_id, 'client_secret': account.client_secret}
         
-        flow_config = {
+                flow_config = {
             "installed": {
                 "client_id": creds_data['client_id'],
                 "project_id": "gbot-project",
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth", 
-                "token_uri": "https://oauth2.googleapis.com/token", 
-                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs", 
-                "client_secret": creds_data['client_secret'], 
-                "redirect_uris": ["https://gworkspace.edutrack.shop/oauth-callback"]
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "client_secret": creds_data['client_secret'],
+                "redirect_uris": ["https://ecochain.site/oauth-callback"]
             }
         }
         
         flow = InstalledAppFlow.from_client_config(flow_config, app.config['SCOPES'])
-        flow.redirect_uri = "https://gworkspace.edutrack.shop/oauth-callback"
+        flow.redirect_uri = "https://ecochain.site/oauth-callback"
         
         flow.fetch_token(code=auth_code)
         credentials = flow.credentials
