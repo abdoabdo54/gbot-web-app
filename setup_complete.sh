@@ -250,12 +250,25 @@ setup_python_environment() {
 setup_database() {
     log "Setting up application database..."
     
+    # First, create the environment file to ensure SECRET_KEY and WHITELIST_TOKEN are available
+    create_environment_file
+    
     # Activate virtual environment
     source venv/bin/activate
     
     # Create database tables
     if [ -f "app.py" ]; then
+        # Set environment variables for the Python process
+        export $(cat .env | xargs)
+        
+        # Ensure we're using the PostgreSQL database URL
+        if [ -f ".db_credentials" ]; then
+            source .db_credentials
+            export DATABASE_URL
+        fi
+        
         python3 -c "
+import os
 from app import app, db
 with app.app_context():
     db.create_all()
@@ -547,6 +560,36 @@ create_backup() {
     log_success "Backup created: $BACKUP_DIR/$BACKUP_NAME"
 }
 
+display_current_credentials() {
+    log "Displaying current credentials..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                CURRENT CREDENTIALS                         ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    # Show generated security keys
+    if [ -f ".env" ]; then
+        echo -e "🔐 Generated Security Keys:"
+        echo -e "  • SECRET_KEY: ${BLUE}$(grep '^SECRET_KEY=' .env | cut -d'=' -f2)${NC}"
+        echo -e "  • WHITELIST_TOKEN: ${BLUE}$(grep '^WHITELIST_TOKEN=' .env | cut -d'=' -f2)${NC}"
+        echo ""
+    fi
+    
+    # Show database credentials
+    if [ -f ".db_credentials" ]; then
+        echo -e "🗄️  Database Credentials:"
+        source .db_credentials
+        echo -e "  • Database: ${BLUE}gbot_db${NC}"
+        echo -e "  • User: ${BLUE}gbot_user${NC}"
+        echo -e "  • Password: ${BLUE}$(echo $DATABASE_URL | sed 's/.*:\/\/.*:\([^@]*\)@.*/\1/')${NC}"
+        echo ""
+    fi
+    
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
 start_services() {
     log "Starting services..."
     
@@ -584,6 +627,25 @@ show_installation_summary() {
     echo -e "  • Monitoring: Automated health checks every 5 minutes"
     echo -e "  • Backup: Automated backup system"
     echo ""
+    
+    # Show generated security keys
+    if [ -f ".env" ]; then
+        echo -e "🔐 Generated Security Keys:"
+        echo -e "  • SECRET_KEY: ${BLUE}$(grep '^SECRET_KEY=' .env | cut -d'=' -f2)${NC}"
+        echo -e "  • WHITELIST_TOKEN: ${BLUE}$(grep '^WHITELIST_TOKEN=' .env | cut -d'=' -f2)${NC}"
+        echo ""
+    fi
+    
+    # Show database credentials
+    if [ -f ".db_credentials" ]; then
+        echo -e "🗄️  Database Credentials:"
+        source .db_credentials
+        echo -e "  • Database: ${BLUE}gbot_db${NC}"
+        echo -e "  • User: ${BLUE}gbot_user${NC}"
+        echo -e "  • Password: ${BLUE}$(echo $DATABASE_URL | sed 's/.*:\/\/.*:\([^@]*\)@.*/\1/')${NC}"
+        echo ""
+    fi
+    
     echo -e "🚀 Next Steps:"
     echo -e "  1. Check service status:"
     echo -e "     ${BLUE}$SUDO_CMD systemctl status gbot nginx postgresql${NC}"
@@ -732,11 +794,11 @@ run_complete_installation() {
     # Setup Python environment
     setup_python_environment
     
-    # Setup database
-    setup_database
-    
-    # Create environment file
+    # Create environment file FIRST (before database setup)
     create_environment_file
+    
+    # Setup database (now with environment variables available)
+    setup_database
     
     # Setup Nginx
     setup_nginx
@@ -758,6 +820,9 @@ run_complete_installation() {
     
     # Start services
     start_services
+    
+    # Display current credentials
+    display_current_credentials
     
     # Show summary
     show_installation_summary
