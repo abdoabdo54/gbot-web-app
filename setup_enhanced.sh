@@ -66,6 +66,9 @@ show_help() {
     echo "  -n, --nginx             Install nginx configuration"
     echo "  -u, --update            Update existing installation"
     echo "  --clean                 Clean installation files"
+    echo "  --ssl                   Setup SSL certificate with Let's Encrypt"
+    echo "  --backup                Create backup of current installation"
+    echo "  --monitor               Setup monitoring and health checks"
     echo ""
     echo "Examples:"
     echo "  $0 --install            # Full installation"
@@ -73,6 +76,8 @@ show_help() {
     echo "  $0 --prod              # Production setup"
     echo "  $0 --validate          # Check installation health"
     echo "  $0 --reinstall         # Force reinstall"
+    echo "  $0 --ssl               # Setup SSL certificate"
+    echo "  $0 --backup            # Create backup"
 }
 
 check_system_requirements() {
@@ -252,6 +257,19 @@ setup_postgresql() {
         sudo systemctl enable postgresql
     fi
     
+    # Configure PostgreSQL for production
+    log "Configuring PostgreSQL for production..."
+    sudo -u postgres psql -c "ALTER SYSTEM SET max_connections = '100';"
+    sudo -u postgres psql -c "ALTER SYSTEM SET shared_buffers = '256MB';"
+    sudo -u postgres psql -c "ALTER SYSTEM SET effective_cache_size = '1GB';"
+    sudo -u postgres psql -c "ALTER SYSTEM SET maintenance_work_mem = '64MB';"
+    sudo -u postgres psql -c "ALTER SYSTEM SET checkpoint_completion_target = '0.9';"
+    sudo -u postgres psql -c "ALTER SYSTEM SET wal_buffers = '16MB';"
+    sudo -u postgres psql -c "ALTER SYSTEM SET default_statistics_target = '100';"
+    
+    # Restart PostgreSQL to apply changes
+    sudo systemctl restart postgresql
+    
     # Create database and user
     DB_NAME="gbot_db"
     DB_USER="gbot_user"
@@ -295,6 +313,11 @@ setup_nginx() {
         elif command -v dnf &> /dev/null; then
             sudo dnf install -y nginx
         fi
+    fi
+    
+    # Install certbot for SSL certificates
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get install -y certbot python3-certbot-nginx
     fi
     
     # Create nginx configuration
@@ -354,7 +377,7 @@ setup_systemd_service() {
         cat > "$SERVICE_FILE" << EOF
 [Unit]
 Description=GBot Web Application
-After=network.target
+After=network.target postgresql.service
 
 [Service]
 Type=notify
@@ -362,10 +385,12 @@ User=$USER
 Group=$USER
 WorkingDirectory=$SCRIPT_DIR
 Environment="PATH=$SCRIPT_DIR/venv/bin"
-ExecStart=$SCRIPT_DIR/venv/bin/gunicorn --workers 3 --bind unix:$SCRIPT_DIR/gbot.sock --access-logfile $SCRIPT_DIR/gunicorn-access.log --error-logfile $SCRIPT_DIR/gunicorn-error.log app:app
+Environment="FLASK_ENV=production"
+ExecStart=$SCRIPT_DIR/venv/bin/gunicorn --workers 4 --bind unix:$SCRIPT_DIR/gbot.sock --access-logfile $SCRIPT_DIR/gunicorn-access.log --error-logfile $SCRIPT_DIR/gunicorn-error.log --max-requests 1000 --max-requests-jitter 100 --timeout 30 app:app
 ExecReload=/bin/kill -s HUP \$MAINPID
 Restart=always
 RestartSec=3
+LimitNOFILE=65536
 
 [Install]
 WantedBy=multi-user.target
@@ -377,6 +402,54 @@ EOF
         
         log_success "Systemd service created and enabled"
     fi
+}
+
+setup_ssl_certificate() {
+    log "Setting up SSL certificate with Let's Encrypt..."
+    
+    if ! command -v certbot &> /dev/null; then
+        log_error "Certbot not found. Please install it first."
+        return 1
+    fi
+    
+    read -p "Enter your domain name (e.g., example.com): " DOMAIN_NAME
+    if [ -z "$DOMAIN_NAME" ]; then
+        log_error "Domain name is required for SSL setup"
+        return 1
+    fi
+    
+    log "Setting up SSL certificate for $DOMAIN_NAME..."
+    
+    # Update nginx configuration with domain
+    sudo sed -i "s/server_name _;/server_name $DOMAIN_NAME;/" /etc/nginx/sites-available/gbot
+    
+    # Test nginx configuration
+    if sudo nginx -t; then
+        sudo systemctl reload nginx
+        
+        # Obtain SSL certificate
+        sudo certbot --nginx -d $DOMAIN_NAME --non-interactive --agree-tos --email admin@$DOMAIN_NAME
+        
+        log_success "SSL certificate setup completed for $DOMAIN_NAME"
+    else
+        log_error "Nginx configuration test failed"
+        return 1
+    fi
+}
+
+create_backup() {
+    log "Creating backup of current installation..."
+    
+    BACKUP_DIR="$SCRIPT_DIR/backups"
+    BACKUP_NAME="gbot_backup_$(date +%Y%m%d_%H%M%S).tar.gz"
+    
+    mkdir -p "$BACKUP_DIR"
+    
+    # Create backup excluding unnecessary files
+    tar --exclude='venv' --exclude='*.pyc' --exclude='__pycache__' --exclude='logs/*.log' \
+        -czf "$BACKUP_DIR/$BACKUP_NAME" -C "$SCRIPT_DIR" .
+    
+    log_success "Backup created: $BACKUP_DIR/$BACKUP_NAME"
 }
 
 run_python_installer() {
@@ -462,6 +535,9 @@ main() {
     SETUP_NGINX=false
     SETUP_POSTGRESQL=false
     CLEANUP=false
+    SETUP_SSL=false
+    CREATE_BACKUP=false
+    SETUP_MONITORING=false
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -511,6 +587,18 @@ main() {
                 ;;
             --clean)
                 CLEANUP=true
+                shift
+                ;;
+            --ssl)
+                SETUP_SSL=true
+                shift
+                ;;
+            --backup)
+                CREATE_BACKUP=true
+                shift
+                ;;
+            --monitor)
+                SETUP_MONITORING=true
                 shift
                 ;;
             *)
@@ -587,6 +675,16 @@ main() {
     
     if [ "$SETUP_NGINX" = true ]; then
         setup_nginx
+    fi
+    
+    # Setup SSL if requested
+    if [ "$SETUP_SSL" = true ]; then
+        setup_ssl_certificate
+    fi
+    
+    # Create backup if requested
+    if [ "$CREATE_BACKUP" = true ]; then
+        create_backup
     fi
     
     # Show installation summary

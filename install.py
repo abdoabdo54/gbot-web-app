@@ -12,7 +12,10 @@ import hashlib
 import shutil
 import platform
 import sqlite3
-import psutil
+try:
+    import psutil
+except ImportError:
+    psutil = None
 from pathlib import Path
 import configparser
 import requests
@@ -122,6 +125,10 @@ class GBotInstaller:
     
     def _check_memory(self):
         """Check available memory"""
+        if psutil is None:
+            self.log("psutil not available, skipping memory check", "WARNING")
+            return True  # Assume OK if we can't check
+        
         try:
             memory = psutil.virtual_memory()
             available_gb = memory.available / (1024**3)

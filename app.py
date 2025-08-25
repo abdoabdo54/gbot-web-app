@@ -9,6 +9,7 @@ import io
 import smtplib
 import tempfile
 from werkzeug.security import generate_password_hash, check_password_hash
+import logging.handlers
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -22,6 +23,25 @@ from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleT
 app = Flask(__name__)
 app.config.from_object('config')
 db.init_app(app)
+
+# Production logging configuration
+if not app.debug:
+    # Create logs directory if it doesn't exist
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+    
+    # Configure file handler for production
+    file_handler = logging.handlers.RotatingFileHandler(
+        'logs/gbot.log', maxBytes=10240000, backupCount=10
+    )
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    file_handler.setLevel(logging.INFO)
+    app.logger.addHandler(file_handler)
+    
+    app.logger.setLevel(logging.INFO)
+    app.logger.info('GBot startup')
 
 with app.app_context():
     db.create_all()
@@ -47,6 +67,16 @@ def before_request():
     whitelisted_ip = WhitelistedIP.query.filter_by(ip_address=client_ip).first()
     if not whitelisted_ip:
         return f"Access denied. IP {client_ip} not whitelisted.", 403
+
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
 
 def get_client_ip():
     if request.headers.get('X-Forwarded-For'):

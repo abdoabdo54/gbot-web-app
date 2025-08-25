@@ -10,6 +10,8 @@ sudo apt-get install -y python3-pip python3-dev build-essential libssl-dev libff
 sudo apt-get install -y python3-venv
 sudo apt-get install -y postgresql postgresql-contrib
 sudo apt-get install -y nginx
+sudo apt-get install -y ufw
+sudo apt-get install -y certbot python3-certbot-nginx
 
 # 2. Database Setup
 DB_NAME="gbot_db"
@@ -118,6 +120,14 @@ sudo systemctl daemon-reload
 sudo systemctl start gbot
 sudo systemctl enable gbot
 sudo systemctl restart nginx
+
+# 8. Firewall Configuration
+echo "Configuring firewall..."
+sudo ufw allow 22/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw --force enable
+echo "Firewall configured and enabled"
 
 echo "--------------------------------------------------"
 echo "Installation Complete!"

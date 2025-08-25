@@ -342,14 +342,71 @@ gbot-web-app/
 python3 app.py
 ```
 
-### Production
+### Production Deployment
+
+#### Quick Production Setup
 ```bash
-# Use enhanced setup for production
+# Full production deployment with PostgreSQL, Nginx, and SSL
+./setup_enhanced.sh --prod --ssl
+
+# Production deployment without SSL (for internal use)
+./setup_enhanced.sh --prod
+```
+
+#### Step-by-Step Production Setup
+```bash
+# 1. Install system dependencies
+sudo apt-get update
+sudo apt-get install -y python3-pip python3-dev python3-venv build-essential libssl-dev libffi-dev postgresql postgresql-contrib nginx ufw certbot python3-certbot-nginx
+
+# 2. Run production installation
 ./setup_enhanced.sh --prod
 
-# Or manually setup services
+# 3. Setup SSL certificate (optional)
+./setup_enhanced.sh --ssl
+
+# 4. Create backup
+./setup_enhanced.sh --backup
+
+# 5. Start services
 sudo systemctl start gbot
 sudo systemctl start nginx
+sudo systemctl enable gbot
+sudo systemctl enable nginx
+```
+
+#### Production Configuration
+- **Database**: PostgreSQL with optimized settings
+- **Web Server**: Nginx with reverse proxy
+- **Application Server**: Gunicorn with 4 workers
+- **Process Management**: Systemd service
+- **Security**: Firewall (UFW), SSL/TLS, Security headers
+- **Monitoring**: Log rotation, health checks
+- **Backup**: Automated backup system
+
+#### SSL Certificate Setup
+```bash
+# Setup SSL with Let's Encrypt
+./setup_enhanced.sh --ssl
+
+# Manual SSL setup
+sudo certbot --nginx -d yourdomain.com
+```
+
+#### Production Commands
+```bash
+# Check service status
+sudo systemctl status gbot nginx postgresql
+
+# View logs
+sudo journalctl -u gbot -f
+sudo tail -f /var/log/nginx/error.log
+
+# Restart services
+sudo systemctl restart gbot nginx
+
+# Backup and restore
+./setup_enhanced.sh --backup
 ```
 
 ### Docker (Future Enhancement)

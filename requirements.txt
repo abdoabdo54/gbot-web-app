@@ -7,3 +7,6 @@ faker==19.6.2
 psycopg2-binary
 Flask-SQLAlchemy
 python-dotenv
+psutil==5.9.5
+gunicorn==21.2.0
+requests==2.31.0
