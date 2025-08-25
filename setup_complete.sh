@@ -258,8 +258,8 @@ setup_database() {
     
     # Create database tables
     if [ -f "app.py" ]; then
-        # Set environment variables for the Python process
-        export $(cat .env | xargs)
+        # Set environment variables for the Python process (filter out comments)
+        export $(grep -v '^#' .env | xargs)
         
         # Ensure we're using the PostgreSQL database URL
         if [ -f ".db_credentials" ]; then
