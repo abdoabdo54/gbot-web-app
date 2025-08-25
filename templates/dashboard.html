@@ -21,8 +21,8 @@
         <label for="account-select">Select Account:</label>
         <select id="account-select">
             <option value="">Choose an account...</option>
-            {% for account_name in accounts %}
-            <option value="{{ account_name }}">{{ account_name }}</option>
+            {% for account in accounts %}
+            <option value="{{ account.account_name }}" data-account-id="{{ account.id }}">{{ account.account_name }}</option>
             {% endfor %}
         </select>
         <button onclick="authenticateAccount()">🔑 Authenticate Selected</button>
@@ -50,9 +50,9 @@
                     autocomplete="off" autocomplete="nope" readonly onfocus="this.removeAttribute('readonly');">
             
             <div id="account-list-area" class="account-list">
-                {% for account_name in accounts %}
-                <div class="account-item" onclick="selectAccountFromList('{{ account_name }}')">
-                    {{ account_name }}
+                {% for account in accounts %}
+                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name }}', {{ account.id }})" data-account-id="{{ account.id }}">
+                    {{ account.account_name }}
                 </div>
                 {% endfor %}
             </div>
@@ -421,6 +421,7 @@
 let currentAccount = null;
 let isAuthenticated = false;
 let selectedAccountFromList = null;
+let selectedAccountId = null;
 let smtpTesting = false;
 let selectedDomain = null;
 
@@ -763,6 +764,15 @@ function enterAuthorizationCode() {
         return;
     }
     
+    // Get the account ID from the selected option
+    const selectedOption = document.querySelector(`#account-select option[value="${accountName}"]`);
+    const accountId = selectedOption ? selectedOption.getAttribute('data-account-id') : null;
+    
+    if (!accountId) {
+        alert('Account ID not found. Please refresh the page and try again.');
+        return;
+    }
+    
     const authCode = prompt('Paste the authorization code from the authentication page:');
     
     if (!authCode) {
@@ -775,6 +785,7 @@ function enterAuthorizationCode() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             auth_code: authCode.trim(),
+            account_id: accountId,
             account_name: accountName
         })
     })
@@ -830,13 +841,22 @@ function authenticateAccount() {
         return;
     }
     
-    console.log('DEBUG: Authenticating account:', accountName);
+    // Get the account ID from the selected option
+    const selectedOption = select.querySelector(`option[value="${accountName}"]`);
+    const accountId = selectedOption ? selectedOption.getAttribute('data-account-id') : null;
+    
+    if (!accountId) {
+        alert('Account ID not found. Please refresh the page and try again.');
+        return;
+    }
+    
+    console.log('DEBUG: Authenticating account:', accountName, 'ID:', accountId);
     updateAuthStatus(accountName, false, 'Authenticating...');
     
     fetch('/api/authenticate', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({account_name: accountName})
+        body: JSON.stringify({account_id: accountId, account_name: accountName})
     })
     .then(response => response.json())
     .then(data => {
@@ -1244,7 +1264,7 @@ function saveNewAccount() {
 }
 
 // Account list functions
-function selectAccountFromList(accountName) {
+function selectAccountFromList(accountName, accountId) {
     // Remove previous selection
     document.querySelectorAll('.account-item').forEach(item => {
         item.classList.remove('selected');
@@ -1253,6 +1273,7 @@ function selectAccountFromList(accountName) {
     // Select clicked item
     event.target.classList.add('selected');
     selectedAccountFromList = accountName;
+    selectedAccountId = accountId;
     
     // Also update dropdown
     document.getElementById('account-select').value = accountName;
@@ -1273,7 +1294,7 @@ function filterAccounts() {
 }
 
 function authenticateFromList() {
-    if (!selectedAccountFromList) {
+    if (!selectedAccountFromList || !selectedAccountId) {
         alert('Please select an account from the list first');
         return;
     }
@@ -1287,7 +1308,7 @@ function authenticateFromList() {
 
 
 function deleteFromList() {
-    if (!selectedAccountFromList) {
+    if (!selectedAccountFromList || !selectedAccountId) {
         alert('Please select an account from the list first');
         return;
     }
@@ -1296,34 +1317,18 @@ function deleteFromList() {
         return;
     }
     
-    // First, get the account ID from the account name
-    fetch('/api/list-accounts', {
-        method: 'GET',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.accounts) {
-            const account = data.accounts.find(acc => acc.account_name === selectedAccountFromList);
-            if (account) {
-                // Now delete using the account ID
-                return fetch('/api/delete-account', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({account_id: account.id})
-                });
-            } else {
-                throw new Error('Account not found in database');
-            }
-        } else {
-            throw new Error('Failed to fetch accounts');
-        }
+    // Delete directly using the stored account ID
+    fetch('/api/delete-account', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({account_id: selectedAccountId})
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             alert('✅ Account deleted successfully!');
             selectedAccountFromList = null;
+            selectedAccountId = null;
             location.reload(); // Reload to refresh the display
         } else {
             alert('❌ Error: ' + data.error);

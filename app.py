@@ -303,13 +303,22 @@ def api_authenticate():
     try:
         data = request.get_json()
         account_name = data.get('account_name')
+        account_id = data.get('account_id')
         
-        if not account_name:
+        if not account_name and not account_id:
             return jsonify({'success': False, 'error': 'No account specified'})
         
-        account = GoogleAccount.query.filter_by(account_name=account_name).first()
+        # Try to find account by ID first (more reliable), then by name
+        if account_id:
+            account = GoogleAccount.query.get(account_id)
+        else:
+            account = GoogleAccount.query.filter_by(account_name=account_name).first()
+            
         if not account:
-            return jsonify({'success': False, 'error': 'Account not found'})
+            return jsonify({'success': False, 'error': 'Account not found in database'})
+        
+        # Use the account name from the database record
+        account_name = account.account_name
         
         service_key = google_api._get_session_key(account_name)
         if service_key in session and session.get(service_key):
