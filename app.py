@@ -619,7 +619,7 @@ def api_complete_oauth():
         
         creds_data = {'client_id': account.client_id, 'client_secret': account.client_secret}
         
-                flow_config = {
+        flow_config = {
             "installed": {
                 "client_id": creds_data['client_id'],
                 "project_id": "gbot-project",
