@@ -722,5 +722,192 @@ def api_delete_domain():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/retrieve-users', methods=['POST'])
+@login_required
+def api_retrieve_users():
+    """Retrieve all users from the authenticated Google account"""
+    try:
+        # Check if user is authenticated
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
+        
+        # Get the current authenticated account
+        account_name = session.get('current_account_name')
+        
+        # Use the google_api service to retrieve users
+        if not google_api.service:
+            return jsonify({'success': False, 'error': 'Google API service not available. Please re-authenticate.'})
+        
+        try:
+            # Use the google_api method to retrieve users
+            result = google_api.get_users(max_results=500)
+            
+            if not result['success']:
+                return jsonify({'success': False, 'error': result['error']})
+            
+            users = result['users']
+            
+            # Format user data
+            formatted_users = []
+            for user in users:
+                user_data = {
+                    'email': user.get('primaryEmail', ''),
+                    'first_name': user.get('name', {}).get('givenName', ''),
+                    'last_name': user.get('name', {}).get('familyName', ''),
+                    'admin': user.get('isAdmin', False),
+                    'suspended': user.get('suspended', False)
+                }
+                formatted_users.append(user_data)
+            
+            return jsonify({
+                'success': True,
+                'users': formatted_users,
+                'total_count': len(formatted_users)
+            })
+            
+        except Exception as api_error:
+            logging.error(f"Google API error: {api_error}")
+            return jsonify({'success': False, 'error': f'Failed to retrieve users: {str(api_error)}'})
+            
+            except Exception as e:
+            logging.error(f"Retrieve users error: {e}")
+            return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/update-all-passwords', methods=['POST'])
+@login_required
+def api_update_all_passwords():
+    """Update passwords for multiple users"""
+    try:
+        data = request.get_json()
+        password = data.get('password')
+        user_emails = data.get('user_emails', [])
+        
+        if not password or len(password) < 8:
+            return jsonify({'success': False, 'error': 'Password must be at least 8 characters'})
+        
+        if not user_emails:
+            return jsonify({'success': False, 'error': 'No user emails provided'})
+        
+        # Check if user is authenticated
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
+        
+        # Use the google_api service to update passwords
+        if not google_api.service:
+            return jsonify({'success': False, 'error': 'Google API service not available. Please re-authenticate.'})
+        
+        successful_emails = []
+        failed_details = []
+        
+        for email in user_emails:
+            try:
+                # Update user password in Google Admin Directory API
+                user_body = {
+                    'password': password,
+                    'changePasswordAtNextLogin': False
+                }
+                
+                google_api.service.users().update(userKey=email, body=user_body).execute()
+                successful_emails.append(email)
+                
+            except Exception as user_error:
+                failed_details.append({
+                    'email': email,
+                    'error': str(user_error)
+                })
+        
+        return jsonify({
+            'success': True,
+            'message': f'Password update completed. {len(successful_emails)} successful, {len(failed_details)} failed.',
+            'successful_emails': successful_emails,
+            'failed_details': failed_details
+        })
+        
+    except Exception as e:
+        logging.error(f"Update all passwords error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/retrieve-domains', methods=['POST'])
+@login_required
+def api_retrieve_domains():
+    """Retrieve all domains from the authenticated Google account"""
+    try:
+        # Check if user is authenticated
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
+        
+        # Use the google_api service to retrieve domains
+        if not google_api.service:
+            return jsonify({'success': False, 'error': 'Google API service not available. Please re-authenticate.'})
+        
+        try:
+            # Use the existing get_domain_info method
+            result = google_api.get_domain_info()
+            
+            if not result['success']:
+                return jsonify({'success': False, 'error': result['error']})
+            
+            domains = result['domains']
+            
+            # Format domain data
+            formatted_domains = []
+            for domain in domains:
+                domain_data = {
+                    'domain_name': domain.get('domainName', ''),
+                    'verified': domain.get('verified', False),
+                    'user_count': 0  # Google API doesn't provide user count directly
+                }
+                formatted_domains.append(domain_data)
+            
+            return jsonify({
+                'success': True,
+                'domains': formatted_domains
+            })
+            
+        except Exception as api_error:
+            logging.error(f"Google API error: {api_error}")
+            return jsonify({'success': False, 'error': f'Failed to retrieve domains: {str(api_error)}'})
+            
+    except Exception as e:
+        logging.error(f"Retrieve domains error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/load-suspended-users', methods=['POST'])
+@login_required
+def api_load_suspended_users():
+    """Load suspended users from the authenticated Google account"""
+    try:
+        # Check if user is authenticated
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
+        
+        # Use the google_api service to retrieve suspended users
+        if not google_api.service:
+            return jsonify({'success': False, 'error': 'Google API service not available. Please re-authenticate.'})
+        
+        try:
+            # Retrieve suspended users from Google Admin Directory API
+            users_result = google_api.service.users().list(
+                customer='my_customer', 
+                query='suspended:true',
+                maxResults=500
+            ).execute()
+            
+            suspended_users = users_result.get('users', [])
+            suspended_emails = [user.get('primaryEmail', '') for user in suspended_users if user.get('primaryEmail')]
+            
+            return jsonify({
+                'success': True,
+                'users': suspended_emails
+            })
+            
+        except Exception as api_error:
+            logging.error(f"Google API error: {api_error}")
+            return jsonify({'success': False, 'error': f'Failed to retrieve suspended users: {str(api_error)}'})
+            
+    except Exception as e:
+        logging.error(f"Load suspended users error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 if __name__ == '__main__':
     app.run(debug=True)

@@ -157,4 +157,15 @@ class WebGoogleAPI:
         except HttpError as e:
             return {"success": False, "error": str(e)}
 
+    def get_users(self, max_results=500):
+        """Retrieve all users from the authenticated Google account"""
+        if not self.service:
+            raise Exception("Not authenticated or session expired.")
+        
+        try:
+            users_result = self.service.users().list(customer='my_customer', maxResults=max_results).execute()
+            return {"success": True, "users": users_result.get("users", [])}
+        except HttpError as e:
+            return {"success": False, "error": str(e)}
+
 google_api = WebGoogleAPI()
