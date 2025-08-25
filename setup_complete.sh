@@ -667,6 +667,133 @@ inspect_nginx_configuration() {
     echo ""
 }
 
+nuke_nginx_configuration() {
+    log "NUKING Nginx configuration completely..."
+    
+    echo ""
+    echo -e "${RED}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${RED}                NUKING NGINX CONFIGURATION                   ${NC}"
+    echo -e "${RED}══════════════════════════════════════════════════════════════${NC}"
+    
+    echo -e "\n⚠️  This will COMPLETELY remove ALL Nginx configurations!"
+    echo -e "   Only proceed if you're sure you want to start fresh."
+    echo ""
+    read -p "Continue with Nginx nuke? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log "Nginx nuke cancelled by user"
+        return
+    fi
+    
+    # Stop nginx completely
+    log "Stopping Nginx service..."
+    systemctl stop nginx
+    systemctl disable nginx
+    
+    # Kill any remaining nginx processes
+    log "Killing any remaining nginx processes..."
+    pkill -f nginx || true
+    
+    # Remove ALL nginx configurations
+    log "Removing ALL nginx configurations..."
+    rm -rf /etc/nginx/sites-enabled/*
+    rm -rf /etc/nginx/sites-available/*
+    rm -f /etc/nginx/conf.d/*
+    
+    # Backup and clean main nginx.conf
+    log "Backing up and cleaning main nginx.conf..."
+    cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup
+    
+    # Create minimal nginx.conf
+    cat > /etc/nginx/nginx.conf << 'EOF'
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    worker_connections 768;
+}
+
+http {
+    sendfile on;
+    tcp_nopush on;
+    types_hash_max_size 2048;
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+    
+    gzip on;
+    
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+}
+EOF
+    
+    # Create our gbot configuration
+    log "Creating fresh gbot configuration..."
+    mkdir -p /etc/nginx/sites-available
+    mkdir -p /etc/nginx/sites-enabled
+    
+    cat > /etc/nginx/sites-available/gbot << EOF
+server {
+    listen 80;
+    server_name _;
+    
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:$SCRIPT_DIR/gbot.sock;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_connect_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+    }
+    
+    location /static {
+        alias $SCRIPT_DIR/static;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}
+EOF
+    
+    # Enable only our site
+    ln -s /etc/nginx/sites-available/gbot /etc/nginx/sites-enabled/
+    
+    # Test configuration
+    if nginx -t; then
+        # Start nginx fresh
+        systemctl enable nginx
+        systemctl start nginx
+        
+        log_success "Nginx configuration completely nuked and rebuilt!"
+        
+        echo -e "\n✅ Nginx has been completely rebuilt!"
+        echo -e "🌐 Try accessing your application at: ${BLUE}http://95.179.176.162${NC}"
+        echo -e "🔍 Verify with: ${BLUE}./setup_complete.sh --inspect-nginx${NC}"
+    else
+        log_error "Nginx configuration test failed after nuke"
+        exit 1
+    fi
+    
+    echo -e "\n${RED}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
 install_missing_dependencies() {
     log "Installing missing Python dependencies..."
     
@@ -1060,6 +1187,7 @@ show_help() {
     echo "  --troubleshoot          Troubleshoot connection issues"
     echo "  --fix-nginx             Fix Nginx configuration issues"
     echo "  --inspect-nginx         Inspect Nginx configuration in detail"
+    echo "  --nuke-nginx            COMPLETELY rebuild Nginx from scratch"
     echo "  --fix-whitelist         Fix IP whitelist issues"
     echo "  --install-deps          Install missing Python dependencies"
     echo "  --clean                 Clean installation files"
@@ -1273,6 +1401,10 @@ main() {
                 ;;
             --inspect-nginx)
                 inspect_nginx_configuration
+                exit 0
+                ;;
+            --nuke-nginx)
+                nuke_nginx_configuration
                 exit 0
                 ;;
             --fix-whitelist)
