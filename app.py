@@ -370,6 +370,178 @@ def api_add_account():
         logging.error(f"Add account error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/list-accounts', methods=['GET'])
+@login_required
+def api_list_accounts():
+    """List all Google accounts from database"""
+    try:
+        accounts = GoogleAccount.query.all()
+        account_list = []
+        for account in accounts:
+            # Check if account has valid tokens
+            token = GoogleToken.query.filter_by(account_id=account.id).first()
+            is_authenticated = token is not None and token.token is not None
+            
+            account_data = {
+                'id': account.id,
+                'account_name': account.account_name,
+                'client_id': account.client_id,
+                'client_secret': account.client_secret,
+                'is_authenticated': is_authenticated,
+                'has_tokens': token is not None
+            }
+            account_list.append(account_data)
+        
+        return jsonify({'success': True, 'accounts': account_list})
+    except Exception as e:
+        logging.error(f"List accounts error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/delete-account', methods=['POST'])
+@login_required
+def api_delete_account():
+    """Delete a Google account from database"""
+    try:
+        data = request.get_json()
+        account_id = data.get('account_id')
+        
+        if not account_id:
+            return jsonify({'success': False, 'error': 'Account ID required'})
+        
+        account = GoogleAccount.query.get(account_id)
+        if not account:
+            return jsonify({'success': False, 'error': 'Account not found'})
+        
+        # Delete associated tokens first
+        GoogleToken.query.filter_by(account_id=account_id).delete()
+        
+        # Delete the account
+        db.session.delete(account)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': f'Account {account.account_name} deleted successfully'})
+    except Exception as e:
+        logging.error(f"Delete account error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/get-account-status', methods=['GET'])
+@login_required
+def api_get_account_status():
+    """Get authentication status for all accounts"""
+    try:
+        accounts = GoogleAccount.query.all()
+        total_accounts = len(accounts)
+        authenticated_count = 0
+        need_auth_count = 0
+        
+        for account in accounts:
+            token = GoogleToken.query.filter_by(account_id=account.id).first()
+            if token and token.token:
+                authenticated_count += 1
+            else:
+                need_auth_count += 1
+        
+        status = {
+            'total': total_accounts,
+            'authenticated': authenticated_count,
+            'need_auth': need_auth_count,
+            'status': 'Complete'
+        }
+        
+        return jsonify({'success': True, 'status': status})
+    except Exception as e:
+        logging.error(f"Get account status error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/add-accounts-from-json', methods=['POST'])
+@login_required
+def api_add_accounts_from_json():
+    """Add multiple accounts from JSON data (for backward compatibility)"""
+    try:
+        data = request.get_json()
+        accounts_data = data.get('accounts', [])
+        
+        if not accounts_data:
+            return jsonify({'success': False, 'error': 'No accounts data provided'})
+        
+        added_count = 0
+        errors = []
+        
+        for account_data in accounts_data:
+            try:
+                account_name = account_data.get('account_name')
+                client_id = account_data.get('client_id')
+                client_secret = account_data.get('client_secret')
+                
+                if not all([account_name, client_id, client_secret]):
+                    errors.append(f"Missing data for account: {account_name}")
+                    continue
+                
+                # Check if account already exists
+                if GoogleAccount.query.filter_by(account_name=account_name).first():
+                    errors.append(f"Account {account_name} already exists")
+                    continue
+                
+                # Create new account
+                new_account = GoogleAccount(
+                    account_name=account_name,
+                    client_id=client_id,
+                    client_secret=client_secret
+                )
+                db.session.add(new_account)
+                added_count += 1
+                
+            except Exception as e:
+                errors.append(f"Error processing account {account_name}: {str(e)}")
+        
+        # Commit all changes
+        db.session.commit()
+        
+        result = {
+            'success': True,
+            'message': f'Added {added_count} accounts successfully',
+            'added_count': added_count,
+            'errors': errors
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logging.error(f"Add accounts from JSON error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/check-token-status', methods=['GET'])
+@login_required
+def api_check_token_status():
+    """Check token status for all accounts"""
+    try:
+        accounts = GoogleAccount.query.all()
+        token_status = []
+        
+        for account in accounts:
+            token = GoogleToken.query.filter_by(account_id=account.id).first()
+            
+            status_info = {
+                'account_id': account.id,
+                'account_name': account.account_name,
+                'has_tokens': token is not None,
+                'token_valid': False,
+                'needs_auth': True
+            }
+            
+            if token and token.token:
+                # Basic token validation (you can enhance this)
+                status_info['token_valid'] = True
+                status_info['needs_auth'] = False
+            
+            token_status.append(status_info)
+        
+        return jsonify({'success': True, 'token_status': token_status})
+        
+    except Exception as e:
+        logging.error(f"Check token status error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/oauth-callback')
 def oauth_callback():
     try:
