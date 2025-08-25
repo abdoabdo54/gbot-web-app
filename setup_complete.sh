@@ -337,6 +337,20 @@ setup_nginx() {
         $SUDO_CMD cp "$NGINX_CONFIG" "$NGINX_CONFIG.backup"
     fi
     
+    # Remove any existing default site that might interfere
+    if [ -L "/etc/nginx/sites-enabled/default" ]; then
+        log "Removing default nginx site..."
+        $SUDO_CMD rm "/etc/nginx/sites-enabled/default"
+    fi
+    
+    # Remove any other sites that might be using port 3000
+    for site in /etc/nginx/sites-enabled/*; do
+        if [ -f "$site" ] && grep -q "127.0.0.1:3000" "$site" 2>/dev/null; then
+            log "Removing conflicting site: $site"
+            $SUDO_CMD rm "$site"
+        fi
+    done
+    
     # Create nginx configuration
     cat > /tmp/gbot_nginx << EOF
 server {
@@ -382,7 +396,9 @@ EOF
     # Test nginx configuration
     if $SUDO_CMD nginx -t; then
         $SUDO_CMD systemctl reload nginx
-        log_success "Nginx configuration completed"
+        # Force restart to ensure new configuration is loaded
+        $SUDO_CMD systemctl restart nginx
+        log_success "Nginx configuration completed and restarted"
     else
         log_error "Nginx configuration test failed"
         exit 1
@@ -641,6 +657,86 @@ troubleshoot_connection() {
     echo ""
 }
 
+fix_nginx_configuration() {
+    log "Fixing Nginx configuration..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                FIXING NGINX CONFIGURATION                   ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    # Remove conflicting sites
+    if [ -L "/etc/nginx/sites-enabled/default" ]; then
+        log "Removing default nginx site..."
+        rm "/etc/nginx/sites-enabled/default"
+    fi
+    
+    # Remove any other sites that might be using port 3000
+    for site in /etc/nginx/sites-enabled/*; do
+        if [ -f "$site" ] && grep -q "127.0.0.1:3000" "$site" 2>/dev/null; then
+            log "Removing conflicting site: $site"
+            rm "$site"
+        fi
+    done
+    
+    # Recreate our configuration
+    NGINX_CONFIG="/etc/nginx/sites-available/gbot"
+    
+    cat > "$NGINX_CONFIG" << EOF
+server {
+    listen 80;
+    server_name _;
+    
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:$SCRIPT_DIR/gbot.sock;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_connect_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+    }
+    
+    location /static {
+        alias $SCRIPT_DIR/static;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}
+EOF
+    
+    # Enable site
+    if [ -L "/etc/nginx/sites-enabled/gbot" ]; then
+        rm "/etc/nginx/sites-enabled/gbot"
+    fi
+    ln -s "$NGINX_CONFIG" "/etc/nginx/sites-enabled/"
+    
+    # Test and restart nginx
+    if nginx -t; then
+        systemctl restart nginx
+        log_success "Nginx configuration fixed and restarted"
+        
+        echo -e "\n✅ Nginx configuration has been fixed!"
+        echo -e "🌐 Try accessing your application again at: ${BLUE}http://95.179.176.162${NC}"
+        echo -e "🔍 If you still have issues, run: ${BLUE}./setup_complete.sh --troubleshoot${NC}"
+    else
+        log_error "Nginx configuration test failed"
+        exit 1
+    fi
+    
+    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
 start_services() {
     log "Starting services..."
     
@@ -750,6 +846,7 @@ show_help() {
     echo "  -b, --backup            Create backup of current installation"
     echo "  -m, --monitor           Setup monitoring only"
     echo "  --troubleshoot          Troubleshoot connection issues"
+    echo "  --fix-nginx             Fix Nginx configuration issues"
     echo "  --clean                 Clean installation files"
     echo ""
     echo "Examples:"
@@ -953,6 +1050,10 @@ main() {
                 ;;
             --troubleshoot)
                 troubleshoot_connection
+                exit 0
+                ;;
+            --fix-nginx)
+                fix_nginx_configuration
                 exit 0
                 ;;
             --clean)
