@@ -15,6 +15,10 @@ class WhitelistedIP(db.Model):
 class UsedDomain(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     domain_name = db.Column(db.String(255), unique=True, nullable=False)
+    user_count = db.Column(db.Integer, default=0)
+    is_verified = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
 class GoogleAccount(db.Model):
     id = db.Column(db.Integer, primary_key=True)

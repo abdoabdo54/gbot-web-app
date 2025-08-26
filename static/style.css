@@ -719,6 +719,21 @@ textarea {
     background: #545b62;
 }
 
+.info-button {
+    background: #17a2b8;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    margin-right: 0.5rem;
+}
+
+.info-button:hover {
+    background: #138496;
+}
+
 .warning-button {
     background: #dc3545;
     color: white;
@@ -777,6 +792,68 @@ textarea {
 
 .domain-item:last-child {
     border-bottom: none;
+}
+
+.used-domain {
+    background: #fff5f5;
+    border-left: 4px solid #dc3545;
+}
+
+.used-domain:hover {
+    background: #ffe6e6;
+}
+
+.stats-summary {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.stats-summary h3 {
+    margin: 0 0 15px 0;
+    color: #495057;
+    font-size: 1.2rem;
+}
+
+.stats-summary .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.domain-loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.domain-loading::after {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.domain-error {
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 4px;
+    padding: 15px;
+    color: #c53030;
+    text-align: center;
+    margin: 10px 0;
 }
 
 .placeholder-text {

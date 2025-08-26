@@ -279,8 +279,11 @@
             <h4>Step 1.2: Select New Domain and Apply to Downloaded CSV</h4>
             <div class="step-content">
                 <div class="form-row">
-                    <button onclick="retrieveAvailableDomains()" class="secondary-button">🔍 Retrieve Available Domains</button>
-                    <button onclick="applySelectedDomainToCSV()" class="primary-button">✅ Apply Selected Domain to CSV</button>
+                            <button onclick="retrieveAvailableDomains()" class="secondary-button">🔍 Retrieve Available Domains</button>
+        <button onclick="getDomainUsageStats()" class="info-button">📊 Domain Usage Stats</button>
+        <button onclick="refreshDomainData()" class="secondary-button">🔄 Refresh Domain Data</button>
+        <button onclick="clearOldDomainData()" class="warning-button">🗑️ Clear Old Data</button>
+        <button onclick="applySelectedDomainToCSV()" class="primary-button">✅ Apply Selected Domain to CSV</button>
                 </div>
                 
                 <div class="domain-selection-area">
@@ -744,6 +747,13 @@ function showTab(tabId) {
     
     // Mark button as active
     event.target.classList.add('active');
+    
+    // Auto-refresh domain data when domains tab is shown
+    if (tabId === 'tab3' && isAuthenticated) {
+        setTimeout(() => {
+            retrieveAvailableDomains();
+        }, 500);
+    }
 }
 
 // Results log functions
@@ -2153,6 +2163,10 @@ function retrieveAvailableDomains() {
     
     logBulkDomain('🔍 Retrieving available domains...');
     
+    // Show loading state
+    const domainList = document.getElementById('available-domains');
+    domainList.innerHTML = '<div class="domain-loading">Retrieving domains from Google API...</div>';
+    
     fetch('/api/retrieve-domains', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'}
@@ -2164,13 +2178,154 @@ function retrieveAvailableDomains() {
             logBulkDomain(`✅ Retrieved ${data.domains.length} available domains`);
         } else {
             logBulkDomain(`❌ Failed to retrieve domains: ${data.error}`);
+            domainList.innerHTML = `<div class="domain-error">❌ Failed to retrieve domains: ${data.error}</div>`;
             alert('Failed to retrieve domains: ' + data.error);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        domainList.innerHTML = `<div class="domain-error">❌ Network error: ${error}</div>`;
+        alert('Network error: ' + error);
+    });
+}
+
+function getDomainUsageStats() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    logBulkDomain('📊 Retrieving domain usage statistics...');
+    
+    // Show loading state
+    const domainList = document.getElementById('available-domains');
+    domainList.innerHTML = '<div class="domain-loading">Retrieving domain usage statistics...</div>';
+    
+    fetch('/api/get-domain-usage-stats', {
+        method: 'GET',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.stats) {
+            displayDomainUsageStats(data.stats);
+            logBulkDomain(`✅ Retrieved domain usage statistics`);
+        } else {
+            logBulkDomain(`❌ Failed to retrieve domain stats: ${data.error}`);
+            domainList.innerHTML = `<div class="domain-error">❌ Failed to retrieve domain stats: ${data.error}</div>`;
+            alert('Failed to retrieve domain stats: ' + data.error);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        domainList.innerHTML = `<div class="domain-error">❌ Network error: ${error}</div>`;
+        alert('Network error: ' + error);
+    });
+}
+
+function refreshDomainData() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    logBulkDomain('🔄 Refreshing domain data...');
+    
+    // First get fresh data from Google API
+    retrieveAvailableDomains();
+    
+    // Then update database stats
+    setTimeout(() => {
+        getDomainUsageStats();
+    }, 1000);
+}
+
+function clearOldDomainData() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    if (!confirm('⚠️ This will clear domain data older than 30 days. Continue?')) {
+        return;
+    }
+    
+    logBulkDomain('🗑️ Clearing old domain data...');
+    
+    fetch('/api/clear-old-domain-data', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logBulkDomain(`✅ ${data.message}`);
+            alert(`✅ ${data.message}`);
+            // Refresh the display
+            setTimeout(() => {
+                getDomainUsageStats();
+            }, 500);
+        } else {
+            logBulkDomain(`❌ Failed to clear old data: ${data.error}`);
+            alert('Failed to clear old data: ' + data.error);
         }
     })
     .catch(error => {
         logBulkDomain(`❌ Network error: ${error}`);
         alert('Network error: ' + error);
     });
+}
+
+function displayDomainUsageStats(stats) {
+    const domainList = document.getElementById('available-domains');
+    
+    let html = `
+        <div class="stats-summary" style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 15px 0; color: #333;">📊 Domain Usage Summary</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                <div style="text-align: center; padding: 10px; background: white; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #2196F3;">${stats.total_domains}</div>
+                    <div style="font-size: 12px; color: #666;">Total Domains</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: white; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #4CAF50;">${stats.used_domains}</div>
+                    <div style="font-size: 12px; color: #666;">Used Domains</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: white; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #FF9800;">${stats.available_domains}</div>
+                    <div style="font-size: 12px; color: #666;">Available Domains</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: white; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #9C27B0;">${stats.total_users}</div>
+                    <div style="font-size: 12px; color: #666;">Total Users</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    if (stats.domains.length === 0) {
+        html += '<p class="placeholder-text">No domains found in database</p>';
+    } else {
+        html += '<h4 style="margin: 20px 0 10px 0; color: #333;">Domain Details:</h4>';
+        html += stats.domains.map(domain => {
+            const isUsed = domain.is_used;
+            const domainClass = isUsed ? 'domain-item used-domain' : 'domain-item';
+            const statusText = isUsed ? 'USED' : 'AVAILABLE';
+            const statusColor = isUsed ? 'red' : 'green';
+            
+            return `<div class="${domainClass}">
+                <strong style="color: ${isUsed ? 'red' : 'black'};">${domain.domain_name}</strong>
+                <span style="float: right; color: #666;">${domain.user_count} users</span>
+                <div style="margin-top: 5px;">
+                    ${domain.is_verified ? '<span style="color: green;">✅ Verified</span>' : '<span style="color: red;">❌ Not Verified</span>'}
+                    <span style="color: ${statusColor}; margin-left: 10px; font-weight: bold;">${statusText}</span>
+                </div>
+                ${domain.last_updated ? `<div style="font-size: 11px; color: #999; margin-top: 3px;">Last updated: ${new Date(domain.last_updated).toLocaleString()}</div>` : ''}
+            </div>`;
+        }).join('');
+    }
+    
+    domainList.innerHTML = html;
 }
 
 function displayAvailableDomains(domains) {
@@ -2181,7 +2336,38 @@ function displayAvailableDomains(domains) {
         return;
     }
     
-    domainList.innerHTML = domains.map(domain => {
+    // Add summary at the top
+    const totalDomains = domains.length;
+    const usedDomains = domains.filter(d => d.is_used).length;
+    const availableDomains = domains.filter(d => !d.is_used).length;
+    const totalUsers = domains.reduce((sum, d) => sum + d.user_count, 0);
+    
+    let html = `
+        <div class="stats-summary">
+            <h3>📊 Domain Summary</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;">
+                <div style="text-align: center; padding: 8px; background: white; border-radius: 5px;">
+                    <div style="font-size: 20px; font-weight: bold; color: #2196F3;">${totalDomains}</div>
+                    <div style="font-size: 11px; color: #666;">Total</div>
+                </div>
+                <div style="text-align: center; padding: 8px; background: white; border-radius: 5px;">
+                    <div style="font-size: 20px; font-weight: bold; color: #4CAF50;">${availableDomains}</div>
+                    <div style="font-size: 11px; color: #666;">Available</div>
+                </div>
+                <div style="text-align: center; padding: 8px; background: white; border-radius: 5px;">
+                    <div style="font-size: 20px; font-weight: bold; color: #FF9800;">${usedDomains}</div>
+                    <div style="font-size: 11px; color: #666;">Used</div>
+                </div>
+                <div style="text-align: center; padding: 8px; background: white; border-radius: 5px;">
+                    <div style="font-size: 20px; font-weight: bold; color: #9C27B0;">${totalUsers}</div>
+                    <div style="font-size: 11px; color: #666;">Users</div>
+                </div>
+            </div>
+        </div>
+        <h4 style="margin: 15px 0 10px 0; color: #333;">Domain Details:</h4>
+    `;
+    
+    html += domains.map(domain => {
         const isUsed = domain.is_used || false;
         const domainClass = isUsed ? 'domain-item used-domain' : 'domain-item';
         const clickHandler = isUsed ? '' : `onclick="selectDomain('${domain.domain_name}')"`;
@@ -2190,13 +2376,15 @@ function displayAvailableDomains(domains) {
         
         return `<div class="${domainClass}" ${clickHandler}>
             <strong style="color: ${isUsed ? 'red' : 'black'};">${domain.domain_name}</strong>
-            <span style="float: right; color: #666;">${domain.user_count} users</span>
+            <span style="float: right; color: #666; font-weight: bold;">${domain.user_count} users</span>
             <div style="margin-top: 5px;">
                 ${domain.verified ? '<span style="color: green;">✅ Verified</span>' : '<span style="color: red;">❌ Not Verified</span>'}
                 <span style="color: ${statusColor}; margin-left: 10px; font-weight: bold;">${statusText}</span>
             </div>
         </div>`;
     }).join('');
+    
+    domainList.innerHTML = html;
 }
 
 function selectDomain(domainName) {

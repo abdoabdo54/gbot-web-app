@@ -876,15 +876,63 @@ def api_retrieve_domains():
             
             domains = result['domains']
             
-            # Format domain data
+            # Get all users to calculate domain usage
+            users_result = google_api.get_users(max_results=1000)
+            if not users_result['success']:
+                logging.warning(f"Failed to retrieve users for domain calculation: {users_result['error']}")
+                # Continue with domains but set user counts to 0
+                users = []
+            else:
+                users = users_result['users']
+            
+            # Calculate user count per domain
+            domain_user_counts = {}
+            for user in users:
+                email = user.get('primaryEmail', '')
+                if email and '@' in email:
+                    domain = email.split('@')[1]
+                    domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+            
+            # Format domain data with actual user counts and usage status
             formatted_domains = []
             for domain in domains:
+                domain_name = domain.get('domainName', '')
+                user_count = domain_user_counts.get(domain_name, 0)
+                is_used = user_count > 0
+                
                 domain_data = {
-                    'domain_name': domain.get('domainName', ''),
+                    'domain_name': domain_name,
                     'verified': domain.get('verified', False),
-                    'user_count': 0  # Google API doesn't provide user count directly
+                    'user_count': user_count,
+                    'is_used': is_used
                 }
                 formatted_domains.append(domain_data)
+                
+                # Sync domain usage data to database
+                try:
+                    from database import UsedDomain
+                    existing_domain = UsedDomain.query.filter_by(domain_name=domain_name).first()
+                    if existing_domain:
+                        existing_domain.user_count = user_count
+                        existing_domain.is_verified = domain.get('verified', False)
+                        existing_domain.updated_at = db.func.current_timestamp()
+                    else:
+                        new_domain = UsedDomain(
+                            domain_name=domain_name,
+                            user_count=user_count,
+                            is_verified=domain.get('verified', False)
+                        )
+                        db.session.add(new_domain)
+                    
+                    db.session.commit()
+                    logging.debug(f"Synced domain {domain_name} to database: {user_count} users, verified: {domain.get('verified', False)}")
+                except Exception as db_error:
+                    logging.warning(f"Failed to sync domain {domain_name} to database: {db_error}")
+                    # Try to rollback the session
+                    try:
+                        db.session.rollback()
+                    except:
+                        pass
             
             return jsonify({
                 'success': True,
@@ -897,6 +945,71 @@ def api_retrieve_domains():
             
     except Exception as e:
         logging.error(f"Retrieve domains error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/get-domain-usage-stats', methods=['GET'])
+@login_required
+def api_get_domain_usage_stats():
+    """Get domain usage statistics from database"""
+    try:
+        from database import UsedDomain
+        domains = UsedDomain.query.all()
+        
+        # Sort domains by user count (descending) and then by name
+        sorted_domains = sorted(domains, key=lambda x: (x.user_count, x.domain_name), reverse=True)
+        
+        stats = {
+            'total_domains': len(domains),
+            'used_domains': len([d for d in domains if d.user_count > 0]),
+            'available_domains': len([d for d in domains if d.user_count == 0]),
+            'total_users': sum(d.user_count for d in domains),
+            'domains': [
+                {
+                    'domain_name': d.domain_name,
+                    'user_count': d.user_count,
+                    'is_verified': d.is_verified,
+                    'is_used': d.user_count > 0,
+                    'last_updated': d.updated_at.isoformat() if d.updated_at else None
+                }
+                for d in sorted_domains
+            ]
+        }
+        
+        logging.info(f"Domain usage stats: {stats['total_domains']} domains, {stats['total_users']} users")
+        
+        return jsonify({'success': True, 'stats': stats})
+        
+    except Exception as e:
+        logging.error(f"Get domain usage stats error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/clear-old-domain-data', methods=['POST'])
+@login_required
+def api_clear_old_domain_data():
+    """Clear old domain data from database"""
+    try:
+        from database import UsedDomain
+        
+        # Delete domains that haven't been updated in the last 30 days
+        from datetime import datetime, timedelta
+        cutoff_date = datetime.utcnow() - timedelta(days=30)
+        
+        old_domains = UsedDomain.query.filter(UsedDomain.updated_at < cutoff_date).all()
+        count = len(old_domains)
+        
+        for domain in old_domains:
+            db.session.delete(domain)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Cleared {count} old domain records',
+            'cleared_count': count
+        })
+        
+    except Exception as e:
+        logging.error(f"Clear old domain data error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/load-suspended-users', methods=['POST'])
