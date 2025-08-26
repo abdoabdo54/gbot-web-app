@@ -284,6 +284,7 @@
         <button onclick="refreshDomainData()" class="secondary-button">🔄 Refresh Domain Data</button>
         <button onclick="clearOldDomainData()" class="warning-button">🗑️ Clear Old Data</button>
         <button onclick="applySelectedDomainToCSV()" class="primary-button">✅ Apply Selected Domain to CSV</button>
+        <button onclick="debugDomainUsers()" class="debug-button">🐛 Debug Domain Users</button>
                 </div>
                 
                 <div class="domain-selection-area">
@@ -2268,6 +2269,51 @@ function clearOldDomainData() {
         } else {
             logBulkDomain(`❌ Failed to clear old data: ${data.error}`);
             alert('Failed to clear old data: ' + data.error);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        alert('Network error: ' + error);
+    });
+}
+
+function debugDomainUsers() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    const currentDomain = document.getElementById('current-domain-suffix').value.trim();
+    if (!currentDomain) {
+        alert('Please enter a domain in the "Current Domain Suffix" field first');
+        return;
+    }
+    
+    logBulkDomain(`🐛 Debugging users for domain: ${currentDomain}`);
+    
+    fetch('/api/debug-domain-users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({domain: currentDomain})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logBulkDomain(`🐛 Debug Results for ${data.domain}:`);
+            logBulkDomain(`   Total users found: ${data.total_users_found}`);
+            logBulkDomain(`   Users with domain ${data.domain}: ${data.domain_users_found}`);
+            
+            if (data.domain_users && data.domain_users.length > 0) {
+                logBulkDomain(`   Domain users:`);
+                data.domain_users.forEach(user => {
+                    logBulkDomain(`     - ${user.email} (Admin: ${user.isAdmin}, Suspended: ${user.suspended})`);
+                });
+            } else {
+                logBulkDomain(`   ❌ No users found with domain ${data.domain}`);
+            }
+        } else {
+            logBulkDomain(`❌ Debug failed: ${data.error}`);
+            alert('Debug failed: ' + data.error);
         }
     })
     .catch(error => {

@@ -1093,17 +1093,26 @@ def api_change_domain_all_users():
             return jsonify({'success': False, 'error': 'Current and new domain cannot be the same'})
         
         try:
-            # Get all users with the current domain
-            # Use proper Google Admin SDK query syntax
-            query = f"email:*@{current_domain}"
+            # First try to get all users and filter by domain (more reliable)
+            logging.info(f"Searching for users with domain: {current_domain}")
             
-            users_result = google_api.service.users().list(
+            # Get all users first
+            all_users_result = google_api.service.users().list(
                 customer='my_customer',
-                query=query,
-                maxResults=500
+                maxResults=1000
             ).execute()
             
-            users = users_result.get('users', [])
+            all_users = all_users_result.get('users', [])
+            logging.info(f"Found {len(all_users)} total users")
+            
+            # Filter users by domain
+            users = []
+            for user in all_users:
+                email = user.get('primaryEmail', '')
+                if email and email.endswith(f"@{current_domain}"):
+                    users.append(user)
+            
+            logging.info(f"Found {len(users)} users with domain {current_domain}")
             
             if not users:
                 return jsonify({
@@ -1144,6 +1153,8 @@ def api_change_domain_all_users():
                         'primaryEmail': new_email
                     }
                     
+                    logging.info(f"Updating user {email} to {new_email}")
+                    
                     google_api.service.users().update(
                         userId=email,
                         body=user_update
@@ -1156,7 +1167,7 @@ def api_change_domain_all_users():
                         'new_email': new_email
                     })
                     
-                    logging.info(f"Updated user email: {email} → {new_email}")
+                    logging.info(f"✅ Successfully updated user email: {email} → {new_email}")
                     
                 except Exception as user_error:
                     failed += 1
@@ -1165,7 +1176,7 @@ def api_change_domain_all_users():
                         'email': email,
                         'error': str(user_error)
                     })
-                    logging.error(f"Failed to update user {email}: {user_error}")
+                    logging.error(f"❌ Failed to update user {email}: {user_error}")
             
             # Update domain usage in database
             try:
@@ -1212,6 +1223,71 @@ def api_change_domain_all_users():
             
     except Exception as e:
         logging.error(f"Change domain all users error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/debug-domain-users', methods=['POST'])
+@login_required
+def api_debug_domain_users():
+    """Debug endpoint to check users for a specific domain"""
+    try:
+        # Check if user is authenticated
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
+        
+        # Get the current authenticated account
+        account_name = session.get('current_account_name')
+        
+        # First, try to authenticate using saved tokens if service is not available
+        if not google_api.service:
+            # Check if we have valid tokens for this account
+            if google_api.is_token_valid(account_name):
+                success = google_api.authenticate_with_tokens(account_name)
+                if not success:
+                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
+            else:
+                return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
+        
+        data = request.get_json()
+        domain = data.get('domain', '').strip()
+        
+        if not domain:
+            return jsonify({'success': False, 'error': 'Domain is required'})
+        
+        try:
+            # Get all users first
+            all_users_result = google_api.service.users().list(
+                customer='my_customer',
+                maxResults=1000
+            ).execute()
+            
+            all_users = all_users_result.get('users', [])
+            
+            # Filter users by domain
+            domain_users = []
+            for user in all_users:
+                email = user.get('primaryEmail', '')
+                if email and email.endswith(f"@{domain}"):
+                    domain_users.append({
+                        'email': email,
+                        'name': user.get('name', {}),
+                        'isAdmin': user.get('isAdmin', False),
+                        'suspended': user.get('suspended', False)
+                    })
+            
+            return jsonify({
+                'success': True,
+                'domain': domain,
+                'total_users_found': len(all_users),
+                'domain_users_found': len(domain_users),
+                'domain_users': domain_users
+            })
+            
+        except Exception as api_error:
+            logging.error(f"Google API error: {api_error}")
+            return jsonify({'success': False, 'error': f'Failed to retrieve users: {str(api_error)}'})
+            
+    except Exception as e:
+        logging.error(f"Debug domain users error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/mark-domain-used', methods=['POST'])
