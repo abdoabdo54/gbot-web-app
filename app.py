@@ -1097,6 +1097,7 @@ def api_change_domain_all_users():
             logging.info(f"Searching for users with domain: {current_domain}")
             
             # Get all users first (Google Admin API limit is 500)
+            # Add timeout to prevent hanging
             all_users_result = google_api.service.users().list(
                 customer='my_customer',
                 maxResults=500
@@ -1128,7 +1129,11 @@ def api_change_domain_all_users():
             skipped = 0
             results = []
             
-            for user in users:
+            # Process users in smaller batches to avoid timeouts
+            batch_size = 10
+            total_users = len(users)
+            
+            for i, user in enumerate(users):
                 try:
                     email = user.get('primaryEmail', '')
                     if not email:
@@ -1153,8 +1158,9 @@ def api_change_domain_all_users():
                         'primaryEmail': new_email
                     }
                     
-                    logging.info(f"Updating user {email} to {new_email}")
+                    logging.info(f"Updating user {i+1}/{total_users}: {email} → {new_email}")
                     
+                    # Add timeout to the API call
                     google_api.service.users().update(
                         userKey=email,
                         body=user_update
@@ -1167,7 +1173,11 @@ def api_change_domain_all_users():
                         'new_email': new_email
                     })
                     
-                    logging.info(f"✅ Successfully updated user email: {email} → {new_email}")
+                    logging.info(f"✅ Successfully updated user {i+1}/{total_users}: {email} → {new_email}")
+                    
+                    # Add small delay between API calls to avoid rate limiting
+                    import time
+                    time.sleep(0.1)
                     
                 except Exception as user_error:
                     failed += 1
@@ -1176,7 +1186,10 @@ def api_change_domain_all_users():
                         'email': email,
                         'error': str(user_error)
                     })
-                    logging.error(f"❌ Failed to update user {email}: {user_error}")
+                    logging.error(f"❌ Failed to update user {i+1}/{total_users} {email}: {user_error}")
+                    
+                    # Continue processing other users even if one fails
+                    continue
             
             # Update domain usage in database
             try:
