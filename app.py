@@ -1096,10 +1096,10 @@ def api_change_domain_all_users():
             # First try to get all users and filter by domain (more reliable)
             logging.info(f"Searching for users with domain: {current_domain}")
             
-            # Get all users first
+            # Get all users first (Google Admin API limit is 500)
             all_users_result = google_api.service.users().list(
                 customer='my_customer',
-                maxResults=1000
+                maxResults=500
             ).execute()
             
             all_users = all_users_result.get('users', [])
@@ -1254,10 +1254,10 @@ def api_debug_domain_users():
             return jsonify({'success': False, 'error': 'Domain is required'})
         
         try:
-            # Get all users first
+            # Get all users first (Google Admin API limit is 500)
             all_users_result = google_api.service.users().list(
                 customer='my_customer',
-                maxResults=1000
+                maxResults=500
             ).execute()
             
             all_users = all_users_result.get('users', [])
