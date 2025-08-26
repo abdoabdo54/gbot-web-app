@@ -47,6 +47,17 @@ def test_api_endpoints(base_url):
     except Exception as e:
         print(f"Error testing debug session: {e}")
     
+    # Test debug whitelist endpoint
+    try:
+        response = requests.get(f"{base_url}/api/debug-whitelist", timeout=10)
+        if response.status_code == 200:
+            whitelist_data = response.json()
+            print(f"Debug whitelist endpoint: {json.dumps(whitelist_data, indent=2)}")
+        else:
+            print(f"Debug whitelist endpoint failed: {response.status_code}")
+    except Exception as e:
+        print(f"Error testing debug whitelist: {e}")
+    
     # Test emergency access endpoint
     try:
         response = requests.get(f"{base_url}/emergency_access", timeout=10)

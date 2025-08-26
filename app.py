@@ -83,6 +83,11 @@ def before_request():
     if request.endpoint == 'whitelist' and session.get('emergency_access'):
         app.logger.debug("Allowing whitelist route with emergency access")
         return
+    
+    # Allow emergency access users to access all endpoints
+    if session.get('emergency_access'):
+        app.logger.debug("Allowing emergency access user to access all endpoints")
+        return
 
     # IP Whitelist check - configurable via environment variables
     # Only check if explicitly enabled AND not in development mode
@@ -204,14 +209,24 @@ def api_emergency_add_ip():
         if emergency_key != whitelist_token and emergency_key != secret_key:
             return jsonify({'success': False, 'error': 'Invalid emergency key. Please use your WHITELIST_TOKEN or SECRET_KEY.'})
         
-        if WhitelistedIP.query.filter_by(ip_address=ip_address).first():
-            return jsonify({'success': False, 'error': 'IP address already exists'})
+        # Check if IP already exists
+        existing_ip = WhitelistedIP.query.filter_by(ip_address=ip_address).first()
+        if existing_ip:
+            app.logger.info(f"IP {ip_address} already exists in whitelist")
+            return jsonify({'success': True, 'message': f'IP address {ip_address} is already whitelisted'})
         
+        # Add new IP to whitelist
         new_ip = WhitelistedIP(ip_address=ip_address)
         db.session.add(new_ip)
         db.session.commit()
         
         app.logger.info(f"IP {ip_address} successfully whitelisted via emergency access")
+        
+        # Set session for this user so they can access other pages
+        session['emergency_access'] = True
+        session['role'] = 'admin'
+        session['user'] = 'emergency_admin'
+        
         return jsonify({'success': True, 'message': f'IP address {ip_address} whitelisted successfully'})
         
     except Exception as e:
@@ -237,6 +252,23 @@ def api_debug_session():
         'client_ip': get_client_ip(),
         'endpoint': request.endpoint if request.endpoint else 'None'
     })
+
+@app.route('/api/debug-whitelist')
+def api_debug_whitelist():
+    """Debug endpoint to check whitelist status"""
+    try:
+        client_ip = get_client_ip()
+        whitelisted_ips = WhitelistedIP.query.all()
+        ip_list = [ip.ip_address for ip in whitelisted_ips]
+        
+        return jsonify({
+            'client_ip': client_ip,
+            'whitelisted_ips': ip_list,
+            'is_whitelisted': client_ip in ip_list,
+            'total_whitelisted': len(ip_list)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 @app.route('/whitelist')
 def whitelist():
