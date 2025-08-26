@@ -69,6 +69,11 @@ def before_request():
         client_ip = get_client_ip()
         whitelisted_ip = WhitelistedIP.query.filter_by(ip_address=client_ip).first()
         if not whitelisted_ip:
+            # Check if this is an emergency access attempt with valid key
+            if request.endpoint == 'emergency_access':
+                static_key = request.args.get('key', '')
+                if static_key == app.config.get('WHITELIST_TOKEN', ''):
+                    return  # Allow emergency access
             return f"Access denied. IP {client_ip} not whitelisted.", 403
     # If IP whitelist is disabled or in development mode, allow all IPs
 
@@ -123,10 +128,52 @@ def users():
         return redirect(url_for('dashboard'))
     return render_template('users.html', user=session.get('user'), role=session.get('role'))
 
+@app.route('/emergency_access')
+def emergency_access():
+    """Emergency access route that bypasses IP whitelist for initial setup"""
+    # Check for static key in URL parameters
+    static_key = request.args.get('key', '')
+    
+    if static_key == app.config.get('WHITELIST_TOKEN', ''):
+        # Valid static key - allow access to whitelist management
+        session['emergency_access'] = True
+        session['role'] = 'admin'  # Grant admin privileges for whitelist management
+        flash('Emergency access granted. You can now manage IP whitelist.', 'success')
+        return redirect(url_for('whitelist'))
+    else:
+        # Show emergency access form
+        return render_template('emergency_access.html')
+
+@app.route('/api/emergency-add-ip', methods=['POST'])
+def api_emergency_add_ip():
+    """Emergency API to add IP to whitelist without authentication"""
+    try:
+        data = request.get_json()
+        ip_address = data.get('ip_address', '').strip()
+        emergency_key = data.get('emergency_key', '').strip()
+        
+        if not ip_address:
+            return jsonify({'success': False, 'error': 'IP address required'})
+        
+        if not emergency_key or emergency_key != app.config.get('WHITELIST_TOKEN', ''):
+            return jsonify({'success': False, 'error': 'Invalid emergency key'})
+        
+        if WhitelistedIP.query.filter_by(ip_address=ip_address).first():
+            return jsonify({'success': False, 'error': 'IP address already exists'})
+        
+        new_ip = WhitelistedIP(ip_address=ip_address)
+        db.session.add(new_ip)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': f'IP address {ip_address} whitelisted successfully'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/whitelist')
 @login_required
 def whitelist():
-    if session.get('role') != 'admin':
+    if session.get('role') != 'admin' and not session.get('emergency_access'):
         flash("Admin access required.", "danger")
         return redirect(url_for('dashboard'))
     return render_template('whitelist.html', user=session.get('user'), role=session.get('role'))

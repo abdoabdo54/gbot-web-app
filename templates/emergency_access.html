@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Access - GBot Web App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; }
+        .emergency-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: none; border-radius: 15px; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1); }
+        .emergency-header { background: linear-gradient(45deg, #ff6b6b, #ee5a24); color: white; border-radius: 15px 15px 0 0; padding: 2rem; }
+        .btn-emergency { background: linear-gradient(45deg, #ff6b6b, #ee5a24); border: none; border-radius: 25px; padding: 12px 30px; font-weight: 600; transition: all 0.3s ease; }
+        .btn-emergency:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4); }
+        .ip-input { border: 2px solid #e9ecef; border-radius: 10px; padding: 12px 15px; transition: all 0.3s ease; }
+        .ip-input:focus { border-color: #ff6b6b; box-shadow: 0 0 0 0.2rem rgba(255, 107, 107, 0.25); }
+        .status-message { border-radius: 10px; padding: 15px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center align-items-center min-vh-100">
+            <div class="col-md-8 col-lg-6">
+                <div class="card emergency-card">
+                    <div class="card-header emergency-header text-center">
+                        <h1 class="mb-0">🚨 Emergency Access</h1>
+                        <p class="mb-0 mt-2">GBot Web Application</p>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="text-center mb-4">
+                            <p class="text-muted">You are accessing this application from an IP address that is not whitelisted. Use this emergency access to add your IP to the whitelist.</p>
+                        </div>
+                        <form id="emergency-form">
+                            <div class="mb-3">
+                                <label for="current_ip" class="form-label">Your Current IP Address</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control ip-input" id="current_ip" readonly>
+                                    <button class="btn btn-outline-secondary" type="button" onclick="detectIP()">🔍 Detect</button>
+                                </div>
+                                <div class="form-text">This will be automatically detected</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="emergency_key" class="form-label">Emergency Access Key</label>
+                                <input type="text" class="form-control ip-input" id="emergency_key" placeholder="Enter your emergency access key" required>
+                                <div class="form-text">Use the key from your environment configuration (WHITELIST_TOKEN)</div>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-emergency btn-lg">🚨 Grant Emergency Access</button>
+                            </div>
+                        </form>
+                        <div id="status-container"></div>
+                        <div class="text-center mt-4">
+                            <small class="text-muted"><strong>Note:</strong> This emergency access is only for initial setup. Once your IP is whitelisted, you can access the main application normally.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            detectIP();
+            $("#emergency-form").submit(function(e) {
+                e.preventDefault();
+                grantEmergencyAccess();
+            });
+        });
+        function detectIP() {
+            $("#current_ip").val("Detecting...");
+            $.ajax({
+                url: "https://api.ipify.org?format=json",
+                type: "GET",
+                timeout: 5000,
+                success: function(data) { $("#current_ip").val(data.ip); },
+                error: function() {
+                    $.ajax({
+                        url: "https://ipinfo.io/ip",
+                        type: "GET",
+                        timeout: 5000,
+                        success: function(ip) { $("#current_ip").val(ip.trim()); },
+                        error: function() {
+                            $("#current_ip").val("Could not detect");
+                            showStatus("Could not automatically detect your IP address. Please enter it manually.", "warning");
+                        }
+                    });
+                }
+            });
+        }
+        function grantEmergencyAccess() {
+            var ipAddress = $("#current_ip").val().trim();
+            var emergencyKey = $("#emergency_key").val().trim();
+            if (!ipAddress || ipAddress === "Could not detect" || ipAddress === "Detecting...") {
+                showStatus("Please wait for IP detection to complete or enter your IP manually.", "warning");
+                return;
+            }
+            if (!emergencyKey) {
+                showStatus("Please enter the emergency access key.", "warning");
+                return;
+            }
+            showStatus("Granting emergency access...", "info");
+            $.ajax({
+                url: "/api/emergency-add-ip",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ ip_address: ipAddress, emergency_key: emergencyKey }),
+                success: function(response) {
+                    if (response.success) {
+                        showStatus("✅ Emergency access granted! Your IP has been whitelisted. Redirecting to main application...", "success");
+                        setTimeout(function() { window.location.href = "/dashboard"; }, 2000);
+                    } else {
+                        showStatus("❌ " + response.error, "danger");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    if (xhr.status === 403) {
+                        showStatus("❌ Access denied. Please check your emergency access key.", "danger");
+                    } else {
+                        showStatus("❌ Network error: " + error, "danger");
+                    }
+                }
+            });
+        }
+        function showStatus(message, type) {
+            var alertClass = type === "success" ? "alert-success" : type === "danger" ? "alert-danger" : type === "warning" ? "alert-warning" : "alert-info";
+            var statusHtml = "<div class=\"alert " + alertClass + " status-message\" role=\"alert\">" + message + "</div>";
+            $("#status-container").html(statusHtml);
+        }
+    </script>
+</body>
+</html>
