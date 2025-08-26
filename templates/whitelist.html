@@ -3,27 +3,22 @@
 {% block title %}IP Whitelist Management{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
+<div class="container mt-4">
     <!-- Header Section -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h2 class="mb-0">
-                        <i class="fas fa-shield-alt text-primary me-2"></i>
-                        IP Whitelist Management
-                    </h2>
+                    <h2 class="mb-0">🛡️ IP Whitelist Management</h2>
                     <p class="text-muted mb-0">Manage access control for your application</p>
                 </div>
                 {% if session.get('emergency_access') %}
                 <div class="d-flex align-items-center">
                     <span class="badge bg-warning text-dark me-3 px-3 py-2">
-                        <i class="fas fa-exclamation-triangle me-1"></i>
-                        Emergency Access Mode
+                        ⚠️ Emergency Access Mode
                     </span>
                     <a href="/logout" class="btn btn-outline-danger">
-                        <i class="fas fa-sign-out-alt me-1"></i>
-                        Exit Emergency Mode
+                        🚪 Exit Emergency Mode
                     </a>
                 </div>
                 {% endif %}
@@ -34,47 +29,40 @@
     <!-- Emergency Access Section -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card border-warning shadow-sm">
-                <div class="card-header bg-warning text-dark d-flex align-items-center">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
+            <div class="card border-warning shadow">
+                <div class="card-header bg-warning text-dark">
                     <h5 class="mb-0">�� Emergency Access</h5>
                 </div>
                 <div class="card-body p-4">
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="emergency_ip" class="form-label fw-bold">
-                                <i class="fas fa-network-wired me-1"></i>
-                                Your Current IP Address
+                                🌐 Your Current IP Address
                             </label>
                             <div class="input-group">
                                 <input type="text" class="form-control form-control-lg" id="emergency_ip" readonly>
                                 <button class="btn btn-outline-primary" type="button" onclick="detectCurrentIP()">
-                                    <i class="fas fa-search me-1"></i>
-                                    Detect
+                                    🔍 Detect
                                 </button>
                             </div>
                             <div class="form-text">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Automatically detected or enter manually
+                                ℹ️ Automatically detected or enter manually
                             </div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="emergency_key" class="form-label fw-bold">
-                                <i class="fas fa-key me-1"></i>
-                                Emergency Access Key
+                                🔑 Emergency Access Key
                             </label>
                             <input type="text" class="form-control form-control-lg" id="emergency_key" 
                                    placeholder="Enter WHITELIST_TOKEN or SECRET_KEY">
                             <div class="form-text">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Use key from your environment configuration
+                                ℹ️ Use key from your environment configuration
                             </div>
                         </div>
                     </div>
                     <div class="text-center">
                         <button type="button" class="btn btn-warning btn-lg px-4" onclick="emergencyAddIP()">
-                            <i class="fas fa-shield-alt me-2"></i>
-                            Grant Emergency Access
+                            🛡️ Grant Emergency Access
                         </button>
                     </div>
                 </div>
@@ -86,11 +74,10 @@
     <div class="row">
         <!-- Add IP Section -->
         <div class="col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm">
+            <div class="card h-100 shadow">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
-                        <i class="fas fa-plus-circle me-2"></i>
-                        Add IP to Whitelist
+                        ➕ Add IP to Whitelist
                     </h5>
                 </div>
                 <div class="card-body">
@@ -100,13 +87,11 @@
                             <input type="text" class="form-control" id="ip_address" name="ip_address" 
                                    placeholder="e.g., 192.168.1.100" required>
                             <div class="form-text">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Enter the IP address you want to whitelist
+                                ℹ️ Enter the IP address you want to whitelist
                             </div>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-plus me-2"></i>
-                            Add IP
+                            ➕ Add IP
                         </button>
                     </form>
                 </div>
@@ -115,15 +100,13 @@
 
         <!-- Whitelisted IPs Section -->
         <div class="col-lg-8 mb-4">
-            <div class="card h-100 shadow-sm">
+            <div class="card h-100 shadow">
                 <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fas fa-list me-2"></i>
-                        Whitelisted IPs
+                        📋 Whitelisted IPs
                     </h5>
                     <button class="btn btn-outline-light btn-sm" onclick="refreshIPList()">
-                        <i class="fas fa-sync-alt me-1"></i>
-                        Refresh
+                        🔄 Refresh
                     </button>
                 </div>
                 <div class="card-body">
@@ -140,9 +123,9 @@
                                 <table class="table table-hover">
                                     <thead class="table-light">
                                         <tr>
-                                            <th><i class="fas fa-network-wired me-1"></i>IP Address</th>
-                                            <th><i class="fas fa-calendar me-1"></i>Added Date</th>
-                                            <th class="text-center"><i class="fas fa-cogs me-1"></i>Actions</th>
+                                            <th>🌐 IP Address</th>
+                                            <th>📅 Added Date</th>
+                                            <th class="text-center">⚙️ Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -150,7 +133,7 @@
                                         <tr>
                                             <td>
                                                 <span class="badge bg-success me-2">
-                                                    <i class="fas fa-check"></i>
+                                                    ✅
                                                 </span>
                                                 <code class="fs-6">{{ ip }}</code>
                                             </td>
@@ -160,7 +143,7 @@
                                             <td class="text-center">
                                                 <button class="btn btn-danger btn-sm delete-ip" data-ip="{{ ip }}" 
                                                         title="Remove IP from whitelist">
-                                                    <i class="fas fa-trash"></i>
+                                                    🗑️ Delete
                                                 </button>
                                             </td>
                                         </tr>
@@ -170,7 +153,7 @@
                             </div>
                         {% else %}
                             <div class="text-center py-5">
-                                <i class="fas fa-shield-alt fa-3x text-muted mb-3"></i>
+                                <div class="display-1 text-muted mb-3">🛡️</div>
                                 <h5 class="text-muted">No IPs Whitelisted</h5>
                                 <p class="text-muted">Start by adding your first IP address to the whitelist.</p>
                             </div>
@@ -191,23 +174,20 @@
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Confirm Deletion
+                    ⚠️ Confirm Deletion
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <p>Are you sure you want to remove <strong id="delete-ip-address"></strong> from the whitelist?</p>
                 <p class="text-muted small">
-                    <i class="fas fa-info-circle me-1"></i>
-                    This action cannot be undone.
+                    ℹ️ This action cannot be undone.
                 </p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
-                    <i class="fas fa-trash me-1"></i>
-                    Delete
+                    🗑️ Delete
                 </button>
             </div>
         </div>
@@ -234,12 +214,6 @@
             }
             
             addIPToWhitelist(ipAddress, false);
-        });
-
-        // Initialize tooltips
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
     });
 
