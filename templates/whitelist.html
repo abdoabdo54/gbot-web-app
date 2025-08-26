@@ -4,7 +4,15 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>IP Whitelist Management</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>IP Whitelist Management</h2>
+        {% if session.get('emergency_access') %}
+        <div>
+            <span class="badge bg-warning text-dark me-2">Emergency Access Mode</span>
+            <a href="/logout" class="btn btn-outline-danger btn-sm">🚪 Exit Emergency Mode</a>
+        </div>
+        {% endif %}
+    </div>
     
     <!-- Emergency Access Section -->
     <div class="row mb-4">
@@ -76,11 +84,19 @@
                         <p class="mt-2">Loading IP list...</p>
                     </div>
                     <ul class="list-group" id="ip-list">
-                        <!-- IPs will be loaded here dynamically -->
+                        {% if whitelisted_ips %}
+                            {% for ip in whitelisted_ips %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span class="ip-address">{{ ip }}</span>
+                                <button class="btn btn-danger btn-sm delete-ip" data-ip="{{ ip }}">🗑️ Delete</button>
+                            </li>
+                            {% endfor %}
+                        {% else %}
+                            <li class="list-group-item text-center text-muted">
+                                <p class="mb-0">No IPs are currently whitelisted</p>
+                            </li>
+                        {% endif %}
                     </ul>
-                    <div id="no-ips" class="text-center text-muted" style="display: none;">
-                        <p>No IPs are currently whitelisted</p>
-                    </div>
                 </div>
             </div>
         </div>
@@ -123,6 +139,7 @@
             success: function(data) {
                 $('#emergency_ip').val(data.ip);
                 $('#ip_address').val(data.ip);
+                showStatus('IP address detected: ' + data.ip, 'success');
             },
             error: function() {
                 // Fallback to alternative service
@@ -133,6 +150,7 @@
                     success: function(ip) {
                         $('#emergency_ip').val(ip.trim());
                         $('#ip_address').val(ip.trim());
+                        showStatus('IP address detected: ' + ip.trim(), 'success');
                     },
                     error: function() {
                         $('#emergency_ip').val('Could not detect');
@@ -191,40 +209,9 @@
     }
 
     function loadIpList() {
-        $('#ip-loading').show();
-        $('#ip-list').hide();
-        $('#no-ips').hide();
-        
-        $.ajax({
-            url: "/api/list-whitelist-ips",
-            type: "GET",
-            success: function(response) {
-                $('#ip-loading').hide();
-                
-                if (response.success) {
-                    var ipList = $("#ip-list");
-                    ipList.empty();
-                    
-                    if (response.ips && response.ips.length > 0) {
-                        response.ips.forEach(function(ip) {
-                            var listItem = $('<li class="list-group-item d-flex justify-content-between align-items-center">');
-                            listItem.append('<span class="ip-address">' + ip + '</span>');
-                            listItem.append('<button class="btn btn-danger btn-sm delete-ip" data-ip="' + ip + '">🗑️ Delete</button>');
-                            ipList.append(listItem);
-                        });
-                        $('#ip-list').show();
-                    } else {
-                        $('#no-ips').show();
-                    }
-                } else {
-                    showStatus('Failed to load IP list: ' + response.error, 'error');
-                }
-            },
-            error: function(xhr, status, error) {
-                $('#ip-loading').hide();
-                showStatus('Network error loading IP list: ' + error, 'error');
-            }
-        });
+        // Since we're now passing IPs from backend, we can refresh the page
+        // or make an AJAX call to get updated data
+        location.reload();
     }
 
     // Delete IP functionality

@@ -84,9 +84,9 @@ def before_request():
         app.logger.debug("Allowing whitelist route with emergency access")
         return
     
-    # Allow emergency access users to access all endpoints
-    if session.get('emergency_access'):
-        app.logger.debug("Allowing emergency access user to access all endpoints")
+    # Allow emergency access users to access whitelist and dashboard endpoints
+    if session.get('emergency_access') and request.endpoint in ['whitelist', 'dashboard', 'static']:
+        app.logger.debug(f"Allowing emergency access user to access {request.endpoint}")
         return
 
     # IP Whitelist check - configurable via environment variables
@@ -166,19 +166,37 @@ def emergency_access():
     # Debug logging
     app.logger.info(f"Emergency access route - Key provided: {static_key[:8] if static_key else 'None'}..., WHITELIST_TOKEN: {whitelist_token[:8] if whitelist_token else 'None'}..., SECRET_KEY: {secret_key[:8] if secret_key else 'None'}...")
     
-    # Allow access if either WHITELIST_TOKEN or SECRET_KEY is provided
-    if static_key == whitelist_token or static_key == secret_key:
-        # Valid static key - allow access to whitelist management
-        app.logger.info("Valid emergency access key - granting access to whitelist")
+    # If WHITELIST_TOKEN is provided directly, auto-whitelist the current IP
+    if static_key == whitelist_token:
+        client_ip = get_client_ip()
+        app.logger.info(f"WHITELIST_TOKEN provided - auto-whitelisting IP: {client_ip}")
+        
+        # Check if IP already exists
+        existing_ip = WhitelistedIP.query.filter_by(ip_address=client_ip).first()
+        if not existing_ip:
+            new_ip = WhitelistedIP(ip_address=client_ip)
+            db.session.add(new_ip)
+            db.session.commit()
+            app.logger.info(f"IP {client_ip} auto-whitelisted successfully")
+            flash(f'IP {client_ip} has been automatically whitelisted!', 'success')
+        else:
+            app.logger.info(f"IP {client_ip} already whitelisted")
+            flash(f'IP {client_ip} is already whitelisted!', 'info')
+        
+        # Set session and redirect to whitelist management
         session['emergency_access'] = True
-        session['role'] = 'admin'  # Grant admin privileges for whitelist management
-        session['user'] = 'emergency_admin'  # Set a user for session validation
-        app.logger.info(f"Session set: emergency_access={session.get('emergency_access')}, role={session.get('role')}, user={session.get('user')}")
-        flash('Emergency access granted. You can now manage IP whitelist.', 'success')
+        session['role'] = 'admin'
+        session['user'] = 'emergency_admin'
         return redirect(url_for('whitelist'))
+    
+    # If SECRET_KEY is provided, show the emergency access form
+    elif static_key == secret_key:
+        app.logger.info("SECRET_KEY provided - showing emergency access form")
+        return render_template('emergency_access.html')
+    
+    # If no valid key, show the emergency access form
     else:
-        # Show emergency access form
-        app.logger.info("Invalid or missing emergency access key - showing form")
+        app.logger.info("No valid key provided - showing emergency access form")
         return render_template('emergency_access.html')
 
 @app.route('/api/emergency-add-ip', methods=['POST'])
@@ -282,8 +300,16 @@ def whitelist():
         flash("Admin access required.", "danger")
         return redirect(url_for('dashboard'))
     
+    # Get all whitelisted IPs for display
+    try:
+        whitelisted_ips = WhitelistedIP.query.all()
+        ip_list = [ip.ip_address for ip in whitelisted_ips]
+    except Exception as e:
+        app.logger.error(f"Error fetching whitelisted IPs: {e}")
+        ip_list = []
+    
     app.logger.info(f"Whitelist access granted: user={session.get('user')}, role={session.get('role')}, emergency_access={session.get('emergency_access')}")
-    return render_template('whitelist.html', user=session.get('user'), role=session.get('role'))
+    return render_template('whitelist.html', user=session.get('user'), role=session.get('role'), whitelisted_ips=ip_list)
 
 @app.route('/api/add-user', methods=['POST'])
 @login_required

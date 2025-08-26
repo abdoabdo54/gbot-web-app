@@ -38,11 +38,16 @@
                                 </div>
                                 <div class="form-text">This will be automatically detected</div>
                             </div>
-                            <div class="mb-3">
-                                <label for="emergency_key" class="form-label">Emergency Access Key</label>
-                                <input type="text" class="form-control ip-input" id="emergency_key" placeholder="Enter your emergency access key" required>
-                                <div class="form-text">Use either your WHITELIST_TOKEN or SECRET_KEY from your environment configuration</div>
-                            </div>
+                                    <div class="mb-3">
+            <label for="emergency_key" class="form-label">Emergency Access Key</label>
+            <input type="text" class="form-control ip-input" id="emergency_key" placeholder="Enter your WHITELIST_TOKEN or SECRET_KEY" required>
+            <div class="form-text">
+                <strong>Instructions:</strong><br>
+                • Use <code>WHITELIST_TOKEN</code> to automatically whitelist your current IP<br>
+                • Use <code>SECRET_KEY</code> to manually add an IP address<br>
+                • Both keys are found in your <code>.env</code> file
+            </div>
+        </div>
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-emergency btn-lg">🚨 Grant Emergency Access</button>
                             </div>

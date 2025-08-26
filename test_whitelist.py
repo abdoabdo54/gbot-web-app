@@ -20,6 +20,13 @@ def test_config():
         print(f"SECRET_KEY: {config.SECRET_KEY}")
     except Exception as e:
         print(f"Error loading config: {e}")
+    
+    # Test environment variables
+    print(f"\nEnvironment variables:")
+    print(f"WHITELIST_TOKEN: {os.environ.get('WHITELIST_TOKEN', 'None')}")
+    print(f"ENABLE_IP_WHITELIST: {os.environ.get('ENABLE_IP_WHITELIST', 'None')}")
+    print(f"DEBUG: {os.environ.get('DEBUG', 'None')}")
+    print(f"SECRET_KEY: {os.environ.get('SECRET_KEY', 'None')}")
 
 def test_api_endpoints(base_url):
     """Test the API endpoints"""
