@@ -331,6 +331,8 @@ def api_authenticate():
         if google_api.is_token_valid(account_name):
             success = google_api.authenticate_with_tokens(account_name)
             if success:
+                # Set the current account in session for persistence
+                session['current_account_name'] = account_name
                 return jsonify({
                     'success': True, 
                     'message': f'Authenticated using cached tokens for {account_name}'

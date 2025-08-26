@@ -680,23 +680,51 @@ function displaySavedTokenStatus(statusData) {
     console.log(`Loaded cached status: ${validAccounts}/${totalAccounts} authenticated`);
 }
 
-// Main function - try to load cache first, then do live check
+// Main function - use database for token status
 async function initializeTokenStatus() {
-    const hasCache = await loadSavedTokenStatus();
-    
-    if (!hasCache) {
-        console.log('No cache found, starting live check...');
-        await loadTokenStatusWithLive();
-    }
+    console.log('Initializing token status from database...');
+    await checkTokenStatusFromDatabase();
 }
 
 // Auto-refresh every 8 hours (but user can manually refresh anytime)
-setInterval(loadTokenStatusWithLive, 8 * 60 * 60 * 1000);
+setInterval(checkTokenStatusFromDatabase, 8 * 60 * 60 * 1000);
 
 // Load on page load
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(initializeTokenStatus, 1000);
+    
+    // Check if there's a currently authenticated account in session
+    checkCurrentAuthenticationStatus();
 });
+
+// Check current authentication status from session
+async function checkCurrentAuthenticationStatus() {
+    try {
+        const response = await fetch('/api/get-account-status', {
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.status) {
+            const { total, authenticated, need_auth } = data.status;
+            
+            // Update the auth status display
+            if (authenticated > 0) {
+                // Get the current authenticated account name
+                const currentAccountName = sessionStorage.getItem('current_account_name');
+                if (currentAccountName) {
+                    updateAuthStatus(currentAccountName, true, `Currently authenticated (${authenticated}/${total} accounts)`);
+                }
+            }
+            
+            console.log(`Current authentication status: ${authenticated}/${total} accounts authenticated`);
+        }
+    } catch (error) {
+        console.error('Failed to check current authentication status:', error);
+    }
+}
 
 
 // Tab switching function
@@ -793,6 +821,10 @@ function enterAuthorizationCode() {
     .then(data => {
         if (data.success) {
             alert('✅ Authentication completed successfully!');
+            
+            // Store the authenticated account in sessionStorage for persistence
+            sessionStorage.setItem('current_account_name', accountName);
+            
             updateAccountStatusAfterAuth(accountName, true);
         } else {
             alert('❌ Authentication failed: ' + data.error);
@@ -864,6 +896,9 @@ function authenticateAccount() {
         
         if (data.success) {
             updateAuthStatus(accountName, true, data.message);
+            
+            // Store the authenticated account in sessionStorage for persistence
+            sessionStorage.setItem('current_account_name', accountName);
             
             // UPDATE THE VISUAL STATUS IMMEDIATELY
             updateAccountStatusAfterAuth(accountName, true);
@@ -1347,18 +1382,84 @@ function refreshAccountsDisplay() {
 
 // Admin-only manual token status check
 function forceTokenStatusCheck() {
-    if (confirm('🔍 Force token status check for all 332 accounts?\n\nThis will take 3-5 minutes to complete.')) {
+    if (confirm('🔍 Force token status check for all accounts?\n\nThis will check the database for current token status.')) {
         console.log('Admin triggered manual token status check');
-        
-        // Clear any existing cache to force fresh check
-        tokenStatusCache = {};
-        lastTokenCheck = null;
         
         // Update status display
         updateAccountStats(0, 0, 0, 'Admin check starting...');
         
-        // Start live check
-        loadTokenStatusWithLive();
+        // Use database API instead of JSON
+        checkTokenStatusFromDatabase();
+    }
+}
+
+// Check token status from database (replaces JSON-based approach)
+async function checkTokenStatusFromDatabase() {
+    try {
+        console.log('=== Starting DATABASE token status check ===');
+        
+        // Get token status from database API
+        const response = await fetch('/api/check-token-status', {
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.token_status) {
+            console.log('Database token status received:', data.token_status);
+            
+            // Update visual status for each account
+            let totalAccounts = data.token_status.length;
+            let validAccounts = 0;
+            let invalidAccounts = 0;
+            
+            data.token_status.forEach(accountStatus => {
+                const accountName = accountStatus.account_name;
+                const hasTokens = accountStatus.has_tokens;
+                const tokenValid = accountStatus.token_valid;
+                
+                // Find the account item in the UI
+                const accountItems = document.querySelectorAll('.account-item');
+                accountItems.forEach(item => {
+                    const itemAccountName = item.textContent.trim().split('\n')[0].trim();
+                    if (itemAccountName === accountName) {
+                        // Remove old status
+                        const oldStatus = item.querySelector('.token-status');
+                        if (oldStatus) oldStatus.remove();
+                        
+                        // Add new status
+                        const statusSpan = document.createElement('span');
+                        statusSpan.className = 'token-status';
+                        statusSpan.textContent = tokenValid ? ' ✅' : ' ❌';
+                        statusSpan.style.cssText = 'float: right; margin-left: 10px;';
+                        item.appendChild(statusSpan);
+                        
+                        // Update dropdown
+                        updateDropdownOption(accountName, tokenValid);
+                        
+                        // Count accounts
+                        if (tokenValid) {
+                            validAccounts++;
+                        } else {
+                            invalidAccounts++;
+                        }
+                    }
+                });
+            });
+            
+            // Update stats
+            updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Database check complete');
+            console.log(`✅ Database check complete: ${validAccounts}/${totalAccounts} authenticated`);
+            
+        } else {
+            console.error('Failed to get token status from database:', data.error);
+            updateAccountStats(0, 0, 0, 'Database check failed');
+        }
+        
+    } catch (error) {
+        console.error('Database token status check failed:', error);
+        updateAccountStats(0, 0, 0, 'Database check failed');
     }
 }
 
