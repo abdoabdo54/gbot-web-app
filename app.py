@@ -1156,7 +1156,7 @@ def api_change_domain_all_users():
                     logging.info(f"Updating user {email} to {new_email}")
                     
                     google_api.service.users().update(
-                        userId=email,
+                        userKey=email,
                         body=user_update
                     ).execute()
                     
