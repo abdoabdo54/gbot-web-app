@@ -282,6 +282,7 @@
                             <button onclick="retrieveAvailableDomains()" class="secondary-button">🔍 Retrieve Available Domains</button>
         <button onclick="getDomainUsageStats()" class="info-button">📊 Domain Usage Stats</button>
         <button onclick="refreshDomainData()" class="secondary-button">🔄 Refresh Domain Data</button>
+        <button onclick="forceRefreshDomains()" class="primary-button">🚀 Force Refresh Domains</button>
         <button onclick="clearOldDomainData()" class="warning-button">🗑️ Clear Old Data</button>
         <button onclick="applySelectedDomainToCSV()" class="primary-button">✅ Apply Selected Domain to CSV</button>
         <button onclick="debugDomainUsers()" class="debug-button">🐛 Debug Domain Users</button>
@@ -2239,6 +2240,46 @@ function refreshDomainData() {
     setTimeout(() => {
         getDomainUsageStats();
     }, 1000);
+}
+
+function forceRefreshDomains() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    if (!confirm('🚀 This will force refresh ALL domain data from Google Admin API. This may take a few moments. Continue?')) {
+        return;
+    }
+    
+    logBulkDomain('🚀 Force refreshing domain data from Google Admin API...');
+    
+    fetch('/api/force-refresh-domains', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logBulkDomain(`✅ ${data.message}`);
+            logBulkDomain(`   📊 Domains updated: ${data.domains_updated}, Total users: ${data.total_users}`);
+            
+            // Now get fresh domain data and stats
+            setTimeout(() => {
+                retrieveAvailableDomains();
+                setTimeout(() => {
+                    getDomainUsageStats();
+                }, 1000);
+            }, 500);
+        } else {
+            logBulkDomain(`❌ Failed to refresh domains: ${data.error}`);
+            alert('Failed to refresh domains: ' + data.error);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        alert('Network error: ' + error);
+    });
 }
 
 function clearOldDomainData() {

@@ -876,14 +876,36 @@ def api_retrieve_domains():
             
             domains = result['domains']
             
-            # Get all users to calculate domain usage
-            users_result = google_api.get_users(max_results=1000)
-            if not users_result['success']:
-                logging.warning(f"Failed to retrieve users for domain calculation: {users_result['error']}")
-                # Continue with domains but set user counts to 0
-                users = []
-            else:
-                users = users_result['users']
+            # Get all users to calculate domain usage (handle pagination for large user bases)
+            all_users = []
+            page_token = None
+            
+            while True:
+                try:
+                    if page_token:
+                        users_result = google_api.service.users().list(
+                            customer='my_customer',
+                            maxResults=500,
+                            pageToken=page_token
+                        ).execute()
+                    else:
+                        users_result = google_api.service.users().list(
+                            customer='my_customer',
+                            maxResults=500
+                        ).execute()
+                    
+                    users = users_result.get('users', [])
+                    all_users.extend(users)
+                    
+                    page_token = users_result.get('nextPageToken')
+                    if not page_token:
+                        break
+                        
+                except Exception as e:
+                    logging.warning(f"Failed to retrieve users page: {e}")
+                    break
+            
+            logging.info(f"Retrieved {len(all_users)} total users for domain calculation")
             
             # Calculate user count per domain
             domain_user_counts = {}
@@ -1338,6 +1360,107 @@ def api_mark_domain_used():
         
     except Exception as e:
         logging.error(f"Mark domain used error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/force-refresh-domains', methods=['POST'])
+@login_required
+def api_force_refresh_domains():
+    """Force refresh domain data from Google Admin API and update database"""
+    try:
+        # Check if user is authenticated
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
+        
+        # Get the current authenticated account
+        account_name = session.get('current_account_name')
+        
+        # First, try to authenticate using saved tokens if service is not available
+        if not google_api.service:
+            # Check if we have valid tokens for this account
+            if google_api.is_token_valid(account_name):
+                success = google_api.authenticate_with_tokens(account_name)
+                if not success:
+                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
+            else:
+                return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
+        
+        try:
+            # Get all users with pagination
+            all_users = []
+            page_token = None
+            
+            while True:
+                try:
+                    if page_token:
+                        users_result = google_api.service.users().list(
+                            customer='my_customer',
+                            maxResults=500,
+                            pageToken=page_token
+                        ).execute()
+                    else:
+                        users_result = google_api.service.users().list(
+                            customer='my_customer',
+                            maxResults=500
+                        ).execute()
+                    
+                    users = users_result.get('users', [])
+                    all_users.extend(users)
+                    
+                    page_token = users_result.get('nextPageToken')
+                    if not page_token:
+                        break
+                        
+                except Exception as e:
+                    logging.warning(f"Failed to retrieve users page: {e}")
+                    break
+            
+            logging.info(f"Force refresh: Retrieved {len(all_users)} total users")
+            
+            # Calculate user count per domain
+            domain_user_counts = {}
+            for user in all_users:
+                email = user.get('primaryEmail', '')
+                if email and '@' in email:
+                    domain = email.split('@')[1]
+                    domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+            
+            # Update database with real user counts
+            from database import UsedDomain
+            
+            for domain_name, user_count in domain_user_counts.items():
+                try:
+                    existing_domain = UsedDomain.query.filter_by(domain_name=domain_name).first()
+                    if existing_domain:
+                        existing_domain.user_count = user_count
+                        existing_domain.updated_at = db.func.current_timestamp()
+                        logging.info(f"Updated domain {domain_name}: {user_count} users")
+                    else:
+                        new_domain = UsedDomain(
+                            domain_name=domain_name,
+                            user_count=user_count,
+                            is_verified=True
+                        )
+                        db.session.add(new_domain)
+                        logging.info(f"Added new domain {domain_name}: {user_count} users")
+                except Exception as e:
+                    logging.warning(f"Failed to update domain {domain_name}: {e}")
+                    continue
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Domain data refreshed successfully. Found {len(domain_user_counts)} domains with {len(all_users)} total users.',
+                'domains_updated': len(domain_user_counts),
+                'total_users': len(all_users)
+            })
+            
+        except Exception as api_error:
+            logging.error(f"Google API error during force refresh: {api_error}")
+            return jsonify({'success': False, 'error': f'Failed to refresh domains: {str(api_error)}'})
+            
+    except Exception as e:
+        logging.error(f"Force refresh domains error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
