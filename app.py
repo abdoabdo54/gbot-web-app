@@ -22,6 +22,13 @@ from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleT
 
 app = Flask(__name__)
 app.config.from_object('config')
+
+# Set secret key for sessions
+if app.config.get('SECRET_KEY'):
+    app.secret_key = app.config['SECRET_KEY']
+else:
+    app.secret_key = 'fallback-secret-key-for-development'
+
 db.init_app(app)
 
 # Production logging configuration
@@ -60,7 +67,11 @@ def login_required(f):
 
 @app.before_request
 def before_request():
-    if request.endpoint in ['static', 'login', 'emergency_access']:
+    # Always allow emergency_access route to bypass IP whitelist
+    if request.endpoint == 'emergency_access':
+        return
+        
+    if request.endpoint in ['static', 'login']:
         return
 
     # IP Whitelist check - configurable via environment variables
@@ -69,11 +80,6 @@ def before_request():
         client_ip = get_client_ip()
         whitelisted_ip = WhitelistedIP.query.filter_by(ip_address=client_ip).first()
         if not whitelisted_ip:
-            # Check if this is an emergency access attempt with valid key
-            if request.endpoint == 'emergency_access':
-                static_key = request.args.get('key', '')
-                if static_key == app.config.get('WHITELIST_TOKEN', ''):
-                    return  # Allow emergency access
             return f"Access denied. IP {client_ip} not whitelisted.", 403
     # If IP whitelist is disabled or in development mode, allow all IPs
 
@@ -133,15 +139,21 @@ def emergency_access():
     """Emergency access route that bypasses IP whitelist for initial setup"""
     # Check for static key in URL parameters
     static_key = request.args.get('key', '')
+    expected_token = app.config.get('WHITELIST_TOKEN', '')
     
-    if static_key == app.config.get('WHITELIST_TOKEN', ''):
+    # Debug logging
+    app.logger.info(f"Emergency access route - Key provided: {static_key[:8] if static_key else 'None'}..., Expected: {expected_token[:8] if expected_token else 'None'}...")
+    
+    if static_key == expected_token:
         # Valid static key - allow access to whitelist management
+        app.logger.info("Valid emergency access key - granting access to whitelist")
         session['emergency_access'] = True
         session['role'] = 'admin'  # Grant admin privileges for whitelist management
         flash('Emergency access granted. You can now manage IP whitelist.', 'success')
         return redirect(url_for('whitelist'))
     else:
         # Show emergency access form
+        app.logger.info("Invalid or missing emergency access key - showing form")
         return render_template('emergency_access.html')
 
 @app.route('/api/emergency-add-ip', methods=['POST'])
@@ -152,11 +164,21 @@ def api_emergency_add_ip():
         ip_address = data.get('ip_address', '').strip()
         emergency_key = data.get('emergency_key', '').strip()
         
+        # Debug logging
+        app.logger.info(f"Emergency access attempt - IP: {ip_address}, Key provided: {emergency_key[:8]}..., Expected: {app.config.get('WHITELIST_TOKEN', '')[:8] if app.config.get('WHITELIST_TOKEN') else 'None'}...")
+        
         if not ip_address:
             return jsonify({'success': False, 'error': 'IP address required'})
         
-        if not emergency_key or emergency_key != app.config.get('WHITELIST_TOKEN', ''):
-            return jsonify({'success': False, 'error': 'Invalid emergency key'})
+        if not emergency_key:
+            return jsonify({'success': False, 'error': 'Emergency key required'})
+        
+        expected_token = app.config.get('WHITELIST_TOKEN', '')
+        if not expected_token:
+            return jsonify({'success': False, 'error': 'WHITELIST_TOKEN not configured'})
+        
+        if emergency_key != expected_token:
+            return jsonify({'success': False, 'error': f'Invalid emergency key. Expected: {expected_token[:8]}..., Got: {emergency_key[:8]}...'})
         
         if WhitelistedIP.query.filter_by(ip_address=ip_address).first():
             return jsonify({'success': False, 'error': 'IP address already exists'})
@@ -165,10 +187,22 @@ def api_emergency_add_ip():
         db.session.add(new_ip)
         db.session.commit()
         
+        app.logger.error(f"IP {ip_address} successfully whitelisted via emergency access")
         return jsonify({'success': True, 'message': f'IP address {ip_address} whitelisted successfully'})
         
     except Exception as e:
+        app.logger.error(f"Emergency access error: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/debug-config')
+def api_debug_config():
+    """Debug endpoint to check configuration values"""
+    return jsonify({
+        'WHITELIST_TOKEN': app.config.get('WHITELIST_TOKEN', '')[:8] + '...' if app.config.get('WHITELIST_TOKEN') else 'None',
+        'ENABLE_IP_WHITELIST': app.config.get('ENABLE_IP_WHITELIST', False),
+        'DEBUG': app.config.get('DEBUG', False),
+        'SECRET_KEY': app.config.get('SECRET_KEY', '')[:8] + '...' if app.config.get('SECRET_KEY') else 'None'
+    })
 
 @app.route('/whitelist')
 @login_required
