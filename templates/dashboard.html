@@ -134,7 +134,11 @@
         </div>
         
         <div id="user-display" class="data-display">
-            <p>Click 'Retrieve All Users' to view users here...</p>
+            <div class="status-info">
+                <p><strong>👥 User Management</strong></p>
+                <p>Click "📊 Retrieve All Users" to load and display all users from your Google Workspace.</p>
+                <p><small>This will show user status (Active/Suspended), admin privileges, and provide options for bulk operations.</small></p>
+            </div>
         </div>
         
         <div id="user-count" class="count-display">Total Users: 0</div>
@@ -166,10 +170,16 @@
         <div class="button-row">
             <button onclick="loadSuspendedUsers()">🔍 Load Suspended Users</button>
             <button onclick="copySuspendedUsers()">📋 Copy Selected</button>
+            <button onclick="refreshSuspendedUsers()" class="secondary-button">🔄 Refresh Status</button>
+            <button onclick="clearSuspendedUsers()" class="secondary-button">🧹 Clear Display</button>
         </div>
         
         <div id="suspended-display" class="data-display">
-            <p>Load suspended users to view here...</p>
+            <div class="status-info">
+                <p><strong>⛔ Suspended User Management</strong></p>
+                <p>Click "🔍 Load Suspended Users" to check for suspended accounts in your Google Workspace.</p>
+                <p><small>This will show all users with suspended status, including their names, emails, and admin privileges.</small></p>
+            </div>
         </div>
     </div>
 </div>
@@ -1013,7 +1023,12 @@ function retrieveUsers() {
         return;
     }
     
-    document.getElementById('user-display').innerHTML = '<p>Loading users...</p>';
+    document.getElementById('user-display').innerHTML = `
+        <div class="status-info" style="background: #fff3cd; border-color: #ffeaa7;">
+            <p><strong>📊 Loading Users</strong></p>
+            <p>Retrieving user data from Google Admin API...</p>
+            <p><small>This may take a few moments depending on the number of users.</small></p>
+        </div>`;
     
     fetch('/api/retrieve-users', {
         method: 'POST',
@@ -1022,28 +1037,77 @@ function retrieveUsers() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            let html = '';
+            // Calculate status counts
+            const activeUsers = data.users.filter(user => !user.suspended).length;
+            const suspendedUsers = data.users.filter(user => user.suspended).length;
+            const adminUsers = data.users.filter(user => user.admin).length;
+            
+            let html = `<div class="status-summary">
+                <div class="status-item">
+                    <span class="status-label">📊 Total Users:</span>
+                    <span class="status-value">${data.total_count}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">✅ Active Users:</span>
+                    <span class="status-value">${activeUsers}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">🚫 Suspended Users:</span>
+                    <span class="status-value">${suspendedUsers}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">👑 Admin Users:</span>
+                    <span class="status-value">${adminUsers}</span>
+                </div>
+            </div>`;
+            
             data.users.forEach(user => {
-                html += `<div class="user-item">
+                const statusBadge = user.suspended ? 
+                    '<span class="badge suspended">🚫 Suspended</span>' : 
+                    '<span class="badge active">✅ Active</span>';
+                
+                html += `<div class="user-item ${user.suspended ? 'suspended-user-item' : ''}">
                     <span class="email">${user.email}</span>
                     <span class="name">${user.first_name} ${user.last_name}</span>
-                    ${user.admin ? '<span class="badge admin">👑 Admin</span>' : ''}
-                    ${user.suspended ? '<span class="badge suspended">🚫 Suspended</span>' : ''}
+                    <span class="status-badges">
+                        ${user.admin ? '<span class="badge admin">👑 Admin</span>' : ''}
+                        ${statusBadge}
+                    </span>
                 </div>`;
             });
             document.getElementById('user-display').innerHTML = html;
             document.getElementById('user-count').textContent = `Total Users: ${data.total_count}`;
+            
+            // Auto-refresh suspended users display to show current status
+            setTimeout(() => {
+                loadSuspendedUsers();
+            }, 500);
         } else {
-            document.getElementById('user-display').innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+            document.getElementById('user-display').innerHTML = `
+                <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
+                    <p><strong>❌ Error Loading Users</strong></p>
+                    <p>${data.error}</p>
+                    <p><small>Please try refreshing or re-authenticating your account.</small></p>
+                </div>`;
         }
     })
     .catch(error => {
-        document.getElementById('user-display').innerHTML = `<p style="color: red;">Network error: ${error}</p>`;
+        document.getElementById('user-display').innerHTML = `
+            <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
+                <p><strong>❌ Network Error</strong></p>
+                <p>Failed to connect to the server: ${error}</p>
+                <p><small>Please check your connection and try again.</small></p>
+            </div>`;
     });
 }
 
 function clearUserList() {
-    document.getElementById('user-display').innerHTML = '<p>Click \'Retrieve All Users\' to view users here...</p>';
+    document.getElementById('user-display').innerHTML = `
+        <div class="status-info">
+            <p><strong>👥 User Management</strong></p>
+            <p>Click "📊 Retrieve All Users" to load and display all users from your Google Workspace.</p>
+            <p><small>This will show user status (Active/Suspended), admin privileges, and provide options for bulk operations.</small></p>
+        </div>`;
     document.getElementById('user-count').textContent = 'Total Users: 0';
 }
 
@@ -1203,7 +1267,12 @@ function loadSuspendedUsers() {
         return;
     }
     
-    document.getElementById('suspended-display').innerHTML = '<p>Loading suspended users...</p>';
+    document.getElementById('suspended-display').innerHTML = `
+        <div class="status-info" style="background: #fff3cd; border-color: #ffeaa7;">
+            <p><strong>🔍 Loading Suspended Users</strong></p>
+            <p>Retrieving user data from Google Admin API...</p>
+            <p><small>This may take a few moments depending on the number of users.</small></p>
+        </div>`;
     
     fetch('/api/load-suspended-users', {
         method: 'POST',
@@ -1213,26 +1282,55 @@ function loadSuspendedUsers() {
     .then(data => {
         if (data.success) {
             if (data.users.length > 0) {
-                let html = '';
-                data.users.forEach(email => {
-                    html += `<div class="suspended-user">${email}</div>`;
+                let html = `<div class="status-info">
+                    <p><strong>📊 Found ${data.total_count} suspended user(s):</strong></p>
+                </div>`;
+                
+                data.users.forEach(user => {
+                    const fullName = user.full_name || `${user.first_name} ${user.last_name}`.trim() || 'No Name';
+                    const adminBadge = user.admin ? '<span class="badge admin">👑 Admin</span>' : '';
+                    const suspendedBadge = '<span class="badge suspended">🚫 Suspended</span>';
+                    
+                    html += `<div class="suspended-user">
+                        <div class="user-info">
+                            <span class="email">${user.email}</span>
+                            <span class="name">${fullName}</span>
+                            ${adminBadge}
+                            ${suspendedBadge}
+                        </div>
+                    </div>`;
                 });
+                
                 document.getElementById('suspended-display').innerHTML = html;
             } else {
-                document.getElementById('suspended-display').innerHTML = '<p>No suspended users found</p>';
+                document.getElementById('suspended-display').innerHTML = `
+                    <div class="status-info">
+                        <p><strong>✅ No Suspended Users Found</strong></p>
+                        <p>All users in this account are currently active.</p>
+                    </div>`;
             }
         } else {
-            document.getElementById('suspended-display').innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+            document.getElementById('suspended-display').innerHTML = `
+                <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
+                    <p><strong>❌ Error Loading Suspended Users</strong></p>
+                    <p>${data.error}</p>
+                    <p><small>Please try refreshing or re-authenticating your account.</small></p>
+                </div>`;
         }
     })
     .catch(error => {
-        document.getElementById('suspended-display').innerHTML = `<p style="color: red;">Network error: ${error}</p>`;
+        document.getElementById('suspended-display').innerHTML = `
+            <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
+                <p><strong>❌ Network Error</strong></p>
+                <p>Failed to connect to the server: ${error}</p>
+                <p><small>Please check your connection and try again.</small></p>
+            </div>`;
     });
 }
 
 function copySuspendedUsers() {
-    const suspendedItems = document.querySelectorAll('.suspended-user');
-    const emails = Array.from(suspendedItems).map(item => item.textContent);
+    const suspendedItems = document.querySelectorAll('.suspended-user .email');
+    const emails = Array.from(suspendedItems).map(item => item.textContent.trim());
     
     if (emails.length > 0) {
         copyToClipboard(emails.join('\n')).then(success => {
@@ -1245,6 +1343,35 @@ function copySuspendedUsers() {
     } else {
         alert('No suspended users to copy');
     }
+}
+
+function refreshSuspendedUsers() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    // Clear current display and reload
+    document.getElementById('suspended-display').innerHTML = `
+        <div class="status-info" style="background: #fff3cd; border-color: #ffeaa7;">
+            <p><strong>🔄 Refreshing Suspended Users</strong></p>
+            <p>Updating user status from Google Admin API...</p>
+            <p><small>Please wait while we refresh the data.</small></p>
+        </div>`;
+    
+    // Reload after a short delay to show the refresh message
+    setTimeout(() => {
+        loadSuspendedUsers();
+    }, 1000);
+}
+
+function clearSuspendedUsers() {
+    document.getElementById('suspended-display').innerHTML = `
+        <div class="status-info">
+            <p><strong>⛔ Suspended User Management</strong></p>
+            <p>Click "🔍 Load Suspended Users" to check for suspended accounts in your Google Workspace.</p>
+            <p><small>This will show all users with suspended status, including their names, emails, and admin privileges.</small></p>
+        </div>`;
 }
 
 function refreshAccounts() {

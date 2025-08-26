@@ -1065,11 +1065,25 @@ def api_load_suspended_users():
             ).execute()
             
             suspended_users = users_result.get('users', [])
-            suspended_emails = [user.get('primaryEmail', '') for user in suspended_users if user.get('primaryEmail')]
+            
+            # Format suspended user data with full information
+            formatted_suspended_users = []
+            for user in suspended_users:
+                if user.get('primaryEmail'):
+                    user_data = {
+                        'email': user.get('primaryEmail', ''),
+                        'first_name': user.get('name', {}).get('givenName', ''),
+                        'last_name': user.get('name', {}).get('familyName', ''),
+                        'admin': user.get('isAdmin', False),
+                        'suspended': True,  # These are all suspended users
+                        'full_name': f"{user.get('name', {}).get('givenName', '')} {user.get('name', {}).get('familyName', '')}".strip()
+                    }
+                    formatted_suspended_users.append(user_data)
             
             return jsonify({
                 'success': True,
-                'users': suspended_emails
+                'users': formatted_suspended_users,
+                'total_count': len(formatted_suspended_users)
             })
             
         except Exception as api_error:

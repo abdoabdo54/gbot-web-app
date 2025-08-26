@@ -127,6 +127,15 @@ button:hover {
     margin-bottom: 0.5rem;
 }
 
+.secondary-button {
+    background: #6c757d !important;
+    color: white !important;
+}
+
+.secondary-button:hover {
+    background: #5a6268 !important;
+}
+
 /* Dashboard sections */
 .dashboard {
     background: white;
@@ -238,14 +247,79 @@ button:hover {
 
 /* Suspended users */
 .suspended-user {
-    padding: 0.5rem;
+    padding: 0.75rem;
     border-bottom: 1px solid #eee;
-    color: #dc3545;
-    font-family: monospace;
+    background: #fff5f5;
+    border-left: 3px solid #dc3545;
 }
 
 .suspended-user:last-child {
     border-bottom: none;
+}
+
+.suspended-user .user-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.suspended-user .email {
+    font-weight: bold;
+    color: #dc3545;
+    min-width: 250px;
+}
+
+.suspended-user .name {
+    color: #666;
+    min-width: 150px;
+}
+
+/* Status summary */
+.status-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+.status-label {
+    font-weight: bold;
+    color: #495057;
+}
+
+.status-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #007bff;
+}
+
+/* Status info */
+.status-info {
+    padding: 1rem;
+    background: #e7f3ff;
+    border-radius: 6px;
+    border: 1px solid #b3d9ff;
+    margin-bottom: 1rem;
+}
+
+.status-info p {
+    margin: 0.5rem 0;
+    color: #004085;
 }
 
 /* Badges */
@@ -264,6 +338,24 @@ button:hover {
 .badge.suspended {
     background: #dc3545;
     color: white;
+}
+
+.badge.active {
+    background: #28a745;
+    color: white;
+}
+
+/* Status badges container */
+.status-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Suspended user items in main list */
+.user-item.suspended-user-item {
+    background: #fff5f5;
+    border-left: 3px solid #dc3545;
 }
 
 .badge.verified {
