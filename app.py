@@ -67,20 +67,36 @@ def login_required(f):
 
 @app.before_request
 def before_request():
+    # Debug logging
+    app.logger.debug(f"Before request: endpoint={request.endpoint}, emergency_access={session.get('emergency_access')}, client_ip={get_client_ip()}")
+    
     # Always allow emergency_access route to bypass IP whitelist
     if request.endpoint == 'emergency_access':
+        app.logger.debug("Allowing emergency_access route")
         return
         
     if request.endpoint in ['static', 'login']:
+        app.logger.debug("Allowing static/login route")
+        return
+
+    # Allow whitelist endpoint if user has emergency access
+    if request.endpoint == 'whitelist' and session.get('emergency_access'):
+        app.logger.debug("Allowing whitelist route with emergency access")
         return
 
     # IP Whitelist check - configurable via environment variables
     # Only check if explicitly enabled AND not in development mode
     if app.config.get('ENABLE_IP_WHITELIST', False) and not app.debug:
         client_ip = get_client_ip()
+        app.logger.debug(f"Checking IP whitelist for {client_ip}")
         whitelisted_ip = WhitelistedIP.query.filter_by(ip_address=client_ip).first()
         if not whitelisted_ip:
+            app.logger.warning(f"IP {client_ip} not whitelisted, access denied")
             return f"Access denied. IP {client_ip} not whitelisted.", 403
+        else:
+            app.logger.debug(f"IP {client_ip} is whitelisted")
+    else:
+        app.logger.debug("IP whitelist check skipped (disabled or debug mode)")
     # If IP whitelist is disabled or in development mode, allow all IPs
 
 @app.after_request
@@ -151,6 +167,8 @@ def emergency_access():
         app.logger.info("Valid emergency access key - granting access to whitelist")
         session['emergency_access'] = True
         session['role'] = 'admin'  # Grant admin privileges for whitelist management
+        session['user'] = 'emergency_admin'  # Set a user for session validation
+        app.logger.info(f"Session set: emergency_access={session.get('emergency_access')}, role={session.get('role')}, user={session.get('user')}")
         flash('Emergency access granted. You can now manage IP whitelist.', 'success')
         return redirect(url_for('whitelist'))
     else:
@@ -211,12 +229,28 @@ def api_debug_config():
         'note': 'Both WHITELIST_TOKEN and SECRET_KEY can be used for emergency access'
     })
 
+@app.route('/api/debug-session')
+def api_debug_session():
+    """Debug endpoint to check current session state"""
+    return jsonify({
+        'session_data': dict(session),
+        'client_ip': get_client_ip(),
+        'endpoint': request.endpoint if request.endpoint else 'None'
+    })
+
 @app.route('/whitelist')
-@login_required
 def whitelist():
+    """Whitelist management page - accessible via emergency access or admin login"""
+    # Check if user has emergency access or is logged in as admin
+    if not session.get('emergency_access') and not session.get('user'):
+        flash("Access denied. Please use emergency access or log in.", "danger")
+        return redirect(url_for('login'))
+    
     if session.get('role') != 'admin' and not session.get('emergency_access'):
         flash("Admin access required.", "danger")
         return redirect(url_for('dashboard'))
+    
+    app.logger.info(f"Whitelist access granted: user={session.get('user')}, role={session.get('role')}, emergency_access={session.get('emergency_access')}")
     return render_template('whitelist.html', user=session.get('user'), role=session.get('role'))
 
 @app.route('/api/add-user', methods=['POST'])

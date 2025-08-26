@@ -10,22 +10,14 @@ def test_config():
     """Test the configuration values"""
     print("=== Testing Configuration ===")
     
-    # Load environment variables
-    from dotenv import load_dotenv
-    load_dotenv()
-    
-    print(f"WHITELIST_TOKEN: {os.environ.get('WHITELIST_TOKEN', 'None')}")
-    print(f"ENABLE_IP_WHITELIST: {os.environ.get('ENABLE_IP_WHITELIST', 'None')}")
-    print(f"DEBUG: {os.environ.get('DEBUG', 'None')}")
-    print(f"SECRET_KEY: {os.environ.get('SECRET_KEY', 'None')}")
-    
-    # Test config.py
+    # Test config.py directly
     try:
         import config
-        print(f"\nConfig.py values:")
+        print(f"Config.py values:")
         print(f"WHITELIST_TOKEN: {config.WHITELIST_TOKEN}")
         print(f"ENABLE_IP_WHITELIST: {config.ENABLE_IP_WHITELIST}")
         print(f"DEBUG: {config.DEBUG}")
+        print(f"SECRET_KEY: {config.SECRET_KEY}")
     except Exception as e:
         print(f"Error loading config: {e}")
 
@@ -44,6 +36,17 @@ def test_api_endpoints(base_url):
     except Exception as e:
         print(f"Error testing debug config: {e}")
     
+    # Test debug session endpoint
+    try:
+        response = requests.get(f"{base_url}/api/debug-session", timeout=10)
+        if response.status_code == 200:
+            session_data = response.json()
+            print(f"Debug session endpoint: {json.dumps(session_data, indent=2)}")
+        else:
+            print(f"Debug session endpoint failed: {response.status_code}")
+    except Exception as e:
+        print(f"Error testing debug session: {e}")
+    
     # Test emergency access endpoint
     try:
         response = requests.get(f"{base_url}/emergency_access", timeout=10)
@@ -53,6 +56,39 @@ def test_api_endpoints(base_url):
             print(f"Emergency access endpoint failed: {response.status_code}")
     except Exception as e:
         print(f"Error testing emergency access: {e}")
+    
+    # Test emergency access with WHITELIST_TOKEN
+    try:
+        response = requests.get(f"{base_url}/emergency_access?key=4cb5d7420abd8b144be9c79723905d5d", timeout=10)
+        print(f"Emergency access with WHITELIST_TOKEN: {response.status_code}")
+        if response.status_code == 302:  # Redirect
+            print(f"Redirect location: {response.headers.get('Location', 'None')}")
+        elif response.status_code == 200:
+            print("Emergency access form displayed")
+    except Exception as e:
+        print(f"Error testing emergency access with WHITELIST_TOKEN: {e}")
+    
+    # Test emergency access with SECRET_KEY
+    try:
+        response = requests.get(f"{base_url}/emergency_access?key=4bb5d226ca429980a0f60b696388be8bc4b3797e99f23001a72d09789d7500f9", timeout=10)
+        print(f"Emergency access with SECRET_KEY: {response.status_code}")
+        if response.status_code == 302:  # Redirect
+            print(f"Redirect location: {response.headers.get('Location', 'None')}")
+        elif response.status_code == 200:
+            print("Emergency access form displayed")
+    except Exception as e:
+        print(f"Error testing emergency access with SECRET_KEY: {e}")
+    
+    # Test whitelist endpoint (should fail without session)
+    try:
+        response = requests.get(f"{base_url}/whitelist", timeout=10)
+        print(f"Whitelist endpoint: {response.status_code}")
+        if response.status_code == 403:
+            print("Access denied (expected without session)")
+        elif response.status_code == 200:
+            print("Whitelist accessible (unexpected)")
+    except Exception as e:
+        print(f"Error testing whitelist endpoint: {e}")
 
 def test_emergency_add_ip(base_url, ip_address, emergency_key, key_name):
     """Test the emergency add IP endpoint"""
