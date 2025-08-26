@@ -1094,9 +1094,8 @@ def api_change_domain_all_users():
         
         try:
             # Get all users with the current domain
-            query = f"email:{current_domain}"
-            if exclude_admin:
-                query += " -isAdmin:true"
+            # Use proper Google Admin SDK query syntax
+            query = f"email:*@{current_domain}"
             
             users_result = google_api.service.users().list(
                 customer='my_customer',
