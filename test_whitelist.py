@@ -54,9 +54,9 @@ def test_api_endpoints(base_url):
     except Exception as e:
         print(f"Error testing emergency access: {e}")
 
-def test_emergency_add_ip(base_url, ip_address, emergency_key):
+def test_emergency_add_ip(base_url, ip_address, emergency_key, key_name):
     """Test the emergency add IP endpoint"""
-    print(f"\n=== Testing Emergency Add IP ===")
+    print(f"\n=== Testing Emergency Add IP with {key_name} ===")
     
     try:
         data = {
@@ -89,9 +89,11 @@ if __name__ == '__main__':
     # Test API endpoints (change this to your actual domain)
     base_url = "https://ecochain.site"
     
-    # Test emergency add IP (change these values)
+    # Test emergency add IP with both keys
     ip_address = "102.101.242.72"  # Your current IP
-    emergency_key = "4cb5d7420abd8b144be9c79723905d5d"  # Your WHITELIST_TOKEN
+    whitelist_token = "4cb5d7420abd8b144be9c79723905d5d"  # Your WHITELIST_TOKEN
+    secret_key = "4bb5d226ca429980a0f60b696388be8bc4b3797e99f23001a72d09789d7500f9"  # Your SECRET_KEY
     
     test_api_endpoints(base_url)
-    test_emergency_add_ip(base_url, ip_address, emergency_key)
+    test_emergency_add_ip(base_url, ip_address, whitelist_token, "WHITELIST_TOKEN")
+    test_emergency_add_ip(base_url, ip_address, secret_key, "SECRET_KEY")
