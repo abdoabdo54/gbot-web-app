@@ -1054,9 +1054,9 @@ def api_load_suspended_users():
             logging.error(f"Google API error: {api_error}")
             return jsonify({'success': False, 'error': f'Failed to retrieve suspended users: {str(api_error)}'})
             
-            except Exception as e:
-            logging.error(f"Load suspended users error: {e}")
-            return jsonify({'success': False, 'error': str(e)})
+    except Exception as e:
+        logging.error(f"Load suspended users error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/change-domain-all-users', methods=['POST'])
 @login_required
