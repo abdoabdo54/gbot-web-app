@@ -27,7 +27,7 @@
         <div class="col-lg-10">
             <div class="card border-warning shadow-lg">
                 <div class="card-header bg-warning text-dark text-center">
-                    <h4 class="mb-0">�� Emergency Access</h4>
+                    <h4 class="mb-0">🚨 Emergency Access</h4>
                 </div>
                 <div class="card-body p-5 text-center">
                     <p class="lead mb-4">If you're locked out due to IP restrictions, use this emergency access method:</p>
@@ -38,7 +38,7 @@
                             </label>
                             <div class="input-group input-group-lg">
                                 <input type="text" class="form-control" id="emergency_ip" readonly>
-                                <button class="btn btn-primary" type="button" onclick="detectCurrentIP()">
+                                <button class="btn btn-primary" type="button" id="detectBtn">
                                     🔍 Detect
                                 </button>
                             </div>
@@ -58,7 +58,7 @@
                         </div>
                     </div>
                     <div class="mt-4">
-                        <button type="button" class="btn btn-warning btn-lg px-5 py-3" onclick="emergencyAddIP()">
+                        <button type="button" class="btn btn-warning btn-lg px-5 py-3" id="emergencyBtn">
                             🛡️ Grant Emergency Access
                         </button>
                     </div>
@@ -105,7 +105,7 @@
                 </div>
                 <div class="card-body p-4">
                     <div class="text-center mb-3">
-                        <button class="btn btn-outline-success" onclick="refreshIPList()">
+                        <button class="btn btn-outline-success" id="refreshBtn">
                             🔄 Refresh List
                         </button>
                     </div>
@@ -141,7 +141,7 @@
                                                 <small class="fs-6">Recently added</small>
                                             </td>
                                             <td>
-                                                <button class="btn btn-danger btn-lg delete-ip" data-ip="{{ ip }}" 
+                                                <button class="btn btn-danger btn-lg delete-ip-btn" data-ip="{{ ip }}" 
                                                         title="Remove IP from whitelist">
                                                     🗑️ Delete
                                                 </button>
@@ -204,9 +204,27 @@
 
     $(document).ready(function() {
         console.log('Page loaded, initializing...');
+        console.log('jQuery version:', $.fn.jquery);
+        console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
         
         // Auto-detect current IP on page load
         detectCurrentIP();
+        
+        // Bind button click events
+        $('#detectBtn').click(function() {
+            console.log('Detect button clicked');
+            detectCurrentIP();
+        });
+        
+        $('#emergencyBtn').click(function() {
+            console.log('Emergency button clicked');
+            emergencyAddIP();
+        });
+        
+        $('#refreshBtn').click(function() {
+            console.log('Refresh button clicked');
+            refreshIPList();
+        });
         
         // Add IP form submission
         $("#add-ip-form").submit(function(event) {
@@ -222,9 +240,23 @@
             addIPToWhitelist(ipAddress, false);
         });
 
-        // Test if jQuery is working
-        console.log('jQuery version:', $.fn.jquery);
-        console.log('Bootstrap modal available:', typeof bootstrap !== 'undefined');
+        // Delete IP button click
+        $(document).on("click", ".delete-ip-btn", function() {
+            console.log('Delete IP button clicked');
+            currentDeleteIP = $(this).data("ip");
+            $("#delete-ip-address").text(currentDeleteIP);
+            
+            var deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+            deleteModal.show();
+        });
+
+        // Confirm delete button
+        $("#confirmDeleteBtn").click(function() {
+            console.log('Confirm delete clicked for IP:', currentDeleteIP);
+            if (currentDeleteIP) {
+                deleteIPFromWhitelist(currentDeleteIP);
+            }
+        });
     });
 
     function detectCurrentIP() {
@@ -326,58 +358,37 @@
         location.reload();
     }
 
-    // Delete IP functionality with modal confirmation
-    $(document).on("click", ".delete-ip", function() {
-        console.log('Delete IP clicked');
-        currentDeleteIP = $(this).data("ip");
-        $("#delete-ip-address").text(currentDeleteIP);
+    function deleteIPFromWhitelist(ipAddress) {
+        console.log('Deleting IP:', ipAddress);
         
-        // Check if Bootstrap modal is available
-        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-            var deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
-            deleteModal.show();
-        } else {
-            // Fallback to jQuery modal
-            $("#deleteConfirmModal").modal('show');
-        }
-    });
-
-    $("#confirmDeleteBtn").click(function() {
-        console.log('Confirm delete clicked for IP:', currentDeleteIP);
-        if (currentDeleteIP) {
-            $.ajax({
-                url: "/api/delete-whitelist-ip",
-                type: "POST",
-                contentType: "application/json",
-                data: JSON.stringify({ ip_address: currentDeleteIP }),
-                success: function(response) {
-                    console.log('Delete IP response:', response);
-                    if (response.success) {
-                        showStatus('✅ ' + response.message, 'success');
-                        
-                        // Hide modal
-                        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                            var deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
-                            deleteModal.hide();
-                        } else {
-                            $("#deleteConfirmModal").modal('hide');
-                        }
-                        
-                        // Refresh the page after a short delay
-                        setTimeout(function() {
-                            location.reload();
-                        }, 1000);
-                    } else {
-                        showStatus('❌ ' + response.error, 'error');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.log('Delete IP error:', xhr, status, error);
-                    showStatus('❌ Network error: ' + error, 'error');
+        $.ajax({
+            url: "/api/delete-whitelist-ip",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ ip_address: ipAddress }),
+            success: function(response) {
+                console.log('Delete IP response:', response);
+                if (response.success) {
+                    showStatus('✅ ' + response.message, 'success');
+                    
+                    // Hide modal
+                    var deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+                    deleteModal.hide();
+                    
+                    // Refresh the page after a short delay
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showStatus('❌ ' + response.error, 'error');
                 }
-            });
-        }
-    });
+            },
+            error: function(xhr, status, error) {
+                console.log('Delete IP error:', xhr, status, error);
+                showStatus('❌ Network error: ' + error, 'error');
+            }
+        });
+    }
 
     function showStatus(message, type) {
         console.log('Showing status:', message, type);
