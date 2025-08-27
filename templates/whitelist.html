@@ -206,6 +206,7 @@
         console.log('Page loaded, initializing...');
         console.log('jQuery version:', $.fn.jquery);
         console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
+        console.log('jQuery modal available:', typeof $.fn.modal !== 'undefined');
         
         // Auto-detect current IP on page load
         detectCurrentIP();
@@ -247,16 +248,22 @@
             console.log('Setting currentDeleteIP to:', currentDeleteIP);
             $("#delete-ip-address").text(currentDeleteIP);
             
-            var deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
-            deleteModal.show();
+            // Use jQuery to show modal instead of Bootstrap
+            $('#deleteConfirmModal').modal('show');
         });
 
         // Confirm delete button
-        $("#confirmDeleteBtn").click(function() {
+        $(document).on("click", "#confirmDeleteBtn", function() {
             console.log('Confirm delete clicked for IP:', currentDeleteIP);
             if (currentDeleteIP) {
                 deleteIPFromWhitelist(currentDeleteIP);
             }
+        });
+
+        // Cancel button
+        $(document).on("click", "[data-bs-dismiss='modal']", function() {
+            console.log('Cancel button clicked');
+            $('#deleteConfirmModal').modal('hide');
         });
     });
 
@@ -379,9 +386,8 @@
                 if (response.success) {
                     showStatus('✅ ' + response.message, 'success');
                     
-                    // Hide modal
-                    var deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
-                    deleteModal.hide();
+                    // Hide modal using jQuery
+                    $('#deleteConfirmModal').modal('hide');
                     
                     // Refresh the page after a short delay
                     setTimeout(function() {
