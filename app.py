@@ -283,9 +283,18 @@ def api_debug_whitelist():
             'client_ip': client_ip,
             'whitelisted_ips': ip_list,
             'is_whitelisted': client_ip in ip_list,
-            'total_whitelisted': len(ip_list)
+            'total_whitelisted': len(ip_list),
+            'enable_ip_whitelist_config': app.config.get('ENABLE_IP_WHITELIST', False),
+            'app_debug_mode': app.debug,
+            'emergency_access_session': session.get('emergency_access', False),
+            'session_data': {
+                'user': session.get('user'),
+                'role': session.get('role'),
+                'emergency_access': session.get('emergency_access')
+            }
         })
     except Exception as e:
+        app.logger.error(f"Error in debug-whitelist endpoint: {str(e)}")
         return jsonify({'error': str(e)})
 
 @app.route('/whitelist')
@@ -453,9 +462,13 @@ def api_list_whitelist_ips():
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/delete-whitelist-ip', methods=['POST'])
-@login_required
 def api_delete_whitelist_ip():
-    if session.get('role') != 'admin':
+    """Delete IP from whitelist - accessible via emergency access or admin login"""
+    # Check if user has emergency access or is logged in as admin
+    if not session.get('emergency_access') and not session.get('user'):
+        return jsonify({'success': False, 'error': 'Access denied. Please use emergency access or log in.'})
+    
+    if session.get('role') != 'admin' and not session.get('emergency_access'):
         return jsonify({'success': False, 'error': 'Admin access required'})
     
     try:
@@ -472,9 +485,11 @@ def api_delete_whitelist_ip():
         db.session.delete(ip_to_delete)
         db.session.commit()
         
+        app.logger.info(f"IP {ip_address} deleted from whitelist by user: {session.get('user', 'emergency_access')}")
         return jsonify({'success': True, 'message': f'IP address {ip_address} removed from whitelist'})
         
     except Exception as e:
+        app.logger.error(f"Error deleting IP from whitelist: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/authenticate', methods=['POST'])

@@ -244,6 +244,7 @@
         $(document).on("click", ".delete-ip-btn", function() {
             console.log('Delete IP button clicked');
             currentDeleteIP = $(this).data("ip");
+            console.log('Setting currentDeleteIP to:', currentDeleteIP);
             $("#delete-ip-address").text(currentDeleteIP);
             
             var deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
@@ -360,6 +361,13 @@
 
     function deleteIPFromWhitelist(ipAddress) {
         console.log('Deleting IP:', ipAddress);
+        console.log('Current delete IP variable:', currentDeleteIP);
+        
+        if (!ipAddress) {
+            console.error('No IP address provided for deletion');
+            showStatus('❌ Error: No IP address specified', 'error');
+            return;
+        }
         
         $.ajax({
             url: "/api/delete-whitelist-ip",
@@ -385,6 +393,7 @@
             },
             error: function(xhr, status, error) {
                 console.log('Delete IP error:', xhr, status, error);
+                console.log('Response text:', xhr.responseText);
                 showStatus('❌ Network error: ' + error, 'error');
             }
         });
