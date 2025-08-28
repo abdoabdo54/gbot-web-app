@@ -1434,28 +1434,28 @@ def api_change_domain_all_users():
             try:
                 from database import UsedDomain
                 
-                                 # Mark old domain as having 0 users
-                 old_domain_record = UsedDomain.query.filter_by(domain_name=current_domain).first()
-                 if old_domain_record:
-                     old_domain_record.user_count = 0
-                     old_domain_record.updated_at = db.func.current_timestamp()
-                 
-                 # Mark new domain as having users and track change
-                 new_domain_record = UsedDomain.query.filter_by(domain_name=new_domain).first()
-                 if new_domain_record:
-                     new_domain_record.user_count = successful
-                     new_domain_record.updated_at = db.func.current_timestamp()
-                     new_domain_record.last_domain_change = db.func.current_timestamp()
-                     new_domain_record.changed_by_account = account_name
-                 else:
-                     new_domain_record = UsedDomain(
-                         domain_name=new_domain,
-                         user_count=successful,
-                         is_verified=True,
-                         last_domain_change=db.func.current_timestamp(),
-                         changed_by_account=account_name
-                     )
-                     db.session.add(new_domain_record)
+                # Mark old domain as having 0 users
+                old_domain_record = UsedDomain.query.filter_by(domain_name=current_domain).first()
+                if old_domain_record:
+                    old_domain_record.user_count = 0
+                    old_domain_record.updated_at = db.func.current_timestamp()
+                
+                # Mark new domain as having users and track change
+                new_domain_record = UsedDomain.query.filter_by(domain_name=new_domain).first()
+                if new_domain_record:
+                    new_domain_record.user_count = successful
+                    new_domain_record.updated_at = db.func.current_timestamp()
+                    new_domain_record.last_domain_change = db.func.current_timestamp()
+                    new_domain_record.changed_by_account = account_name
+                else:
+                    new_domain_record = UsedDomain(
+                        domain_name=new_domain,
+                        user_count=successful,
+                        is_verified=True,
+                        last_domain_change=db.func.current_timestamp(),
+                        changed_by_account=account_name
+                    )
+                    db.session.add(new_domain_record)
                 
                 db.session.commit()
                 logging.info(f"Updated domain usage: {current_domain} → {new_domain}, users: {successful}")
