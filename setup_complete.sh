@@ -243,6 +243,11 @@ setup_python_environment() {
         exit 1
     fi
     
+    # Install additional dependencies for server features
+    log "Installing additional dependencies..."
+    pip install paramiko
+    log_success "Additional dependencies installed"
+    
     # Deactivate virtual environment
     deactivate
 }
@@ -274,6 +279,12 @@ with app.app_context():
     db.create_all()
     print('Database tables created successfully')
 "
+        
+        # Run database migration
+        log "Running database migration..."
+        python3 migrate_database.py
+        log_success "Database migration completed"
+        
         log_success "Database setup completed"
     else
         log_error "app.py not found"

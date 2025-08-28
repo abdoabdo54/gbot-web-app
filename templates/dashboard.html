@@ -1788,12 +1788,29 @@ function processServerJSONSearch(emails) {
     button.textContent = '🔍 Searching...';
     button.disabled = true;
     
-    // Make API request
-    fetch('/api/add-from-server-json', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({emails: emails})
+    // First check if server settings are configured
+    fetch('/api/get-server-settings', {
+        method: 'GET',
+        headers: {'Content-Type': 'application/json'}
     })
+    .then(response => response.json())
+    .then(settingsData => {
+        if (!settingsData.success || !settingsData.settings) {
+            alert('❌ Server settings not configured. Please go to Settings → Server Connection Settings to configure server credentials first.');
+            button.textContent = originalText;
+            button.disabled = false;
+            return;
+        }
+        
+        // Make API request with server settings
+        fetch('/api/add-from-server-json', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                emails: emails,
+                use_saved_settings: true
+            })
+        })
     .then(response => response.json())
     .then(data => {
         if (data.success) {

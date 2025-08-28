@@ -18,7 +18,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from core_logic import google_api
-from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope
+from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerSettings
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -154,6 +154,14 @@ def users():
         flash("Admin access required.", "danger")
         return redirect(url_for('dashboard'))
     return render_template('users.html', user=session.get('user'), role=session.get('role'))
+
+@app.route('/settings')
+@login_required
+def settings():
+    if session.get('role') != 'admin':
+        flash("Admin access required.", "danger")
+        return redirect(url_for('dashboard'))
+    return render_template('settings.html', user=session.get('user'), role=session.get('role'))
 
 @app.route('/emergency_access')
 def emergency_access():
@@ -1426,24 +1434,28 @@ def api_change_domain_all_users():
             try:
                 from database import UsedDomain
                 
-                # Mark old domain as having 0 users
-                old_domain_record = UsedDomain.query.filter_by(domain_name=current_domain).first()
-                if old_domain_record:
-                    old_domain_record.user_count = 0
-                    old_domain_record.updated_at = db.func.current_timestamp()
-                
-                # Mark new domain as having users
-                new_domain_record = UsedDomain.query.filter_by(domain_name=new_domain).first()
-                if new_domain_record:
-                    new_domain_record.user_count = successful
-                    new_domain_record.updated_at = db.func.current_timestamp()
-                else:
-                    new_domain_record = UsedDomain(
-                        domain_name=new_domain,
-                        user_count=successful,
-                        is_verified=True
-                    )
-                    db.session.add(new_domain_record)
+                                 # Mark old domain as having 0 users
+                 old_domain_record = UsedDomain.query.filter_by(domain_name=current_domain).first()
+                 if old_domain_record:
+                     old_domain_record.user_count = 0
+                     old_domain_record.updated_at = db.func.current_timestamp()
+                 
+                 # Mark new domain as having users and track change
+                 new_domain_record = UsedDomain.query.filter_by(domain_name=new_domain).first()
+                 if new_domain_record:
+                     new_domain_record.user_count = successful
+                     new_domain_record.updated_at = db.func.current_timestamp()
+                     new_domain_record.last_domain_change = db.func.current_timestamp()
+                     new_domain_record.changed_by_account = account_name
+                 else:
+                     new_domain_record = UsedDomain(
+                         domain_name=new_domain,
+                         user_count=successful,
+                         is_verified=True,
+                         last_domain_change=db.func.current_timestamp(),
+                         changed_by_account=account_name
+                     )
+                     db.session.add(new_domain_record)
                 
                 db.session.commit()
                 logging.info(f"Updated domain usage: {current_domain} → {new_domain}, users: {successful}")
@@ -1670,6 +1682,306 @@ def api_force_refresh_domains():
             
     except Exception as e:
         logging.error(f"Force refresh domains error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+# Server Settings API Endpoints
+@app.route('/api/get-server-settings', methods=['GET'])
+@login_required
+def api_get_server_settings():
+    """Get current server settings"""
+    try:
+        if session.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'})
+        
+        settings = ServerSettings.query.first()
+        if settings:
+            return jsonify({
+                'success': True,
+                'settings': {
+                    'server_host': settings.server_host,
+                    'server_port': settings.server_port,
+                    'server_username': settings.server_username,
+                    'server_password': '••••••••' if settings.server_password else None,
+                    'server_key_path': settings.server_key_path,
+                    'json_files_path': settings.json_files_path,
+                    'created_at': settings.created_at.isoformat(),
+                    'updated_at': settings.updated_at.isoformat()
+                }
+            })
+        else:
+            return jsonify({'success': True, 'settings': None})
+            
+    except Exception as e:
+        app.logger.error(f"Get server settings error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/save-server-settings', methods=['POST'])
+@login_required
+def api_save_server_settings():
+    """Save server settings"""
+    try:
+        if session.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'})
+        
+        data = request.get_json()
+        
+        # Validation
+        required_fields = ['server_host', 'server_port', 'server_username', 'json_files_path']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'error': f'{field} is required'})
+        
+        # Check if password or SSH key is provided
+        if not data.get('server_password') and not data.get('server_key_path'):
+            return jsonify({'success': False, 'error': 'Either password or SSH key path is required'})
+        
+        # Get existing settings or create new
+        settings = ServerSettings.query.first()
+        if not settings:
+            settings = ServerSettings()
+            db.session.add(settings)
+        
+        # Update settings
+        settings.server_host = data['server_host']
+        settings.server_port = data['server_port']
+        settings.server_username = data['server_username']
+        settings.server_password = data.get('server_password')
+        settings.server_key_path = data.get('server_key_path')
+        settings.json_files_path = data['json_files_path']
+        
+        db.session.commit()
+        
+        app.logger.info(f"Server settings saved by user: {session.get('user')}")
+        return jsonify({'success': True, 'message': 'Server settings saved successfully'})
+        
+    except Exception as e:
+        app.logger.error(f"Save server settings error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/delete-server-settings', methods=['POST'])
+@login_required
+def api_delete_server_settings():
+    """Delete server settings"""
+    try:
+        if session.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'})
+        
+        settings = ServerSettings.query.first()
+        if settings:
+            db.session.delete(settings)
+            db.session.commit()
+            app.logger.info(f"Server settings deleted by user: {session.get('user')}")
+            return jsonify({'success': True, 'message': 'Server settings deleted successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'No server settings found'})
+            
+    except Exception as e:
+        app.logger.error(f"Delete server settings error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/add-from-server-json', methods=['POST'])
+@login_required
+def api_add_from_server_json():
+    """Add accounts from server JSON files using saved settings"""
+    try:
+        if session.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'})
+        
+        data = request.get_json()
+        emails = data.get('emails', [])
+        use_saved_settings = data.get('use_saved_settings', False)
+        
+        if not emails:
+            return jsonify({'success': False, 'error': 'No email addresses provided'})
+        
+        # Get server settings
+        if use_saved_settings:
+            settings = ServerSettings.query.first()
+            if not settings:
+                return jsonify({'success': False, 'error': 'Server settings not configured. Please configure in Settings first.'})
+        else:
+            # For backward compatibility, use hardcoded settings
+            settings = None
+        
+        # Import paramiko for SSH connection
+        try:
+            import paramiko
+        except ImportError:
+            return jsonify({'success': False, 'error': 'Paramiko library not installed. Please install: pip install paramiko'})
+        
+        added_accounts = []
+        existing_accounts = []
+        failed_accounts = {}
+        
+        # Connect to server
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
+        try:
+            if settings:
+                # Use saved settings
+                if settings.server_password:
+                    ssh.connect(
+                        hostname=settings.server_host,
+                        port=settings.server_port,
+                        username=settings.server_username,
+                        password=settings.server_password,
+                        timeout=10
+                    )
+                elif settings.server_key_path:
+                    ssh.connect(
+                        hostname=settings.server_host,
+                        port=settings.server_port,
+                        username=settings.server_username,
+                        key_filename=settings.server_key_path,
+                        timeout=10
+                    )
+                else:
+                    return jsonify({'success': False, 'error': 'No password or SSH key configured in server settings'})
+                
+                json_path = settings.json_files_path
+            else:
+                # Fallback to hardcoded settings (for backward compatibility)
+                ssh.connect(
+                    hostname='localhost',  # Assuming local server
+                    port=22,
+                    username='root',
+                    timeout=10
+                )
+                json_path = '/opt/gbot-web-app/accounts/'
+            
+            # Process each email
+            for email in emails:
+                try:
+                    # Check if account already exists
+                    existing_account = GoogleAccount.query.filter_by(account_name=email).first()
+                    if existing_account:
+                        existing_accounts.append(email)
+                        continue
+                    
+                    # Try to read JSON file from server
+                    json_filename = f"{email}.json"
+                    json_file_path = f"{json_path.rstrip('/')}/{json_filename}"
+                    
+                    # Read file content
+                    stdin, stdout, stderr = ssh.exec_command(f'cat "{json_file_path}"')
+                    json_content = stdout.read().decode('utf-8').strip()
+                    error_output = stderr.read().decode('utf-8').strip()
+                    
+                    if error_output or not json_content:
+                        failed_accounts[email] = f"File not found or empty: {json_filename}"
+                        continue
+                    
+                    # Parse JSON content
+                    try:
+                        import json
+                        json_data = json.loads(json_content)
+                        
+                        # Extract client_id and client_secret
+                        client_id = json_data.get('client_id') or json_data.get('installed', {}).get('client_id')
+                        client_secret = json_data.get('client_secret') or json_data.get('installed', {}).get('client_secret')
+                        
+                        if not client_id or not client_secret:
+                            failed_accounts[email] = "Invalid JSON format: missing client_id or client_secret"
+                            continue
+                        
+                        # Create new account
+                        new_account = GoogleAccount(
+                            account_name=email,
+                            client_id=client_id,
+                            client_secret=client_secret
+                        )
+                        db.session.add(new_account)
+                        db.session.commit()
+                        
+                        added_accounts.append(email)
+                        app.logger.info(f"Added account from server JSON: {email}")
+                        
+                    except json.JSONDecodeError as e:
+                        failed_accounts[email] = f"Invalid JSON format: {str(e)}"
+                        continue
+                        
+                except Exception as e:
+                    failed_accounts[email] = f"Error processing {email}: {str(e)}"
+                    continue
+            
+            ssh.close()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Processed {len(emails)} email(s)',
+                'added_accounts': added_accounts,
+                'existing_accounts': existing_accounts,
+                'failed_accounts': failed_accounts
+            })
+            
+        except Exception as ssh_error:
+            ssh.close()
+            return jsonify({'success': False, 'error': f'SSH connection failed: {str(ssh_error)}'})
+            
+    except Exception as e:
+        app.logger.error(f"Add from server JSON error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/test-server-connection', methods=['POST'])
+@login_required
+def api_test_server_connection():
+    """Test server connection"""
+    try:
+        if session.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'})
+        
+        data = request.get_json()
+        
+        # Validation
+        if not data.get('server_host') or not data.get('server_username'):
+            return jsonify({'success': False, 'error': 'Server host and username are required'})
+        
+        # Test connection using paramiko
+        try:
+            import paramiko
+            
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            
+            # Connect using password or key
+            if data.get('server_password'):
+                ssh.connect(
+                    hostname=data['server_host'],
+                    port=data.get('server_port', 22),
+                    username=data['server_username'],
+                    password=data['server_password'],
+                    timeout=10
+                )
+            elif data.get('server_key_path'):
+                ssh.connect(
+                    hostname=data['server_host'],
+                    port=data.get('server_port', 22),
+                    username=data['server_username'],
+                    key_filename=data['server_key_path'],
+                    timeout=10
+                )
+            else:
+                return jsonify({'success': False, 'error': 'Either password or SSH key is required'})
+            
+            # Test basic command
+            stdin, stdout, stderr = ssh.exec_command('echo "Connection successful"')
+            result = stdout.read().decode().strip()
+            
+            ssh.close()
+            
+            return jsonify({
+                'success': True, 
+                'message': f'Connection successful! Server response: {result}'
+            })
+            
+        except ImportError:
+            return jsonify({'success': False, 'error': 'Paramiko library not installed. Please install: pip install paramiko'})
+        except Exception as ssh_error:
+            return jsonify({'success': False, 'error': f'SSH connection failed: {str(ssh_error)}'})
+            
+    except Exception as e:
+        app.logger.error(f"Test server connection error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
