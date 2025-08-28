@@ -85,12 +85,31 @@ check_system_requirements() {
         exit 1
     fi
     
-    # Check pip
+    # Check pip - install if not available
     if command -v pip3 &> /dev/null; then
         log_success "pip3 is available"
     else
-        log_error "pip3 is not available"
-        exit 1
+        log_warning "pip3 is not available, will install it"
+        # Install pip3 if not available
+        if command -v apt-get &> /dev/null; then
+            $SUDO_CMD apt-get update
+            $SUDO_CMD apt-get install -y python3-pip
+        elif command -v yum &> /dev/null; then
+            $SUDO_CMD yum install -y python3-pip
+        elif command -v dnf &> /dev/null; then
+            $SUDO_CMD dnf install -y python3-pip
+        else
+            log_error "Cannot install pip3 - unsupported package manager"
+            exit 1
+        fi
+        
+        # Verify pip3 is now available
+        if command -v pip3 &> /dev/null; then
+            log_success "pip3 installed successfully"
+        else
+            log_error "Failed to install pip3"
+            exit 1
+        fi
     fi
     
     # Check disk space
@@ -122,34 +141,102 @@ install_system_dependencies() {
     if command -v apt-get &> /dev/null; then
         log "Using apt-get package manager"
         $SUDO_CMD apt-get update
-        $SUDO_CMD apt-get install -y python3-pip python3-dev python3-venv build-essential libssl-dev libffi-dev python3-setuptools
-        $SUDO_CMD apt-get install -y postgresql postgresql-contrib
+        
+        # Install Python and development tools
+        $SUDO_CMD apt-get install -y python3 python3-pip python3-dev python3-venv python3-setuptools python3-wheel
+        $SUDO_CMD apt-get install -y build-essential libssl-dev libffi-dev pkg-config
+        
+        # Install PostgreSQL
+        $SUDO_CMD apt-get install -y postgresql postgresql-contrib postgresql-client
+        
+        # Install Nginx
         $SUDO_CMD apt-get install -y nginx
+        
+        # Install firewall
         $SUDO_CMD apt-get install -y ufw
+        
+        # Install SSL tools
         $SUDO_CMD apt-get install -y certbot python3-certbot-nginx
-        $SUDO_CMD apt-get install -y curl wget git
+        
+        # Install utilities
+        $SUDO_CMD apt-get install -y curl wget git unzip
+        
+        # Install additional Python packages that might be needed
+        $SUDO_CMD apt-get install -y python3-dev python3-pip python3-venv
+        
     elif command -v yum &> /dev/null; then
         log "Using yum package manager"
         $SUDO_CMD yum update -y
-        $SUDO_CMD yum install -y python3-pip python3-devel gcc openssl-devel libffi-devel python3-setuptools
+        
+        # Install Python and development tools
+        $SUDO_CMD yum install -y python3 python3-pip python3-devel python3-setuptools python3-wheel
+        $SUDO_CMD yum install -y gcc openssl-devel libffi-devel pkg-config
+        
+        # Install PostgreSQL
         $SUDO_CMD yum install -y postgresql postgresql-server postgresql-contrib
+        
+        # Install Nginx
         $SUDO_CMD yum install -y nginx
+        
+        # Install firewall
         $SUDO_CMD yum install -y firewalld
-        $SUDO_CMD yum install -y curl wget git
+        
+        # Install utilities
+        $SUDO_CMD yum install -y curl wget git unzip
+        
     elif command -v dnf &> /dev/null; then
         log "Using dnf package manager"
         $SUDO_CMD dnf update -y
-        $SUDO_CMD dnf install -y python3-pip python3-devel gcc openssl-devel libffi-devel python3-setuptools
+        
+        # Install Python and development tools
+        $SUDO_CMD dnf install -y python3 python3-pip python3-devel python3-setuptools python3-wheel
+        $SUDO_CMD dnf install -y gcc openssl-devel libffi-devel pkg-config
+        
+        # Install PostgreSQL
         $SUDO_CMD dnf install -y postgresql postgresql-server postgresql-contrib
+        
+        # Install Nginx
         $SUDO_CMD dnf install -y nginx
+        
+        # Install firewall
         $SUDO_CMD dnf install -y firewalld
-        $SUDO_CMD dnf install -y curl wget git
+        
+        # Install utilities
+        $SUDO_CMD dnf install -y curl wget git unzip
+        
     else
         log_error "Unsupported package manager"
         exit 1
     fi
     
-    log_success "System dependencies installed"
+    # Verify critical packages are installed
+    log "Verifying critical packages..."
+    
+    # Check Python
+    if ! command -v python3 &> /dev/null; then
+        log_error "Python3 installation failed"
+        exit 1
+    fi
+    
+    # Check pip
+    if ! command -v pip3 &> /dev/null; then
+        log_error "pip3 installation failed"
+        exit 1
+    fi
+    
+    # Check PostgreSQL
+    if ! command -v psql &> /dev/null; then
+        log_error "PostgreSQL installation failed"
+        exit 1
+    fi
+    
+    # Check Nginx
+    if ! command -v nginx &> /dev/null; then
+        log_error "Nginx installation failed"
+        exit 1
+    fi
+    
+    log_success "System dependencies installed and verified"
 }
 
 setup_postgresql() {
