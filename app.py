@@ -89,25 +89,25 @@ def before_request():
         app.logger.debug(f"Allowing emergency access user to access {request.endpoint}")
         return
 
-    # If user is logged in, allow access to all routes (bypass IP whitelist)
+    # IP Whitelist check - ALWAYS check for non-logged-in users
+    # Check if IP whitelist is enabled
+    if app.config.get('ENABLE_IP_WHITELIST', True):  # Default to True for security
+        client_ip = get_client_ip()
+        app.logger.info(f"Checking IP whitelist for {client_ip} accessing {request.endpoint}")
+        
+        # Check if IP is whitelisted
+        whitelisted_ip = WhitelistedIP.query.filter_by(ip_address=client_ip).first()
+        
+        if not whitelisted_ip:
+            app.logger.warning(f"IP {client_ip} not whitelisted, access denied to {request.endpoint}")
+            return f"Access denied. IP {client_ip} is not whitelisted. Please contact administrator or use emergency access.", 403
+        else:
+            app.logger.info(f"IP {client_ip} is whitelisted, allowing access")
+    
+    # If user is logged in, allow access to all routes
     if session.get('user'):
         app.logger.debug(f"User {session.get('user')} is logged in, allowing access to {request.endpoint}")
         return
-
-    # IP Whitelist check - only for non-logged-in users
-    # Only check if explicitly enabled AND not in development mode
-    if app.config.get('ENABLE_IP_WHITELIST', False) and not app.debug:
-        client_ip = get_client_ip()
-        app.logger.debug(f"Checking IP whitelist for {client_ip}")
-        whitelisted_ip = WhitelistedIP.query.filter_by(ip_address=client_ip).first()
-        if not whitelisted_ip:
-            app.logger.warning(f"IP {client_ip} not whitelisted, access denied")
-            return f"Access denied. IP {client_ip} not whitelisted.", 403
-        else:
-            app.logger.debug(f"IP {client_ip} is whitelisted")
-    else:
-        app.logger.debug("IP whitelist check skipped (disabled or debug mode)")
-    # If IP whitelist is disabled or in development mode, allow all IPs
 
 @app.after_request
 def add_security_headers(response):
