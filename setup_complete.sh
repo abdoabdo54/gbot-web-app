@@ -357,9 +357,27 @@ setup_database() {
         python3 -c "
 import os
 from app import app, db
+from database import User
+from werkzeug.security import generate_password_hash
+
 with app.app_context():
+    # Create all tables
     db.create_all()
     print('Database tables created successfully')
+    
+    # Create admin user if it doesn't exist
+    admin_user = User.query.filter_by(username='admin').first()
+    if not admin_user:
+        admin_user = User(
+            username='admin',
+            password=generate_password_hash('A9B3nX#Q8k\$mZ6vw', method='pbkdf2:sha256'),
+            role='admin'
+        )
+        db.session.add(admin_user)
+        db.session.commit()
+        print('Admin user created successfully')
+    else:
+        print('Admin user already exists')
 "
         log_success "Database setup completed"
     else
@@ -1138,6 +1156,58 @@ install_missing_dependencies() {
     echo ""
 }
 
+fix_admin_user() {
+    log "Fixing admin user login issue..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                FIXING ADMIN USER LOGIN ISSUE                ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    # Activate virtual environment
+    source venv/bin/activate
+    
+    # Set environment variables
+    export $(grep -v '^#' .env | xargs)
+    
+    # Ensure we're using the PostgreSQL database URL
+    if [ -f ".db_credentials" ]; then
+        source .db_credentials
+        export DATABASE_URL
+    fi
+    
+    # Run the admin user creation script
+    log "Creating admin user..."
+    python3 create_admin_user.py
+    
+    # Deactivate virtual environment
+    deactivate
+    
+    # Restart the application service
+    log "Restarting application service..."
+    systemctl restart gbot
+    
+    # Wait for service to start
+    sleep 3
+    
+    # Check service status
+    if systemctl is-active --quiet gbot; then
+        log_success "Application service restarted successfully"
+    else
+        log_error "Application service failed to restart"
+        systemctl status gbot
+    fi
+    
+    echo -e "\n✅ Admin user has been fixed!"
+    echo -e "🔐 Login credentials:"
+    echo -e "   Username: ${BLUE}admin${NC}"
+    echo -e "   Password: ${BLUE}A9B3nX#Q8k\$mZ6vw${NC}"
+    echo -e "\n🌐 Try logging in again at: ${BLUE}http://172.235.163.73${NC}"
+    
+    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
 fix_ip_whitelist() {
     log "Fixing IP whitelist..."
     
@@ -1495,6 +1565,7 @@ show_help() {
     echo "  --fix-all               🔥 FIX ALL ISSUES AT ONCE (RECOMMENDED)"
     echo "  --fix-whitelist         Fix IP whitelist issues"
     echo "  --install-deps          Install missing Python dependencies"
+    echo "  --fix-admin             Fix admin user login issue"
     echo "  --clean                 Clean installation files"
     echo ""
     echo "Examples:"
@@ -1730,6 +1801,10 @@ main() {
                 ;;
             --install-deps)
                 install_missing_dependencies
+                exit 0
+                ;;
+            --fix-admin)
+                fix_admin_user
                 exit 0
                 ;;
             --clean)
