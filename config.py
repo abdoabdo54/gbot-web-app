@@ -20,7 +20,7 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 FLASK_ENV = os.environ.get('FLASK_ENV', 'production')
 
 # Security Settings
-SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = False  # Allow HTTP for now, set to True when using HTTPS
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 PERMANENT_SESSION_LIFETIME = 3600  # 1 hour

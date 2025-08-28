@@ -68,7 +68,7 @@ def login_required(f):
 @app.before_request
 def before_request():
     # Debug logging
-    app.logger.debug(f"Before request: endpoint={request.endpoint}, emergency_access={session.get('emergency_access')}, client_ip={get_client_ip()}")
+    app.logger.debug(f"Before request: endpoint={request.endpoint}, user={session.get('user')}, emergency_access={session.get('emergency_access')}, client_ip={get_client_ip()}")
     
     # Always allow emergency_access route to bypass IP whitelist
     if request.endpoint == 'emergency_access':
@@ -89,7 +89,12 @@ def before_request():
         app.logger.debug(f"Allowing emergency access user to access {request.endpoint}")
         return
 
-    # IP Whitelist check - configurable via environment variables
+    # If user is logged in, allow access to all routes (bypass IP whitelist)
+    if session.get('user'):
+        app.logger.debug(f"User {session.get('user')} is logged in, allowing access to {request.endpoint}")
+        return
+
+    # IP Whitelist check - only for non-logged-in users
     # Only check if explicitly enabled AND not in development mode
     if app.config.get('ENABLE_IP_WHITELIST', False) and not app.debug:
         client_ip = get_client_ip()
@@ -124,14 +129,29 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        
+        # Debug logging
+        app.logger.info(f"Login attempt for username: {username}")
+        
         user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password, password):
-            session['user'] = user.username
-            session['role'] = user.role
-            flash(f'Welcome {user.username}!', 'success')
-            return redirect(url_for('dashboard'))
+        
+        if user:
+            app.logger.info(f"User found: {user.username}, role: {user.role}")
+            if check_password_hash(user.password, password):
+                app.logger.info(f"Password verified for user: {username}")
+                session['user'] = user.username
+                session['role'] = user.role
+                session.permanent = True  # Make session persistent
+                app.logger.info(f"Session set - user: {session.get('user')}, role: {session.get('role')}")
+                flash(f'Welcome {user.username}!', 'success')
+                return redirect(url_for('dashboard'))
+            else:
+                app.logger.warning(f"Invalid password for user: {username}")
+                flash('Invalid credentials', 'error')
         else:
+            app.logger.warning(f"User not found: {username}")
             flash('Invalid credentials', 'error')
+    
     return render_template('login.html')
 
 @app.route('/logout')
@@ -139,6 +159,27 @@ def logout():
     session.clear()
     flash('Logged out successfully', 'success')
     return redirect(url_for('login'))
+
+@app.route('/test-admin')
+def test_admin():
+    """Test route to check admin user and authentication"""
+    try:
+        admin_user = User.query.filter_by(username='admin').first()
+        if admin_user:
+            from werkzeug.security import check_password_hash
+            password_works = check_password_hash(admin_user.password, 'A9B3nX#Q8k$mZ6vw')
+            return jsonify({
+                'admin_exists': True,
+                'username': admin_user.username,
+                'role': admin_user.role,
+                'password_works': password_works,
+                'session_user': session.get('user'),
+                'session_role': session.get('role')
+            })
+        else:
+            return jsonify({'admin_exists': False})
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 @app.route('/')
 @app.route('/dashboard')

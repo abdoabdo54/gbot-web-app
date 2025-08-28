@@ -1176,9 +1176,47 @@ fix_admin_user() {
         export DATABASE_URL
     fi
     
-    # Run the admin user creation script
+    # Create admin user directly
     log "Creating admin user..."
-    python3 create_admin_user.py
+    python3 -c "
+import os
+from app import app, db
+from database import User
+from werkzeug.security import generate_password_hash
+
+with app.app_context():
+    # Check if admin user exists
+    admin_user = User.query.filter_by(username='admin').first()
+    
+    if admin_user:
+        print('✅ Admin user already exists:')
+        print(f'   Username: {admin_user.username}')
+        print(f'   Role: {admin_user.role}')
+        print(f'   ID: {admin_user.id}')
+    else:
+        print('❌ Admin user not found. Creating...')
+        
+        # Create admin user
+        admin_user = User(
+            username='admin',
+            password=generate_password_hash('A9B3nX#Q8k\$mZ6vw', method='pbkdf2:sha256'),
+            role='admin'
+        )
+        
+        db.session.add(admin_user)
+        db.session.commit()
+        
+        print('✅ Admin user created successfully!')
+        print('   Username: admin')
+        print('   Password: A9B3nX#Q8k\$mZ6vw')
+        print('   Role: admin')
+    
+    # List all users
+    print('\n📋 All users in database:')
+    users = User.query.all()
+    for user in users:
+        print(f'   • {user.username} (Role: {user.role}, ID: {user.id})')
+"
     
     # Deactivate virtual environment
     deactivate
@@ -1203,6 +1241,7 @@ fix_admin_user() {
     echo -e "   Username: ${BLUE}admin${NC}"
     echo -e "   Password: ${BLUE}A9B3nX#Q8k\$mZ6vw${NC}"
     echo -e "\n🌐 Try logging in again at: ${BLUE}http://172.235.163.73${NC}"
+    echo -e "🔍 Test admin user at: ${BLUE}http://172.235.163.73/test-admin${NC}"
     
     echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
     echo ""
