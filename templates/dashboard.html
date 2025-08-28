@@ -29,9 +29,11 @@
     </div>
     
     <div class="form-row">
+        {% if session.role != 'mailer' %}
         <button onclick="openAddAccountModal()">➕ Add Manually</button>
         <!-- <button onclick="refreshAccounts()">🔄 Refresh List</button> -->
         <button onclick="addFromServerJSON()">📁 Add from Server JSON</button>
+        {% endif %}
         <!-- <button onclick="backupFiles()">💾 Backup Files</button> -->
         {% if session.role == 'admin' %}
         <button onclick="forceTokenStatusCheck()" class="btn btn-warning">

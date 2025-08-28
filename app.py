@@ -383,8 +383,8 @@ def api_edit_user():
         if not new_password:
             return jsonify({'success': False, 'error': 'Password required'})
         
-        if new_role not in ['admin', 'support']:
-            return jsonify({'success': False, 'error': 'Role must be admin or support'})
+        if new_role not in ['admin', 'support', 'mailer']:
+            return jsonify({'success': False, 'error': 'Role must be admin, support, or mailer'})
         
         user.password = generate_password_hash(new_password, method='pbkdf2:sha256')
         user.role = new_role
@@ -551,6 +551,10 @@ def api_authenticate():
 @app.route('/api/add-account', methods=['POST'])
 @login_required
 def api_add_account():
+    # Check if user is mailer role (not allowed to add accounts)
+    if session.get('role') == 'mailer':
+        return jsonify({'success': False, 'error': 'Mailer users cannot add accounts'})
+    
     try:
         data = request.get_json()
         account_name = data.get('account_name')
@@ -1880,8 +1884,13 @@ def clear_server_config():
 @app.route('/api/add-from-server-json', methods=['POST'])
 @login_required
 def add_from_server_json():
-    if session.get('role') != 'admin':
-        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    # Check if user is mailer role (not allowed to add accounts)
+    if session.get('role') == 'mailer':
+        return jsonify({'success': False, 'error': 'Mailer users cannot add accounts'})
+    
+    # Only admin and support users can add accounts
+    if session.get('role') not in ['admin', 'support']:
+        return jsonify({'success': False, 'error': 'Admin or support privileges required'})
     
     try:
         data = request.get_json()
