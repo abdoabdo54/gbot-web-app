@@ -291,8 +291,6 @@
                 <div class="form-row">
                             <button onclick="retrieveAvailableDomains()" class="secondary-button">🔍 Retrieve Available Domains</button>
         <button onclick="getDomainUsageStats()" class="info-button">📊 Domain Usage Stats</button>
-        <button onclick="refreshDomainData()" class="secondary-button">🔄 Refresh Domain Data</button>
-        <button onclick="forceRefreshDomains()" class="primary-button">🚀 Force Refresh Domains</button>
         <button onclick="clearOldDomainData()" class="warning-button">🗑️ Clear Old Data</button>
         <button onclick="applySelectedDomainToCSV()" class="primary-button">✅ Apply Selected Domain to CSV</button>
         <button onclick="debugDomainUsers()" class="debug-button">🐛 Debug Domain Users</button>
@@ -2324,21 +2322,35 @@ function getDomainUsageStats() {
         return;
     }
     
-    logBulkDomain('📊 Retrieving domain usage statistics...');
+    logBulkDomain('📊 Retrieving domain usage statistics for current account...');
     
     // Show loading state
     const domainList = document.getElementById('available-domains');
-    domainList.innerHTML = '<div class="domain-loading">Retrieving domain usage statistics...</div>';
+    domainList.innerHTML = '<div class="domain-loading">Retrieving domain usage statistics for current account...</div>';
     
-    fetch('/api/get-domain-usage-stats', {
-        method: 'GET',
+    // First get fresh domain data from the authenticated account
+    fetch('/api/retrieve-domains', {
+        method: 'POST',
         headers: {'Content-Type': 'application/json'}
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success && data.stats) {
-            displayDomainUsageStats(data.stats);
-            logBulkDomain(`✅ Retrieved domain usage statistics`);
+        if (data.success && data.domains) {
+            // Display the domain data directly from the authenticated account
+            displayDomainUsageStats({
+                total_domains: data.domains.length,
+                used_domains: data.domains.filter(d => d.is_used).length,
+                available_domains: data.domains.filter(d => !d.is_used).length,
+                total_users: data.domains.reduce((sum, d) => sum + (d.user_count || 0), 0),
+                domains: data.domains.map(d => ({
+                    domain_name: d.domain_name,
+                    user_count: d.user_count || 0,
+                    is_verified: d.verified || false,
+                    is_used: d.is_used || false,
+                    last_updated: new Date().toISOString()
+                }))
+            });
+            logBulkDomain(`✅ Retrieved domain usage statistics for current account`);
         } else {
             logBulkDomain(`❌ Failed to retrieve domain stats: ${data.error}`);
             domainList.innerHTML = `<div class="domain-error">❌ Failed to retrieve domain stats: ${data.error}</div>`;
@@ -2352,62 +2364,7 @@ function getDomainUsageStats() {
     });
 }
 
-function refreshDomainData() {
-    if (!isAuthenticated) {
-        alert('Please authenticate an account first');
-        return;
-    }
-    
-    logBulkDomain('🔄 Refreshing domain data...');
-    
-    // First get fresh data from Google API
-    retrieveAvailableDomains();
-    
-    // Then update database stats
-    setTimeout(() => {
-        getDomainUsageStats();
-    }, 1000);
-}
 
-function forceRefreshDomains() {
-    if (!isAuthenticated) {
-        alert('Please authenticate an account first');
-        return;
-    }
-    
-    if (!confirm('🚀 This will force refresh ALL domain data from Google Admin API. This may take a few moments. Continue?')) {
-        return;
-    }
-    
-    logBulkDomain('🚀 Force refreshing domain data from Google Admin API...');
-    
-    fetch('/api/force-refresh-domains', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            logBulkDomain(`✅ ${data.message}`);
-            logBulkDomain(`   📊 Domains updated: ${data.domains_updated}, Total users: ${data.total_users}`);
-            
-            // Now get fresh domain data and stats
-            setTimeout(() => {
-                retrieveAvailableDomains();
-                setTimeout(() => {
-                    getDomainUsageStats();
-                }, 1000);
-            }, 500);
-        } else {
-            logBulkDomain(`❌ Failed to refresh domains: ${data.error}`);
-            alert('Failed to refresh domains: ' + data.error);
-        }
-    })
-    .catch(error => {
-        logBulkDomain(`❌ Network error: ${error}`);
-        alert('Network error: ' + error);
-    });
-}
 
 function clearOldDomainData() {
     if (!isAuthenticated) {
