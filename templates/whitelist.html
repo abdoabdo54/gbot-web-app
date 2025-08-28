@@ -168,34 +168,34 @@
     <div id="status-messages" class="mt-4 text-center"></div>
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white text-center">
-                <h5 class="modal-title w-100">
-                    ⚠️ Confirm Deletion
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-center">
-                <div class="mb-3">
-                    <div class="display-4 text-danger">🗑️</div>
-                </div>
-                <p class="fs-5">Are you sure you want to remove <strong id="delete-ip-address" class="text-danger"></strong> from the whitelist?</p>
-                <p class="text-muted">
-                    ℹ️ This action cannot be undone.
-                </p>
-            </div>
-            <div class="modal-footer justify-content-center">
-                <button type="button" class="btn btn-secondary btn-lg px-4" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger btn-lg px-4" id="confirmDeleteBtn">
-                    🗑️ Delete
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+ <!-- Delete Confirmation Modal -->
+ <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true" style="z-index: 9999;">
+     <div class="modal-dialog modal-dialog-centered">
+         <div class="modal-content">
+             <div class="modal-header bg-danger text-white text-center">
+                 <h5 class="modal-title w-100" id="deleteModalLabel">
+                     ⚠️ Confirm Deletion
+                 </h5>
+                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+             </div>
+             <div class="modal-body text-center">
+                 <div class="mb-3">
+                     <div class="display-4 text-danger">🗑️</div>
+                 </div>
+                 <p class="fs-5">Are you sure you want to remove <strong id="delete-ip-address" class="text-danger"></strong> from the whitelist?</p>
+                 <p class="text-muted">
+                     ℹ️ This action cannot be undone.
+                 </p>
+             </div>
+             <div class="modal-footer justify-content-center">
+                 <button type="button" class="btn btn-secondary btn-lg px-4" id="cancelDeleteBtn">Cancel</button>
+                 <button type="button" class="btn btn-danger btn-lg px-4" id="confirmDeleteBtn">
+                     🗑️ Delete
+                 </button>
+             </div>
+         </div>
+     </div>
+ </div>
 {% endblock %}
 
 {% block scripts %}
@@ -207,6 +207,10 @@
         console.log('jQuery version:', $.fn.jquery);
         console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
         console.log('jQuery modal available:', typeof $.fn.modal !== 'undefined');
+        
+        // Test modal functionality
+        console.log('Modal element exists:', $('#deleteConfirmModal').length > 0);
+        console.log('Modal backdrop:', $('.modal-backdrop').length);
         
         // Auto-detect current IP on page load
         detectCurrentIP();
@@ -242,18 +246,23 @@
         });
 
         // Delete IP button click
-        $(document).on("click", ".delete-ip-btn", function() {
+        $(document).on("click", ".delete-ip-btn", function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             console.log('Delete IP button clicked');
             currentDeleteIP = $(this).data("ip");
             console.log('Setting currentDeleteIP to:', currentDeleteIP);
             $("#delete-ip-address").text(currentDeleteIP);
             
-            // Use jQuery to show modal instead of Bootstrap
-            $('#deleteConfirmModal').modal('show');
+            // Show modal using Bootstrap
+            var modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+            modal.show();
         });
 
         // Confirm delete button
-        $(document).on("click", "#confirmDeleteBtn", function() {
+        $(document).on("click", "#confirmDeleteBtn", function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             console.log('Confirm delete clicked for IP:', currentDeleteIP);
             if (currentDeleteIP) {
                 deleteIPFromWhitelist(currentDeleteIP);
@@ -261,9 +270,25 @@
         });
 
         // Cancel button
-        $(document).on("click", "[data-bs-dismiss='modal']", function() {
+        $(document).on("click", "#cancelDeleteBtn", function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             console.log('Cancel button clicked');
-            $('#deleteConfirmModal').modal('hide');
+            var modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+            if (modal) {
+                modal.hide();
+            }
+        });
+
+        // Close button (X)
+        $(document).on("click", ".btn-close", function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Close button clicked');
+            var modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+            if (modal) {
+                modal.hide();
+            }
         });
     });
 
@@ -386,8 +411,11 @@
                 if (response.success) {
                     showStatus('✅ ' + response.message, 'success');
                     
-                    // Hide modal using jQuery
-                    $('#deleteConfirmModal').modal('hide');
+                    // Hide modal using Bootstrap
+                    var modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
                     
                     // Refresh the page after a short delay
                     setTimeout(function() {
