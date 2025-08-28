@@ -44,3 +44,18 @@ class GoogleToken(db.Model):
     token_uri = db.Column(db.Text, nullable=False)
     scopes = db.relationship('Scope', secondary=google_token_scopes, lazy='subquery',
                              backref=db.backref('google_tokens', lazy=True))
+
+class ServerConfig(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    host = db.Column(db.String(255), nullable=False)
+    port = db.Column(db.Integer, default=22)
+    username = db.Column(db.String(255), nullable=False)
+    auth_method = db.Column(db.String(50), default='password')  # 'password' or 'key'
+    password = db.Column(db.Text)  # Encrypted password
+    private_key = db.Column(db.Text)  # Encrypted private key
+    json_path = db.Column(db.String(500), nullable=False)
+    file_pattern = db.Column(db.String(100), default='*.json')
+    is_configured = db.Column(db.Boolean, default=False)
+    last_tested = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())

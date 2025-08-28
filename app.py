@@ -1672,5 +1672,360 @@ def api_force_refresh_domains():
         logging.error(f"Force refresh domains error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+# Settings page route
+@app.route('/settings')
+@login_required
+def settings():
+    if session.get('role') != 'admin':
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    return render_template('settings.html', user=session.get('user'), role=session.get('role'))
+
+# Server configuration API routes
+@app.route('/api/get-server-config', methods=['GET'])
+@login_required
+def get_server_config():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        from database import ServerConfig
+        config = ServerConfig.query.first()
+        if config:
+            return jsonify({
+                'success': True,
+                'config': {
+                    'host': config.host,
+                    'port': config.port,
+                    'username': config.username,
+                    'auth_method': config.auth_method,
+                    'password': config.password if config.password else '',
+                    'private_key': config.private_key if config.private_key else '',
+                    'json_path': config.json_path,
+                    'file_pattern': config.file_pattern,
+                    'is_configured': config.is_configured,
+                    'last_tested': config.last_tested.isoformat() if config.last_tested else None
+                }
+            })
+        else:
+            return jsonify({'success': True, 'config': None})
+    except Exception as e:
+        app.logger.error(f"Error getting server config: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/save-server-config', methods=['POST'])
+@login_required
+def save_server_config():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['host', 'username', 'json_path', 'file_pattern']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'})
+        
+        from database import ServerConfig
+        
+        # Get or create config
+        config = ServerConfig.query.first()
+        if not config:
+            config = ServerConfig()
+            db.session.add(config)
+        
+        # Update config
+        config.host = data['host']
+        config.port = data.get('port', 22)
+        config.username = data['username']
+        config.auth_method = data.get('auth_method', 'password')
+        config.json_path = data['json_path']
+        config.file_pattern = data['file_pattern']
+        
+        # Handle authentication credentials
+        if data['auth_method'] == 'password':
+            config.password = data.get('password', '')
+            config.private_key = None
+        else:
+            config.private_key = data.get('private_key', '')
+            config.password = None
+        
+        config.is_configured = True
+        config.updated_at = db.func.current_timestamp()
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Server configuration saved successfully'})
+        
+    except Exception as e:
+        app.logger.error(f"Error saving server config: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/test-server-connection', methods=['POST'])
+@login_required
+def test_server_connection():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['host', 'username', 'json_path', 'file_pattern']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'})
+        
+        # Test SSH connection and file access
+        import paramiko
+        import tempfile
+        import os
+        
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
+        try:
+            # Connect to server
+            if data['auth_method'] == 'password':
+                ssh.connect(
+                    data['host'],
+                    port=data.get('port', 22),
+                    username=data['username'],
+                    password=data.get('password', ''),
+                    timeout=10
+                )
+            else:
+                # Create temporary key file
+                with tempfile.NamedTemporaryFile(mode='w', delete=False) as key_file:
+                    key_file.write(data.get('private_key', ''))
+                    key_file_path = key_file.name
+                
+                try:
+                    private_key = paramiko.RSAKey.from_private_key_file(key_file_path)
+                    ssh.connect(
+                        data['host'],
+                        port=data.get('port', 22),
+                        username=data['username'],
+                        pkey=private_key,
+                        timeout=10
+                    )
+                finally:
+                    os.unlink(key_file_path)
+            
+            # Test file access
+            sftp = ssh.open_sftp()
+            try:
+                # List files in the specified directory
+                files = sftp.listdir(data['json_path'])
+                
+                # Filter files based on pattern
+                import fnmatch
+                json_files = [f for f in files if fnmatch.fnmatch(f, data['file_pattern'])]
+                
+                # Test reading a few files to ensure they're valid JSON
+                valid_files = []
+                for filename in json_files[:5]:  # Test first 5 files
+                    try:
+                        file_path = os.path.join(data['json_path'], filename)
+                        with sftp.open(file_path, 'r') as f:
+                            content = f.read()
+                            json.loads(content)  # Validate JSON
+                            valid_files.append(filename)
+                    except Exception as e:
+                        app.logger.warning(f"Invalid JSON file {filename}: {e}")
+                        continue
+                
+                ssh.close()
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'Connection successful. Found {len(valid_files)} valid JSON files.',
+                    'files_count': len(valid_files),
+                    'files': valid_files[:10]  # Return first 10 valid files
+                })
+                
+            except Exception as e:
+                ssh.close()
+                return jsonify({'success': False, 'error': f'Failed to access files: {str(e)}'})
+                
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'SSH connection failed: {str(e)}'})
+            
+    except Exception as e:
+        app.logger.error(f"Error testing server connection: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/clear-server-config', methods=['POST'])
+@login_required
+def clear_server_config():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        from database import ServerConfig
+        config = ServerConfig.query.first()
+        if config:
+            db.session.delete(config)
+            db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Server configuration cleared'})
+        
+    except Exception as e:
+        app.logger.error(f"Error clearing server config: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+# Enhanced Add from Server JSON functionality
+@app.route('/api/add-from-server-json', methods=['POST'])
+@login_required
+def add_from_server_json():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        data = request.get_json()
+        emails = data.get('emails', [])
+        
+        if not emails:
+            return jsonify({'success': False, 'error': 'No email addresses provided'})
+        
+        # Get server configuration
+        from database import ServerConfig
+        config = ServerConfig.query.first()
+        if not config or not config.is_configured:
+            return jsonify({'success': False, 'error': 'Server not configured. Please configure server settings first.'})
+        
+        # Connect to server and retrieve JSON files
+        import paramiko
+        import tempfile
+        import os
+        
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
+        try:
+            # Connect to server
+            if config.auth_method == 'password':
+                ssh.connect(
+                    config.host,
+                    port=config.port,
+                    username=config.username,
+                    password=config.password,
+                    timeout=10
+                )
+            else:
+                # Create temporary key file
+                with tempfile.NamedTemporaryFile(mode='w', delete=False) as key_file:
+                    key_file.write(config.private_key)
+                    key_file_path = key_file.name
+                
+                try:
+                    private_key = paramiko.RSAKey.from_private_key_file(key_file_path)
+                    ssh.connect(
+                        config.host,
+                        port=config.port,
+                        username=config.username,
+                        pkey=private_key,
+                        timeout=10
+                    )
+                finally:
+                    os.unlink(key_file_path)
+            
+            # Get JSON files
+            sftp = ssh.open_sftp()
+            try:
+                files = sftp.listdir(config.json_path)
+                
+                # Filter files based on pattern
+                import fnmatch
+                json_files = [f for f in files if fnmatch.fnmatch(f, config.file_pattern)]
+                
+                # Process each email
+                added_accounts = []
+                failed_accounts = []
+                
+                for email in emails:
+                    email = email.strip()
+                    if not email or '@' not in email:
+                        failed_accounts.append({'email': email, 'error': 'Invalid email format'})
+                        continue
+                    
+                    # Look for matching JSON file
+                    json_filename = f"{email}.json"
+                    if json_filename in json_files:
+                        try:
+                            # Read and parse JSON file
+                            file_path = os.path.join(config.json_path, json_filename)
+                            with sftp.open(file_path, 'r') as f:
+                                content = f.read()
+                                json_data = json.loads(content)
+                            
+                            # Extract client credentials
+                            if 'installed' in json_data:
+                                client_data = json_data['installed']
+                            elif 'web' in json_data:
+                                client_data = json_data['web']
+                            else:
+                                failed_accounts.append({'email': email, 'error': 'Invalid JSON format'})
+                                continue
+                            
+                            client_id = client_data.get('client_id')
+                            client_secret = client_data.get('client_secret')
+                            
+                            if not client_id or not client_secret:
+                                failed_accounts.append({'email': email, 'error': 'Missing client_id or client_secret'})
+                                continue
+                            
+                            # Check if account already exists
+                            from database import GoogleAccount
+                            existing_account = GoogleAccount.query.filter_by(account_name=email).first()
+                            if existing_account:
+                                failed_accounts.append({'email': email, 'error': 'Account already exists'})
+                                continue
+                            
+                            # Add new account
+                            new_account = GoogleAccount(
+                                account_name=email,
+                                client_id=client_id,
+                                client_secret=client_secret
+                            )
+                            db.session.add(new_account)
+                            added_accounts.append(email)
+                            
+                        except Exception as e:
+                            failed_accounts.append({'email': email, 'error': f'Failed to process file: {str(e)}'})
+                            continue
+                    else:
+                        failed_accounts.append({'email': email, 'error': f'JSON file not found: {json_filename}'})
+                
+                # Commit all changes
+                db.session.commit()
+                
+                ssh.close()
+                
+                # Prepare response message
+                message = f"Successfully added {len(added_accounts)} account(s)."
+                if failed_accounts:
+                    message += f" Failed to add {len(failed_accounts)} account(s)."
+                
+                return jsonify({
+                    'success': True,
+                    'message': message,
+                    'added_accounts': added_accounts,
+                    'failed_accounts': failed_accounts
+                })
+                
+            except Exception as e:
+                ssh.close()
+                return jsonify({'success': False, 'error': f'Failed to access files: {str(e)}'})
+                
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'SSH connection failed: {str(e)}'})
+            
+    except Exception as e:
+        app.logger.error(f"Error adding from server JSON: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 if __name__ == '__main__':
     app.run(debug=True)

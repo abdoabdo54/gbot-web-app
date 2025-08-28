@@ -1765,7 +1765,7 @@ function addFromServerJSON() {
             return;
         }
         
-        // Process the search
+        // Process the search using server configuration
         processServerJSONSearch(emails);
     });
     
@@ -1780,7 +1780,7 @@ function addFromServerJSON() {
     setTimeout(() => emailInput.focus(), 100);
 }
 
-// Separate function to handle the actual API call
+// Separate function to handle the actual API call using server configuration
 function processServerJSONSearch(emails) {
     // Show loading in some button (you can modify this)
     const button = document.querySelector('[onclick="addFromServerJSON()"]');
@@ -1788,7 +1788,7 @@ function processServerJSONSearch(emails) {
     button.textContent = '🔍 Searching...';
     button.disabled = true;
     
-    // Make API request
+    // Make API request using server configuration
     fetch('/api/add-from-server-json', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -1799,25 +1799,21 @@ function processServerJSONSearch(emails) {
         if (data.success) {
             let message = data.message + '\n\n';
             
-            if (data.added_accounts.length > 0) {
+            if (data.added_accounts && data.added_accounts.length > 0) {
                 message += `✅ Successfully added:\n${data.added_accounts.join('\n')}\n\n`;
             }
             
-            if (data.existing_accounts.length > 0) {
-                message += `ℹ️ Already existed:\n${data.existing_accounts.join('\n')}\n\n`;
-            }
-            
-            if (Object.keys(data.failed_accounts).length > 0) {
+            if (data.failed_accounts && data.failed_accounts.length > 0) {
                 message += `❌ Failed accounts:\n`;
-                for (const [email, error] of Object.entries(data.failed_accounts)) {
-                    message += `${email}: ${error}\n`;
+                for (const failed of data.failed_accounts) {
+                    message += `${failed.email}: ${failed.error}\n`;
                 }
             }
             
             alert(message);
             
             // Refresh the account list if any were added
-            if (data.added_accounts.length > 0) {
+            if (data.added_accounts && data.added_accounts.length > 0) {
                 refreshAccountsDisplay();
             }
         } else {
