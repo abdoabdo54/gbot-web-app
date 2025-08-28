@@ -1,15 +1,8 @@
+
 {% extends "base.html" %}
 {% block title %}Dashboard - GBot Web{% endblock %}
 
 {% block content %}
-<!-- Simple test to verify JavaScript works -->
-<script>
-console.log('Dashboard template loaded');
-function testFunction() {
-    alert('JavaScript is working!');
-}
-</script>
-
 <!-- Tab Navigation -->
 <div class="tab-navigation">
     <button class="tab-button active" onclick="showTab('tab1')">👤 Account & User Mgmt</button>
@@ -18,113 +11,117 @@ function testFunction() {
     <button class="tab-button" onclick="showTab('tab4')">✉️ SMTP & CSV Gen</button>
 </div>
 
-<!-- Tab 1: Account & User Management -->
+<!-- Tab 1: Account & User Management (existing content) -->
 <div id="tab1" class="tab-content active">    
-    <!-- Account Selection & Authentication -->
-    <div class="section">
-        <h3>👤 Account Selection & Authentication</h3>
-        
-        <div class="form-row">
-            <label for="account-select">Select Account:</label>
-            <select id="account-select">
-                <option value="">Choose an account...</option>
-                {% for account in accounts %}
-                <option value="{{ account.account_name }}" data-account-id="{{ account.id }}">{{ account.account_name }}</option>
-                {% endfor %}
-            </select>
-            <button onclick="authenticateAccount()">🔑 Authenticate Selected</button>
-        </div>
-        
-        <div class="form-row">
-            <button onclick="testFunction()" style="background: red; color: white;">🧪 TEST JS</button>
-            <button onclick="openAddAccountModal()">➕ Add Manually</button>
-            <button onclick="addFromServerJSON()">📁 Add from Server JSON</button>
-            {% if session.role == 'admin' %}
-            <button onclick="forceTokenStatusCheck()" class="btn btn-warning">
-                🔍 Check Token Status Now (Admin)
-            </button>
-            {% endif %}    
-            <button onclick="enterAuthorizationCode()">📝 Enter Authorization Code</button>
-        </div>
-        
-        <!-- Search and Account List Area -->
-        <div class="account-management-area">
-            <div class="search-and-list">
-                <input type="text" id="account-search" placeholder="Search accounts in list..." 
-                        oninput="filterAccounts()" class="search-input" 
-                        autocomplete="off" autocomplete="nope" readonly onfocus="this.removeAttribute('readonly');">
-                
-                <div id="account-list-area" class="account-list">
-                    {% for account in accounts %}
-                    <div class="account-item" onclick="selectAccountFromList('{{ account.account_name|replace("'", "\\'")|replace('"', '\\"') }}', {{ account.id }})" data-account-id="{{ account.id }}">
-                        {{ account.account_name }}
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
+<!-- Account Selection & Authentication -->
+<div class="section">
+    <h3>👤 Account Selection & Authentication</h3>
+    
+    <div class="form-row">
+        <label for="account-select">Select Account:</label>
+        <select id="account-select">
+            <option value="">Choose an account...</option>
+            {% for account in accounts %}
+            <option value="{{ account.account_name }}" data-account-id="{{ account.id }}">{{ account.account_name }}</option>
+            {% endfor %}
+        </select>
+        <button onclick="authenticateAccount()">🔑 Authenticate Selected</button>
+    </div>
+    
+    <div class="form-row">
+        <button onclick="openAddAccountModal()">➕ Add Manually</button>
+        <!-- <button onclick="refreshAccounts()">🔄 Refresh List</button> -->
+        <button onclick="addFromServerJSON()">📁 Add from Server JSON</button>
+        <!-- <button onclick="backupFiles()">💾 Backup Files</button> -->
+        {% if session.role == 'admin' %}
+        <button onclick="forceTokenStatusCheck()" class="btn btn-warning">
+            🔍 Check Token Status Now (Admin)
+        </button>
+        {% endif %}    
+        <button onclick="enterAuthorizationCode()">📝 Enter Authorization Code</button>
+        <!-- <button onclick="completeOAuthWithCode()">📝 Complete OAuth with Code</button> -->
+    </div>
+    
+    <!-- Search and Account List Area -->
+    <div class="account-management-area">
+        <div class="search-and-list">
+            <input type="text" id="account-search" placeholder="Search accounts in list..." 
+                    oninput="filterAccounts()" class="search-input" 
+                    autocomplete="off" autocomplete="nope" readonly onfocus="this.removeAttribute('readonly');">
             
-            <div class="account-actions">
-                <button onclick="authenticateFromList()" class="action-button">
-                    🔑 Authenticate<br>(List Selection)
-                </button>
-                <button onclick="deleteFromList()" class="action-button delete-button">
-                    🗑️ Delete Account<br>(List Selection)
-                </button>
+            <div id="account-list-area" class="account-list">
+                {% for account in accounts %}
+                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name }}', {{ account.id }})" data-account-id="{{ account.id }}">
+                    {{ account.account_name }}
+                </div>
+                {% endfor %}
             </div>
         </div>
-        <div id="account-count-display" class="count-display">
-            <span id="account-stats">Loading account statistics...</span>
-        </div>
-        <div id="auth-status" class="status-box">
-            <p>No account authenticated</p>
+        
+        <div class="account-actions">
+            <button onclick="authenticateFromList()" class="action-button">
+                🔑 Authenticate<br>(List Selection)
+            </button>
+            <button onclick="deleteFromList()" class="action-button delete-button">
+                🗑️ Delete Account<br>(List Selection)
+            </button>
         </div>
     </div>
+    <div id="account-count-display" class="count-display">
+        <span id="account-stats">Loading account statistics...</span>
+    </div>
+    <div id="auth-status" class="status-box">
+        <p>No account authenticated</p>
+    </div>
+</div>
 
-    <!-- Add Account Modal -->
-    <div id="addAccountModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeAddAccountModal()">&times;</span>
-            <h3>Add Account Manually</h3>
-            <form id="addAccountForm">
-                <div class="form-group">
-                    <label for="new-account-email">Account Email:</label>
-                    <input type="email" id="new-account-email" required placeholder="admin@yourdomain.com">
-                </div>
-                <div class="form-group">
-                    <label for="new-client-id">Client ID:</label>
-                    <input type="text" id="new-client-id" required placeholder="123456789-abcdef.apps.googleusercontent.com">
-                </div>
-                <div class="form-group">
-                    <label for="new-client-secret">Client Secret:</label>
-                    <input type="password" id="new-client-secret" required placeholder="GOCSPX-your_client_secret">
-                </div>
-                <div class="form-buttons">
-                    <button type="button" onclick="saveNewAccount()">💾 Save Account</button>
-                    <button type="button" onclick="closeAddAccountModal()">❌ Cancel</button>
-                </div>
-            </form>
-        </div>
+<!-- Add Account Modal -->
+<div id="addAccountModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeAddAccountModal()">&times;</span>
+        <h3>Add Account Manually</h3>
+        <form id="addAccountForm">
+            <div class="form-group">
+                <label for="new-account-email">Account Email:</label>
+                <input type="email" id="new-account-email" required placeholder="admin@yourdomain.com">
+            </div>
+            <div class="form-group">
+                <label for="new-client-id">Client ID:</label>
+                <input type="text" id="new-client-id" required placeholder="123456789-abcdef.apps.googleusercontent.com">
+            </div>
+            <div class="form-group">
+                <label for="new-client-secret">Client Secret:</label>
+                <input type="password" id="new-client-secret" required placeholder="GOCSPX-your_client_secret">
+            </div>
+            <div class="form-buttons">
+                <button type="button" onclick="saveNewAccount()">💾 Save Account</button>
+                <button type="button" onclick="closeAddAccountModal()">❌ Cancel</button>
+            </div>
+        </form>
     </div>
+</div>
 
-    <!-- OAuth Authorization Modal -->
-    <div id="oauthModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">🔗 OAuth Authorization Required</h3>
-                <button class="modal-close" onclick="closeOAuthModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p>Please copy this link and open it in your browser to authorize the account:</p>
-                <div id="oauthUrl" class="account-details"></div>
-                <p><small>💡 <strong>Tip:</strong> You can copy this link to use in another browser or app for authorization.</small></p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-copy" onclick="copyOAuthUrl()">📋 Copy Link</button>
-                <button class="btn-close" onclick="openOAuthUrl()">🌐 Open Link</button>
-                <button class="btn-close" onclick="closeOAuthModal()">Close</button>
-            </div>
+
+
+<!-- OAuth Authorization Modal (ADD THIS NEW MODAL RIGHT HERE) -->
+<div id="oauthModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">🔗 OAuth Authorization Required</h3>
+            <button class="modal-close" onclick="closeOAuthModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Please copy this link and open it in your browser to authorize the account:</p>
+            <div id="oauthUrl" class="account-details"></div>
+            <p><small>💡 <strong>Tip:</strong> You can copy this link to use in another browser or app for authorization.</small></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-copy" onclick="copyOAuthUrl()">📋 Copy Link</button>
+            <button class="btn-close" onclick="openOAuthUrl()">🌐 Open Link</button>
+            <button class="btn-close" onclick="closeOAuthModal()">Close</button>
         </div>
     </div>
+</div>
 
     <!-- User Listing & Actions -->
     <div class="section">
@@ -152,9 +149,9 @@ function testFunction() {
         </div>
     </div>
 
-    <!-- Domain Management -->
+    <!-- Domain Info
     <div class="section">
-        <h3>🌐 Domain Management</h3>
+        <h3>🌐 Domain Info & Subdomain Utility</h3>
         
         <div class="button-row">
             <button onclick="retrieveDomains()">🔍 Retrieve Domains</button>
@@ -162,143 +159,218 @@ function testFunction() {
         </div>
         
         <div id="domain-display" class="data-display">
-            <div class="status-info">
-                <p><strong>🌐 Domain Information</strong></p>
-                <p>Click "🔍 Retrieve Domains" to load and display all domains in your Google Workspace.</p>
-            </div>
+            <p>Click 'Retrieve Domains' to view domains here...</p>
         </div>
+    </div> -->
+
+    <!-- Suspended Users -->
+    <div class="section">
+        <h3>⛔ Suspended User Management</h3>
         
-        <div class="form-row">
+        <div class="button-row">
             <button onclick="loadSuspendedUsers()">🔍 Load Suspended Users</button>
             <button onclick="copySuspendedUsers()">📋 Copy Selected</button>
             <button onclick="refreshSuspendedUsers()" class="secondary-button">🔄 Refresh Status</button>
             <button onclick="clearSuspendedUsers()" class="secondary-button">🧹 Clear Display</button>
         </div>
         
-        <div id="suspended-users-display" class="data-display">
+        <div id="suspended-display" class="data-display">
             <div class="status-info">
-                <p><strong>⏸️ Suspended Users</strong></p>
-                <p>Click "🔍 Load Suspended Users" to display all suspended users in your workspace.</p>
+                <p><strong>⛔ Suspended User Management</strong></p>
+                <p>Click "🔍 Load Suspended Users" to check for suspended accounts in your Google Workspace.</p>
+                <p><small>This will show all users with suspended status, including their names, emails, and admin privileges.</small></p>
             </div>
         </div>
     </div>
+</div>
 </div>
 
 <!-- Tab 2: User Create/Delete/Domain -->
 <div id="tab2" class="tab-content">
+    <h2>User Create/Delete/Domain</h2>
+    
+    <!-- Create Single User -->
     <div class="section">
-        <h3>➕✏️ User Create/Delete/Domain</h3>
-        
+        <h3>👤 Create Single User</h3>
         <div class="form-row">
             <input type="text" id="new-user-first-name" placeholder="First Name">
             <input type="text" id="new-user-last-name" placeholder="Last Name">
-            <input type="email" id="new-user-email" placeholder="Email">
-            <input type="password" id="new-user-password" placeholder="Password">
-            <button onclick="createSingleUser()">➕ Create User</button>
         </div>
-        
+        <div class="form-row">
+            <input type="email" id="new-user-email" placeholder="Email Address">
+            <input type="password" id="new-user-password" placeholder="Password">
+        </div>
+        <button onclick="createSingleUser()">➕ Create User</button>
+    </div>
+
+    <!-- Domain Management -->
+    <div class="section">
+        <h3>🌐 Domain Management</h3>
         <div class="button-row">
             <button onclick="getDomainInfo()">🔍 Retrieve Domains</button>
         </div>
-        
+        <div id="domain-info-display" class="data-display">
+            <p>Click 'Retrieve Domains' to view domains here...</p>
+        </div>
         <div class="form-row">
-            <input type="text" id="domain-alias" placeholder="Domain Alias">
+            <input type="text" id="new-domain-alias" placeholder="Enter new domain alias">
             <button onclick="addDomainAlias()">➕ Add Domain Alias</button>
         </div>
-        
-        <div class="button-row">
-            <button onclick="createUsersFromCSV()">📥 Create Users from CSV</button>
-            <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
-        </div>
-        
+    </div>
+
+    <!-- Create Users from CSV File -->
+    <div class="section">
+        <h3>📥 Create Users from CSV File</h3>
         <div class="form-row">
-            <input type="number" id="random-user-count" placeholder="Number of users" min="1" max="100">
-            <input type="text" id="random-user-domain" placeholder="Domain">
+            <input type="file" id="csv-file-input" accept=".csv">
+            <button onclick="createUsersFromCSV()">📥 Create Users from CSV</button>
+        </div>
+    </div>
+
+    <!-- Create Random Users -->
+    <div class="section">
+        <h3>🎲 Create Random Users</h3>
+        <div class="form-row">
+            <input type="number" id="random-user-count" min="1" max="100" placeholder="Number of users">
+            <input type="text" id="random-user-domain" placeholder="Domain (e.g., example.com)">
             <button onclick="createRandomUsers()">🎲 Create Random Users</button>
         </div>
-        
+    </div>
+
+    <!-- Change Domain for Specific Users -->
+    <div class="section">
+        <h3>🔄 Change Domain for Specific Users</h3>
         <div class="form-row">
-            <input type="text" id="old-domain" placeholder="Old Domain">
-            <input type="text" id="new-domain" placeholder="New Domain">
-            <button onclick="changeDomainForUsers()">🔄 Change Domain for These Users</button>
+            <input type="text" id="old-domain" placeholder="Current Domain (e.g., old.com)">
+            <input type="text" id="new-domain" placeholder="New Domain (e.g., new.com)">
         </div>
-        
-        <div class="button-row">
-            <button onclick="deleteSpecificUsers()" class="delete-button">❌ Delete These Users</button>
-        </div>
-        
-        <div id="results-log" class="log-display"></div>
-        
-        <div class="button-row">
+        <textarea id="domain-change-emails" rows="4" placeholder="Enter email addresses, one per line"></textarea>
+        <button onclick="changeDomainForUsers()">🔄 Change Domain for These Users</button>
+    </div>
+
+    <!-- Delete Specific Users -->
+    <div class="section">
+        <h3>❌ Delete Specific Users</h3>
+        <textarea id="delete-user-emails" rows="4" placeholder="Enter email addresses to delete, one per line"></textarea>
+        <button onclick="deleteSpecificUsers()" class="delete-button">❌ Delete These Users</button>
+    </div>
+
+    <!-- Results Log -->
+    <div class="section">
+        <h3>📝 Results Log</h3>
+        <div class="log-controls">
             <button onclick="clearResultsLog()">🧹 Clear Log</button>
             <button onclick="copyResultsLog()">📋 Copy Log</button>
         </div>
+        <div id="results-log" class="results-log"></div>
     </div>
 </div>
 
-<!-- Tab 3: Bulk Domain Change -->
+<!-- Tab 3: Placeholder -->
 <div id="tab3" class="tab-content">
+    <h2>Bulk Domain Change</h2>
+    <!-- Workflow 1: Change Domain using CSV File -->
     <div class="section">
-        <h3>🔄 Bulk Domain Change</h3>
+        <h3>📋 Workflow 1: Change Domain using CSV File</h3>
         
-        <div class="button-row">
-            <button onclick="downloadAllUsersCSV()" class="primary-button">📥 Download All Users</button>
-        </div>
-        
-        <div class="form-row">
-            <input type="text" id="csv-domain-filter" placeholder="Filter by domain (optional)">
-            <input type="text" id="csv-password" placeholder="Default password" value="DefaultPass123">
-        </div>
-        
-        <div class="button-row">
-            <button onclick="retrieveAvailableDomains()" class="secondary-button">🔍 Retrieve Available Domains</button>
-            <button onclick="getDomainUsageStats()" class="info-button">📊 Domain Usage Stats</button>
-            <button onclick="clearOldDomainData()" class="warning-button">🗑️ Clear Old Data</button>
-            <button onclick="applySelectedDomainToCSV()" class="primary-button">✅ Apply Selected Domain to CSV</button>
-            <button onclick="debugDomainUsers()" class="debug-button">🐛 Debug Domain Users</button>
-        </div>
-        
-        <div id="available-domains-display" class="data-display">
-            <div class="status-info">
-                <p><strong>🌐 Available Domains</strong></p>
-                <p>Click "🔍 Retrieve Available Domains" to load all domains in your workspace.</p>
+        <!-- Step 1.1: Download Current Users to CSV -->
+        <div class="workflow-step">
+            <h4>Step 1.1: Download Current Users to CSV</h4>
+            <div class="step-content">
+                <button onclick="downloadAllUsersCSV()" class="primary-button">📥 Download All Users</button>
+                <div class="info-text">
+                    CSV will be saved to: <span id="csv-save-path">Downloads folder</span>
+                </div>
             </div>
         </div>
         
-        <div class="form-row">
-            <input type="file" id="csv-file-input-bulk" accept=".csv" style="display: none;">
-            <button onclick="browseCSVFile()" class="secondary-button">📁 Browse Manually...</button>
+        <!-- Step 1.2: Select New Domain and Apply to Downloaded CSV -->
+        <div class="workflow-step">
+            <h4>Step 1.2: Select New Domain and Apply to Downloaded CSV</h4>
+            <div class="step-content">
+                <div class="form-row">
+                            <button onclick="retrieveAvailableDomains()" class="secondary-button">🔍 Retrieve Available Domains</button>
+        <button onclick="getDomainUsageStats()" class="info-button">📊 Domain Usage Stats</button>
+        <button onclick="clearOldDomainData()" class="warning-button">🗑️ Clear Old Data</button>
+        <button onclick="applySelectedDomainToCSV()" class="primary-button">✅ Apply Selected Domain to CSV</button>
+        <button onclick="debugDomainUsers()" class="debug-button">🐛 Debug Domain Users</button>
+                </div>
+                
+                <div class="domain-selection-area">
+                    <div id="available-domains" class="domain-list">
+                        <p class="placeholder-text">Click 'Retrieve Available Domains' to view domains</p>
+                    </div>
+                </div>
+            </div>
         </div>
         
-        <div class="button-row">
-            <button onclick="processDomainChangesFromCSV()" class="primary-button">⚙️ Process Domain Changes from CSV</button>
+        <!-- Step 1.3: Process Domain Changes from Modified CSV -->
+        <div class="workflow-step">
+            <h4>Step 1.3: Process Domain Changes from Modified CSV</h4>
+            <div class="step-content">
+                <div class="form-row">
+                    <input type="text" id="csv-file-path" placeholder="CSV file path will appear here after download/apply, or browse manually..." readonly>
+                    <button onclick="browseCSVFile()" class="secondary-button">📁 Browse Manually...</button>
+                </div>
+                <div class="form-row">
+                    <button onclick="processDomainChangesFromCSV()" class="primary-button">⚙️ Process Domain Changes from CSV</button>
+                </div>
+            </div>
         </div>
+    </div>
+
+    <!-- Workflow 2: Change Domain for All Users (Non-CSV, Excludes Admin) -->
+    <div class="section">
+        <h3>🔄 Workflow 2: Change Domain for All Users (Non-CSV, Excludes Admin)</h3>
         
-        <div class="form-row">
-            <input type="text" id="bulk-old-domain" placeholder="Old Domain">
-            <input type="text" id="bulk-new-domain" placeholder="New Domain">
-            <button onclick="changeDomainForAllUsers()" class="warning-button">🔄 Change Domain for ALL Matching Users (Non-Admin)</button>
+        <div class="workflow-step">
+            <div class="form-row">
+                <label for="current-domain-suffix">Current Domain Suffix:</label>
+                <input type="text" id="current-domain-suffix" placeholder="e.g., old-domain.com">
+            </div>
+            <div class="form-row">
+                <label for="new-domain-suffix">New Domain Suffix:</label>
+                <input type="text" id="new-domain-suffix" placeholder="e.g., new-domain.com">
+            </div>
+            <div class="form-row">
+                <button onclick="changeDomainForAllUsers()" class="warning-button">🔄 Change Domain for ALL Matching Users (Non-Admin)</button>
+            </div>
         </div>
+    </div>
+
+    <!-- Results Log (Covers Both Workflows) -->
+    <div class="section">
+        <h3>📝 Results Log (Covers Both Workflows)</h3>
         
-        <div id="bulk-domain-log" class="log-display"></div>
-        
-        <div class="button-row">
+        <div class="log-controls">
             <button onclick="clearBulkDomainLog()" class="secondary-button">🧹 Clear Log</button>
+        </div>
+        
+        <div id="bulk-domain-results" class="results-log">
+            <p class="placeholder-text">Processing results will appear here...</p>
         </div>
     </div>
 </div>
+</div>
 
-<!-- Tab 4: SMTP & CSV Gen -->
+<!-- Tab 4: Placeholder -->
 <div id="tab4" class="tab-content">
+    <h2>SMTP & CSV Generation</h2>
+    <!-- SMTP Credential Tester -->
     <div class="section">
-        <h3>✉️ SMTP & CSV Generation</h3>
+        <h3>✉️ SMTP Credential Tester</h3>
         
         <div class="form-row">
-            <input type="text" id="smtp-server" placeholder="SMTP Server">
-            <input type="number" id="smtp-port" placeholder="Port" value="587">
-            <input type="text" id="smtp-username" placeholder="Username">
-            <input type="password" id="smtp-password" placeholder="Password">
-            <input type="email" id="test-email" placeholder="Test Email">
+            <label for="smtp-credentials">SMTP Credentials (email:password, one per line):</label>
+        </div>
+        <textarea id="smtp-credentials" rows="5" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456&#10;user3@yahoo.com:secretpass789"></textarea>
+        
+        <div class="smtp-settings">
+            <div class="form-row">
+                <input type="email" id="smtp-recipient" placeholder="Recipient email (test@domain.com)">
+                <input type="text" id="smtp-server" value="smtp.gmail.com" placeholder="SMTP Server">
+                <input type="number" id="smtp-port" value="587" placeholder="Port">
+            </div>
         </div>
         
         <div class="button-row">
@@ -307,140 +379,369 @@ function testFunction() {
             <button onclick="clearSMTPResults()">🧹 Clear Log / Reset Files</button>
         </div>
         
-        <div id="smtp-results" class="log-display"></div>
-        
-        <div class="form-row">
-            <input type="number" id="csv-num-users" placeholder="Number of users" min="1" max="1000" value="10">
-            <input type="text" id="csv-domain" placeholder="Domain" value="example.com">
-            <input type="password" id="csv-password" placeholder="Password" value="DefaultPass123">
+        <div class="smtp-results">
+            <h4>📊 SMTP Test Results:</h4>
+            <div id="smtp-results-log" class="results-log"></div>
         </div>
-        
-        <div class="button-row">
-            <button onclick="generateUserCSV()">📥 Generate CSV File</button>
-            <button onclick="previewCSV()">👁️ Preview CSV</button>
-        </div>
-        
-        <div id="csv-preview-area" class="data-display"></div>
-        
-        <div class="form-row">
-            <input type="text" id="email-subject" placeholder="Email Subject">
-            <textarea id="email-body" placeholder="Email Body (use {email}, {password}, {first_name}, {last_name} as placeholders)"></textarea>
-        </div>
-        
-        <div class="button-row">
-            <button onclick="generateEmailTemplate()">📧 Generate Template</button>
-            <button onclick="testEmailTemplate()">🧪 Test Template</button>
-        </div>
-        
-        <div id="email-template-preview" class="data-display"></div>
     </div>
+
+    <!-- Generate Sample CSV for User Creation -->
+    <div class="section">
+        <h3>📝 Generate Sample CSV for User Creation</h3>
+        
+        <div class="csv-form">
+            <div class="form-row">
+                <input type="number" id="csv-num-users" min="1" max="1000" placeholder="Number of users (e.g., 50)">
+                <input type="text" id="csv-domain" placeholder="Domain (e.g., yourdomain.com)">
+                <input type="text" id="csv-password" placeholder="Default password for all users">
+            </div>
+            
+            <div class="button-row">
+                <button onclick="generateUserCSV()">📥 Generate CSV File</button>
+                <button onclick="previewCSV()">👁️ Preview CSV</button>
+            </div>
+        </div>
+        
+        <div id="csv-download-area" class="download-area"></div>
+        
+        <div id="csv-preview-area" class="csv-preview"></div>
+    </div>
+
+    <!-- COMMENTED OUT - Email Template Generator 
+    <div class="section">
+        <h3>📧 Email Template Generator</h3>
+        
+        <div class="template-form">
+            <div class="form-row">
+                <input type="text" id="email-subject" placeholder="Email Subject">
+            </div>
+            
+            <textarea id="email-body" rows="8" placeholder="Email body template...&#10;&#10;Use placeholders:&#10;{email} - User's email&#10;{password} - User's password&#10;{first_name} - User's first name&#10;{last_name} - User's last name"></textarea>
+            
+            <div class="button-row">
+                <button onclick="generateEmailTemplate()">📧 Generate Template</button>
+                <button onclick="testEmailTemplate()">🧪 Test Template</button>
+            </div>
+        </div>
+        
+        <div id="email-template-preview" class="template-preview"></div>
+    </div>
+    -->
+
 </div>
 
 <script>
-// Global variables
+let currentAccount = null;
 let isAuthenticated = false;
-let currentAccountName = '';
-let currentAccountId = null;
+let selectedAccountFromList = null;
+let selectedAccountId = null;
+let smtpTesting = false;
+let selectedDomain = null;
 
-// Test function
-function testFunction() {
-    console.log('testFunction() called - JavaScript is working!');
-    alert('JavaScript is working!');
+async function loadTokenStatusWithLive() {
+    try {
+        console.log('=== Starting LIVE token status check ===');
+        
+        // Reset counters
+        let totalAccounts = 0;
+        let validAccounts = 0;
+        let invalidAccounts = 0;
+        
+        // Get list of accounts first
+        const accountItems = document.querySelectorAll('.account-item');
+        totalAccounts = accountItems.length;
+        
+        // Initialize display
+        updateAccountStats(totalAccounts, 0, 0, 'Checking...');
+        
+        // Check each account individually (LIVE UPDATES)
+        for (let item of accountItems) {
+            // FIX: Clean the account name - remove status symbols
+            const itemCopy = item.cloneNode(true);
+            const statusSpan = itemCopy.querySelector('.token-status');
+            if (statusSpan) {
+                statusSpan.remove();
+            }
+            const accountName = itemCopy.textContent.trim();
+            
+            try {
+                // Show "checking" status
+                showAccountChecking(item, accountName);
+                
+                // Check this specific account
+                const isValid = await checkSingleAccountLive(accountName);
+                
+                // Update visual immediately
+                updateAccountVisual(item, accountName, isValid);
+                
+                // Update counters
+                if (isValid) {
+                    validAccounts++;
+                } else {
+                    invalidAccounts++;
+                }
+                
+                // Update stats in real-time
+                updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Checking...');
+                
+                // Update dropdown too (with clean name)
+                updateDropdownOption(accountName, isValid);
+                
+            } catch (error) {
+                console.error(`Error checking ${accountName}:`, error);
+                updateAccountVisual(item, accountName, false);
+                invalidAccounts++;
+                updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Checking...');
+            }
+        }
+        
+        // Final update
+        updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Complete');
+        
+        // Save results to cache/SFTP for persistence
+        await saveTokenStatusResults();
+        
+        console.log(`✅ Live check complete: ${validAccounts}/${totalAccounts} authenticated`);
+        
+    } catch (error) {
+        console.error('Live token status check failed:', error);
+    }
 }
 
-// Simple test to check if basic JavaScript works
-console.log('Dashboard script loaded');
-
-// Basic function definitions to prevent errors
-function openAddAccountModal() {
-    console.log('openAddAccountModal() called');
-    alert('Add account modal will be implemented');
+// Check single account status
+async function checkSingleAccountLive(accountName) {
+    try {
+        const response = await fetch('/api/check-token-status', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({account_name: accountName})
+        });
+        
+        const data = await response.json();
+        return data.success && data.is_valid;
+        
+    } catch (error) {
+        console.error(`Token check failed for ${accountName}:`, error);
+        return false;
+    }
 }
 
-function addFromServerJSON() {
-    console.log('addFromServerJSON() called');
-    alert('Add from server JSON will be implemented');
+// Show account being checked
+function showAccountChecking(item, accountName) {
+    const oldStatus = item.querySelector('.token-status');
+    if (oldStatus) oldStatus.remove();
+    
+    const statusSpan = document.createElement('span');
+    statusSpan.className = 'token-status checking';
+    statusSpan.textContent = ' 🔄';
+    statusSpan.style.cssText = 'float: right; margin-left: 10px; color: orange;';
+    item.appendChild(statusSpan);
 }
 
-function forceTokenStatusCheck() {
-    console.log('forceTokenStatusCheck() called');
-    alert('Token status check will be implemented');
+// Update account visual status
+function updateAccountVisual(item, accountName, isValid) {
+    const oldStatus = item.querySelector('.token-status');
+    if (oldStatus) oldStatus.remove();
+    
+    const statusSpan = document.createElement('span');
+    statusSpan.className = isValid ? 'token-status valid' : 'token-status invalid';
+    statusSpan.textContent = isValid ? ' ✅' : ' ❌';
+    statusSpan.style.cssText = 'float: right; margin-left: 10px;';
+    item.appendChild(statusSpan);
+    
+    console.log(`✅ Updated ${accountName}: ${isValid ? 'Valid' : 'Invalid'}`);
 }
 
-function enterAuthorizationCode() {
-    console.log('enterAuthorizationCode() called');
-    alert('Enter authorization code will be implemented');
+// Update dropdown option
+function updateDropdownOption(accountName, isValid) {
+    // Clean account name for selector (escape special characters)
+    const cleanAccountName = accountName.replace(/[^a-zA-Z0-9@.\-_]/g, '');
+    
+    try {
+        // Try to find option by value
+        const option = document.querySelector(`#account-select option[value="${accountName}"]`);
+        if (option) {
+            option.textContent = `${accountName} ${isValid ? '✅' : '❌'}`;
+        } else {
+            // If not found, try finding by text content
+            const allOptions = document.querySelectorAll('#account-select option');
+            allOptions.forEach(opt => {
+                if (opt.value === accountName || opt.textContent.includes(accountName)) {
+                    opt.textContent = `${accountName} ${isValid ? '✅' : '❌'}`;
+                }
+            });
+        }
+    } catch (error) {
+        console.error(`Error updating dropdown for ${accountName}:`, error);
+    }
 }
 
-function selectAccountFromList(accountName, accountId) {
-    console.log('selectAccountFromList() called:', accountName, accountId);
-    alert('Account selected: ' + accountName);
+// Update stats counter in real-time
+function updateAccountStats(total, valid, invalid, status) {
+    const statsElement = document.getElementById('account-stats');
+    if (statsElement) {
+        const checked = valid + invalid;
+        statsElement.innerHTML = `
+            <span class="stat-item">Total: <strong>${total}</strong></span>
+            <span class="stat-item">Checked: <strong>${checked}/${total}</strong></span>
+            <span class="stat-item stat-valid">✅ Authenticated: <strong>${valid}</strong></span>
+            <span class="stat-item stat-invalid">❌ Need Auth: <strong>${invalid}</strong></span>
+            <span class="stat-item" style="color: #007bff;">Status: <strong>${status}</strong></span>
+        `;
+    }
 }
 
-function authenticateFromList() {
-    authenticateAccount();
+// Save results for persistence (survives restart)
+async function saveTokenStatusResults() {
+    try {
+        // Collect current status with CLEAN account names
+        const results = {};
+        const accountItems = document.querySelectorAll('.account-item');
+        
+        accountItems.forEach(item => {
+            // Get ONLY the account name text, exclude status symbols
+            const accountNameElement = item.cloneNode(true);
+            
+            // Remove the status span to get clean account name
+            const statusSpan = accountNameElement.querySelector('.token-status');
+            if (statusSpan) {
+                statusSpan.remove();
+            }
+            
+            // Get clean account name
+            const accountName = accountNameElement.textContent.trim();
+            
+            // Get the actual status
+            const statusElement = item.querySelector('.token-status');
+            
+            if (statusElement && accountName) {
+                const isValid = statusElement.textContent.includes('✅');
+                results[accountName] = {
+                    is_valid: isValid,
+                    last_checked: new Date().toISOString()
+                };
+                
+                console.log(`Clean save: "${accountName}" = ${isValid}`);
+            }
+        });
+        
+        console.log('Saving results for', Object.keys(results).length, 'accounts');
+        
+        // Save to server for persistence
+        const response = await fetch('/api/save-token-status-cache', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({status_results: results})
+        });
+        
+        const data = await response.json();
+        console.log('Save response:', data);
+        
+    } catch (error) {
+        console.error('Failed to save token status results:', error);
+    }
 }
 
-function deleteFromList() {
-    alert('Delete account functionality will be implemented');
+// Load saved results on page load (for persistence)
+async function loadSavedTokenStatus() {
+    try {
+        const response = await fetch('/api/load-token-status-cache', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.status) {
+            console.log('Loading saved token status...');
+            displaySavedTokenStatus(data.status);
+            return true;
+        }
+        
+        return false;
+        
+    } catch (error) {
+        console.error('Failed to load saved token status:', error);
+        return false;
+    }
 }
 
-function filterAccounts() {
-    alert('Filter accounts functionality will be implemented');
+// Display saved status from cache
+function displaySavedTokenStatus(statusData) {
+    const accountItems = document.querySelectorAll('.account-item');
+    let totalAccounts = accountItems.length;
+    let validAccounts = 0;
+    let invalidAccounts = 0;
+    
+    accountItems.forEach(item => {
+        const accountName = item.textContent.trim();
+        
+        if (statusData[accountName]) {
+            const isValid = statusData[accountName].is_valid;
+            updateAccountVisual(item, accountName, isValid);
+            updateDropdownOption(accountName, isValid);
+            
+            if (isValid) {
+                validAccounts++;
+            } else {
+                invalidAccounts++;
+            }
+        }
+    });
+    
+    updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Loaded from cache');
+    console.log(`Loaded cached status: ${validAccounts}/${totalAccounts} authenticated`);
 }
 
-function closeAddAccountModal() {
-    alert('Close modal functionality will be implemented');
+// Main function - use database for token status
+async function initializeTokenStatus() {
+    console.log('Initializing token status from database...');
+    await checkTokenStatusFromDatabase();
 }
 
-function saveNewAccount() {
-    alert('Save account functionality will be implemented');
+// Auto-refresh every 8 hours (but user can manually refresh anytime)
+setInterval(checkTokenStatusFromDatabase, 8 * 60 * 60 * 1000);
+
+// Load on page load
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initializeTokenStatus, 1000);
+    
+    // Check if there's a currently authenticated account in session
+    checkCurrentAuthenticationStatus();
+});
+
+// Check current authentication status from session
+async function checkCurrentAuthenticationStatus() {
+    try {
+        const response = await fetch('/api/get-account-status', {
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.status) {
+            const { total, authenticated, need_auth } = data.status;
+            
+            // Update the auth status display
+            if (authenticated > 0) {
+                // Get the current authenticated account name
+                const currentAccountName = sessionStorage.getItem('current_account_name');
+                if (currentAccountName) {
+                    updateAuthStatus(currentAccountName, true, `Currently authenticated (${authenticated}/${total} accounts)`);
+                }
+            }
+            
+            console.log(`Current authentication status: ${authenticated}/${total} accounts authenticated`);
+        }
+    } catch (error) {
+        console.error('Failed to check current authentication status:', error);
+    }
 }
 
-function retrieveUsers() {
-    alert('Retrieve users functionality will be implemented');
-}
-
-function clearUserList() {
-    alert('Clear user list functionality will be implemented');
-}
-
-function copyAllUsers() {
-    alert('Copy all users functionality will be implemented');
-}
-
-function updateAllPasswords() {
-    alert('Update all passwords functionality will be implemented');
-}
-
-function retrieveDomains() {
-    alert('Retrieve domains functionality will be implemented');
-}
-
-function clearDomainDisplay() {
-    alert('Clear domain display functionality will be implemented');
-}
-
-function loadSuspendedUsers() {
-    alert('Load suspended users functionality will be implemented');
-}
-
-function copySuspendedUsers() {
-    alert('Copy suspended users functionality will be implemented');
-}
-
-function refreshSuspendedUsers() {
-    alert('Refresh suspended users functionality will be implemented');
-}
-
-function clearSuspendedUsers() {
-    alert('Clear suspended users functionality will be implemented');
-}
 
 // Tab switching function
 function showTab(tabId) {
-    console.log('showTab() called with tabId:', tabId);
-    
     // Hide all tabs
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
@@ -452,42 +753,140 @@ function showTab(tabId) {
     });
     
     // Show selected tab
-    const targetTab = document.getElementById(tabId);
-    if (targetTab) {
-        targetTab.classList.add('active');
-        console.log('Tab activated:', tabId);
-    } else {
-        console.error('Tab not found:', tabId);
-    }
+    document.getElementById(tabId).classList.add('active');
     
     // Mark button as active
-    if (event && event.target) {
-        event.target.classList.add('active');
+    event.target.classList.add('active');
+    
+    // Auto-refresh domain data when domains tab is shown
+    if (tabId === 'tab3' && isAuthenticated) {
+        setTimeout(() => {
+            retrieveAvailableDomains();
+        }, 500);
     }
 }
 
 // Results log functions
 function logResult(message) {
     const log = document.getElementById('results-log');
-    if (log) {
-        const timestamp = new Date().toLocaleTimeString();
-        log.textContent += `[${timestamp}] ${message}\n`;
-        log.scrollTop = log.scrollHeight;
-    }
+    const timestamp = new Date().toLocaleTimeString();
+    log.textContent += `[${timestamp}] ${message}\n`;
+    log.scrollTop = log.scrollHeight;
 }
 
 function clearResultsLog() {
-    const log = document.getElementById('results-log');
-    if (log) log.textContent = '';
+    document.getElementById('results-log').textContent = '';
 }
 
-// Authentication functions
+async function copyToClipboard(text) {
+    try {
+        // Try modern clipboard API first
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } else {
+            // Fallback method for HTTP sites
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            return successful;
+        }
+    } catch (err) {
+        console.error('Copy failed:', err);
+        return false;
+    }
+}
+
+function enterAuthorizationCode() {
+    const accountName = document.getElementById('account-select').value;
+    
+    if (!accountName) {
+        alert('Please select an account first');
+        return;
+    }
+    
+    // Get the account ID from the selected option
+    const selectedOption = document.querySelector(`#account-select option[value="${accountName}"]`);
+    const accountId = selectedOption ? selectedOption.getAttribute('data-account-id') : null;
+    
+    if (!accountId) {
+        alert('Account ID not found. Please refresh the page and try again.');
+        return;
+    }
+    
+    const authCode = prompt('Paste the authorization code from the authentication page:');
+    
+    if (!authCode) {
+        return;
+    }
+    
+    // Complete authentication with code
+    fetch('/api/complete-oauth', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            auth_code: authCode.trim(),
+            account_id: accountId,
+            account_name: accountName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Authentication completed successfully!');
+            
+            // Store the authenticated account in sessionStorage for persistence
+            sessionStorage.setItem('current_account_name', accountName);
+            
+            updateAccountStatusAfterAuth(accountName, true);
+        } else {
+            alert('❌ Authentication failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('❌ Network error: ' + error);
+    });
+}
+
+function copyResultsLog() {
+    const logContent = document.getElementById('results-log').textContent;
+    if (logContent.trim()) {
+        copyToClipboard(logContent).then(success => {
+            if (success) {
+                alert('📋 Log copied to clipboard!');
+            } else {
+                alert('❌ Copy failed - please try manually selecting the text');
+            }
+        });
+    } else {
+        alert('No log content to copy');
+    }
+}
+
+function updateAuthStatus(account, authenticated, message) {
+    const statusBox = document.getElementById('auth-status');
+    currentAccount = account;
+    isAuthenticated = authenticated;
+    
+    if (authenticated) {
+        statusBox.innerHTML = `<p style="color: green;">✅ Authenticated as: ${account}</p>`;
+        statusBox.className = 'status-box success';
+    } else {
+        statusBox.innerHTML = `<p style="color: red;">❌ ${message || 'Not authenticated'}</p>`;
+        statusBox.className = 'status-box error';
+    }
+}
+
 function authenticateAccount() {
-    console.log('authenticateAccount() called');
     const select = document.getElementById('account-select');
     const accountName = select.value;
-    
-    console.log('Selected account:', accountName);
     
     if (!accountName) {
         alert('Please select an account first');
@@ -517,16 +916,18 @@ function authenticateAccount() {
         
         if (data.success) {
             updateAuthStatus(accountName, true, data.message);
-            isAuthenticated = true;
-            currentAccountName = accountName;
-            currentAccountId = accountId;
             
             // Store the authenticated account in sessionStorage for persistence
             sessionStorage.setItem('current_account_name', accountName);
             
+            // UPDATE THE VISUAL STATUS IMMEDIATELY
+            updateAccountStatusAfterAuth(accountName, true);
+            
         } else if (data.oauth_required && data.oauth_url) {
             console.log('DEBUG: OAuth URL received:', data.oauth_url);
             updateAuthStatus(accountName, false, 'OAuth URL generated - opening...');
+            
+            // Show OAuth modal with the URL
             showOAuthModal(data.oauth_url);
             
         } else {
@@ -540,97 +941,473 @@ function authenticateAccount() {
     });
 }
 
-function updateAuthStatus(account, authenticated, message) {
-    const statusBox = document.getElementById('auth-status');
-    if (statusBox) {
-        if (authenticated) {
-            statusBox.innerHTML = `<p style="color: green;">✅ ${message || 'Authenticated'}</p>`;
-            statusBox.className = 'status-box success';
-        } else {
-            statusBox.innerHTML = `<p style="color: red;">❌ ${message || 'Not authenticated'}</p>`;
-            statusBox.className = 'status-box error';
-        }
+function completeOAuthWithCode() {
+    const authCode = prompt('Paste the authorization code from the OAuth success page:');
+    const accountName = document.getElementById('account-select').value;
+    
+    if (!authCode || !accountName) {
+        alert('Code and account selection required');
+        return;
     }
+    
+    fetch('/api/complete-oauth', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            auth_code: authCode.trim(),
+            account_name: accountName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Authentication completed successfully!');
+            updateAccountStatusAfterAuth(accountName, true);
+        } else {
+            alert('❌ Authentication failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('❌ Network error: ' + error);
+    });
 }
 
-// Modal functions
-function openAddAccountModal() {
-    console.log('openAddAccountModal() called');
-    const modal = document.getElementById('addAccountModal');
-    if (modal) modal.style.display = 'block';
-}
 
-function closeAddAccountModal() {
-    const modal = document.getElementById('addAccountModal');
-    if (modal) modal.style.display = 'none';
-}
-
+// OAuth Modal functions
 function showOAuthModal(authUrl) {
     const modal = document.getElementById('oauthModal');
     const urlDiv = document.getElementById('oauthUrl');
-    if (modal && urlDiv) {
-        urlDiv.textContent = authUrl;
-        modal.style.display = 'block';
-    }
+    
+    urlDiv.textContent = authUrl;
+    modal.style.display = 'block';
+    
+    // Store URL globally for copying
+    window.currentOAuthUrl = authUrl;
 }
 
 function closeOAuthModal() {
-    const modal = document.getElementById('oauthModal');
-    if (modal) modal.style.display = 'none';
+    document.getElementById('oauthModal').style.display = 'none';
 }
 
 function copyOAuthUrl() {
-    const urlDiv = document.getElementById('oauthUrl');
-    if (urlDiv) {
-        navigator.clipboard.writeText(urlDiv.textContent).then(() => {
-            alert('OAuth URL copied to clipboard!');
+    if (window.currentOAuthUrl) {
+        copyToClipboard(window.currentOAuthUrl).then(success => {
+            if (success) {
+                alert('✅ OAuth URL copied to clipboard!');
+            } else {
+                alert('❌ Copy failed - please select and copy manually');
+            }
         });
     }
 }
 
 function openOAuthUrl() {
-    const urlDiv = document.getElementById('oauthUrl');
-    if (urlDiv) {
-        window.open(urlDiv.textContent, '_blank');
+    if (window.currentOAuthUrl) {
+        window.open(window.currentOAuthUrl, '_blank');
     }
 }
 
-// Account management functions
-function selectAccountFromList(accountName, accountId) {
-    console.log('selectAccountFromList() called:', accountName, accountId);
-    // Update the dropdown selection
-    const select = document.getElementById('account-select');
-    if (select) {
-        select.value = accountName;
+// Update existing window click handler
+window.onclick = function(event) {
+    const modal = document.getElementById('oauthModal');
+    if (event.target === modal) {
+        closeOAuthModal();
     }
 }
 
-function authenticateFromList() {
-    authenticateAccount();
-}
-
-function deleteFromList() {
-    const select = document.getElementById('account-select');
-    const accountName = select.value;
-    
-    if (!accountName) {
-        alert('Please select an account first');
+function retrieveUsers() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
         return;
     }
     
-    if (confirm(`Are you sure you want to delete account: ${accountName}?`)) {
-        // Implementation for delete
-        alert('Delete functionality will be implemented');
+    document.getElementById('user-display').innerHTML = `
+        <div class="status-info" style="background: #fff3cd; border-color: #ffeaa7;">
+            <p><strong>📊 Loading Users</strong></p>
+            <p>Retrieving user data from Google Admin API...</p>
+            <p><small>This may take a few moments depending on the number of users.</small></p>
+        </div>`;
+    
+    fetch('/api/retrieve-users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Calculate status counts
+            const activeUsers = data.users.filter(user => !user.suspended).length;
+            const suspendedUsers = data.users.filter(user => user.suspended).length;
+            const adminUsers = data.users.filter(user => user.admin).length;
+            
+            let html = `<div class="status-summary">
+                <div class="status-item">
+                    <span class="status-label">📊 Total Users:</span>
+                    <span class="status-value">${data.total_count}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">✅ Active Users:</span>
+                    <span class="status-value">${activeUsers}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">🚫 Suspended Users:</span>
+                    <span class="status-value">${suspendedUsers}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">👑 Admin Users:</span>
+                    <span class="status-value">${adminUsers}</span>
+                </div>
+            </div>`;
+            
+            data.users.forEach(user => {
+                const statusBadge = user.suspended ? 
+                    '<span class="badge suspended">🚫 Suspended</span>' : 
+                    '<span class="badge active">✅ Active</span>';
+                
+                html += `<div class="user-item ${user.suspended ? 'suspended-user-item' : ''}">
+                    <span class="email">${user.email}</span>
+                    <span class="name">${user.first_name} ${user.last_name}</span>
+                    <span class="status-badges">
+                        ${user.admin ? '<span class="badge admin">👑 Admin</span>' : ''}
+                        ${statusBadge}
+                    </span>
+                </div>`;
+            });
+            document.getElementById('user-display').innerHTML = html;
+            document.getElementById('user-count').textContent = `Total Users: ${data.total_count}`;
+            
+            // Auto-refresh suspended users display to show current status
+            setTimeout(() => {
+                loadSuspendedUsers();
+            }, 500);
+        } else {
+            document.getElementById('user-display').innerHTML = `
+                <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
+                    <p><strong>❌ Error Loading Users</strong></p>
+                    <p>${data.error}</p>
+                    <p><small>Please try refreshing or re-authenticating your account.</small></p>
+                </div>`;
+        }
+    })
+    .catch(error => {
+        document.getElementById('user-display').innerHTML = `
+            <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
+                <p><strong>❌ Network Error</strong></p>
+                <p>Failed to connect to the server: ${error}</p>
+                <p><small>Please check your connection and try again.</small></p>
+            </div>`;
+    });
+}
+
+function clearUserList() {
+    document.getElementById('user-display').innerHTML = `
+        <div class="status-info">
+            <p><strong>👥 User Management</strong></p>
+            <p>Click "📊 Retrieve All Users" to load and display all users from your Google Workspace.</p>
+            <p><small>This will show user status (Active/Suspended), admin privileges, and provide options for bulk operations.</small></p>
+        </div>`;
+    document.getElementById('user-count').textContent = 'Total Users: 0';
+}
+
+function copyAllUsers() {
+    const userElements = document.querySelectorAll('.user-item');
+    if (userElements.length === 0) {
+        alert('No users to copy');
+        return;
+    }
+    
+    const emails = Array.from(userElements).map(element => {
+        const emailElement = element.querySelector('.email');
+        return emailElement ? emailElement.textContent.trim() : '';
+    }).filter(email => email);
+    
+    const emailText = emails.join('\n');
+    
+    copyToClipboard(emailText).then(success => {
+        if (success) {
+            alert(`✅ Copied ${emails.length} user emails to clipboard`);
+            logResult(`📋 Copied ${emails.length} user emails to clipboard`);
+        } else {
+            alert('❌ Copy failed - please try manually selecting the text');
+        }
+    });
+}
+
+function updateAllPasswords() {
+    const password = document.getElementById('new-password').value;
+    
+    // Validation
+    if (!password || password.length < 8) {
+        alert('Password must be at least 8 characters');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    // Get emails from the displayed user items
+    const userItems = document.querySelectorAll('.user-item .email');
+    
+    if (userItems.length === 0) {
+        alert('No users found in the list. Please retrieve users first using "📊 Retrieve All Users" button.');
+        return;
+    }
+    
+    // Extract emails from the user display
+    const userEmails = Array.from(userItems).map(item => item.textContent.trim());
+    
+    // Confirmation
+    if (!confirm(`Update password for ALL ${userEmails.length} users?\n\nThis action cannot be undone.\n\nNew password: ${password}`)) {
+        return;
+    }
+    
+    // Show loading state
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = '🔄 Updating Passwords...';
+    button.disabled = true;
+    
+    // Make API request
+    fetch('/api/update-all-passwords', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            password: password,
+            user_emails: userEmails
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = data.message + '\n\n';
+            
+            if (data.successful_emails.length > 0) {
+                message += `✅ Successfully updated (${data.successful_emails.length}):\n`;
+                message += data.successful_emails.slice(0, 10).join('\n');
+                if (data.successful_emails.length > 10) {
+                    message += `\n... and ${data.successful_emails.length - 10} more`;
+                }
+                message += '\n\n';
+            }
+            
+            if (data.failed_details.length > 0) {
+                message += `❌ Failed updates (${data.failed_details.length}):\n`;
+                data.failed_details.slice(0, 5).forEach(failure => {
+                    message += `${failure.email}: ${failure.error}\n`;
+                });
+                if (data.failed_details.length > 5) {
+                    message += `... and ${data.failed_details.length - 5} more failures`;
+                }
+            }
+            
+            alert(message);
+            
+            // Clear password field
+            document.getElementById('new-password').value = '';
+            
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Network error:', error);
+        alert('❌ Network error: ' + error.message);
+    })
+    .finally(() => {
+        // Restore button state
+        button.textContent = originalText;
+        button.disabled = false;
+    });
+}
+
+function retrieveDomains() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    document.getElementById('domain-display').innerHTML = '<p>Loading domains...</p>';
+    
+    fetch('/api/retrieve-domains', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let html = '';
+            data.domains.forEach(domain => {
+                html += `<div class="domain-item">
+                    <span class="domain-name">${domain.domain_name}</span>
+                    <span class="user-count">${domain.user_count} users</span>
+                    ${domain.verified ? '<span class="badge verified">✅ Verified</span>' : '<span class="badge unverified">❌ Not Verified</span>'}
+                </div>`;
+            });
+            document.getElementById('domain-display').innerHTML = html;
+        } else {
+            document.getElementById('domain-display').innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+        }
+    })
+    .catch(error => {
+        document.getElementById('domain-display').innerHTML = `<p style="color: red;">Network error: ${error}</p>`;
+    });
+}
+
+function clearDomainDisplay() {
+    document.getElementById('domain-display').innerHTML = '<p>Click \'Retrieve Domains\' to view domains here...</p>';
+}
+
+function loadSuspendedUsers() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    document.getElementById('suspended-display').innerHTML = `
+        <div class="status-info" style="background: #fff3cd; border-color: #ffeaa7;">
+            <p><strong>🔍 Loading Suspended Users</strong></p>
+            <p>Retrieving user data from Google Admin API...</p>
+            <p><small>This may take a few moments depending on the number of users.</small></p>
+        </div>`;
+    
+    fetch('/api/load-suspended-users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.users.length > 0) {
+                let html = `<div class="status-info">
+                    <p><strong>📊 Found ${data.total_count} suspended user(s):</strong></p>
+                </div>`;
+                
+                data.users.forEach(user => {
+                    const fullName = user.full_name || `${user.first_name} ${user.last_name}`.trim() || 'No Name';
+                    const adminBadge = user.admin ? '<span class="badge admin">👑 Admin</span>' : '';
+                    const suspendedBadge = '<span class="badge suspended">🚫 Suspended</span>';
+                    
+                    html += `<div class="suspended-user">
+                        <div class="user-info">
+                            <span class="email">${user.email}</span>
+                            <span class="name">${fullName}</span>
+                            ${adminBadge}
+                            ${suspendedBadge}
+                        </div>
+                    </div>`;
+                });
+                
+                document.getElementById('suspended-display').innerHTML = html;
+            } else {
+                document.getElementById('suspended-display').innerHTML = `
+                    <div class="status-info">
+                        <p><strong>✅ No Suspended Users Found</strong></p>
+                        <p>All users in this account are currently active.</p>
+                    </div>`;
+            }
+        } else {
+            document.getElementById('suspended-display').innerHTML = `
+                <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
+                    <p><strong>❌ Error Loading Suspended Users</strong></p>
+                    <p>${data.error}</p>
+                    <p><small>Please try refreshing or re-authenticating your account.</small></p>
+                </div>`;
+        }
+    })
+    .catch(error => {
+        document.getElementById('suspended-display').innerHTML = `
+            <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
+                <p><strong>❌ Network Error</strong></p>
+                <p>Failed to connect to the server: ${error}</p>
+                <p><small>Please check your connection and try again.</small></p>
+            </div>`;
+    });
+}
+
+function copySuspendedUsers() {
+    const suspendedItems = document.querySelectorAll('.suspended-user .email');
+    const emails = Array.from(suspendedItems).map(item => item.textContent.trim());
+    
+    if (emails.length > 0) {
+        copyToClipboard(emails.join('\n')).then(success => {
+            if (success) {
+                alert(`✅ Copied ${emails.length} suspended email addresses to clipboard!`);
+            } else {
+                alert('❌ Copy failed - please try manually selecting the text');
+            }
+        });
+    } else {
+        alert('No suspended users to copy');
     }
 }
 
+function refreshSuspendedUsers() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    // Clear current display and reload
+    document.getElementById('suspended-display').innerHTML = `
+        <div class="status-info" style="background: #fff3cd; border-color: #ffeaa7;">
+            <p><strong>🔄 Refreshing Suspended Users</strong></p>
+            <p>Updating user status from Google Admin API...</p>
+            <p><small>Please wait while we refresh the data.</small></p>
+        </div>`;
+    
+    // Reload after a short delay to show the refresh message
+    setTimeout(() => {
+        loadSuspendedUsers();
+    }, 1000);
+}
+
+function clearSuspendedUsers() {
+    document.getElementById('suspended-display').innerHTML = `
+        <div class="status-info">
+            <p><strong>⛔ Suspended User Management</strong></p>
+            <p>Click "🔍 Load Suspended Users" to check for suspended accounts in your Google Workspace.</p>
+            <p><small>This will show all users with suspended status, including their names, emails, and admin privileges.</small></p>
+        </div>`;
+}
+
+function refreshAccounts() {
+    // Simply reload the page to refresh accounts from database
+    location.reload();
+}
+
+// Modal functions
+function openAddAccountModal() {
+    document.getElementById('addAccountModal').style.display = 'block';
+}
+
+function closeAddAccountModal() {
+    document.getElementById('addAccountModal').style.display = 'none';
+    document.getElementById('addAccountForm').reset();
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('addAccountModal');
+    if (event.target == modal) {
+        closeAddAccountModal();
+    }
+}
+
+// Save new account
 function saveNewAccount() {
     const email = document.getElementById('new-account-email').value;
     const clientId = document.getElementById('new-client-id').value;
     const clientSecret = document.getElementById('new-client-secret').value;
     
     if (!email || !clientId || !clientSecret) {
-        alert('Please fill in all fields');
+        alert('All fields are required');
+        return;
+    }
+    
+    if (!email.includes('@')) {
+        alert('Please enter a valid email address');
         return;
     }
     
@@ -646,11 +1423,449 @@ function saveNewAccount() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Account added successfully!');
+            alert('✅ Account added successfully!');
             closeAddAccountModal();
-            location.reload();
+            location.reload(); // Reload to show new account
         } else {
-            alert('Failed to add account: ' + data.error);
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('❌ Network error: ' + error);
+    });
+}
+
+// Account list functions
+function selectAccountFromList(accountName, accountId) {
+    // Remove previous selection
+    document.querySelectorAll('.account-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    // Select clicked item
+    event.target.classList.add('selected');
+    selectedAccountFromList = accountName;
+    selectedAccountId = accountId;
+    
+    // Also update dropdown
+    document.getElementById('account-select').value = accountName;
+}
+
+function filterAccounts() {
+    const searchTerm = document.getElementById('account-search').value.toLowerCase();
+    const accountItems = document.querySelectorAll('.account-item');
+    
+    accountItems.forEach(item => {
+        const accountName = item.textContent.toLowerCase();
+        if (accountName.includes(searchTerm)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+function authenticateFromList() {
+    if (!selectedAccountFromList || !selectedAccountId) {
+        alert('Please select an account from the list first');
+        return;
+    }
+    
+    // Set the dropdown to selected account and authenticate
+    document.getElementById('account-select').value = selectedAccountFromList;
+    
+    // Call the updated authenticate function
+    authenticateAccount();
+}
+
+
+function deleteFromList() {
+    if (!selectedAccountFromList || !selectedAccountId) {
+        alert('Please select an account from the list first');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete account: ${selectedAccountFromList}?`)) {
+        return;
+    }
+    
+    // Delete directly using the stored account ID
+    fetch('/api/delete-account', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({account_id: selectedAccountId})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Account deleted successfully!');
+            selectedAccountFromList = null;
+            selectedAccountId = null;
+            location.reload(); // Reload to refresh the display
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Delete error:', error);
+        alert('❌ Error: ' + error.message);
+    });
+}
+
+function refreshAccountsDisplay() {
+    // Simply reload the page to refresh accounts from database
+    location.reload();
+}
+
+// Admin-only manual token status check
+function forceTokenStatusCheck() {
+    if (confirm('🔍 Force token status check for all accounts?\n\nThis will check the database for current token status.')) {
+        console.log('Admin triggered manual token status check');
+        
+        // Update status display
+        updateAccountStats(0, 0, 0, 'Admin check starting...');
+        
+        // Use database API instead of JSON
+        checkTokenStatusFromDatabase();
+    }
+}
+
+// Check token status from database (replaces JSON-based approach)
+async function checkTokenStatusFromDatabase() {
+    try {
+        console.log('=== Starting DATABASE token status check ===');
+        
+        // Get token status from database API
+        const response = await fetch('/api/check-token-status', {
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.token_status) {
+            console.log('Database token status received:', data.token_status);
+            
+            // Update visual status for each account
+            let totalAccounts = data.token_status.length;
+            let validAccounts = 0;
+            let invalidAccounts = 0;
+            
+            data.token_status.forEach(accountStatus => {
+                const accountName = accountStatus.account_name;
+                const hasTokens = accountStatus.has_tokens;
+                const tokenValid = accountStatus.token_valid;
+                
+                // Find the account item in the UI
+                const accountItems = document.querySelectorAll('.account-item');
+                accountItems.forEach(item => {
+                    const itemAccountName = item.textContent.trim().split('\n')[0].trim();
+                    if (itemAccountName === accountName) {
+                        // Remove old status
+                        const oldStatus = item.querySelector('.token-status');
+                        if (oldStatus) oldStatus.remove();
+                        
+                        // Add new status
+                        const statusSpan = document.createElement('span');
+                        statusSpan.className = 'token-status';
+                        statusSpan.textContent = tokenValid ? ' ✅' : ' ❌';
+                        statusSpan.style.cssText = 'float: right; margin-left: 10px;';
+                        item.appendChild(statusSpan);
+                        
+                        // Update dropdown
+                        updateDropdownOption(accountName, tokenValid);
+                        
+                        // Count accounts
+                        if (tokenValid) {
+                            validAccounts++;
+                        } else {
+                            invalidAccounts++;
+                        }
+                    }
+                });
+            });
+            
+            // Update stats
+            updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Database check complete');
+            console.log(`✅ Database check complete: ${validAccounts}/${totalAccounts} authenticated`);
+            
+        } else {
+            console.error('Failed to get token status from database:', data.error);
+            updateAccountStats(0, 0, 0, 'Database check failed');
+        }
+        
+    } catch (error) {
+        console.error('Database token status check failed:', error);
+        updateAccountStats(0, 0, 0, 'Database check failed');
+    }
+}
+
+function updateAccountStatusAfterAuth(accountName, isAuthenticated) {
+    // Update the account in the list
+    const accountItems = document.querySelectorAll('.account-item');
+    
+    accountItems.forEach(item => {
+        const itemAccountName = item.textContent.trim().split('\n')[0].trim();
+        
+        if (itemAccountName === accountName) {
+            // Remove old status
+            const oldStatus = item.querySelector('.token-status');
+            if (oldStatus) oldStatus.remove();
+            
+            // Add new status
+            const statusSpan = document.createElement('span');
+            statusSpan.className = isAuthenticated ? 'token-status valid' : 'token-status invalid';
+            statusSpan.textContent = isAuthenticated ? ' ✅' : ' ❌';
+            statusSpan.style.cssText = 'float: right; margin-left: 10px;';
+            item.appendChild(statusSpan);
+            
+            console.log(`Updated ${accountName} status to: ${isAuthenticated ? 'Valid' : 'Invalid'}`);
+        }
+    });
+    
+    // Update dropdown
+    const option = document.querySelector(`#account-select option[value="${accountName}"]`);
+    if (option) {
+        option.textContent = `${accountName} ${isAuthenticated ? '✅' : '❌'}`;
+    }
+    
+    // Update counter
+    updateCountersAfterChange();
+}
+
+function updateCountersAfterChange() {
+    const accountItems = document.querySelectorAll('.account-item');
+    let totalAccounts = accountItems.length;
+    let validAccounts = 0;
+    let invalidAccounts = 0;
+    
+    accountItems.forEach(item => {
+        const statusElement = item.querySelector('.token-status');
+        if (statusElement) {
+            if (statusElement.textContent.includes('✅')) {
+                validAccounts++;
+            } else {
+                invalidAccounts++;
+            }
+        }
+    });
+    
+    updateAccountStats(totalAccounts, validAccounts, invalidAccounts, 'Updated');
+}
+
+function addFromServerJSON() {
+    // Create a modal dialog instead of simple prompt
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    `;
+    
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        width: 600px;
+        max-width: 90vw;
+        max-height: 80vh;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        color: #333;
+    `;
+    
+    dialog.innerHTML = `
+        <h3 style="margin-bottom: 20px; color: #007bff;">📁 Add Accounts from Server JSON</h3>
+        
+        <p style="margin-bottom: 15px; color: #666;">
+            Enter Google Workspace admin email addresses below (one per line).<br>
+            The system will search for corresponding JSON credential files on the server.
+        </p>
+        
+        <div style="margin-bottom: 15px;">
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Email Addresses:</label>
+            <textarea id="emailInput" placeholder="admin@domain1.com&#10;admin@domain2.com&#10;admin@domain3.com&#10;..." 
+                style="width: 100%; height: 250px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: monospace; resize: vertical;"></textarea>
+        </div>
+        
+        <div style="margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px; border-left: 4px solid #007bff;">
+            <strong>💡 Tips:</strong>
+            <ul style="margin: 5px 0 0 20px; color: #666;">
+                <li>Enter one email address per line</li>
+                <li>You can paste multiple emails at once</li>
+                <li>Empty lines will be ignored</li>
+                <li>Files must be named exactly: <code>&lt;email&gt;.json</code></li>
+            </ul>
+        </div>
+        
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="cancelBtn" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                ❌ Cancel
+            </button>
+            <button id="searchBtn" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;" disabled>
+                🔍 Search & Add Accounts
+            </button>
+        </div>
+    `;
+    
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
+    
+    // Get elements
+    const emailInput = dialog.querySelector('#emailInput');
+    const searchBtn = dialog.querySelector('#searchBtn');
+    const cancelBtn = dialog.querySelector('#cancelBtn');
+    
+    // Update button state as user types
+    function updateButtonState() {
+        const text = emailInput.value.trim();
+        if (!text) {
+            searchBtn.disabled = true;
+            return;
+        }
+        
+        const emails = text.split('\n')
+            .map(email => email.trim())
+            .filter(email => email && email.includes('@'));
+        
+        searchBtn.disabled = emails.length === 0;
+    }
+    
+    // Add event listeners
+    emailInput.addEventListener('input', updateButtonState);
+    emailInput.addEventListener('paste', () => setTimeout(updateButtonState, 10));
+    
+    cancelBtn.addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+    
+    searchBtn.addEventListener('click', () => {
+        const emails = emailInput.value.trim()
+            .split('\n')
+            .map(email => email.trim())
+            .filter(email => email && email.includes('@'));
+        
+        if (emails.length === 0) {
+            alert('No valid email addresses found');
+            return;
+        }
+        
+        // Close modal
+        document.body.removeChild(modal);
+        
+        // Show confirmation
+        if (!confirm(`Search for JSON credential files for ${emails.length} email address(es)?`)) {
+            return;
+        }
+        
+        // Process the search
+        processServerJSONSearch(emails);
+    });
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
+    });
+    
+    // Focus on textarea
+    setTimeout(() => emailInput.focus(), 100);
+}
+
+// Separate function to handle the actual API call
+function processServerJSONSearch(emails) {
+    // Show loading in some button (you can modify this)
+    const button = document.querySelector('[onclick="addFromServerJSON()"]');
+    const originalText = button.textContent;
+    button.textContent = '🔍 Searching...';
+    button.disabled = true;
+    
+    // Make API request
+    fetch('/api/add-from-server-json', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({emails: emails})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = data.message + '\n\n';
+            
+            if (data.added_accounts.length > 0) {
+                message += `✅ Successfully added:\n${data.added_accounts.join('\n')}\n\n`;
+            }
+            
+            if (data.existing_accounts.length > 0) {
+                message += `ℹ️ Already existed:\n${data.existing_accounts.join('\n')}\n\n`;
+            }
+            
+            if (Object.keys(data.failed_accounts).length > 0) {
+                message += `❌ Failed accounts:\n`;
+                for (const [email, error] of Object.entries(data.failed_accounts)) {
+                    message += `${email}: ${error}\n`;
+                }
+            }
+            
+            alert(message);
+            
+            // Refresh the account list if any were added
+            if (data.added_accounts.length > 0) {
+                refreshAccountsDisplay();
+            }
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Network error:', error);
+        alert('❌ Network error: ' + error.message);
+    })
+    .finally(() => {
+        // Restore button state
+        button.textContent = originalText;
+        button.disabled = false;
+    });
+}
+
+function debugSFTPFiles() {
+    fetch('/api/debug-sftp-files', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = "SFTP Directory Contents:\n\n";
+            
+            if (data.directories.shared_credentials) {
+                if (data.directories.shared_credentials.error) {
+                    message += `❌ shared_credentials: ${data.directories.shared_credentials.error}\n\n`;
+                } else {
+                    message += `📁 shared_credentials (${data.directories.shared_credentials.total_count} files):\n`;
+                    message += data.directories.shared_credentials.files.join('\n') + '\n\n';
+                }
+            }
+            
+            if (data.directories.account) {
+                if (data.directories.account.error) {
+                    message += `❌ account: ${data.directories.account.error}\n\n`;
+                } else {
+                    message += `📁 account (${data.directories.account.total_count} files):\n`;
+                    message += data.directories.account.files.join('\n');
+                }
+            }
+            
+            alert(message);
+        } else {
+            alert('Error: ' + data.error);
         }
     })
     .catch(error => {
@@ -658,419 +1873,1136 @@ function saveNewAccount() {
     });
 }
 
-// User management functions
-function retrieveUsers() {
-    if (!isAuthenticated) {
-        alert('Please authenticate an account first');
-        return;
-    }
-    
-    logResult('📊 Retrieving users...');
-    
-    fetch('/api/retrieve-users', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            account_name: currentAccountName
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            logResult(`✅ Retrieved ${data.users.length} users`);
-            displayUsers(data.users);
-        } else {
-            logResult(`❌ Failed to retrieve users: ${data.error}`);
-        }
-    })
-    .catch(error => {
-        logResult(`❌ Network error: ${error}`);
-    });
+// Placeholder functions for buttons that need implementation
+
+function backupFiles() {
+    alert('Backup Files feature coming soon!');
 }
 
-function displayUsers(users) {
-    const display = document.getElementById('user-display');
-    const count = document.getElementById('user-count');
-    
-    if (display) {
-        let html = '<div class="user-list">';
-        users.forEach(user => {
-            html += `
-                <div class="user-item">
-                    <strong>${user.name.fullName}</strong> (${user.primaryEmail})
-                    <br><small>Status: ${user.suspended ? 'Suspended' : 'Active'}</small>
-                </div>
-            `;
-        });
-        html += '</div>';
-        display.innerHTML = html;
-    }
-    
-    if (count) {
-        count.textContent = `Total Users: ${users.length}`;
-    }
+// Update the existing refreshAccounts function
+function refreshAccounts() {
+    refreshAccountsDisplay();
 }
 
-function clearUserList() {
-    const display = document.getElementById('user-display');
-    const count = document.getElementById('user-count');
-    
-    if (display) {
-        display.innerHTML = '<div class="status-info"><p><strong>👥 User Management</strong></p><p>Click "📊 Retrieve All Users" to load and display all users from your Google Workspace.</p></div>';
-    }
-    
-    if (count) {
-        count.textContent = 'Total Users: 0';
-    }
-}
-
-function copyAllUsers() {
-    const userElements = document.querySelectorAll('.user-item');
-    const emails = Array.from(userElements).map(element => {
-        const emailMatch = element.textContent.match(/\(([^)]+)\)/);
-        return emailMatch ? emailMatch[1] : '';
-    }).filter(email => email);
-    
-    if (emails.length > 0) {
-        navigator.clipboard.writeText(emails.join('\n')).then(() => {
-            alert(`Copied ${emails.length} email addresses to clipboard!`);
-        });
-    } else {
-        alert('No users to copy');
-    }
-}
-
-function updateAllPasswords() {
-    const newPassword = document.getElementById('new-password').value;
-    
-    if (!newPassword) {
-        alert('Please enter a new password');
-        return;
-    }
-    
-    if (!isAuthenticated) {
-        alert('Please authenticate an account first');
-        return;
-    }
-    
-    logResult('🔑 Updating passwords for all users...');
-    
-    fetch('/api/update-all-passwords', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            account_name: currentAccountName,
-            new_password: newPassword
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            logResult(`✅ Password update completed. ${data.successful} successful, ${data.failed} failed`);
-        } else {
-            logResult(`❌ Password update failed: ${data.error}`);
-        }
-    })
-    .catch(error => {
-        logResult(`❌ Network error: ${error}`);
-    });
-}
-
-// Domain management functions
-function retrieveDomains() {
-    if (!isAuthenticated) {
-        alert('Please authenticate an account first');
-        return;
-    }
-    
-    logResult('🔍 Retrieving domains...');
-    
-    fetch('/api/retrieve-domains', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            account_name: currentAccountName
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            logResult(`✅ Retrieved ${data.domains.length} domains`);
-            displayDomains(data.domains);
-        } else {
-            logResult(`❌ Failed to retrieve domains: ${data.error}`);
-        }
-    })
-    .catch(error => {
-        logResult(`❌ Network error: ${error}`);
-    });
-}
-
-function displayDomains(domains) {
-    const display = document.getElementById('domain-display');
-    
-    if (display) {
-        let html = '<div class="domain-list">';
-        domains.forEach(domain => {
-            html += `
-                <div class="domain-item">
-                    <strong>${domain.domainName}</strong>
-                    <br><small>Verified: ${domain.verified ? 'Yes' : 'No'}</small>
-                </div>
-            `;
-        });
-        html += '</div>';
-        display.innerHTML = html;
-    }
-}
-
-function clearDomainDisplay() {
-    const display = document.getElementById('domain-display');
-    
-    if (display) {
-        display.innerHTML = '<div class="status-info"><p><strong>🌐 Domain Information</strong></p><p>Click "🔍 Retrieve Domains" to load and display all domains in your Google Workspace.</p></div>';
-    }
-}
-
-function loadSuspendedUsers() {
-    if (!isAuthenticated) {
-        alert('Please authenticate an account first');
-        return;
-    }
-    
-    logResult('🔍 Loading suspended users...');
-    
-    fetch('/api/load-suspended-users', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            account_name: currentAccountName
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            logResult(`✅ Loaded ${data.users.length} suspended users`);
-            displaySuspendedUsers(data.users);
-        } else {
-            logResult(`❌ Failed to load suspended users: ${data.error}`);
-        }
-    })
-    .catch(error => {
-        logResult(`❌ Network error: ${error}`);
-    });
-}
-
-function displaySuspendedUsers(users) {
-    const display = document.getElementById('suspended-users-display');
-    
-    if (display) {
-        if (users.length === 0) {
-            display.innerHTML = '<div class="status-info"><p><strong>⏸️ Suspended Users</strong></p><p>No suspended users found.</p></div>';
-        } else {
-            let html = '<div class="suspended-users-list">';
-            users.forEach(user => {
-                html += `
-                    <div class="user-item">
-                        <strong>${user.name.fullName}</strong> (${user.primaryEmail})
-                        <br><small>Suspended: ${user.suspensionReason || 'Unknown reason'}</small>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            display.innerHTML = html;
-        }
-    }
-}
-
-function copySuspendedUsers() {
-    const userElements = document.querySelectorAll('.suspended-users-list .user-item');
-    const emails = Array.from(userElements).map(element => {
-        const emailMatch = element.textContent.match(/\(([^)]+)\)/);
-        return emailMatch ? emailMatch[1] : '';
-    }).filter(email => email);
-    
-    if (emails.length > 0) {
-        navigator.clipboard.writeText(emails.join('\n')).then(() => {
-            alert(`Copied ${emails.length} suspended user emails to clipboard!`);
-        });
-    } else {
-        alert('No suspended users to copy');
-    }
-}
-
-function refreshSuspendedUsers() {
-    loadSuspendedUsers();
-}
-
-function clearSuspendedUsers() {
-    const display = document.getElementById('suspended-users-display');
-    
-    if (display) {
-        display.innerHTML = '<div class="status-info"><p><strong>⏸️ Suspended Users</strong></p><p>Click "🔍 Load Suspended Users" to display all suspended users in your workspace.</p></div>';
-    }
-}
-
-// Other functions (placeholder implementations)
-function enterAuthorizationCode() {
-    const code = prompt('Enter authorization code:');
-    if (code) {
-        alert('Authorization code functionality will be implemented');
-    }
-}
-
-function forceTokenStatusCheck() {
-    alert('Token status check functionality will be implemented');
-}
-
-function addFromServerJSON() {
-    alert('Add from server JSON functionality will be implemented');
-}
-
-function filterAccounts() {
-    alert('Filter accounts functionality will be implemented');
-}
-
-function createSingleUser() {
-    alert('Create single user functionality will be implemented');
-}
-
-function getDomainInfo() {
-    alert('Get domain info functionality will be implemented');
-}
-
-function addDomainAlias() {
-    alert('Add domain alias functionality will be implemented');
-}
+// Tab 2 Functions
 
 function createUsersFromCSV() {
-    alert('Create users from CSV functionality will be implemented');
+    const fileInput = document.getElementById('csv-file-input');
+    if (!fileInput.files.length) {
+        alert('Please select a CSV file first');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    logResult('📥 Starting CSV user creation...');
+    
+    const formData = new FormData();
+    formData.append('csv_file', fileInput.files[0]);
+    
+    fetch('/api/create-users-from-csv', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ CSV processing completed. Created ${data.created_count} users.`);
+            if (data.results) {
+                data.results.forEach(result => {
+                    if (result.success) {
+                        logResult(`✅ Created: ${result.email}`);
+                    } else {
+                        logResult(`❌ Failed: ${result.email} - ${result.error}`);
+                    }
+                });
+            }
+        } else {
+            logResult(`❌ CSV creation failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error}`);
+    });
 }
 
 function createRandomUsers() {
-    alert('Create random users functionality will be implemented');
+    const count = document.getElementById('random-user-count').value;
+    const domain = document.getElementById('random-user-domain').value;
+    
+    if (!count || count <= 0) {
+        alert('Please enter a valid number of users');
+        return;
+    }
+    
+    if (!domain || !domain.includes('.')) {
+        alert('Please enter a valid domain');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    logResult(`🎲 Creating ${count} random users for ${domain}...`);
+    
+    fetch('/api/create-random-users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            num_users: parseInt(count),
+            domain: domain
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ Random user creation completed. Password: ${data.password}`);
+            if (data.results) {
+                data.results.forEach(result => {
+                    if (result.result.success) {
+                        logResult(`✅ Created: ${result.email}`);
+                    } else {
+                        logResult(`❌ Failed: ${result.email} - ${result.result.error}`);
+                    }
+                });
+            }
+        } else {
+            logResult(`❌ Random user creation failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error}`);
+    });
 }
 
 function changeDomainForUsers() {
-    alert('Change domain for users functionality will be implemented');
+    const oldDomain = document.getElementById('old-domain').value;
+    const newDomain = document.getElementById('new-domain').value;
+    const emailsText = document.getElementById('domain-change-emails').value;
+    
+    if (!oldDomain || !newDomain) {
+        alert('Please enter both old and new domains');
+        return;
+    }
+    
+    if (!emailsText.trim()) {
+        alert('Please enter email addresses');
+        return;
+    }
+    
+    const emails = emailsText.split('\n').map(e => e.trim()).filter(e => e);
+    
+    if (emails.length === 0) {
+        alert('No valid email addresses found');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    logResult(`🔄 Changing domain from ${oldDomain} to ${newDomain} for ${emails.length} users...`);
+    
+    fetch('/api/change-domain', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            old_domain: oldDomain,
+            new_domain: newDomain,
+            user_emails: emails
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ Domain change completed for ${emails.length} users.`);
+            if (data.results) {
+                data.results.forEach(result => {
+                    if (result.success) {
+                        logResult(`✅ Changed: ${result.old_email} → ${result.new_email}`);
+                    } else {
+                        logResult(`❌ Failed: ${result.email} - ${result.error}`);
+                    }
+                });
+            }
+        } else {
+            logResult(`❌ Domain change failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error}`);
+    });
 }
 
 function deleteSpecificUsers() {
-    alert('Delete specific users functionality will be implemented');
+    const emailsText = document.getElementById('delete-user-emails').value;
+    
+    if (!emailsText.trim()) {
+        alert('Please enter email addresses to delete');
+        return;
+    }
+    
+    const emails = emailsText.split('\n').map(e => e.trim()).filter(e => e);
+    
+    if (emails.length === 0) {
+        alert('No valid email addresses found');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    if (!confirm(`⚠️ Are you sure you want to DELETE ${emails.length} users? This cannot be undone!`)) {
+        return;
+    }
+    
+    logResult(`❌ Deleting ${emails.length} users...`);
+    
+    fetch('/api/delete-users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            user_emails: emails
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ User deletion completed for ${emails.length} users.`);
+            if (data.results) {
+                data.results.forEach(result => {
+                    if (result.result.success) {
+                        logResult(`✅ Deleted: ${result.email}`);
+                    } else {
+                        logResult(`❌ Failed to delete: ${result.email} - ${result.result.error}`);
+                    }
+                });
+            }
+        } else {
+            logResult(`❌ User deletion failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error}`);
+    });
 }
 
-function copyResultsLog() {
-    const log = document.getElementById('results-log');
-    if (log && log.textContent) {
-        navigator.clipboard.writeText(log.textContent).then(() => {
-            alert('Results log copied to clipboard!');
-        });
-    } else {
-        alert('No results to copy');
+function createSingleUser() {
+    const firstName = document.getElementById('new-user-first-name').value;
+    const lastName = document.getElementById('new-user-last-name').value;
+    const email = document.getElementById('new-user-email').value;
+    const password = document.getElementById('new-user-password').value;
+
+    if (!firstName || !lastName || !email || !password) {
+        alert('Please fill in all fields for the new user.');
+        return;
     }
+
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+
+    logResult(`➕ Creating user: ${email}...`);
+
+    fetch('/api/create-gsuite-user', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            first_name: firstName,
+            last_name: lastName,
+            email: email,
+            password: password
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ User ${email} created successfully.`);
+        } else {
+            logResult(`❌ Failed to create user ${email}: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error}`);
+    });
 }
+
+function getDomainInfo() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+
+    logResult('🔍 Retrieving domain info...');
+    const display = document.getElementById('domain-info-display');
+    display.innerHTML = '<p>Loading domains...</p>';
+
+    fetch('/api/get-domain-info')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let html = '';
+            if (data.domains.length > 0) {
+                data.domains.forEach(domain => {
+                    html += `<div class="domain-item">
+                        <span>${domain.domainName}</span>
+                        <button class="delete-button" onclick="deleteDomain('${domain.domainName}')">Delete</button>
+                    </div>`;
+                });
+            } else {
+                html = '<p>No domains found.</p>';
+            }
+            display.innerHTML = html;
+            logResult(`✅ Domain info retrieved successfully.`);
+        } else {
+            display.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+            logResult(`❌ Failed to retrieve domain info: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        display.innerHTML = `<p style="color: red;">Network error: ${error}</p>`;
+        logResult(`❌ Network error: ${error}`);
+    });
+}
+
+function addDomainAlias() {
+    const domainAlias = document.getElementById('new-domain-alias').value;
+
+    if (!domainAlias) {
+        alert('Please enter a domain alias.');
+        return;
+    }
+
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+
+    logResult(`➕ Adding domain alias: ${domainAlias}...`);
+
+    fetch('/api/add-domain-alias', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ domain_alias: domainAlias })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ Domain alias ${domainAlias} added successfully.`);
+            getDomainInfo(); // Refresh the domain list
+        } else {
+            logResult(`❌ Failed to add domain alias ${domainAlias}: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error}`);
+    });
+}
+
+function deleteDomain(domainName) {
+    if (!confirm(`Are you sure you want to delete the domain: ${domainName}?`)) {
+        return;
+    }
+
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+
+    logResult(`❌ Deleting domain: ${domainName}...`);
+
+    fetch('/api/delete-domain', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ domain_name: domainName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ Domain ${domainName} deleted successfully.`);
+            getDomainInfo(); // Refresh the domain list
+        } else {
+            logResult(`❌ Failed to delete domain ${domainName}: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error}`);
+    });
+}
+
+
+// Tab 3 Functions - Bulk Domain Change (Desktop App Style)
+
 
 function downloadAllUsersCSV() {
-    alert('Download all users CSV functionality will be implemented');
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    logBulkDomain('📥 Starting download of all users to CSV...');
+    
+    fetch('/api/download-users-csv', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.csv_data) {
+            // Create download
+            const blob = new Blob([data.csv_data], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `all_users_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            // Update path display
+            document.getElementById('csv-file-path').value = a.download;
+            
+            logBulkDomain(`✅ Downloaded ${data.user_count} users to CSV: ${a.download}`);
+        } else {
+            logBulkDomain(`❌ Download failed: ${data.error}`);
+            alert('Download failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        alert('Network error: ' + error);
+    });
 }
 
 function retrieveAvailableDomains() {
-    alert('Retrieve available domains functionality will be implemented');
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    logBulkDomain('🔍 Retrieving available domains...');
+    
+    // Show loading state
+    const domainList = document.getElementById('available-domains');
+    domainList.innerHTML = '<div class="domain-loading">Retrieving domains from Google API...</div>';
+    
+    fetch('/api/retrieve-domains', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.domains) {
+            displayAvailableDomains(data.domains);
+            logBulkDomain(`✅ Retrieved ${data.domains.length} available domains`);
+        } else {
+            logBulkDomain(`❌ Failed to retrieve domains: ${data.error}`);
+            domainList.innerHTML = `<div class="domain-error">❌ Failed to retrieve domains: ${data.error}</div>`;
+            alert('Failed to retrieve domains: ' + data.error);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        domainList.innerHTML = `<div class="domain-error">❌ Network error: ${error}</div>`;
+        alert('Network error: ' + error);
+    });
 }
 
 function getDomainUsageStats() {
-    alert('Get domain usage stats functionality will be implemented');
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    logBulkDomain('📊 Retrieving domain usage statistics for current account...');
+    
+    // Show loading state
+    const domainList = document.getElementById('available-domains');
+    domainList.innerHTML = '<div class="domain-loading">Retrieving domain usage statistics for current account...</div>';
+    
+    // First get fresh domain data from the authenticated account
+    fetch('/api/retrieve-domains', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.domains) {
+            // Display the domain data directly from the authenticated account
+            displayDomainUsageStats({
+                total_domains: data.domains.length,
+                used_domains: data.domains.filter(d => d.is_used).length,
+                available_domains: data.domains.filter(d => !d.is_used).length,
+                total_users: data.domains.reduce((sum, d) => sum + (d.user_count || 0), 0),
+                domains: data.domains.map(d => ({
+                    domain_name: d.domain_name,
+                    user_count: d.user_count || 0,
+                    is_verified: d.verified || false,
+                    is_used: d.is_used || false,
+                    last_updated: new Date().toISOString()
+                }))
+            });
+            logBulkDomain(`✅ Retrieved domain usage statistics for current account`);
+        } else {
+            logBulkDomain(`❌ Failed to retrieve domain stats: ${data.error}`);
+            domainList.innerHTML = `<div class="domain-error">❌ Failed to retrieve domain stats: ${data.error}</div>`;
+            alert('Failed to retrieve domain stats: ' + data.error);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        domainList.innerHTML = `<div class="domain-error">❌ Network error: ${error}</div>`;
+        alert('Network error: ' + error);
+    });
 }
+
+
 
 function clearOldDomainData() {
-    alert('Clear old domain data functionality will be implemented');
-}
-
-function applySelectedDomainToCSV() {
-    alert('Apply selected domain to CSV functionality will be implemented');
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    if (!confirm('⚠️ This will clear domain data older than 30 days. Continue?')) {
+        return;
+    }
+    
+    logBulkDomain('🗑️ Clearing old domain data...');
+    
+    fetch('/api/clear-old-domain-data', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logBulkDomain(`✅ ${data.message}`);
+            alert(`✅ ${data.message}`);
+            // Refresh the display
+            setTimeout(() => {
+                getDomainUsageStats();
+            }, 500);
+        } else {
+            logBulkDomain(`❌ Failed to clear old data: ${data.error}`);
+            alert('Failed to clear old data: ' + data.error);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        alert('Network error: ' + error);
+    });
 }
 
 function debugDomainUsers() {
-    alert('Debug domain users functionality will be implemented');
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    const currentDomain = document.getElementById('current-domain-suffix').value.trim();
+    if (!currentDomain) {
+        alert('Please enter a domain in the "Current Domain Suffix" field first');
+        return;
+    }
+    
+    logBulkDomain(`🐛 Debugging users for domain: ${currentDomain}`);
+    
+    fetch('/api/debug-domain-users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({domain: currentDomain})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logBulkDomain(`🐛 Debug Results for ${data.domain}:`);
+            logBulkDomain(`   Total users found: ${data.total_users_found}`);
+            logBulkDomain(`   Users with domain ${data.domain}: ${data.domain_users_found}`);
+            
+            if (data.domain_users && data.domain_users.length > 0) {
+                logBulkDomain(`   Domain users:`);
+                data.domain_users.forEach(user => {
+                    logBulkDomain(`     - ${user.email} (Admin: ${user.isAdmin}, Suspended: ${user.suspended})`);
+                });
+            } else {
+                logBulkDomain(`   ❌ No users found with domain ${data.domain}`);
+            }
+        } else {
+            logBulkDomain(`❌ Debug failed: ${data.error}`);
+            alert('Debug failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        alert('Network error: ' + error);
+    });
+}
+
+function displayDomainUsageStats(stats) {
+    const domainList = document.getElementById('available-domains');
+    
+    let html = `
+        <div class="stats-summary" style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 15px 0; color: #333;">📊 Domain Usage Summary</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                <div style="text-align: center; padding: 10px; background: white; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #2196F3;">${stats.total_domains}</div>
+                    <div style="font-size: 12px; color: #666;">Total Domains</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: white; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #4CAF50;">${stats.used_domains}</div>
+                    <div style="font-size: 12px; color: #666;">Used Domains</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: white; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #FF9800;">${stats.available_domains}</div>
+                    <div style="font-size: 12px; color: #666;">Available Domains</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: white; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #9C27B0;">${stats.total_users}</div>
+                    <div style="font-size: 12px; color: #666;">Total Users</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    if (stats.domains.length === 0) {
+        html += '<p class="placeholder-text">No domains found in database</p>';
+    } else {
+        html += '<h4 style="margin: 20px 0 10px 0; color: #333;">Domain Details:</h4>';
+        html += stats.domains.map(domain => {
+            const isUsed = domain.is_used;
+            const domainClass = isUsed ? 'domain-item used-domain' : 'domain-item';
+            const statusText = isUsed ? 'USED' : 'AVAILABLE';
+            const statusColor = isUsed ? 'red' : 'green';
+            
+            return `<div class="${domainClass}">
+                <strong style="color: ${isUsed ? 'red' : 'black'};">${domain.domain_name}</strong>
+                <span style="float: right; color: #666;">${domain.user_count} users</span>
+                <div style="margin-top: 5px;">
+                    ${domain.is_verified ? '<span style="color: green;">✅ Verified</span>' : '<span style="color: red;">❌ Not Verified</span>'}
+                    <span style="color: ${statusColor}; margin-left: 10px; font-weight: bold;">${statusText}</span>
+                </div>
+                ${domain.last_updated ? `<div style="font-size: 11px; color: #999; margin-top: 3px;">Last updated: ${new Date(domain.last_updated).toLocaleString()}</div>` : ''}
+            </div>`;
+        }).join('');
+    }
+    
+    domainList.innerHTML = html;
+}
+
+function displayAvailableDomains(domains) {
+    const domainList = document.getElementById('available-domains');
+    
+    if (domains.length === 0) {
+        domainList.innerHTML = '<p class="placeholder-text">No domains found</p>';
+        return;
+    }
+    
+    // Add summary at the top
+    const totalDomains = domains.length;
+    const usedDomains = domains.filter(d => d.is_used).length;
+    const availableDomains = domains.filter(d => !d.is_used).length;
+    const totalUsers = domains.reduce((sum, d) => sum + d.user_count, 0);
+    
+    let html = `
+        <div class="stats-summary">
+            <h3>📊 Domain Summary</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;">
+                <div style="text-align: center; padding: 8px; background: white; border-radius: 5px;">
+                    <div style="font-size: 20px; font-weight: bold; color: #2196F3;">${totalDomains}</div>
+                    <div style="font-size: 11px; color: #666;">Total</div>
+                </div>
+                <div style="text-align: center; padding: 8px; background: white; border-radius: 5px;">
+                    <div style="font-size: 20px; font-weight: bold; color: #4CAF50;">${availableDomains}</div>
+                    <div style="font-size: 11px; color: #666;">Available</div>
+                </div>
+                <div style="text-align: center; padding: 8px; background: white; border-radius: 5px;">
+                    <div style="font-size: 20px; font-weight: bold; color: #FF9800;">${usedDomains}</div>
+                    <div style="font-size: 11px; color: #666;">Used</div>
+                </div>
+                <div style="text-align: center; padding: 8px; background: white; border-radius: 5px;">
+                    <div style="font-size: 20px; font-weight: bold; color: #9C27B0;">${totalUsers}</div>
+                    <div style="font-size: 11px; color: #666;">Users</div>
+                </div>
+            </div>
+        </div>
+        <h4 style="margin: 15px 0 10px 0; color: #333;">Domain Details:</h4>
+    `;
+    
+    html += domains.map(domain => {
+        const isUsed = domain.is_used || false;
+        const domainClass = isUsed ? 'domain-item used-domain' : 'domain-item';
+        const clickHandler = isUsed ? '' : `onclick="selectDomain('${domain.domain_name}')"`;
+        const statusText = isUsed ? 'USED' : 'AVAILABLE';
+        const statusColor = isUsed ? 'red' : 'green';
+        
+        return `<div class="${domainClass}" ${clickHandler}>
+            <strong style="color: ${isUsed ? 'red' : 'black'};">${domain.domain_name}</strong>
+            <span style="float: right; color: #666; font-weight: bold;">${domain.user_count} users</span>
+            <div style="margin-top: 5px;">
+                ${domain.verified ? '<span style="color: green;">✅ Verified</span>' : '<span style="color: red;">❌ Not Verified</span>'}
+                <span style="color: ${statusColor}; margin-left: 10px; font-weight: bold;">${statusText}</span>
+            </div>
+        </div>`;
+    }).join('');
+    
+    domainList.innerHTML = html;
+}
+
+function selectDomain(domainName) {
+    // Check if domain is used
+    const domainElement = event.target.closest('.domain-item');
+    if (domainElement.classList.contains('used-domain')) {
+        alert('❌ This domain has already been used and cannot be selected again.');
+        return;
+    }
+    
+    // Remove previous selection
+    document.querySelectorAll('.domain-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    // Select clicked domain
+    domainElement.classList.add('selected');
+    selectedDomain = domainName;
+    
+    logBulkDomain(`📌 Selected domain: ${domainName}`);
+}
+
+function applySelectedDomainToCSV() {
+    if (!selectedDomain) {
+        alert('Please select a domain first');
+        return;
+    }
+    
+    const csvPath = document.getElementById('csv-file-path').value;
+    if (!csvPath) {
+        alert('Please download users CSV first');
+        return;
+    }
+    
+    logBulkDomain(`✅ Applying domain ${selectedDomain} to CSV...`);
+    
+    fetch('/api/apply-domain-to-csv', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            selected_domain: selectedDomain,
+            csv_path: csvPath
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            fetch('/api/mark-domain-used', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({domain: selectedDomain})
+            });
+            // Update CSV path to modified version
+            document.getElementById('csv-file-path').value = data.modified_csv_path;
+            logBulkDomain(`✅ Domain applied successfully. Modified CSV: ${data.modified_csv_path}`);
+            logBulkDomain(`📊 ${data.modified_count} users will be updated to ${selectedDomain}`);
+        } else {
+            logBulkDomain(`❌ Failed to apply domain: ${data.error}`);
+            alert('Failed to apply domain: ' + data.error);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        alert('Network error: ' + error);
+    });
 }
 
 function browseCSVFile() {
-    alert('Browse CSV file functionality will be implemented');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    input.onchange = function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            document.getElementById('csv-file-path').value = file.name;
+            logBulkDomain(`📁 Selected CSV file: ${file.name}`);
+        }
+    };
+    input.click();
 }
 
 function processDomainChangesFromCSV() {
-    alert('Process domain changes from CSV functionality will be implemented');
+    const csvPath = document.getElementById('csv-file-path').value;
+    
+    if (!csvPath) {
+        alert('Please select or specify a CSV file first');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    if (!confirm('⚠️ Process domain changes from CSV?\n\nThis will update user domains as specified in the CSV file.\n\nThis action cannot be easily undone!')) {
+        return;
+    }
+    
+    logBulkDomain(`⚙️ Processing domain changes from CSV: ${csvPath}`);
+    
+    fetch('/api/process-csv-domain-changes', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            csv_path: csvPath
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logBulkDomain(`✅ CSV processing completed!`);
+            logBulkDomain(`📊 Results: ${data.successful} successful, ${data.failed} failed, ${data.skipped} skipped`);
+            
+            if (data.results) {
+                data.results.forEach(result => {
+                    if (result.success) {
+                        logBulkDomain(`✅ Updated: ${result.old_email} → ${result.new_email}`);
+                    } else {
+                        logBulkDomain(`❌ Failed: ${result.email} - ${result.error}`);
+                    }
+                });
+            }
+        } else {
+            logBulkDomain(`❌ CSV processing failed: ${data.error}`);
+            alert('CSV processing failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        alert('Network error: ' + error);
+    });
 }
 
 function changeDomainForAllUsers() {
-    alert('Change domain for all users functionality will be implemented');
+    const currentDomain = document.getElementById('current-domain-suffix').value.trim();
+    const newDomain = document.getElementById('new-domain-suffix').value.trim();
+    
+    if (!currentDomain || !newDomain) {
+        alert('Please enter both current and new domain suffixes');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    if (!confirm(`⚠️ Change domain for ALL users?\n\n${currentDomain} → ${newDomain}\n\nThis will affect ALL non-admin users with the current domain.\nThis action cannot be easily undone!\n\nContinue?`)) {
+        return;
+    }
+    
+    logBulkDomain(`🔄 Starting bulk domain change: ${currentDomain} → ${newDomain}`);
+    
+    fetch('/api/change-domain-all-users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            current_domain: currentDomain,
+            new_domain: newDomain,
+            exclude_admin: true
+        })
+    })
+    .then(response => {
+        // Check if response is actually JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            if (data.successful > 0) {
+                // Only mark domain as used if there were successful changes
+                fetch('/api/mark-domain-used', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({domain: newDomain})
+                });
+            }
+            logBulkDomain(`✅ Bulk domain change completed!`);
+            logBulkDomain(`📊 Results: ${data.successful} successful, ${data.failed} failed, ${data.skipped} skipped (admin users)`);
+            
+            if (data.results) {
+                data.results.forEach(result => {
+                    if (result.success) {
+                        logBulkDomain(`✅ Updated: ${result.old_email} → ${result.new_email}`);
+                    } else if (result.skipped) {
+                        logBulkDomain(`⏭️ Skipped: ${result.email} (admin user)`);
+                    } else {
+                        logBulkDomain(`❌ Failed: ${result.email} - ${result.error}`);
+                    }
+                });
+            }
+        } else {
+            logBulkDomain(`❌ Bulk domain change failed: ${data.error}`);
+            alert('Bulk domain change failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error.message}`);
+        console.error('Full error:', error);
+        alert('Network error: ' + error.message);
+    });
+}
+
+function logBulkDomain(message) {
+    const log = document.getElementById('bulk-domain-results');
+    const timestamp = new Date().toLocaleTimeString();
+    
+    if (log.querySelector('.placeholder-text')) {
+        log.innerHTML = '';
+    }
+    
+    log.textContent += `[${timestamp}] ${message}\n`;
+    log.scrollTop = log.scrollHeight;
 }
 
 function clearBulkDomainLog() {
-    const log = document.getElementById('bulk-domain-log');
-    if (log) log.textContent = '';
+    document.getElementById('bulk-domain-results').innerHTML = '<p class="placeholder-text">Processing results will appear here...</p>';
 }
 
+// Tab 4 Functions - SMTP & CSV
+
 function testSMTPCredentials() {
-    alert('Test SMTP credentials functionality will be implemented');
+    const credentials = document.getElementById('smtp-credentials').value.trim();
+    const recipient = document.getElementById('smtp-recipient').value.trim();
+    const server = document.getElementById('smtp-server').value.trim();
+    const port = document.getElementById('smtp-port').value;
+    
+    if (!credentials) {
+        alert('Please enter SMTP credentials');
+        return;
+    }
+    
+    if (!recipient || !recipient.includes('@')) {
+        alert('Please enter a valid recipient email');
+        return;
+    }
+    
+    smtpTesting = true;
+    clearSMTPResults();
+    logSMTPResult('🚀 Starting SMTP credential testing...');
+    logSMTPResult(`📧 Recipient: ${recipient}`);
+    logSMTPResult(`🖥️ Server: ${server}:${port}`);
+    logSMTPResult('─'.repeat(50));
+    
+    fetch('/api/test-smtp', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            credentials: credentials,
+            recipient_email: recipient,
+            smtp_server: server,
+            smtp_port: parseInt(port)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        smtpTesting = false;
+        
+        if (data.success && data.results) {
+            logSMTPResult(`📊 Testing completed for ${data.results.length} credentials:`);
+            logSMTPResult('─'.repeat(50));
+            
+            let successCount = 0;
+            let failCount = 0;
+            
+            data.results.forEach(result => {
+                if (result.status === 'success') {
+                    logSMTPResult(`✅ ${result.email}: ${result.message || 'Success'}`);
+                    successCount++;
+                } else {
+                    logSMTPResult(`❌ ${result.email}: ${result.error}`);
+                    failCount++;
+                }
+            });
+            
+            logSMTPResult('─'.repeat(50));
+            logSMTPResult(`📈 Summary: ${successCount} successful, ${failCount} failed`);
+        } else {
+            logSMTPResult(`❌ SMTP testing failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        smtpTesting = false;
+        logSMTPResult(`❌ Network error: ${error}`);
+    });
 }
 
 function interruptSMTPTesting() {
-    alert('Interrupt SMTP testing functionality will be implemented');
+    if (smtpTesting) {
+        smtpTesting = false;
+        logSMTPResult('⏹️ SMTP testing interrupted by user');
+        alert('SMTP testing interrupted');
+    } else {
+        alert('No SMTP testing in progress');
+    }
 }
 
 function clearSMTPResults() {
-    const results = document.getElementById('smtp-results');
-    if (results) results.textContent = '';
+    document.getElementById('smtp-results-log').textContent = '';
+}
+
+function logSMTPResult(message) {
+    const log = document.getElementById('smtp-results-log');
+    const timestamp = new Date().toLocaleTimeString();
+    log.textContent += `[${timestamp}] ${message}\n`;
+    log.scrollTop = log.scrollHeight;
 }
 
 function generateUserCSV() {
-    alert('Generate user CSV functionality will be implemented');
+    const numUsers = document.getElementById('csv-num-users').value;
+    const domain = document.getElementById('csv-domain').value.trim();
+    const password = document.getElementById('csv-password').value.trim();
+    
+    if (!numUsers || numUsers <= 0) {
+        alert('Please enter a valid number of users');
+        return;
+    }
+    
+    if (!domain || !domain.includes('.')) {
+        alert('Please enter a valid domain');
+        return;
+    }
+    
+    if (!password) {
+        alert('Please enter a default password');
+        return;
+    }
+    
+    logResult(`📝 Generating CSV with ${numUsers} users for ${domain}...`);
+    
+    fetch('/api/generate-csv', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            num_users: parseInt(numUsers),
+            domain: domain,
+            password: password
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.csv_data) {
+            // Create download link
+            const blob = new Blob([data.csv_data], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const filename = `users_${domain}_${numUsers}.csv`;
+            
+            document.getElementById('csv-download-area').innerHTML = `
+                <a href="${url}" download="${filename}" class="download-btn">
+                    📥 Download ${filename} (${numUsers} users)
+                </a>
+            `;
+            
+            logResult(`✅ CSV file generated successfully: ${filename}`);
+        } else {
+            logResult(`❌ CSV generation failed: ${data.error}`);
+            alert('Failed to generate CSV: ' + data.error);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error}`);
+        alert('Network error: ' + error);
+    });
 }
+
 
 function previewCSV() {
-    alert('Preview CSV functionality will be implemented');
-}
-
-function generateEmailTemplate() {
-    alert('Generate email template functionality will be implemented');
-}
-
-function testEmailTemplate() {
-    alert('Test email template functionality will be implemented');
-}
-
-// Initialize when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Dashboard loaded, initializing...');
+    const numUsers = Math.min(document.getElementById('csv-num-users').value || 5, 10); // Preview max 10
+    const domain = document.getElementById('csv-domain').value.trim() || 'example.com';
+    const password = document.getElementById('csv-password').value.trim() || 'DefaultPass123';
     
-    // Test if basic JavaScript is working
-    console.log('Testing basic JavaScript functionality...');
-    testFunction();
-    
-    // Add click event listeners for debugging
-    console.log('Adding event listeners...');
-    
-    // Test if buttons are clickable
-    document.addEventListener('click', function(e) {
-        console.log('Click detected on:', e.target.tagName, e.target.className, e.target.id);
-    });
-    
-    // Test if functions are defined
-    console.log('Function availability check:');
-    console.log('showTab function:', typeof showTab);
-    console.log('authenticateAccount function:', typeof authenticateAccount);
-    console.log('openAddAccountModal function:', typeof openAddAccountModal);
-});
-
-// Close modals when clicking outside
-window.onclick = function(event) {
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        if (event.target === modal) {
-            modal.style.display = 'none';
+    fetch('/api/preview-csv', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            num_users: parseInt(numUsers),
+            domain: domain,
+            password: password
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.preview) {
+            document.getElementById('csv-preview-area').innerHTML = `
+                <h4>📋 CSV Preview (first ${numUsers} rows):</h4>
+                <pre>${data.preview}</pre>
+            `;
+        } else {
+            alert('Failed to preview CSV: ' + data.error);
         }
+    })
+    .catch(error => {
+        alert('Network error: ' + error);
     });
 }
+
+
+
+/*
+
+// COMMENTED OUT - Email Template Functions
+function generateEmailTemplate() {
+    const subject = document.getElementById('email-subject').value.trim();
+    const body = document.getElementById('email-body').value.trim();
+    
+    if (!subject || !body) {
+        alert('Please enter both subject and body');
+        return;
+    }
+    
+    // Sample data for template preview
+    const sampleData = {
+        email: 'john.doe@example.com',
+        password: 'TempPass123',
+        first_name: 'John',
+        last_name: 'Doe'
+    };
+    
+    let previewSubject = subject;
+    let previewBody = body;
+    
+    // Replace placeholders
+    Object.keys(sampleData).forEach(key => {
+        const placeholder = `{${key}}`;
+        previewSubject = previewSubject.replace(new RegExp(placeholder, 'g'), sampleData[key]);
+        previewBody = previewBody.replace(new RegExp(placeholder, 'g'), sampleData[key]);
+    });
+    
+    document.getElementById('email-template-preview').innerHTML = `
+        <h4>📧 Email Template Preview:</h4>
+        <div style="border: 1px solid #ddd; padding: 1rem; background: white;">
+            <div><strong>Subject:</strong> ${previewSubject}</div>
+            <hr>
+            <div style="white-space: pre-wrap;">${previewBody}</div>
+        </div>
+        <p><small>📝 Sample data used: ${JSON.stringify(sampleData, null, 2)}</small></p>
+    `;
+}
+
+// COMMENTED OUT - Email Template Functions
+function testEmailTemplate() {
+    alert('Email template testing feature coming soon!');
+}
+*/
+
 </script>
 {% endblock %}

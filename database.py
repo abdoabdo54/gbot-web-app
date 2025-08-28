@@ -19,8 +19,6 @@ class UsedDomain(db.Model):
     is_verified = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
-    last_domain_change = db.Column(db.DateTime, nullable=True)  # Track when domain was last changed
-    changed_by_account = db.Column(db.String(255), nullable=True)  # Track which account made the change
 
 class GoogleAccount(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -46,14 +44,3 @@ class GoogleToken(db.Model):
     token_uri = db.Column(db.Text, nullable=False)
     scopes = db.relationship('Scope', secondary=google_token_scopes, lazy='subquery',
                              backref=db.backref('google_tokens', lazy=True))
-
-class ServerSettings(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    server_host = db.Column(db.String(255), nullable=False)
-    server_port = db.Column(db.Integer, default=22)
-    server_username = db.Column(db.String(255), nullable=False)
-    server_password = db.Column(db.Text, nullable=True)  # Encrypted password
-    server_key_path = db.Column(db.String(500), nullable=True)  # Path to SSH key file
-    json_files_path = db.Column(db.String(500), nullable=False, default='/opt/gbot-web-app/accounts/')
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
-    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
