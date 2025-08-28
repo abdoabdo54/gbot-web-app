@@ -52,7 +52,7 @@
             
             <div id="account-list-area" class="account-list">
                 {% for account in accounts %}
-                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name }}', {{ account.id }})" data-account-id="{{ account.id }}">
+                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name|replace("'", "\\'")|replace('"', '\\"') }}', {{ account.id }})" data-account-id="{{ account.id }}">
                     {{ account.account_name }}
                 </div>
                 {% endfor %}
@@ -708,6 +708,9 @@ function testFunction() {
     console.log('testFunction() called - JavaScript is working!');
     alert('JavaScript is working!');
 }
+
+// Simple test to check if basic JavaScript works
+console.log('Dashboard script loaded');
 
 // Load on page load
 document.addEventListener('DOMContentLoaded', function() {
