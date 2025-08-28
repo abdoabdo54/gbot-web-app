@@ -29,6 +29,7 @@
     </div>
     
     <div class="form-row">
+        <button onclick="testFunction()" style="background: red; color: white;">🧪 TEST JS</button>
         <button onclick="openAddAccountModal()">➕ Add Manually</button>
         <!-- <button onclick="refreshAccounts()">🔄 Refresh List</button> -->
         <button onclick="addFromServerJSON()">📁 Add from Server JSON</button>
@@ -702,12 +703,38 @@ async function initializeTokenStatus() {
 // Auto-refresh every 8 hours (but user can manually refresh anytime)
 setInterval(checkTokenStatusFromDatabase, 8 * 60 * 60 * 1000);
 
+// Test function to verify JavaScript is working
+function testFunction() {
+    console.log('testFunction() called - JavaScript is working!');
+    alert('JavaScript is working!');
+}
+
 // Load on page load
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard loaded, initializing...');
+    
+    // Test if basic JavaScript is working
+    console.log('Testing basic JavaScript functionality...');
+    testFunction();
+    
     setTimeout(initializeTokenStatus, 1000);
     
     // Check if there's a currently authenticated account in session
     checkCurrentAuthenticationStatus();
+    
+    // Add click event listeners for debugging
+    console.log('Adding event listeners...');
+    
+    // Test if buttons are clickable
+    document.addEventListener('click', function(e) {
+        console.log('Click detected on:', e.target.tagName, e.target.className, e.target.id);
+    });
+    
+    // Test if functions are defined
+    console.log('Function availability check:');
+    console.log('showTab function:', typeof showTab);
+    console.log('authenticateAccount function:', typeof authenticateAccount);
+    console.log('openAddAccountModal function:', typeof openAddAccountModal);
 });
 
 // Check current authentication status from session
@@ -742,6 +769,8 @@ async function checkCurrentAuthenticationStatus() {
 
 // Tab switching function
 function showTab(tabId) {
+    console.log('showTab() called with tabId:', tabId);
+    
     // Hide all tabs
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
@@ -753,10 +782,18 @@ function showTab(tabId) {
     });
     
     // Show selected tab
-    document.getElementById(tabId).classList.add('active');
+    const targetTab = document.getElementById(tabId);
+    if (targetTab) {
+        targetTab.classList.add('active');
+        console.log('Tab activated:', tabId);
+    } else {
+        console.error('Tab not found:', tabId);
+    }
     
     // Mark button as active
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
     
     // Auto-refresh domain data when domains tab is shown
     if (tabId === 'tab3' && isAuthenticated) {
@@ -885,8 +922,11 @@ function updateAuthStatus(account, authenticated, message) {
 }
 
 function authenticateAccount() {
+    console.log('authenticateAccount() called');
     const select = document.getElementById('account-select');
     const accountName = select.value;
+    
+    console.log('Selected account:', accountName);
     
     if (!accountName) {
         alert('Please select an account first');
