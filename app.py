@@ -74,7 +74,7 @@ def before_request():
     if request.endpoint == 'emergency_access':
         app.logger.debug("Allowing emergency_access route")
         return
-        
+
     if request.endpoint in ['static', 'login']:
         app.logger.debug("Allowing static/login route")
         return
@@ -828,10 +828,10 @@ def api_complete_oauth():
             "installed": {
                 "client_id": creds_data['client_id'],
                 "project_id": "gbot-project",
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token",
-                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                "client_secret": creds_data['client_secret'],
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth", 
+                "token_uri": "https://oauth2.googleapis.com/token", 
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs", 
+                "client_secret": creds_data['client_secret'], 
                 "redirect_uris": ["https://ecochain.site/oauth-callback"]
             }
         }
@@ -1982,6 +1982,399 @@ def api_test_server_connection():
             
     except Exception as e:
         app.logger.error(f"Test server connection error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/save-token-status-cache', methods=['POST'])
+@login_required
+def api_save_token_status_cache():
+    """Save token status cache"""
+    try:
+        if session.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'})
+        
+        data = request.get_json()
+        # Store in session for now (could be moved to database later)
+        session['token_status_cache'] = data.get('status_data', {})
+        session['token_status_timestamp'] = datetime.now().isoformat()
+        
+        return jsonify({'success': True, 'message': 'Token status cache saved'})
+        
+    except Exception as e:
+        app.logger.error(f"Save token status cache error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/load-token-status-cache', methods=['GET'])
+@login_required
+def api_load_token_status_cache():
+    """Load token status cache"""
+    try:
+        if session.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'})
+        
+        status_data = session.get('token_status_cache', {})
+        timestamp = session.get('token_status_timestamp', '')
+        
+        return jsonify({
+            'success': True, 
+            'status_data': status_data,
+            'timestamp': timestamp
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Load token status cache error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/preview-csv', methods=['POST'])
+@login_required
+def api_preview_csv():
+    """Preview CSV generation"""
+    try:
+        data = request.get_json()
+        num_users = data.get('num_users', 5)
+        domain = data.get('domain', 'example.com')
+        password = data.get('password', 'DefaultPass123')
+        
+        # Generate sample CSV data
+        fake = Faker()
+        csv_lines = ['First Name,Last Name,Email,Password']
+        
+        for i in range(min(num_users, 10)):  # Max 10 for preview
+            first_name = fake.first_name()
+            last_name = fake.last_name()
+            email = f"{first_name.lower()}.{last_name.lower()}@{domain}"
+            csv_lines.append(f"{first_name},{last_name},{email},{password}")
+        
+        preview = '\n'.join(csv_lines)
+        
+        return jsonify({
+            'success': True,
+            'preview': preview
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Preview CSV error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/generate-csv', methods=['POST'])
+@login_required
+def api_generate_csv():
+    """Generate CSV file"""
+    try:
+        data = request.get_json()
+        num_users = data.get('num_users', 10)
+        domain = data.get('domain', 'example.com')
+        password = data.get('password', 'DefaultPass123')
+        
+        # Generate CSV data
+        fake = Faker()
+        csv_lines = ['First Name,Last Name,Email,Password']
+        
+        for i in range(num_users):
+            first_name = fake.first_name()
+            last_name = fake.last_name()
+            email = f"{first_name.lower()}.{last_name.lower()}@{domain}"
+            csv_lines.append(f"{first_name},{last_name},{email},{password}")
+        
+        csv_content = '\n'.join(csv_lines)
+        
+        # Create temporary file
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"users_{domain}_{timestamp}.csv"
+        
+        # Save to temporary file
+        temp_dir = '/tmp'
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+        
+        file_path = os.path.join(temp_dir, filename)
+        with open(file_path, 'w', newline='') as f:
+            f.write(csv_content)
+        
+        return jsonify({
+            'success': True,
+            'filename': filename,
+            'download_url': f'/download/{filename}',
+            'num_users': num_users
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Generate CSV error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/download-users-csv', methods=['POST'])
+@login_required
+def api_download_users_csv():
+    """Download users CSV"""
+    try:
+        data = request.get_json()
+        num_users = data.get('num_users', 10)
+        domain = data.get('domain', 'example.com')
+        password = data.get('password', 'DefaultPass123')
+        
+        # Generate CSV data
+        fake = Faker()
+        csv_lines = ['First Name,Last Name,Email,Password']
+        
+        for i in range(num_users):
+            first_name = fake.first_name()
+            last_name = fake.last_name()
+            email = f"{first_name.lower()}.{last_name.lower()}@{domain}"
+            csv_lines.append(f"{first_name},{last_name},{email},{password}")
+        
+        csv_content = '\n'.join(csv_lines)
+        
+        # Create response with CSV content
+        output = io.StringIO()
+        output.write(csv_content)
+        output.seek(0)
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"users_{domain}_{timestamp}.csv"
+        
+        return jsonify({
+            'success': True,
+            'filename': filename,
+            'content': csv_content,
+            'num_users': num_users
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Download users CSV error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/create-users-from-csv', methods=['POST'])
+@login_required
+def api_create_users_from_csv():
+    """Create users from CSV"""
+    try:
+        data = request.get_json()
+        csv_content = data.get('csv_content', '')
+        
+        if not csv_content:
+            return jsonify({'success': False, 'error': 'CSV content is required'})
+        
+        # Parse CSV content
+        lines = csv_content.strip().split('\n')
+        if len(lines) < 2:
+            return jsonify({'success': False, 'error': 'Invalid CSV format'})
+        
+        # Skip header
+        users = []
+        for line in lines[1:]:
+            if line.strip():
+                parts = line.split(',')
+                if len(parts) >= 4:
+                    users.append({
+                        'first_name': parts[0].strip(),
+                        'last_name': parts[1].strip(),
+                        'email': parts[2].strip(),
+                        'password': parts[3].strip()
+                    })
+        
+        return jsonify({
+            'success': True,
+            'message': f'Parsed {len(users)} users from CSV',
+            'users': users
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Create users from CSV error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/apply-domain-to-csv', methods=['POST'])
+@login_required
+def api_apply_domain_to_csv():
+    """Apply domain to CSV"""
+    try:
+        data = request.get_json()
+        csv_content = data.get('csv_content', '')
+        new_domain = data.get('new_domain', '')
+        
+        if not csv_content or not new_domain:
+            return jsonify({'success': False, 'error': 'CSV content and new domain are required'})
+        
+        # Parse and update CSV content
+        lines = csv_content.strip().split('\n')
+        if len(lines) < 2:
+            return jsonify({'success': False, 'error': 'Invalid CSV format'})
+        
+        # Keep header
+        updated_lines = [lines[0]]
+        
+        # Update user lines
+        for line in lines[1:]:
+            if line.strip():
+                parts = line.split(',')
+                if len(parts) >= 3:
+                    # Update email domain
+                    email_parts = parts[2].split('@')
+                    if len(email_parts) == 2:
+                        new_email = f"{email_parts[0]}@{new_domain}"
+                        parts[2] = new_email
+                        updated_lines.append(','.join(parts))
+                    else:
+                        updated_lines.append(line)
+                else:
+                    updated_lines.append(line)
+        
+        updated_csv = '\n'.join(updated_lines)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Domain updated to {new_domain}',
+            'updated_csv': updated_csv
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Apply domain to CSV error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/process-csv-domain-changes', methods=['POST'])
+@login_required
+def api_process_csv_domain_changes():
+    """Process CSV domain changes"""
+    try:
+        data = request.get_json()
+        csv_content = data.get('csv_content', '')
+        new_domain = data.get('new_domain', '')
+        
+        if not csv_content or not new_domain:
+            return jsonify({'success': False, 'error': 'CSV content and new domain are required'})
+        
+        # Parse CSV content
+        lines = csv_content.strip().split('\n')
+        if len(lines) < 2:
+            return jsonify({'success': False, 'error': 'Invalid CSV format'})
+        
+        # Skip header
+        users = []
+        for line in lines[1:]:
+            if line.strip():
+                parts = line.split(',')
+                if len(parts) >= 3:
+                    users.append({
+                        'email': parts[2].strip(),
+                        'new_domain': new_domain
+                    })
+        
+        return jsonify({
+            'success': True,
+            'message': f'Processed {len(users)} users for domain change',
+            'users': users
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Process CSV domain changes error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/test-smtp', methods=['POST'])
+@login_required
+def api_test_smtp():
+    """Test SMTP connection"""
+    try:
+        data = request.get_json()
+        smtp_server = data.get('smtp_server', '')
+        smtp_port = data.get('smtp_port', 587)
+        smtp_username = data.get('smtp_username', '')
+        smtp_password = data.get('smtp_password', '')
+        test_email = data.get('test_email', '')
+        
+        if not all([smtp_server, smtp_username, smtp_password, test_email]):
+            return jsonify({'success': False, 'error': 'All SMTP fields are required'})
+        
+        # Test SMTP connection
+        try:
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            server.starttls()
+            server.login(smtp_username, smtp_password)
+            
+            # Send test email
+            msg = MIMEMultipart()
+            msg['From'] = smtp_username
+            msg['To'] = test_email
+            msg['Subject'] = 'SMTP Test - GBot Web Application'
+            
+            body = 'This is a test email from GBot Web Application. SMTP configuration is working correctly.'
+            msg.attach(MIMEText(body, 'plain'))
+            
+            server.send_message(msg)
+            server.quit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'SMTP test successful! Test email sent to {test_email}'
+            })
+            
+        except Exception as smtp_error:
+            return jsonify({'success': False, 'error': f'SMTP test failed: {str(smtp_error)}'})
+        
+    except Exception as e:
+        app.logger.error(f"Test SMTP error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/debug-sftp-files', methods=['POST'])
+@login_required
+def api_debug_sftp_files():
+    """Debug SFTP files"""
+    try:
+        if session.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'})
+        
+        # Get server settings
+        server_settings = ServerSettings.query.first()
+        if not server_settings:
+            return jsonify({'success': False, 'error': 'No server settings found'})
+        
+        # Connect to server and list files
+        try:
+            import paramiko
+            
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            
+            # Connect using saved settings
+            if server_settings.server_password:
+                ssh.connect(
+                    hostname=server_settings.server_host,
+                    port=server_settings.server_port or 22,
+                    username=server_settings.server_username,
+                    password=server_settings.server_password,
+                    timeout=10
+                )
+            elif server_settings.server_key_path:
+                ssh.connect(
+                    hostname=server_settings.server_host,
+                    port=server_settings.server_port or 22,
+                    username=server_settings.server_username,
+                    key_filename=server_settings.server_key_path,
+                    timeout=10
+                )
+            else:
+                return jsonify({'success': False, 'error': 'No authentication method configured'})
+            
+            # List files in the JSON path
+            stdin, stdout, stderr = ssh.exec_command(f'ls -la {server_settings.json_files_path}')
+            files_output = stdout.read().decode().strip()
+            error_output = stderr.read().decode().strip()
+            
+            ssh.close()
+            
+            if error_output:
+                return jsonify({'success': False, 'error': f'Error listing files: {error_output}'})
+            
+            return jsonify({
+                'success': True,
+                'files': files_output,
+                'path': server_settings.json_files_path
+            })
+            
+        except ImportError:
+            return jsonify({'success': False, 'error': 'Paramiko library not installed'})
+        except Exception as ssh_error:
+            return jsonify({'success': False, 'error': f'SSH connection failed: {str(ssh_error)}'})
+        
+    except Exception as e:
+        app.logger.error(f"Debug SFTP files error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
