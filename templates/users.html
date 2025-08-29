@@ -2,86 +2,60 @@
 {% block title %}User Management - GBot Web{% endblock %}
 
 {% block content %}
-<div class="dark-page">
-    <!-- Main Content Grid -->
-    <div class="dark-users-grid">
-        <!-- Add New User Card -->
-        <div class="dark-card add-user-card">
-            <div class="dark-card-header">
-                <h3 class="dark-card-title">
-                    <span class="title-icon">➕</span>
-                    Add New User
-                </h3>
-                <p class="dark-card-subtitle">Create a new user account with role-based access</p>
-            </div>
-            
-            <div class="dark-card-body">
-                <form class="user-form" id="add-user-form">
-                    <div class="dark-form-group">
-                        <label for="new-username" class="dark-form-label">
-                            <span class="label-icon">👤</span>
-                            Username
-                        </label>
-                        <input type="text" 
-                               id="new-username" 
-                               class="dark-form-input" 
-                               placeholder="Enter username" 
-                               required>
-                    </div>
-                    
-                    <div class="dark-form-group">
-                        <label for="new-password" class="dark-form-label">
-                            <span class="label-icon">🔒</span>
-                            Password
-                        </label>
-                        <input type="password" 
-                               id="new-password" 
-                               class="dark-form-input" 
-                               placeholder="Enter secure password" 
-                               required>
-                    </div>
-                    
-                    <div class="dark-form-group">
-                        <label for="new-role" class="dark-form-label">
-                            <span class="label-icon">🎭</span>
-                            Role
-                        </label>
-                        <select id="new-role" class="dark-form-select">
-                            <option value="support">👨‍💼 Support</option>
-                            <option value="mailer">📧 Mailer</option>
-                            <option value="admin">🔧 Admin</option>
-                        </select>
-                    </div>
-                    
-                    <button type="button" onclick="addUser()" class="dark-btn dark-btn-primary">
-                        <span class="btn-icon">➕</span>
-                        Add User
-                    </button>
-                </form>
-            </div>
-        </div>
+<h1>👥 User Management</h1>
+
+<!-- Main Content Grid -->
+<div class="dark-users-grid">
+    <!-- Add New User Card -->
+    <div class="section">
+        <h3>➕ Add New User</h3>
+        <p class="text-muted mb-4">Create a new user account with role-based access</p>
         
-        <!-- Existing Users Card -->
-        <div class="dark-card users-list-card">
-            <div class="dark-card-header">
-                <h3 class="dark-card-title">
-                    <span class="title-icon">📋</span>
-                    Existing Users
-                </h3>
-                <p class="dark-card-subtitle">Manage existing user accounts and permissions</p>
+        <form class="user-form" id="add-user-form">
+            <div class="form-row">
+                <label for="new-username">👤 Username</label>
+                <input type="text" 
+                       id="new-username" 
+                       placeholder="Enter username" 
+                       required>
             </div>
             
-            <div class="dark-card-body">
-                <div id="user-list" class="dark-users-container">
-                    <div class="dark-loading-state">
-                        <div class="dark-loading-spinner"></div>
-                        <p>Loading users...</p>
-                    </div>
-                </div>
+            <div class="form-row">
+                <label for="new-password">🔒 Password</label>
+                <input type="password" 
+                       id="new-password" 
+                       placeholder="Enter secure password" 
+                       required>
+            </div>
+            
+            <div class="form-row">
+                <label for="new-role">🎭 Role</label>
+                <select id="new-role">
+                    <option value="support">👨‍💼 Support</option>
+                    <option value="mailer">📧 Mailer</option>
+                    <option value="admin">🔧 Admin</option>
+                </select>
+            </div>
+            
+            <button type="button" onclick="addUser()" class="btn-primary">
+                ➕ Add User
+            </button>
+        </form>
+    </div>
+    
+    <!-- Existing Users Card -->
+    <div class="section">
+        <h3>📋 Existing Users</h3>
+        <p class="text-muted mb-4">Manage existing user accounts and permissions</p>
+        
+        <div id="user-list" class="dark-users-container">
+            <div class="dark-loading-state">
+                <div class="dark-loading-spinner"></div>
+                <p>Loading users...</p>
             </div>
         </div>
     </div>
-</div>
+</div>{% endblock %}
 
 
 <script>
@@ -129,25 +103,20 @@ function loadUsers() {
             }
             
             userList.innerHTML = data.users.map((user, index) => `
-                <div class="dark-user-item">
-                    <div class="dark-user-info">
-                        <div class="dark-user-number">${index + 1}</div>
-                        <div class="dark-user-details">
-                            <div class="dark-user-name">${user.username}</div>
-                            <span class="dark-role-badge dark-role-${user.role}">
-                                ${user.role === 'admin' ? '🔧' : user.role === 'mailer' ? '📧' : '👨‍💼'} 
-                                ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                            </span>
-                        </div>
+                <div class="user-item">
+                    <div class="user-info-section">
+                        <div class="user-name-text">${user.username}</div>
+                        <span class="user-role-badge ${user.role}">
+                            ${user.role === 'admin' ? '🔧' : user.role === 'mailer' ? '📧' : '👨‍💼'} 
+                            ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                        </span>
                     </div>
-                    <div class="dark-user-actions">
-                        <button onclick="editUser('${user.username}', '${user.role}')" class="dark-btn dark-btn-secondary">
-                            <span class="btn-icon">✏️</span>
-                            Edit
+                    <div class="flex gap-2">
+                        <button onclick="editUser('${user.username}', '${user.role}')" class="btn-secondary">
+                            ✏️ Edit
                         </button>
-                        <button onclick="deleteUser('${user.username}')" class="dark-btn dark-btn-danger">
-                            <span class="btn-icon">🗑️</span>
-                            Delete
+                        <button onclick="deleteUser('${user.username}')" class="btn-danger">
+                            🗑️ Delete
                         </button>
                     </div>
                 </div>

@@ -3,184 +3,119 @@
 {% block title %}Settings - GBot Web{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <!-- Header Section -->
-    <div class="row mb-4">
-        <div class="col-12 text-center">
-            <h2 class="mb-0 display-4 text-primary">⚙️ Settings</h2>
-            <p class="text-muted lead">Configure application settings and server connections</p>
-        </div>
-    </div>
+<h1>⚙️ Settings</h1>
+<p class="text-muted mb-6">Configure application settings and server connections</p>
 
-    <!-- Server Configuration Section -->
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow-lg border-primary">
-                <div class="card-header bg-primary text-white text-center">
-                    <h4 class="mb-0">🖥️ Server Configuration</h4>
-                </div>
-                <div class="card-body p-4">
-                    <p class="text-muted mb-4">
-                        Configure the server connection for importing accounts from JSON files. 
-                        This server should contain the credential JSON files for Google Workspace accounts.
-                    </p>
-                    
-                    <form id="server-config-form">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="server_host" class="form-label fw-bold">🌐 Server Host/IP</label>
-                                <input type="text" class="form-control form-control-lg" id="server_host" 
-                                       placeholder="192.168.1.100 or server.domain.com" required>
-                                <div class="form-text">IP address or hostname of the server</div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="server_port" class="form-label fw-bold">🔌 Port</label>
-                                <input type="number" class="form-control form-control-lg" id="server_port" 
-                                       value="22" min="1" max="65535" required>
-                                <div class="form-text">SSH port (default: 22)</div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="server_username" class="form-label fw-bold">👤 Username</label>
-                                <input type="text" class="form-control form-control-lg" id="server_username" 
-                                       placeholder="ubuntu or root" required>
-                                <div class="form-text">SSH username for server access</div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="server_auth_method" class="form-label fw-bold">🔐 Authentication Method</label>
-                                <select class="form-select form-select-lg" id="server_auth_method" required>
-                                    <option value="password">Password</option>
-                                    <option value="key">SSH Key</option>
-                                </select>
-                                <div class="form-text">Choose authentication method</div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3" id="password-field">
-                                <label for="server_password" class="form-label fw-bold">🔑 Password</label>
-                                <input type="password" class="form-control form-control-lg" id="server_password" 
-                                       placeholder="Server password">
-                                <div class="form-text">SSH password (if using password auth)</div>
-                            </div>
-                            <div class="col-md-6 mb-3" id="key-field" style="display: none;">
-                                <label for="server_private_key" class="form-label fw-bold">🔑 Private Key</label>
-                                <textarea class="form-control form-control-lg" id="server_private_key" rows="4" 
-                                          placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
-                                <div class="form-text">SSH private key content (if using key auth)</div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-12 mb-3">
-                                <label for="server_json_path" class="form-label fw-bold">📁 JSON Files Path</label>
-                                <input type="text" class="form-control form-control-lg" id="server_json_path" 
-                                       value="/opt/gbot-web-app/credentials/" placeholder="/path/to/json/files/" required>
-                                <div class="form-text">Directory path where JSON credential files are stored on the server</div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-12 mb-3">
-                                <label for="server_file_pattern" class="form-label fw-bold">📋 File Pattern</label>
-                                <input type="text" class="form-control form-control-lg" id="server_file_pattern" 
-                                       value="*.json" placeholder="*.json or admin@*.json" required>
-                                <div class="form-text">File pattern to match JSON files (e.g., *.json, admin@*.json)</div>
-                            </div>
-                        </div>
-                        
-                        <div class="text-center mt-4">
-                            <button type="button" class="btn btn-outline-primary btn-lg me-3" onclick="testServerConnection()">
-                                🔍 Test Connection
-                            </button>
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                💾 Save Configuration
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+<!-- Server Configuration Section -->
+<div class="section">
+    <h3>🖥️ Server Configuration</h3>
+    <p class="text-muted mb-4">
+        Configure the server connection for importing accounts from JSON files. 
+        This server should contain the credential JSON files for Google Workspace accounts.
+    </p>
+    
+    <form id="server-config-form">
+        <div class="form-row">
+            <label for="server_host">🌐 Server Host/IP</label>
+            <input type="text" id="server_host" placeholder="192.168.1.100 or server.domain.com" required>
         </div>
-    </div>
-
-    <!-- Current Configuration Display -->
-    <div class="row justify-content-center mt-4">
-        <div class="col-lg-8">
-            <div class="card shadow-lg border-success">
-                <div class="card-header bg-success text-white text-center">
-                    <h4 class="mb-0">📋 Current Configuration</h4>
-                </div>
-                <div class="card-body p-4">
-                    <div id="current-config-display">
-                        <div class="text-center py-4">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p class="mt-3 text-muted">Loading current configuration...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        
+        <div class="form-row">
+            <label for="server_port">🔌 Port</label>
+            <input type="number" id="server_port" value="22" min="1" max="65535" required>
         </div>
-    </div>
-
-    <!-- Status Messages -->
-    <div id="status-messages" class="mt-4 text-center"></div>
+        
+        <div class="form-row">
+            <label for="server_username">👤 Username</label>
+            <input type="text" id="server_username" placeholder="ubuntu or root" required>
+        </div>
+        
+        <div class="form-row">
+            <label for="server_auth_method">🔐 Authentication Method</label>
+            <select id="server_auth_method" required>
+                <option value="password">Password</option>
+                <option value="key">SSH Key</option>
+            </select>
+        </div>
+        
+        <div class="form-row" id="password-field">
+            <label for="server_password">🔑 Password</label>
+            <input type="password" id="server_password" placeholder="Server password">
+        </div>
+        
+        <div id="key-field" style="display: none;">
+            <label for="server_private_key">🔑 Private Key</label>
+            <textarea id="server_private_key" rows="4" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
+        </div>
+        
+        <div class="form-row">
+            <label for="server_json_path">📁 JSON Files Path</label>
+            <input type="text" id="server_json_path" value="/opt/gbot-web-app/credentials/" placeholder="/path/to/json/files/" required>
+        </div>
+        
+        <div class="form-row">
+            <label for="server_file_pattern">📋 File Pattern</label>
+            <input type="text" id="server_file_pattern" value="*.json" placeholder="*.json or admin@*.json" required>
+        </div>
+        
+        <div class="button-row">
+            <button type="button" class="btn-secondary" onclick="testServerConnection()">
+                🔍 Test Connection
+            </button>
+            <button type="submit" class="btn-primary">
+                💾 Save Configuration
+            </button>
+        </div>
+    </form>
 </div>
 
-<!-- Test Connection Modal -->
-<div class="modal fade" id="testConnectionModal" tabindex="-1" aria-labelledby="testModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="card-header bg-info text-white text-center">
-                <h5 class="modal-title w-100" id="testModalLabel">
-                    🔍 Testing Server Connection
-                </h5>
-            </div>
-            <div class="modal-body text-center">
-                <div class="mb-3">
-                    <div class="spinner-border text-info" role="status" style="width: 3rem; height: 3rem;">
-                        <span class="visually-hidden">Testing...</span>
-                    </div>
-                </div>
-                <p class="fs-5">Testing connection to server...</p>
-                <div id="test-progress" class="progress mt-3" style="display: none;">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-                </div>
-            </div>
+<!-- Current Configuration Display -->
+<div class="section">
+    <h3>📋 Current Configuration</h3>
+    <div id="current-config-display">
+        <div class="dark-loading-state">
+            <div class="dark-loading-spinner"></div>
+            <p>Loading current configuration...</p>
         </div>
     </div>
 </div>
+
+<!-- Status Messages -->
+<div id="status-messages" class="mb-4"></div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-$(document).ready(function() {
+document.addEventListener('DOMContentLoaded', function() {
     console.log('Settings page loaded, initializing...');
     
     // Load current configuration
     loadCurrentConfiguration();
     
     // Handle authentication method change
-    $('#server_auth_method').change(function() {
-        const method = $(this).val();
+    document.getElementById('server_auth_method').addEventListener('change', function() {
+        const method = this.value;
+        const passwordField = document.getElementById('password-field');
+        const keyField = document.getElementById('key-field');
+        const passwordInput = document.getElementById('server_password');
+        const keyInput = document.getElementById('server_private_key');
+        
         if (method === 'password') {
-            $('#password-field').show();
-            $('#key-field').hide();
-            $('#server_password').prop('required', true);
-            $('#server_private_key').prop('required', false);
+            passwordField.style.display = 'block';
+            keyField.style.display = 'none';
+            passwordInput.required = true;
+            keyInput.required = false;
         } else {
-            $('#password-field').hide();
-            $('#key-field').show();
-            $('#server_password').prop('required', false);
-            $('#server_private_key').prop('required', true);
+            passwordField.style.display = 'none';
+            keyField.style.display = 'block';
+            passwordInput.required = false;
+            keyInput.required = true;
         }
     });
     
     // Handle form submission
-    $('#server-config-form').submit(function(e) {
+    document.getElementById('server-config-form').addEventListener('submit', function(e) {
         e.preventDefault();
         saveServerConfiguration();
     });
@@ -222,17 +157,17 @@ function displayCurrentConfiguration(config) {
     }
     
     // Populate form fields
-    $('#server_host').val(config.host || '');
-    $('#server_port').val(config.port || 22);
-    $('#server_username').val(config.username || '');
-    $('#server_auth_method').val(config.auth_method || 'password');
-    $('#server_password').val(config.password || '');
-    $('#server_private_key').val(config.private_key || '');
-    $('#server_json_path').val(config.json_path || '');
-    $('#server_file_pattern').val(config.file_pattern || '');
+    document.getElementById('server_host').value = config.host || '';
+    document.getElementById('server_port').value = config.port || 22;
+    document.getElementById('server_username').value = config.username || '';
+    document.getElementById('server_auth_method').value = config.auth_method || 'password';
+    document.getElementById('server_password').value = config.password || '';
+    document.getElementById('server_private_key').value = config.private_key || '';
+    document.getElementById('server_json_path').value = config.json_path || '';
+    document.getElementById('server_file_pattern').value = config.file_pattern || '';
     
     // Trigger auth method change to show/hide fields
-    $('#server_auth_method').trigger('change');
+    document.getElementById('server_auth_method').dispatchEvent(new Event('change'));
     
     // Display current config
     const statusClass = config.is_configured ? 'success' : 'warning';
@@ -271,14 +206,14 @@ function saveServerConfiguration() {
     console.log('Saving server configuration...');
     
     const config = {
-        host: $('#server_host').val().trim(),
-        port: parseInt($('#server_port').val()),
-        username: $('#server_username').val().trim(),
-        auth_method: $('#server_auth_method').val(),
-        password: $('#server_password').val(),
-        private_key: $('#server_private_key').val().trim(),
-        json_path: $('#server_json_path').val().trim(),
-        file_pattern: $('#server_file_pattern').val().trim()
+        host: document.getElementById('server_host').value.trim(),
+        port: parseInt(document.getElementById('server_port').value),
+        username: document.getElementById('server_username').value.trim(),
+        auth_method: document.getElementById('server_auth_method').value,
+        password: document.getElementById('server_password').value,
+        private_key: document.getElementById('server_private_key').value.trim(),
+        json_path: document.getElementById('server_json_path').value.trim(),
+        file_pattern: document.getElementById('server_file_pattern').value.trim()
     };
     
     // Validate required fields
@@ -323,14 +258,14 @@ function testServerConnection() {
     console.log('Testing server connection...');
     
     const config = {
-        host: $('#server_host').val().trim(),
-        port: parseInt($('#server_port').val()),
-        username: $('#server_username').val().trim(),
-        auth_method: $('#server_auth_method').val(),
-        password: $('#server_password').val(),
-        private_key: $('#server_private_key').val().trim(),
-        json_path: $('#server_json_path').val().trim(),
-        file_pattern: $('#server_file_pattern').val().trim()
+        host: document.getElementById('server_host').value.trim(),
+        port: parseInt(document.getElementById('server_port').value),
+        username: document.getElementById('server_username').value.trim(),
+        auth_method: document.getElementById('server_auth_method').value,
+        password: document.getElementById('server_password').value,
+        private_key: document.getElementById('server_private_key').value.trim(),
+        json_path: document.getElementById('server_json_path').value.trim(),
+        file_pattern: document.getElementById('server_file_pattern').value.trim()
     };
     
     // Validate required fields
@@ -349,22 +284,7 @@ function testServerConnection() {
         return;
     }
     
-    // Show test modal
-    const modal = new bootstrap.Modal(document.getElementById('testConnectionModal'));
-    modal.show();
-    
-    // Start progress bar
-    $('#test-progress').show();
-    const progressBar = $('#test-progress .progress-bar');
-    progressBar.css('width', '0%');
-    
-    // Simulate progress
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-        progress += 10;
-        progressBar.css('width', progress + '%');
-        if (progress >= 90) clearInterval(progressInterval);
-    }, 200);
+    showStatus('🔍 Testing server connection...', 'info');
     
     fetch('/api/test-server-connection', {
         method: 'POST',
@@ -373,23 +293,14 @@ function testServerConnection() {
     })
     .then(response => response.json())
     .then(data => {
-        clearInterval(progressInterval);
-        progressBar.css('width', '100%');
-        
-        setTimeout(() => {
-            modal.hide();
-            
-            if (data.success) {
-                showStatus('✅ Server connection successful! Found ' + data.files_count + ' JSON files.', 'success');
-                loadCurrentConfiguration();
-            } else {
-                showStatus('❌ Connection failed: ' + data.error, 'error');
-            }
-        }, 500);
+        if (data.success) {
+            showStatus('✅ Server connection successful! Found ' + data.files_count + ' JSON files.', 'success');
+            loadCurrentConfiguration();
+        } else {
+            showStatus('❌ Connection failed: ' + data.error, 'error');
+        }
     })
     .catch(error => {
-        clearInterval(progressInterval);
-        modal.hide();
         console.error('Error testing connection:', error);
         showStatus('❌ Network error: ' + error, 'error');
     });
@@ -423,24 +334,29 @@ function clearServerConfiguration() {
 
 function showStatus(message, type) {
     console.log('Showing status:', message, type);
-    var alertClass = type === 'success' ? 'alert-success' : 
-                    type === 'error' ? 'alert-danger' : 
-                    type === 'warning' ? 'alert-warning' : 'alert-info';
     
     var icon = type === 'success' ? '✅' : 
               type === 'error' ? '❌' : 
               type === 'warning' ? '⚠️' : 'ℹ️';
     
-    var statusHtml = '<div class="alert ' + alertClass + ' alert-dismissible fade show fs-5" role="alert">' +
-                     '<strong>' + icon + '</strong> ' + message +
-                     '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
+    var statusColor = type === 'success' ? 'var(--success)' : 
+                     type === 'error' ? 'var(--danger)' : 
+                     type === 'warning' ? 'var(--warning)' : 'var(--info)';
     
-    $('#status-messages').html(statusHtml);
+    var statusBg = type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 
+                  type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 
+                  type === 'warning' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(6, 182, 212, 0.1)';
+    
+    var statusHtml = '<div style="background: ' + statusBg + '; border: 1px solid ' + statusColor + '; color: ' + statusColor + '; padding: var(--space-4); border-radius: var(--radius); margin: var(--space-4) 0; font-size: var(--text-sm);">' +
+                     '<strong>' + icon + '</strong> ' + message + '</div>';
+    
+    document.getElementById('status-messages').innerHTML = statusHtml;
     
     // Auto-hide success messages after 5 seconds
     if (type === 'success') {
         setTimeout(function() {
-            $('.alert-success').fadeOut();
+            const element = document.getElementById('status-messages');
+            if (element) element.innerHTML = '';
         }, 5000);
     }
 }
