@@ -12,6 +12,9 @@
     <!-- Google Fonts - Inter & JetBrains Mono -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     
@@ -29,21 +32,81 @@
 </head>
 <body>
     {% if user %}
-    <header class="dashboard-header">
-        <h1>🤖 GBot Web</h1>
-        <div class="header-nav">
-            <a href="/dashboard" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">📊 Dashboard</a>
-            {% if role == 'admin' %}
-            <a href="/users" class="nav-link {% if request.endpoint == 'users' %}active{% endif %}">👥 Manage Users</a>
-            <a href="/whitelist" class="nav-link {% if request.endpoint == 'whitelist' %}active{% endif %}">🛡️ IP Whitelist</a>
-            <a href="/settings" class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}">⚙️ Settings</a>
-            {% endif %}
-        </div>
-        <div class="header-user">
-            <span>{{ user }} ({{ role }})</span>
-            <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
-        </div>
-    </header>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">🤖</div>
+                <div class="sidebar-title">GBot Web</div>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <span id="toggleIcon">‹</span>
+                </button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-item">
+                    <a href="/dashboard" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">Dashboard</span>
+                    </a>
+                </div>
+                {% if role == 'admin' %}
+                <div class="nav-item">
+                    <a href="/users" class="nav-link {% if request.endpoint == 'users' %}active{% endif %}">
+                        <span class="nav-icon">👥</span>
+                        <span class="nav-text">Manage Users</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/whitelist" class="nav-link {% if request.endpoint == 'whitelist' %}active{% endif %}">
+                        <span class="nav-icon">🛡️</span>
+                        <span class="nav-text">IP Whitelist</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/settings" class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}">
+                        <span class="nav-icon">⚙️</span>
+                        <span class="nav-text">Settings</span>
+                    </a>
+                </div>
+                {% endif %}
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar">{{ user[0].upper() }}</div>
+                    <div class="user-info">
+                        <div class="user-name">{{ user }}</div>
+                        <div class="user-role">{{ role }}</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="top-bar">
+                <div class="page-title-section">
+                    <h1 class="page-title">
+                        {% if request.endpoint == 'dashboard' %}Dashboard
+                        {% elif request.endpoint == 'users' %}User Management
+                        {% elif request.endpoint == 'whitelist' %}IP Whitelist
+                        {% elif request.endpoint == 'settings' %}Settings
+                        {% else %}GBot Web
+                        {% endif %}
+                    </h1>
+                </div>
+                <div class="top-bar-actions">
+                    <a href="{{ url_for('logout') }}" class="logout-btn">
+                        <span>🚪</span>
+                        Logout
+                    </a>
+                </div>
+            </div>
+            
+            <div class="content-area">
+    {% else %}
+    <!-- Login page layout without sidebar -->
     {% endif %}
     
     <!-- Flash Messages Container -->
@@ -69,20 +132,41 @@
         {% endif %}
     {% endwith %}
 
-    <!-- Main Content Container -->
-    <main class="main-container">
-        <div class="content-wrapper">
-            {% block content %}{% endblock %}
-        </div>
-    </main>
-    
-    <!-- Footer -->
-    <footer class="app-footer">
-        <div class="footer-content">
-            <p>&copy; {{ moment().format('YYYY') if moment else '2024' }} GBot Web Application. Built with ❤️ for Google Workspace Management.</p>
-        </div>
-    </footer>
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    {% else %}
+        {% block content %}{% endblock %}
+    {% endif %}
     
     {% block scripts %}{% endblock %}
+    
+    <!-- Sidebar Toggle Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const toggleIcon = document.getElementById('toggleIcon');
+            
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('collapsed');
+                    toggleIcon.textContent = sidebar.classList.contains('collapsed') ? '›' : '‹';
+                });
+            }
+            
+            // Auto-collapse on mobile
+            function handleResize() {
+                if (window.innerWidth <= 768 && sidebar) {
+                    sidebar.classList.add('collapsed');
+                    if (toggleIcon) toggleIcon.textContent = '›';
+                }
+            }
+            
+            window.addEventListener('resize', handleResize);
+            handleResize(); // Check on page load
+        });
+    </script>
 </body>
 </html>

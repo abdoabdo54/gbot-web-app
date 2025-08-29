@@ -2,8 +2,8 @@
 {% block title %}Sign In - GBot Web{% endblock %}
 
 {% block content %}
-<div class="login-page">
-    <div class="login-container">
+<div class="dark-login-page">
+    <div class="dark-login-container">
         <!-- Login Header -->
         <div class="login-header">
             <div class="login-logo">
@@ -15,36 +15,36 @@
 
         <!-- Login Form -->
         <div class="login-form-container">
-            <form method="POST" class="login-form">
-                <div class="form-group">
-                    <label for="username" class="form-label">
+            <form method="POST" class="dark-login-form">
+                <div class="dark-form-group">
+                    <label for="username" class="dark-form-label">
                         <span class="label-icon">👤</span>
                         Username
                     </label>
                     <input type="text" 
                            id="username" 
                            name="username" 
-                           class="form-input" 
+                           class="dark-form-input" 
                            placeholder="Enter your username"
                            required 
                            autocomplete="username">
                 </div>
                 
-                <div class="form-group">
-                    <label for="password" class="form-label">
+                <div class="dark-form-group">
+                    <label for="password" class="dark-form-label">
                         <span class="label-icon">🔒</span>
                         Password
                     </label>
                     <input type="password" 
                            id="password" 
                            name="password" 
-                           class="form-input" 
+                           class="dark-form-input" 
                            placeholder="Enter your password"
                            required 
                            autocomplete="current-password">
                 </div>
                 
-                <button type="submit" class="login-btn">
+                <button type="submit" class="dark-login-btn">
                     <span class="btn-icon">🚀</span>
                     Sign In to Dashboard
                 </button>
@@ -60,11 +60,7 @@
         </div>
     </div>
 
-    <!-- Background Elements -->
-    <div class="login-bg-elements">
-        <div class="bg-circle bg-circle-1"></div>
-        <div class="bg-circle bg-circle-2"></div>
-        <div class="bg-circle bg-circle-3"></div>
-    </div>
+    <!-- Background Grid -->
+    <div class="login-bg-grid"></div>
 </div>
 {% endblock %}
