@@ -259,13 +259,13 @@ setup_postgresql() {
     
     # Configure PostgreSQL for production
     log "Configuring PostgreSQL for production..."
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET max_connections = '100';" 2>/dev/null || true
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET shared_buffers = '256MB';" 2>/dev/null || true
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET effective_cache_size = '1GB';" 2>/dev/null || true
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET maintenance_work_mem = '64MB';" 2>/dev/null || true
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET checkpoint_completion_target = '0.9';" 2>/dev/null || true
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET wal_buffers = '16MB';" 2>/dev/null || true
-    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET default_statistics_target = '100';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET max_connections = '100';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET shared_buffers = '256MB';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET effective_cache_size = '1GB';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET maintenance_work_mem = '64MB';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET checkpoint_completion_target = '0.9';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET wal_buffers = '16MB';" 2>/dev/null || true
+    sudo -u postgres psql -c "ALTER SYSTEM SET default_statistics_target = '100';" 2>/dev/null || true
     
     # Restart PostgreSQL to apply changes
     $SUDO_CMD systemctl restart postgresql
@@ -276,26 +276,26 @@ setup_postgresql() {
     DB_PASS=$(openssl rand -hex 12)
     
     # Check if database already exists
-    if $SUDO_CMD -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+    if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
         log "Database '$DB_NAME' already exists"
     else
         log "Creating database '$DB_NAME'..."
-        $SUDO_CMD -u postgres psql -c "CREATE DATABASE $DB_NAME;"
+        sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;"
     fi
     
     # Check if user already exists
-    if $SUDO_CMD -u postgres psql -t -c "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+    if sudo -u postgres psql -t -c "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
         log "User '$DB_USER' already exists"
     else
         log "Creating user '$DB_USER'..."
-        $SUDO_CMD -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
+        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
     fi
     
     # Grant privileges
-    $SUDO_CMD -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
-    $SUDO_CMD -u postgres psql -c "ALTER ROLE $DB_USER SET client_encoding TO 'utf8';"
-    $SUDO_CMD -u postgres psql -c "ALTER ROLE $DB_USER SET default_transaction_isolation TO 'read committed';"
-    $SUDO_CMD -u postgres psql -c "ALTER ROLE $DB_USER SET timezone TO 'UTC';"
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+    sudo -u postgres psql -c "ALTER ROLE $DB_USER SET client_encoding TO 'utf8';"
+    sudo -u postgres psql -c "ALTER ROLE $DB_USER SET default_transaction_isolation TO 'read committed';"
+    sudo -u postgres psql -c "ALTER ROLE $DB_USER SET timezone TO 'UTC';"
     
     # Save database credentials
     echo "DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost/$DB_NAME" > "$SCRIPT_DIR/.db_credentials"
@@ -568,19 +568,16 @@ After=network.target postgresql.service
 Wants=postgresql.service
 
 [Service]
-Type=notify
+Type=simple
 User=root
 Group=root
 WorkingDirectory=$SCRIPT_DIR
 Environment="PATH=$SCRIPT_DIR/venv/bin"
 Environment="FLASK_ENV=production"
-ExecStart=$SCRIPT_DIR/venv/bin/gunicorn --workers 4 --bind unix:$SCRIPT_DIR/gbot.sock --access-logfile $SCRIPT_DIR/gunicorn-access.log --error-logfile $SCRIPT_DIR/gunicorn-error.log --max-requests 1000 --max-requests-jitter 100 --timeout 120 --keep-alive 5 app:app
+ExecStart=$SCRIPT_DIR/venv/bin/gunicorn --workers 2 --bind unix:$SCRIPT_DIR/gbot.sock --access-logfile $SCRIPT_DIR/gunicorn-access.log --error-logfile $SCRIPT_DIR/gunicorn-error.log --timeout 60 app:app
 ExecReload=/bin/kill -s HUP \$MAINPID
 Restart=always
-RestartSec=5
-StartLimitInterval=60
-StartLimitBurst=3
-LimitNOFILE=65536
+RestartSec=3
 StandardOutput=journal
 StandardError=journal
 
@@ -2034,6 +2031,10 @@ main() {
                 fix_services
                 exit 0
                 ;;
+            --debug-service)
+                debug_service
+                exit 0
+                ;;
             --clean)
                 CLEANUP=true
                 shift
@@ -2287,6 +2288,90 @@ fix_services() {
     echo -e "\n🌐 Test your application:"
     echo -e "   URL: ${BLUE}http://$SERVER_IP${NC}"
     echo -e "   Health: ${BLUE}http://$SERVER_IP/health${NC}"
+    
+    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
+debug_service() {
+    log "Debugging service issues..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                DEBUGGING SERVICE ISSUES                     ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    echo -e "\n📋 System Information:"
+    echo -e "   • OS: $(lsb_release -d 2>/dev/null | cut -f2 || echo 'Unknown')"
+    echo -e "   • Kernel: $(uname -r)"
+    echo -e "   • Python: $(python3 --version 2>/dev/null || echo 'Not found')"
+    echo -e "   • Working Directory: $(pwd)"
+    echo -e "   • Script Directory: $SCRIPT_DIR"
+    
+    echo -e "\n📋 Service Status:"
+    echo -e "   • PostgreSQL: $($SUDO_CMD systemctl is-active postgresql 2>/dev/null || echo 'inactive')"
+    echo -e "   • GBot: $($SUDO_CMD systemctl is-active gbot 2>/dev/null || echo 'inactive')"
+    echo -e "   • Nginx: $($SUDO_CMD systemctl is-active nginx 2>/dev/null || echo 'inactive')"
+    
+    echo -e "\n📋 GBot Service Details:"
+    $SUDO_CMD systemctl status gbot --no-pager || echo "Service not found"
+    
+    echo -e "\n📋 Recent GBot Logs:"
+    $SUDO_CMD journalctl -u gbot -n 30 --no-pager || echo "No logs found"
+    
+    echo -e "\n📋 File Permissions:"
+    echo -e "   • App Directory: $(ls -ld $SCRIPT_DIR)"
+    echo -e "   • App Files: $(ls -la $SCRIPT_DIR/ | head -5)"
+    echo -e "   • Socket File: $(ls -la $SCRIPT_DIR/gbot.sock 2>/dev/null || echo 'Not found')"
+    echo -e "   • Virtual Environment: $(ls -la $SCRIPT_DIR/venv/bin/python3 2>/dev/null || echo 'Not found')"
+    
+    echo -e "\n📋 Environment Check:"
+    echo -e "   • .env file: $(ls -la $SCRIPT_DIR/.env 2>/dev/null || echo 'Not found')"
+    echo -e "   • requirements.txt: $(ls -la $SCRIPT_DIR/requirements.txt 2>/dev/null || echo 'Not found')"
+    echo -e "   • app.py: $(ls -la $SCRIPT_DIR/app.py 2>/dev/null || echo 'Not found')"
+    
+    echo -e "\n📋 Python Environment Test:"
+    if [ -f "$SCRIPT_DIR/venv/bin/python3" ]; then
+        echo -e "   • Virtual Python: $($SCRIPT_DIR/venv/bin/python3 --version)"
+        echo -e "   • Gunicorn: $(ls -la $SCRIPT_DIR/venv/bin/gunicorn 2>/dev/null || echo 'Not found')"
+        
+        # Test Python import
+        echo -e "\n📋 Python Import Test:"
+        $SCRIPT_DIR/venv/bin/python3 -c "
+import sys
+print('Python path:', sys.path)
+try:
+    import flask
+    print('Flask version:', flask.__version__)
+except ImportError as e:
+    print('Flask import error:', e)
+try:
+    import app
+    print('App import: SUCCESS')
+except ImportError as e:
+    print('App import error:', e)
+" 2>&1
+    else
+        echo -e "   • Virtual environment not found"
+    fi
+    
+    echo -e "\n📋 Manual Service Test:"
+    echo -e "   Testing manual gunicorn start..."
+    cd "$SCRIPT_DIR"
+    if [ -f "venv/bin/gunicorn" ]; then
+        timeout 10s $SCRIPT_DIR/venv/bin/gunicorn --workers 1 --bind unix:test.sock --timeout 30 app:app &
+        MANUAL_PID=$!
+        sleep 3
+        if [ -S "test.sock" ]; then
+            echo -e "   ✅ Manual gunicorn started successfully"
+            kill $MANUAL_PID 2>/dev/null || true
+            rm -f test.sock
+        else
+            echo -e "   ❌ Manual gunicorn failed to start"
+        fi
+    else
+        echo -e "   ❌ Gunicorn not found in virtual environment"
+    fi
     
     echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
     echo ""
