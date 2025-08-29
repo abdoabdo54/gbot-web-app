@@ -259,13 +259,13 @@ setup_postgresql() {
     
     # Configure PostgreSQL for production
     log "Configuring PostgreSQL for production..."
-    sudo -u postgres psql -c "ALTER SYSTEM SET max_connections = '100';" 2>/dev/null || true
-    sudo -u postgres psql -c "ALTER SYSTEM SET shared_buffers = '256MB';" 2>/dev/null || true
-    sudo -u postgres psql -c "ALTER SYSTEM SET effective_cache_size = '1GB';" 2>/dev/null || true
-    sudo -u postgres psql -c "ALTER SYSTEM SET maintenance_work_mem = '64MB';" 2>/dev/null || true
-    sudo -u postgres psql -c "ALTER SYSTEM SET checkpoint_completion_target = '0.9';" 2>/dev/null || true
-    sudo -u postgres psql -c "ALTER SYSTEM SET wal_buffers = '16MB';" 2>/dev/null || true
-    sudo -u postgres psql -c "ALTER SYSTEM SET default_statistics_target = '100';" 2>/dev/null || true
+    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET max_connections = '100';" 2>/dev/null || true
+    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET shared_buffers = '256MB';" 2>/dev/null || true
+    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET effective_cache_size = '1GB';" 2>/dev/null || true
+    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET maintenance_work_mem = '64MB';" 2>/dev/null || true
+    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET checkpoint_completion_target = '0.9';" 2>/dev/null || true
+    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET wal_buffers = '16MB';" 2>/dev/null || true
+    $SUDO_CMD -u postgres psql -c "ALTER SYSTEM SET default_statistics_target = '100';" 2>/dev/null || true
     
     # Restart PostgreSQL to apply changes
     $SUDO_CMD systemctl restart postgresql
@@ -276,26 +276,26 @@ setup_postgresql() {
     DB_PASS=$(openssl rand -hex 12)
     
     # Check if database already exists
-    if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+    if $SUDO_CMD -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
         log "Database '$DB_NAME' already exists"
     else
         log "Creating database '$DB_NAME'..."
-        sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;"
+        $SUDO_CMD -u postgres psql -c "CREATE DATABASE $DB_NAME;"
     fi
     
     # Check if user already exists
-    if sudo -u postgres psql -t -c "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+    if $SUDO_CMD -u postgres psql -t -c "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
         log "User '$DB_USER' already exists"
     else
         log "Creating user '$DB_USER'..."
-        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
+        $SUDO_CMD -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
     fi
     
     # Grant privileges
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
-    sudo -u postgres psql -c "ALTER ROLE $DB_USER SET client_encoding TO 'utf8';"
-    sudo -u postgres psql -c "ALTER ROLE $DB_USER SET default_transaction_isolation TO 'read committed';"
-    sudo -u postgres psql -c "ALTER ROLE $DB_USER SET timezone TO 'UTC';"
+    $SUDO_CMD -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+    $SUDO_CMD -u postgres psql -c "ALTER ROLE $DB_USER SET client_encoding TO 'utf8';"
+    $SUDO_CMD -u postgres psql -c "ALTER ROLE $DB_USER SET default_transaction_isolation TO 'read committed';"
+    $SUDO_CMD -u postgres psql -c "ALTER ROLE $DB_USER SET timezone TO 'UTC';"
     
     # Save database credentials
     echo "DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost/$DB_NAME" > "$SCRIPT_DIR/.db_credentials"
@@ -569,8 +569,8 @@ Wants=postgresql.service
 
 [Service]
 Type=notify
-User=www-data
-Group=www-data
+User=root
+Group=root
 WorkingDirectory=$SCRIPT_DIR
 Environment="PATH=$SCRIPT_DIR/venv/bin"
 Environment="FLASK_ENV=production"
@@ -1589,7 +1589,7 @@ start_services() {
     log "Starting services..."
     
     # Ensure proper permissions
-    $SUDO_CMD chown -R www-data:www-data "$SCRIPT_DIR"
+    $SUDO_CMD chown -R root:root "$SCRIPT_DIR"
     $SUDO_CMD chmod +x "$SCRIPT_DIR/gbot.sock" 2>/dev/null || true
     
     # Start PostgreSQL
@@ -1634,6 +1634,7 @@ start_services() {
         log_success "Gunicorn socket created successfully"
         # Set proper permissions on the socket
         $SUDO_CMD chmod 666 "$SCRIPT_DIR/gbot.sock"
+        $SUDO_CMD chown root:root "$SCRIPT_DIR/gbot.sock"
         
         # Test socket connection
         if curl -s --unix-socket "$SCRIPT_DIR/gbot.sock" http://localhost/health 2>/dev/null; then
@@ -2029,6 +2030,10 @@ main() {
                 fix_admin_user
                 exit 0
                 ;;
+            --fix-services)
+                fix_services
+                exit 0
+                ;;
             --clean)
                 CLEANUP=true
                 shift
@@ -2180,6 +2185,108 @@ with app.app_context():
     echo -e "   • Your current IP (${BLUE}$CURRENT_IP${NC}) is whitelisted"
     echo -e "   • To add more IPs, log in and use the whitelist management page"
     echo -e "   • Emergency access is available for initial setup"
+    
+    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
+fix_services() {
+    log "Fixing service issues..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                FIXING SERVICE ISSUES                        ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    # Stop all services first
+    log "Stopping all services..."
+    $SUDO_CMD systemctl stop gbot 2>/dev/null || true
+    $SUDO_CMD systemctl stop nginx 2>/dev/null || true
+    sleep 3
+    
+    # Fix permissions
+    log "Fixing permissions..."
+    $SUDO_CMD chown -R root:root "$SCRIPT_DIR"
+    $SUDO_CMD chmod -R 755 "$SCRIPT_DIR"
+    $SUDO_CMD chmod 666 "$SCRIPT_DIR/gbot.sock" 2>/dev/null || true
+    $SUDO_CMD chown root:root "$SCRIPT_DIR/gbot.sock" 2>/dev/null || true
+    
+    # Remove old socket file
+    $SUDO_CMD rm -f "$SCRIPT_DIR/gbot.sock"
+    
+    # Recreate service file
+    log "Recreating service file..."
+    setup_systemd_service
+    
+    # Reload systemd
+    $SUDO_CMD systemctl daemon-reload
+    
+    # Start services in correct order
+    log "Starting PostgreSQL..."
+    $SUDO_CMD systemctl start postgresql
+    $SUDO_CMD systemctl enable postgresql
+    sleep 3
+    
+    log "Starting GBot service..."
+    $SUDO_CMD systemctl start gbot
+    $SUDO_CMD systemctl enable gbot
+    sleep 8
+    
+    # Check if GBot service is running
+    if $SUDO_CMD systemctl is-active --quiet gbot; then
+        log_success "GBot service started successfully"
+    else
+        log_error "GBot service failed to start"
+        echo "📋 GBot service status:"
+        $SUDO_CMD systemctl status gbot --no-pager
+        echo ""
+        echo "📋 Recent GBot logs:"
+        $SUDO_CMD journalctl -u gbot -n 20 --no-pager
+    fi
+    
+    # Check socket
+    if [ -S "$SCRIPT_DIR/gbot.sock" ]; then
+        log_success "Socket file created"
+        $SUDO_CMD chmod 666 "$SCRIPT_DIR/gbot.sock"
+        $SUDO_CMD chown root:root "$SCRIPT_DIR/gbot.sock"
+    else
+        log_error "Socket file not created"
+    fi
+    
+    log "Starting Nginx..."
+    $SUDO_CMD systemctl start nginx
+    $SUDO_CMD systemctl enable nginx
+    sleep 3
+    
+    # Check if Nginx service is running
+    if $SUDO_CMD systemctl is-active --quiet nginx; then
+        log_success "Nginx service started successfully"
+    else
+        log_error "Nginx service failed to start"
+        echo "📋 Nginx service status:"
+        $SUDO_CMD systemctl status nginx --no-pager
+    fi
+    
+    # Test connection
+    log "Testing connection..."
+    sleep 3
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    
+    if curl -s -m 10 "http://$SERVER_IP/health" 2>/dev/null; then
+        log_success "Connection test passed"
+    else
+        log_warning "Connection test failed"
+    fi
+    
+    echo -e "\n✅ Service issues fixed!"
+    echo -e "\n📋 Service Status:"
+    echo -e "   • PostgreSQL: $($SUDO_CMD systemctl is-active postgresql 2>/dev/null || echo 'inactive')"
+    echo -e "   • GBot: $($SUDO_CMD systemctl is-active gbot 2>/dev/null || echo 'inactive')"
+    echo -e "   • Nginx: $($SUDO_CMD systemctl is-active nginx 2>/dev/null || echo 'inactive')"
+    
+    echo -e "\n🌐 Test your application:"
+    echo -e "   URL: ${BLUE}http://$SERVER_IP${NC}"
+    echo -e "   Health: ${BLUE}http://$SERVER_IP/health${NC}"
     
     echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
     echo ""
