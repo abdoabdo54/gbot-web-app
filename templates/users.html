@@ -2,38 +2,91 @@
 {% block title %}User Management - GBot Web{% endblock %}
 
 {% block content %}
-<!-- Top Navigation (Same as Dashboard) -->
-<div class="section">
-    <h2>👥 User Management</h2>
-    
-    <div style="display: flex; gap: 2rem; margin-top: 2rem;">
-        <!-- Add New User -->
-        <div style="flex: 1; background: #f8f9fa; padding: 1.5rem; border-radius: 6px;">
-            <h3>Add New User</h3>
-            <div class="form-group">
-                <label for="new-username">Username:</label>
-                <input type="text" id="new-username" placeholder="Enter username" required>
+<div class="modern-page">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="page-title">
+            <span class="page-icon">👥</span>
+            <h1>User Management</h1>
+        </div>
+        <p class="page-subtitle">Manage application users and their access levels</p>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="users-grid">
+        <!-- Add New User Card -->
+        <div class="modern-card add-user-card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <span class="title-icon">➕</span>
+                    Add New User
+                </h3>
+                <p class="card-subtitle">Create a new user account with role-based access</p>
             </div>
-            <div class="form-group">
-                <label for="new-password">Password:</label>
-                <input type="password" id="new-password" placeholder="Enter password" required>
+            
+            <div class="card-body">
+                <form class="user-form" id="add-user-form">
+                    <div class="form-group">
+                        <label for="new-username" class="modern-label">
+                            <span class="label-icon">👤</span>
+                            Username
+                        </label>
+                        <input type="text" 
+                               id="new-username" 
+                               class="modern-input" 
+                               placeholder="Enter username" 
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="new-password" class="modern-label">
+                            <span class="label-icon">🔒</span>
+                            Password
+                        </label>
+                        <input type="password" 
+                               id="new-password" 
+                               class="modern-input" 
+                               placeholder="Enter secure password" 
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="new-role" class="modern-label">
+                            <span class="label-icon">🎭</span>
+                            Role
+                        </label>
+                        <select id="new-role" class="modern-select">
+                            <option value="support">👨‍💼 Support</option>
+                            <option value="mailer">📧 Mailer</option>
+                            <option value="admin">🔧 Admin</option>
+                        </select>
+                    </div>
+                    
+                    <button type="button" onclick="addUser()" class="modern-btn primary-btn">
+                        <span class="btn-icon">➕</span>
+                        Add User
+                    </button>
+                </form>
             </div>
-            <div class="form-group">
-                <label for="new-role">Role:</label>
-                <select id="new-role">
-                    <option value="support">Support</option>
-                    <option value="mailer">Mailer</option>
-                    <option value="admin">Admin</option>
-                </select>
-            </div>
-            <button onclick="addUser()" class="btn btn-primary">➕ Add User</button>
         </div>
         
-        <!-- Existing Users -->
-        <div style="flex: 1;">
-            <h3>Existing Users</h3>
-            <div id="user-list" style="margin-top: 1rem;">
-                <p>Loading users...</p>
+        <!-- Existing Users Card -->
+        <div class="modern-card users-list-card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <span class="title-icon">📋</span>
+                    Existing Users
+                </h3>
+                <p class="card-subtitle">Manage existing user accounts and permissions</p>
+            </div>
+            
+            <div class="card-body">
+                <div id="user-list" class="users-container">
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <p>Loading users...</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -85,22 +138,25 @@ function loadUsers() {
             }
             
             userList.innerHTML = data.users.map((user, index) => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: white; margin-bottom: 0.5rem; border-radius: 4px; border: 1px solid #ddd;">
-                    <div style="display: flex; align-items: center; gap: 1rem;">
-                        <span style="font-weight: bold; min-width: 30px;">${index + 1}</span>
-                        <div>
-                            <div style="font-weight: bold; font-size: 1.1rem;">${user.username}</div>
-                            <span style="background: ${user.role === 'admin' ? '#dc3545' : user.role === 'mailer' ? '#ffc107' : '#28a745'}; color: ${user.role === 'mailer' ? '#000' : 'white'}; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem;">
-                                ${user.role}
+                <div class="user-item">
+                    <div class="user-info">
+                        <div class="user-number">${index + 1}</div>
+                        <div class="user-details">
+                            <div class="user-name">${user.username}</div>
+                            <span class="role-badge role-${user.role}">
+                                ${user.role === 'admin' ? '🔧' : user.role === 'mailer' ? '📧' : '👨‍💼'} 
+                                ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                             </span>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button onclick="editUser('${user.username}', '${user.role}')" style="background: #007bff; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 3px; cursor: pointer;">
-                            ✏️ Edit
+                    <div class="user-actions">
+                        <button onclick="editUser('${user.username}', '${user.role}')" class="modern-btn secondary-btn">
+                            <span class="btn-icon">✏️</span>
+                            Edit
                         </button>
-                        <button onclick="deleteUser('${user.username}')" style="background: #dc3545; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 3px; cursor: pointer;">
-                            🗑️ Delete
+                        <button onclick="deleteUser('${user.username}')" class="modern-btn danger-btn">
+                            <span class="btn-icon">🗑️</span>
+                            Delete
                         </button>
                     </div>
                 </div>

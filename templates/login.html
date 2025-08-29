@@ -1,20 +1,70 @@
 {% extends "base.html" %}
-{% block title %}Login - GBot Web{% endblock %}
+{% block title %}Sign In - GBot Web{% endblock %}
 
 {% block content %}
-<div class="login-container">
-    <h2>GBot Web Login</h2>
-    <form method="POST">
-        <div class="form-group">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required>
+<div class="login-page">
+    <div class="login-container">
+        <!-- Login Header -->
+        <div class="login-header">
+            <div class="login-logo">
+                <span class="logo-icon">🤖</span>
+                <h1 class="logo-text">GBot Web</h1>
+            </div>
+            <p class="login-subtitle">Google Workspace Management Platform</p>
         </div>
-        <div class="form-group">
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
-        </div>
-        <button type="submit">Login</button>
-    </form>
 
+        <!-- Login Form -->
+        <div class="login-form-container">
+            <form method="POST" class="login-form">
+                <div class="form-group">
+                    <label for="username" class="form-label">
+                        <span class="label-icon">👤</span>
+                        Username
+                    </label>
+                    <input type="text" 
+                           id="username" 
+                           name="username" 
+                           class="form-input" 
+                           placeholder="Enter your username"
+                           required 
+                           autocomplete="username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password" class="form-label">
+                        <span class="label-icon">🔒</span>
+                        Password
+                    </label>
+                    <input type="password" 
+                           id="password" 
+                           name="password" 
+                           class="form-input" 
+                           placeholder="Enter your password"
+                           required 
+                           autocomplete="current-password">
+                </div>
+                
+                <button type="submit" class="login-btn">
+                    <span class="btn-icon">🚀</span>
+                    Sign In to Dashboard
+                </button>
+            </form>
+        </div>
+
+        <!-- Login Footer -->
+        <div class="login-footer">
+            <p class="security-notice">
+                <span class="notice-icon">🛡️</span>
+                Secure access protected by IP whitelist
+            </p>
+        </div>
+    </div>
+
+    <!-- Background Elements -->
+    <div class="login-bg-elements">
+        <div class="bg-circle bg-circle-1"></div>
+        <div class="bg-circle bg-circle-2"></div>
+        <div class="bg-circle bg-circle-3"></div>
+    </div>
 </div>
 {% endblock %}
