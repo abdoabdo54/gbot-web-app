@@ -1168,6 +1168,113 @@ install_missing_dependencies() {
     echo ""
 }
 
+enable_ip_whitelist() {
+    log "Enabling IP whitelist security..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                ENABLING IP WHITELIST SECURITY                ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    # Create backup of current .env
+    cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
+    
+    # Update .env file with secure settings
+    log "Updating .env file with secure IP whitelist settings..."
+    sed -i 's/ENABLE_IP_WHITELIST=False/ENABLE_IP_WHITELIST=True/' .env
+    sed -i 's/ALLOW_ALL_IPS_IN_DEV=True/ALLOW_ALL_IPS_IN_DEV=False/' .env
+    
+    # Activate virtual environment
+    source venv/bin/activate
+    
+    # Set environment variables
+    export $(grep -v '^#' .env | xargs)
+    
+    # Ensure we're using the PostgreSQL database URL
+    if [ -f ".db_credentials" ]; then
+        source .db_credentials
+        export DATABASE_URL
+    fi
+    
+    # Get current IP address
+    CURRENT_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "unknown")
+    
+    echo -e "🌐 Your current IP address: ${BLUE}$CURRENT_IP${NC}"
+    
+    # Add current IP to whitelist
+    log "Adding your current IP to whitelist..."
+    python3 -c "
+import os
+from app import app, db
+from database import WhitelistedIP
+
+with app.app_context():
+    # Check if IP already exists
+    existing_ip = WhitelistedIP.query.filter_by(ip_address='$CURRENT_IP').first()
+    
+    if existing_ip:
+        print(f'✅ IP $CURRENT_IP already in whitelist')
+    else:
+        # Add new IP
+        new_ip = WhitelistedIP(ip_address='$CURRENT_IP')
+        db.session.add(new_ip)
+        db.session.commit()
+        print(f'✅ IP $CURRENT_IP added to whitelist successfully')
+    
+    # List all whitelisted IPs
+    print('\n📋 All whitelisted IPs:')
+    whitelisted_ips = WhitelistedIP.query.all()
+    if whitelisted_ips:
+        for ip in whitelisted_ips:
+            print(f'   • {ip.ip_address}')
+    else:
+        print('   No IPs whitelisted yet')
+"
+    
+    # Deactivate virtual environment
+    deactivate
+    
+    # Restart the application
+    log "Restarting application with IP whitelist enabled..."
+    systemctl restart gbot
+    
+    # Wait for restart
+    sleep 3
+    
+    # Check status
+    if systemctl is-active --quiet gbot; then
+        log_success "Application restarted successfully"
+    else
+        log_error "Application restart failed"
+        systemctl status gbot
+    fi
+    
+    echo -e "\n🛡️ IP Whitelist Security Enabled!"
+    echo -e "\n📝 Security Settings:"
+    echo -e "   • ENABLE_IP_WHITELIST=True (IP whitelist enabled)"
+    echo -e "   • ALLOW_ALL_IPS_IN_DEV=False (no development bypass)"
+    echo -e "   • Your IP (${BLUE}$CURRENT_IP${NC}) added to whitelist"
+    echo -e "\n🔐 Login credentials:"
+    echo -e "   Username: ${BLUE}admin${NC}"
+    echo -e "   Password: ${BLUE}A9B3nX#Q8k\$mZ6vw${NC}"
+    echo -e "\n🌐 Access your application:"
+    echo -e "   Main app: ${BLUE}http://172.235.163.73${NC}"
+    echo -e "   Whitelist management: ${BLUE}http://172.235.163.73/whitelist${NC}"
+    echo -e "\n⚠️  IMPORTANT SECURITY NOTES:"
+    echo -e "   • Only whitelisted IPs can access the application"
+    echo -e "   • Your current IP (${BLUE}$CURRENT_IP${NC}) is now whitelisted"
+    echo -e "   • To add more IPs, log in and go to whitelist management"
+    echo -e "   • Or use emergency access: ${BLUE}http://172.235.163.73/emergency_access?key=4ee85e149031cac30f62f8ebb598f030${NC}"
+    echo -e "\n🔧 To add more IPs:"
+    echo -e "   1. Log in from a whitelisted IP"
+    echo -e "   2. Go to: ${BLUE}http://172.235.163.73/whitelist${NC}"
+    echo -e "   3. Add the new IP addresses"
+    echo -e "\n🚨 SECURITY TEST:"
+    echo -e "   Try accessing from a different IP (like mobile data) - you should see 'Access denied'"
+    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
 fix_admin_user() {
     log "Fixing admin user login issue..."
     
@@ -1642,6 +1749,7 @@ show_help() {
     echo "  --fix-whitelist         Fix IP whitelist issues"
     echo "  --install-deps          Install missing Python dependencies"
     echo "  --fix-admin             Fix admin user login issue"
+    echo "  --enable-whitelist      Enable IP whitelist security"
     echo "  --clean                 Clean installation files"
     echo ""
     echo "Examples:"
@@ -1885,6 +1993,10 @@ main() {
                 ;;
             --fix-admin)
                 fix_admin_user
+                exit 0
+                ;;
+            --enable-whitelist)
+                enable_ip_whitelist
                 exit 0
                 ;;
             --clean)
