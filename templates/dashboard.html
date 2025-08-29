@@ -291,10 +291,10 @@
             <h4>Step 1.2: Select New Domain and Apply to Downloaded CSV</h4>
             <div class="step-content">
                 <div class="form-row">
-                            <button onclick="retrieveAvailableDomains()" class="secondary-button">🔍 Retrieve Available Domains</button>
+                    <button onclick="retrieveAvailableDomains()" class="secondary-button">🔍 Retrieve Available Domains</button>
         <button onclick="getDomainUsageStats()" class="info-button">📊 Domain Usage Stats</button>
         <button onclick="clearOldDomainData()" class="warning-button">🗑️ Clear Old Data</button>
-        <button onclick="applySelectedDomainToCSV()" class="primary-button">✅ Apply Selected Domain to CSV</button>
+                    <button onclick="applySelectedDomainToCSV()" class="primary-button">✅ Apply Selected Domain to CSV</button>
         <button onclick="debugDomainUsers()" class="debug-button">🐛 Debug Domain Users</button>
                 </div>
                 
@@ -1070,7 +1070,7 @@ function retrieveUsers() {
                     <span class="email">${user.email}</span>
                     <span class="name">${user.first_name} ${user.last_name}</span>
                     <span class="status-badges">
-                        ${user.admin ? '<span class="badge admin">👑 Admin</span>' : ''}
+                    ${user.admin ? '<span class="badge admin">👑 Admin</span>' : ''}
                         ${statusBadge}
                     </span>
                 </div>`;
@@ -1516,7 +1516,7 @@ function deleteFromList() {
 
 function refreshAccountsDisplay() {
     // Simply reload the page to refresh accounts from database
-    location.reload();
+            location.reload();
 }
 
 // Admin-only manual token status check

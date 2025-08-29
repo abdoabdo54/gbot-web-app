@@ -76,22 +76,17 @@ def before_request():
     # Debug logging
     app.logger.debug(f"Before request: endpoint={request.endpoint}, user={session.get('user')}, emergency_access={session.get('emergency_access')}, client_ip={get_client_ip()}")
     
-    # Always allow these routes without any checks
-    if request.endpoint in ['static', 'login', 'emergency_access', 'test-admin']:
+    # Always allow these routes without any checks (whitelisted routes)
+    if request.endpoint in ['static', 'login', 'emergency_access', 'test-admin', 'whitelist', 'whitelist_bypass']:
         app.logger.debug(f"Allowing {request.endpoint} route without restrictions")
         return
 
-    # If user is logged in, allow access to all routes (bypass IP whitelist)
-    if session.get('user'):
-        app.logger.debug(f"User {session.get('user')} is logged in, allowing access to {request.endpoint}")
-        return
-
-    # Allow emergency access users to access whitelist and dashboard endpoints
-    if session.get('emergency_access') and request.endpoint in ['whitelist', 'dashboard', 'static']:
+    # Allow emergency access users to access all endpoints
+    if session.get('emergency_access'):
         app.logger.debug(f"Allowing emergency access user to access {request.endpoint}")
         return
 
-    # IP Whitelist check - only for non-logged-in users
+    # IP Whitelist check - for ALL users (including logged-in users)
     # Check if IP whitelist is enabled
     if app.config.get('ENABLE_IP_WHITELIST', True):  # Default to True for security
         client_ip = get_client_ip()

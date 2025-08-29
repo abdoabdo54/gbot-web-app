@@ -301,39 +301,6 @@ setup_postgresql() {
     echo "DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost/$DB_NAME" > "$SCRIPT_DIR/.db_credentials"
     chmod 600 "$SCRIPT_DIR/.db_credentials"
     
-    # Test database connection
-    log "Testing database connection..."
-    if sudo -u postgres psql -c "SELECT 1;" >/dev/null 2>&1; then
-        log_success "PostgreSQL connection test passed"
-    else
-        log_error "PostgreSQL connection test failed"
-        exit 1
-    fi
-    
-    # Test user connection
-    if PGPASSWORD="$DB_PASS" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" >/dev/null 2>&1; then
-        log_success "Database user connection test passed"
-    else
-        log_error "Database user connection test failed"
-        log "Attempting to fix user permissions..."
-        
-        # Recreate user with correct password
-        sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;"
-        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
-        sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
-        sudo -u postgres psql -c "ALTER ROLE $DB_USER SET client_encoding TO 'utf8';"
-        sudo -u postgres psql -c "ALTER ROLE $DB_USER SET default_transaction_isolation TO 'read committed';"
-        sudo -u postgres psql -c "ALTER ROLE $DB_USER SET timezone TO 'UTC';"
-        
-        # Test again
-        if PGPASSWORD="$DB_PASS" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" >/dev/null 2>&1; then
-            log_success "Database user connection test passed after fix"
-        else
-            log_error "Database user connection test still failed"
-            exit 1
-        fi
-    fi
-    
     log_success "PostgreSQL setup completed"
     log "Database: $DB_NAME, User: $DB_USER, Password: $DB_PASS"
 }
@@ -347,26 +314,10 @@ setup_python_environment() {
         rm -rf venv
     fi
     
-    log "Creating virtual environment..."
     python3 -m venv venv
-    
-    # Verify virtual environment was created
-    if [ ! -d "venv" ] || [ ! -f "venv/bin/python3" ]; then
-        log_error "Failed to create virtual environment"
-        exit 1
-    fi
-    
-    log "Activating virtual environment..."
     source venv/bin/activate
     
-    # Verify activation
-    if [ "$VIRTUAL_ENV" != "$SCRIPT_DIR/venv" ]; then
-        log_error "Virtual environment activation failed"
-        exit 1
-    fi
-    
     # Upgrade pip
-    log "Upgrading pip..."
     pip install --upgrade pip
     
     # Install Python dependencies
@@ -374,12 +325,6 @@ setup_python_environment() {
         log "Installing Python dependencies..."
         pip install -r requirements.txt
         log_success "Python dependencies installed"
-        
-        # Verify gunicorn was installed
-        if [ ! -f "venv/bin/gunicorn" ]; then
-            log_error "Gunicorn not found after installation"
-            exit 1
-        fi
     else
         log_error "requirements.txt not found"
         exit 1
@@ -387,8 +332,6 @@ setup_python_environment() {
     
     # Deactivate virtual environment
     deactivate
-    
-    log_success "Python environment setup completed"
 }
 
 setup_database() {
@@ -2092,10 +2035,6 @@ main() {
                 debug_service
                 exit 0
                 ;;
-            --fix-all)
-                fix_all_issues
-                exit 0
-                ;;
             --clean)
                 CLEANUP=true
                 shift
@@ -2342,136 +2281,6 @@ fix_services() {
     
     echo -e "\n✅ Service issues fixed!"
     echo -e "\n📋 Service Status:"
-    echo -e "   • PostgreSQL: $($SUDO_CMD systemctl is-active postgresql 2>/dev/null || echo 'inactive')"
-    echo -e "   • GBot: $($SUDO_CMD systemctl is-active gbot 2>/dev/null || echo 'inactive')"
-    echo -e "   • Nginx: $($SUDO_CMD systemctl is-active nginx 2>/dev/null || echo 'inactive')"
-    
-    echo -e "\n🌐 Test your application:"
-    echo -e "   URL: ${BLUE}http://$SERVER_IP${NC}"
-    echo -e "   Health: ${BLUE}http://$SERVER_IP/health${NC}"
-    
-    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
-    echo ""
-}
-
-fix_all_issues() {
-    log "Fixing all installation issues..."
-    
-    echo ""
-    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
-    echo -e "${YELLOW}                FIXING ALL INSTALLATION ISSUES               ${NC}"
-    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
-    
-    # Step 1: Stop all services
-    log "Step 1: Stopping all services..."
-    $SUDO_CMD systemctl stop gbot 2>/dev/null || true
-    $SUDO_CMD systemctl stop nginx 2>/dev/null || true
-    sleep 3
-    
-    # Step 2: Fix Python environment
-    log "Step 2: Fixing Python environment..."
-    if [ ! -d "venv" ] || [ ! -f "venv/bin/python3" ]; then
-        log "Virtual environment missing, recreating..."
-        rm -rf venv 2>/dev/null || true
-        setup_python_environment
-    else
-        log "Virtual environment exists, verifying..."
-        if [ ! -f "venv/bin/gunicorn" ]; then
-            log "Gunicorn missing, reinstalling dependencies..."
-            source venv/bin/activate
-            pip install -r requirements.txt
-            deactivate
-        fi
-    fi
-    
-    # Step 3: Fix database
-    log "Step 3: Fixing database..."
-    if [ -f ".db_credentials" ]; then
-        source .db_credentials
-        # Test and fix database connection
-        if ! PGPASSWORD="$DB_PASSWORD" psql -h localhost -U "gbot_user" -d "gbot_db" -c "SELECT 1;" >/dev/null 2>&1; then
-            log "Database connection failed, recreating user..."
-            sudo -u postgres psql -c "DROP USER IF EXISTS gbot_user;"
-            sudo -u postgres psql -c "CREATE USER gbot_user WITH PASSWORD '$DB_PASSWORD';"
-            sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE gbot_db TO gbot_user;"
-            sudo -u postgres psql -c "ALTER ROLE gbot_user SET client_encoding TO 'utf8';"
-            sudo -u postgres psql -c "ALTER ROLE gbot_user SET default_transaction_isolation TO 'read committed';"
-            sudo -u postgres psql -c "ALTER ROLE gbot_user SET timezone TO 'UTC';"
-        fi
-    else
-        log "Database credentials missing, recreating database..."
-        setup_postgresql
-    fi
-    
-    # Step 4: Fix environment file
-    log "Step 4: Fixing environment file..."
-    if [ ! -f ".env" ]; then
-        log "Environment file missing, recreating..."
-        create_environment_file
-    fi
-    
-    # Step 5: Fix permissions
-    log "Step 5: Fixing permissions..."
-    $SUDO_CMD chown -R root:root "$SCRIPT_DIR"
-    $SUDO_CMD chmod -R 755 "$SCRIPT_DIR"
-    $SUDO_CMD rm -f "$SCRIPT_DIR/gbot.sock"
-    
-    # Step 6: Recreate service
-    log "Step 6: Recreating service..."
-    setup_systemd_service
-    $SUDO_CMD systemctl daemon-reload
-    
-    # Step 7: Start services
-    log "Step 7: Starting services..."
-    $SUDO_CMD systemctl start postgresql
-    $SUDO_CMD systemctl enable postgresql
-    sleep 3
-    
-    $SUDO_CMD systemctl start gbot
-    $SUDO_CMD systemctl enable gbot
-    sleep 8
-    
-    # Check if GBot service is running
-    if $SUDO_CMD systemctl is-active --quiet gbot; then
-        log_success "GBot service started successfully"
-    else
-        log_error "GBot service failed to start"
-        echo "📋 GBot service status:"
-        $SUDO_CMD systemctl status gbot --no-pager
-        echo ""
-        echo "📋 Recent GBot logs:"
-        $SUDO_CMD journalctl -u gbot -n 20 --no-pager
-    fi
-    
-    # Check socket
-    if [ -S "$SCRIPT_DIR/gbot.sock" ]; then
-        log_success "Socket file created"
-        $SUDO_CMD chmod 666 "$SCRIPT_DIR/gbot.sock"
-        $SUDO_CMD chown root:root "$SCRIPT_DIR/gbot.sock"
-    else
-        log_error "Socket file not created"
-    fi
-    
-    $SUDO_CMD systemctl start nginx
-    $SUDO_CMD systemctl enable nginx
-    sleep 3
-    
-    # Step 8: Test connection
-    log "Step 8: Testing connection..."
-    sleep 3
-    SERVER_IP=$(hostname -I | awk '{print $1}')
-    
-    if curl -s -m 10 "http://$SERVER_IP/health" 2>/dev/null; then
-        log_success "Connection test passed"
-    else
-        log_warning "Connection test failed"
-    fi
-    
-    echo -e "\n✅ All issues fixed!"
-    echo -e "\n📋 Final Status:"
-    echo -e "   • Virtual Environment: $(if [ -f "venv/bin/gunicorn" ]; then echo "✅ OK"; else echo "❌ Missing"; fi)"
-    echo -e "   • Database: $(if [ -f ".db_credentials" ]; then echo "✅ OK"; else echo "❌ Missing"; fi)"
-    echo -e "   • Environment: $(if [ -f ".env" ]; then echo "✅ OK"; else echo "❌ Missing"; fi)"
     echo -e "   • PostgreSQL: $($SUDO_CMD systemctl is-active postgresql 2>/dev/null || echo 'inactive')"
     echo -e "   • GBot: $($SUDO_CMD systemctl is-active gbot 2>/dev/null || echo 'inactive')"
     echo -e "   • Nginx: $($SUDO_CMD systemctl is-active nginx 2>/dev/null || echo 'inactive')"
