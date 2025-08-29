@@ -565,19 +565,24 @@ setup_systemd_service() {
 [Unit]
 Description=GBot Web Application
 After=network.target postgresql.service
+Wants=postgresql.service
 
 [Service]
 Type=notify
-User=$USER
-Group=$USER
+User=www-data
+Group=www-data
 WorkingDirectory=$SCRIPT_DIR
 Environment="PATH=$SCRIPT_DIR/venv/bin"
 Environment="FLASK_ENV=production"
-ExecStart=$SCRIPT_DIR/venv/bin/gunicorn --workers 4 --bind unix:$SCRIPT_DIR/gbot.sock --access-logfile $SCRIPT_DIR/gunicorn-access.log --error-logfile $SCRIPT_DIR/gunicorn-error.log --max-requests 1000 --max-requests-jitter 100 --timeout 30 app:app
+ExecStart=$SCRIPT_DIR/venv/bin/gunicorn --workers 4 --bind unix:$SCRIPT_DIR/gbot.sock --access-logfile $SCRIPT_DIR/gunicorn-access.log --error-logfile $SCRIPT_DIR/gunicorn-error.log --max-requests 1000 --max-requests-jitter 100 --timeout 120 --keep-alive 5 app:app
 ExecReload=/bin/kill -s HUP \$MAINPID
 Restart=always
-RestartSec=3
+RestartSec=5
+StartLimitInterval=60
+StartLimitBurst=3
 LimitNOFILE=65536
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -1583,31 +1588,106 @@ EOF
 start_services() {
     log "Starting services..."
     
+    # Ensure proper permissions
+    $SUDO_CMD chown -R www-data:www-data "$SCRIPT_DIR"
+    $SUDO_CMD chmod +x "$SCRIPT_DIR/gbot.sock" 2>/dev/null || true
+    
     # Start PostgreSQL
+    log "Starting PostgreSQL..."
     $SUDO_CMD systemctl start postgresql
     $SUDO_CMD systemctl enable postgresql
     
-    # Start Nginx
-    $SUDO_CMD systemctl start nginx
-    $SUDO_CMD systemctl enable nginx
+    # Wait for PostgreSQL
+    sleep 3
     
-    # Start GBot service
-    $SUDO_CMD systemctl start gbot
+    # Start GBot service first
+    log "Starting GBot service..."
+    $SUDO_CMD systemctl daemon-reload
     $SUDO_CMD systemctl enable gbot
+    
+    # Stop service first if running
+    $SUDO_CMD systemctl stop gbot 2>/dev/null || true
+    sleep 2
+    
+    # Start service
+    $SUDO_CMD systemctl start gbot
     
     # Wait for Gunicorn to create the socket
     log "Waiting for Gunicorn socket to be ready..."
-    sleep 5
+    sleep 8
+    
+    # Check if service is running
+    if $SUDO_CMD systemctl is-active --quiet gbot; then
+        log_success "GBot service started successfully"
+    else
+        log_error "GBot service failed to start"
+        echo "📋 GBot service status:"
+        $SUDO_CMD systemctl status gbot --no-pager
+        echo ""
+        echo "📋 Recent GBot logs:"
+        $SUDO_CMD journalctl -u gbot -n 20 --no-pager
+        return 1
+    fi
     
     # Check if socket exists and has proper permissions
     if [ -S "$SCRIPT_DIR/gbot.sock" ]; then
         log_success "Gunicorn socket created successfully"
         # Set proper permissions on the socket
-        chmod 666 "$SCRIPT_DIR/gbot.sock"
+        $SUDO_CMD chmod 666 "$SCRIPT_DIR/gbot.sock"
+        
+        # Test socket connection
+        if curl -s --unix-socket "$SCRIPT_DIR/gbot.sock" http://localhost/health 2>/dev/null; then
+            log_success "Socket connection test passed"
+        else
+            log_warning "Socket connection test failed - checking logs"
+            $SUDO_CMD journalctl -u gbot -n 10 --no-pager
+        fi
     else
         log_error "Gunicorn socket not found. Checking service status..."
-        $SUDO_CMD systemctl status gbot
-        exit 1
+        echo "📋 GBot service status:"
+        $SUDO_CMD systemctl status gbot --no-pager
+        echo ""
+        echo "📋 Recent GBot logs:"
+        $SUDO_CMD journalctl -u gbot -n 20 --no-pager
+        return 1
+    fi
+    
+    # Start Nginx
+    log "Starting Nginx..."
+    $SUDO_CMD systemctl enable nginx
+    
+    # Stop service first if running
+    $SUDO_CMD systemctl stop nginx 2>/dev/null || true
+    sleep 2
+    
+    # Start service
+    $SUDO_CMD systemctl start nginx
+    
+    # Wait for service to start
+    sleep 3
+    
+    # Check if service is running
+    if $SUDO_CMD systemctl is-active --quiet nginx; then
+        log_success "Nginx service started successfully"
+    else
+        log_error "Nginx service failed to start"
+        echo "📋 Nginx service status:"
+        $SUDO_CMD systemctl status nginx --no-pager
+        echo ""
+        echo "📋 Recent Nginx logs:"
+        $SUDO_CMD journalctl -u nginx -n 20 --no-pager
+        return 1
+    fi
+    
+    # Test HTTP connection
+    log "Testing HTTP connection..."
+    sleep 3
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    if curl -s -m 10 "http://$SERVER_IP/health" 2>/dev/null; then
+        log_success "HTTP connection test passed"
+    else
+        log_warning "HTTP connection test failed - checking Nginx logs"
+        $SUDO_CMD journalctl -u nginx -n 10 --no-pager
     fi
     
     log_success "All services started and enabled"
@@ -1851,6 +1931,9 @@ run_complete_installation() {
     
     # Final security verification
     verify_security_setup
+    
+    # Final connection test
+    test_final_connection
     
     log_success "Complete installation finished successfully!"
 }
@@ -2097,6 +2180,92 @@ with app.app_context():
     echo -e "   • Your current IP (${BLUE}$CURRENT_IP${NC}) is whitelisted"
     echo -e "   • To add more IPs, log in and use the whitelist management page"
     echo -e "   • Emergency access is available for initial setup"
+    
+    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
+test_final_connection() {
+    log "Testing final connection..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                FINAL CONNECTION TEST                        ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    # Get server IP
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    
+    echo -e "\n🔍 Testing connection to: ${BLUE}http://$SERVER_IP${NC}"
+    
+    # Test 1: Socket connection
+    echo -e "\n📡 Test 1: Socket Connection"
+    if curl -s --unix-socket "$SCRIPT_DIR/gbot.sock" http://localhost/health 2>/dev/null; then
+        echo -e "✅ Socket connection: ${GREEN}SUCCESS${NC}"
+    else
+        echo -e "❌ Socket connection: ${RED}FAILED${NC}"
+    fi
+    
+    # Test 2: Local HTTP connection
+    echo -e "\n🌐 Test 2: Local HTTP Connection"
+    if curl -s -m 10 "http://localhost/health" 2>/dev/null; then
+        echo -e "✅ Local HTTP: ${GREEN}SUCCESS${NC}"
+    else
+        echo -e "❌ Local HTTP: ${RED}FAILED${NC}"
+    fi
+    
+    # Test 3: External HTTP connection
+    echo -e "\n🌍 Test 3: External HTTP Connection"
+    if curl -s -m 10 "http://$SERVER_IP/health" 2>/dev/null; then
+        echo -e "✅ External HTTP: ${GREEN}SUCCESS${NC}"
+    else
+        echo -e "❌ External HTTP: ${RED}FAILED${NC}"
+    fi
+    
+    # Test 4: Service status
+    echo -e "\n⚙️  Test 4: Service Status"
+    if $SUDO_CMD systemctl is-active --quiet gbot; then
+        echo -e "✅ GBot service: ${GREEN}RUNNING${NC}"
+    else
+        echo -e "❌ GBot service: ${RED}STOPPED${NC}"
+    fi
+    
+    if $SUDO_CMD systemctl is-active --quiet nginx; then
+        echo -e "✅ Nginx service: ${GREEN}RUNNING${NC}"
+    else
+        echo -e "❌ Nginx service: ${RED}STOPPED${NC}"
+    fi
+    
+    # Test 5: Port availability
+    echo -e "\n🔌 Test 5: Port Availability"
+    if netstat -tlnp 2>/dev/null | grep -q ":80 "; then
+        echo -e "✅ Port 80: ${GREEN}LISTENING${NC}"
+    else
+        echo -e "❌ Port 80: ${RED}NOT LISTENING${NC}"
+    fi
+    
+    # Test 6: Firewall status
+    echo -e "\n🛡️  Test 6: Firewall Status"
+    if command -v ufw &> /dev/null; then
+        UFW_STATUS=$($SUDO_CMD ufw status 2>/dev/null | head -1)
+        echo -e "UFW Status: ${BLUE}$UFW_STATUS${NC}"
+    elif command -v firewall-cmd &> /dev/null; then
+        FIREWALLD_STATUS=$($SUDO_CMD firewall-cmd --state 2>/dev/null)
+        echo -e "firewalld Status: ${BLUE}$FIREWALLD_STATUS${NC}"
+    else
+        echo -e "No firewall detected"
+    fi
+    
+    echo -e "\n📋 Connection Summary:"
+    echo -e "   • Application URL: ${BLUE}http://$SERVER_IP${NC}"
+    echo -e "   • Health Check: ${BLUE}http://$SERVER_IP/health${NC}"
+    echo -e "   • Login Page: ${BLUE}http://$SERVER_IP/login${NC}"
+    
+    echo -e "\n🔧 If connection fails:"
+    echo -e "   1. Check service status: ${BLUE}$SUDO_CMD systemctl status gbot nginx${NC}"
+    echo -e "   2. Check logs: ${BLUE}$SUDO_CMD journalctl -u gbot -f${NC}"
+    echo -e "   3. Restart services: ${BLUE}$SUDO_CMD systemctl restart gbot nginx${NC}"
+    echo -e "   4. Check firewall: ${BLUE}$SUDO_CMD ufw status${NC}"
     
     echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
     echo ""

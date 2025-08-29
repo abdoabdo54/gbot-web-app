@@ -192,6 +192,23 @@ def whitelist_bypass():
     flash('Emergency access granted for whitelist management', 'success')
     return redirect(url_for('whitelist'))
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint for monitoring"""
+    try:
+        # Test database connection
+        db.session.execute('SELECT 1')
+        db_status = 'healthy'
+    except Exception as e:
+        db_status = f'unhealthy: {str(e)}'
+    
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'database': db_status,
+        'version': '1.0.0'
+    })
+
 @app.route('/')
 @app.route('/dashboard')
 @login_required
