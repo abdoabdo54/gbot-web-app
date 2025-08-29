@@ -29,21 +29,69 @@
 </head>
 <body>
     {% if user %}
-    <header class="dashboard-header">
-        <h1>🤖 GBot Web</h1>
-        <div class="header-nav">
-            <a href="/dashboard" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">📊 Dashboard</a>
-            {% if role == 'admin' %}
-            <a href="/users" class="nav-link {% if request.endpoint == 'users' %}active{% endif %}">👥 Manage Users</a>
-            <a href="/whitelist" class="nav-link {% if request.endpoint == 'whitelist' %}active{% endif %}">🛡️ IP Whitelist</a>
-            <a href="/settings" class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}">⚙️ Settings</a>
-            {% endif %}
+    <!-- Mobile Header for Hamburger Menu -->
+    <header class="mobile-header">
+        <div class="flex items-center gap-3">
+            <button class="mobile-nav-toggle" id="mobileNavToggle">☰</button>
+            <h1 class="text-lg font-bold text-primary">🤖 GBot Web</h1>
         </div>
-        <div class="header-user">
-            <span>{{ user }} ({{ role }})</span>
-            <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
-        </div>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
     </header>
+    
+    <div class="app-layout">
+        <!-- Professional Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">🤖</div>
+                <div class="sidebar-title">GBot Web</div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-item">
+                    <a href="/dashboard" class="sidebar-nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">Dashboard</span>
+                    </a>
+                </div>
+                {% if role == 'admin' %}
+                <div class="nav-item">
+                    <a href="/users" class="sidebar-nav-link {% if request.endpoint == 'users' %}active{% endif %}">
+                        <span class="nav-icon">👥</span>
+                        <span class="nav-text">Manage Users</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/whitelist" class="sidebar-nav-link {% if request.endpoint == 'whitelist' %}active{% endif %}">
+                        <span class="nav-icon">🛡️</span>
+                        <span class="nav-text">IP Whitelist</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/settings" class="sidebar-nav-link {% if request.endpoint == 'settings' %}active{% endif %}">
+                        <span class="nav-icon">⚙️</span>
+                        <span class="nav-text">Settings</span>
+                    </a>
+                </div>
+                {% endif %}
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar">{{ user[0].upper() if user else 'U' }}</div>
+                    <div class="user-info">
+                        <div class="user-name">{{ user or 'Unknown' }}</div>
+                        <div class="user-role">{{ role or 'user' }}</div>
+                    </div>
+                </div>
+                <a href="{{ url_for('logout') }}" class="sidebar-logout-btn">
+                    <span>🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
     {% endif %}
     
     <!-- Flash Messages Container -->
@@ -69,13 +117,38 @@
         {% endif %}
     {% endwith %}
 
-    <!-- Main Content Container -->
-    <main class="main-container">
-        <div class="content-wrapper">
-            {% block content %}{% endblock %}
-        </div>
-    </main>
+            <div class="content-area">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    {% else %}
+        {% block content %}{% endblock %}
+    {% endif %}
     
     {% block scripts %}{% endblock %}
+    
+    <!-- Mobile Navigation Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileNavToggle = document.getElementById('mobileNavToggle');
+            const sidebar = document.getElementById('sidebar');
+            
+            if (mobileNavToggle && sidebar) {
+                mobileNavToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('mobile-open');
+                });
+                
+                // Close sidebar when clicking outside on mobile
+                document.addEventListener('click', function(e) {
+                    if (window.innerWidth <= 768) {
+                        if (!sidebar.contains(e.target) && !mobileNavToggle.contains(e.target)) {
+                            sidebar.classList.remove('mobile-open');
+                        }
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>
