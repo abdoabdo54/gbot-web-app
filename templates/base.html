@@ -77,10 +77,10 @@
             
             <div class="sidebar-footer">
                 <div class="user-profile">
-                    <div class="user-avatar">{{ user[0].upper() if user else 'U' }}</div>
+                    <div class="user-avatar">{{ user[0].upper() if user and user|length > 0 else 'U' }}</div>
                     <div class="user-info">
-                        <div class="user-name">{{ user or 'Unknown' }}</div>
-                        <div class="user-role">{{ role or 'user' }}</div>
+                        <div class="user-name">{{ user if user else 'Unknown' }}</div>
+                        <div class="user-role">{{ role if role else 'user' }}</div>
                     </div>
                 </div>
                 <a href="{{ url_for('logout') }}" class="sidebar-logout-btn">
@@ -123,7 +123,10 @@
         </main>
     </div>
     {% else %}
-        {% block content %}{% endblock %}
+        <!-- Login page content without sidebar -->
+        <div class="content-area">
+            {% block content %}{% endblock %}
+        </div>
     {% endif %}
     
     {% block scripts %}{% endblock %}

@@ -146,7 +146,7 @@ def login():
             app.logger.warning(f"User not found: {username}")
             flash('Invalid credentials', 'error')
     
-    return render_template('login.html')
+    return render_template('login.html', user=None, role=None)
 
 @app.route('/logout')
 def logout():
@@ -256,12 +256,12 @@ def emergency_access():
     # If SECRET_KEY is provided, show the emergency access form
     elif static_key == secret_key:
         app.logger.info("SECRET_KEY provided - showing emergency access form")
-        return render_template('emergency_access.html')
+        return render_template('emergency_access.html', user=None, role=None)
     
     # If no valid key, show the emergency access form
     else:
         app.logger.info("No valid key provided - showing emergency access form")
-        return render_template('emergency_access.html')
+        return render_template('emergency_access.html', user=None, role=None)
 
 @app.route('/api/emergency-add-ip', methods=['POST'])
 def api_emergency_add_ip():
