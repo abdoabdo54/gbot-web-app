@@ -324,17 +324,6 @@ setup_python_environment() {
     if [ -f "requirements.txt" ]; then
         log "Installing Python dependencies..."
         pip install -r requirements.txt
-        
-        # Verify critical modules are installed
-        log "Verifying critical modules..."
-        python3 -c "import flask, flask_sqlalchemy, psycopg2, dotenv, werkzeug" 2>/dev/null
-        if [ $? -eq 0 ]; then
-            log_success "All critical Python dependencies verified"
-        else
-            log_warning "Some modules may be missing, installing individually..."
-            pip install Flask==2.3.3 Flask-SQLAlchemy==3.0.5 psycopg2-binary==2.9.7 python-dotenv==1.0.0 Werkzeug==2.3.7
-        fi
-        
         log_success "Python dependencies installed"
     else
         log_error "requirements.txt not found"

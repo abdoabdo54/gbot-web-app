@@ -57,15 +57,11 @@ if not app.debug:
     app.logger.info('GBot startup')
 
 with app.app_context():
-    try:
-        db.create_all()
-        if not User.query.filter_by(username='admin').first():
-            admin_user = User(username='admin', password=generate_password_hash('A9B3nX#Q8k$mZ6vw', method='pbkdf2:sha256'), role='admin')
-            db.session.add(admin_user)
-            db.session.commit()
-    except Exception as e:
-        app.logger.warning(f'Database initialization failed: {e}')
-        app.logger.info('Application will continue without database features')
+    db.create_all()
+    if not User.query.filter_by(username='admin').first():
+        admin_user = User(username='admin', password=generate_password_hash('A9B3nX#Q8k$mZ6vw', method='pbkdf2:sha256'), role='admin')
+        db.session.add(admin_user)
+        db.session.commit()
 
 def login_required(f):
     def wrapper(*args, **kwargs):
@@ -150,7 +146,7 @@ def login():
             app.logger.warning(f"User not found: {username}")
             flash('Invalid credentials', 'error')
     
-    return render_template('login.html', user=None, role=None)
+    return render_template('login.html')
 
 @app.route('/logout')
 def logout():
@@ -260,12 +256,12 @@ def emergency_access():
     # If SECRET_KEY is provided, show the emergency access form
     elif static_key == secret_key:
         app.logger.info("SECRET_KEY provided - showing emergency access form")
-        return render_template('emergency_access.html', user=None, role=None)
+        return render_template('emergency_access.html')
     
     # If no valid key, show the emergency access form
     else:
         app.logger.info("No valid key provided - showing emergency access form")
-        return render_template('emergency_access.html', user=None, role=None)
+        return render_template('emergency_access.html')
 
 @app.route('/api/emergency-add-ip', methods=['POST'])
 def api_emergency_add_ip():
