@@ -57,11 +57,15 @@ if not app.debug:
     app.logger.info('GBot startup')
 
 with app.app_context():
-    db.create_all()
-    if not User.query.filter_by(username='admin').first():
-        admin_user = User(username='admin', password=generate_password_hash('A9B3nX#Q8k$mZ6vw', method='pbkdf2:sha256'), role='admin')
-        db.session.add(admin_user)
-        db.session.commit()
+    try:
+        db.create_all()
+        if not User.query.filter_by(username='admin').first():
+            admin_user = User(username='admin', password=generate_password_hash('A9B3nX#Q8k$mZ6vw', method='pbkdf2:sha256'), role='admin')
+            db.session.add(admin_user)
+            db.session.commit()
+    except Exception as e:
+        app.logger.warning(f'Database initialization failed: {e}')
+        app.logger.info('Application will continue without database features')
 
 def login_required(f):
     def wrapper(*args, **kwargs):
