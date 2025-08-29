@@ -102,7 +102,7 @@ def before_request():
         
         if not whitelisted_ip:
             app.logger.warning(f"IP {client_ip} not whitelisted, access denied to {request.endpoint}")
-            return render_template('access_denied.html', ip_address=client_ip), 403
+            return f"Access denied. IP {client_ip} is not whitelisted. Please contact administrator or use emergency access.", 403
         else:
             app.logger.info(f"IP {client_ip} is whitelisted, allowing access")
     else:

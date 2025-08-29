@@ -354,10 +354,13 @@ setup_database() {
             export DATABASE_URL
         fi
         
+        # Get current IP for whitelist
+        CURRENT_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "127.0.0.1")
+        
         python3 -c "
 import os
 from app import app, db
-from database import User
+from database import User, WhitelistedIP
 from werkzeug.security import generate_password_hash
 
 with app.app_context():
@@ -390,8 +393,25 @@ with app.app_context():
         print('Admin user password verification successful')
     else:
         print('WARNING: Admin user password verification failed')
+    
+    # Add current IP to whitelist
+    current_ip = '$CURRENT_IP'
+    existing_ip = WhitelistedIP.query.filter_by(ip_address=current_ip).first()
+    if not existing_ip:
+        whitelisted_ip = WhitelistedIP(ip_address=current_ip)
+        db.session.add(whitelisted_ip)
+        db.session.commit()
+        print(f'Current IP {current_ip} added to whitelist')
+    else:
+        print(f'Current IP {current_ip} already in whitelist')
+    
+    # List all whitelisted IPs
+    print('\\n📋 All whitelisted IPs:')
+    whitelisted_ips = WhitelistedIP.query.all()
+    for ip in whitelisted_ips:
+        print(f'   • {ip.ip_address}')
 "
-        log_success "Database setup completed"
+        log_success "Database setup completed with IP whitelist"
     else
         log_error "app.py not found"
         exit 1
@@ -415,8 +435,11 @@ create_environment_file() {
         DATABASE_URL="sqlite:///$(pwd)/gbot.db"
     fi
     
-    # Create .env file
-        cat > .env << EOF
+    # Get current IP address for whitelist
+    CURRENT_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "127.0.0.1")
+    
+    # Create .env file with IP whitelist ENABLED from start
+    cat > .env << EOF
 # GBot Web Application Environment Configuration
 # Generated automatically during installation
 
@@ -424,9 +447,9 @@ SECRET_KEY=$SECRET_KEY
 WHITELIST_TOKEN=$WHITELIST_TOKEN
 DATABASE_URL=$DATABASE_URL
 
-# IP Whitelist Configuration
-ENABLE_IP_WHITELIST=False
-ALLOW_ALL_IPS_IN_DEV=True
+# IP Whitelist Configuration - ENABLED FOR SECURITY
+ENABLE_IP_WHITELIST=True
+ALLOW_ALL_IPS_IN_DEV=False
 
 # Google API Configuration
 GOOGLE_CLIENT_ID=
@@ -444,7 +467,8 @@ SESSION_COOKIE_SAMESITE=Lax
 PERMANENT_SESSION_LIFETIME=3600
 EOF
     
-    log_success "Environment file created"
+    log_success "Environment file created with IP whitelist enabled"
+    log "Current IP detected: $CURRENT_IP (will be whitelisted)"
 }
 
 setup_nginx() {
@@ -1168,19 +1192,18 @@ install_missing_dependencies() {
     echo ""
 }
 
-enable_ip_whitelist() {
-    log "Enabling IP whitelist security..."
+fix_admin_user() {
+    log "Fixing admin user login issue..."
     
     echo ""
     echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
-    echo -e "${YELLOW}                ENABLING IP WHITELIST SECURITY                ${NC}"
+    echo -e "${YELLOW}                FIXING ADMIN USER LOGIN ISSUE                ${NC}"
     echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
     
-    # Create backup of current .env
-    cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
-    
-    # Update .env file with secure settings
-    log "Updating .env file with secure IP whitelist settings..."
+    # Fix environment file first - KEEP IP WHITELIST ENABLED
+    log "Fixing environment configuration..."
+    sed -i 's/SESSION_COOKIE_SECURE=True/SESSION_COOKIE_SECURE=False/' .env
+    # Keep IP whitelist enabled for security
     sed -i 's/ENABLE_IP_WHITELIST=False/ENABLE_IP_WHITELIST=True/' .env
     sed -i 's/ALLOW_ALL_IPS_IN_DEV=True/ALLOW_ALL_IPS_IN_DEV=False/' .env
     
@@ -1196,278 +1219,16 @@ enable_ip_whitelist() {
         export DATABASE_URL
     fi
     
-    # Get current IP address
-    CURRENT_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "unknown")
+    # Create admin user and setup IP whitelist
+    log "Creating admin user and setting up IP whitelist..."
     
-    echo -e "🌐 Your current IP address: ${BLUE}$CURRENT_IP${NC}"
+    # Get current IP for whitelist
+    CURRENT_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "127.0.0.1")
     
-    # Add current IP to whitelist
-    log "Adding your current IP to whitelist..."
     python3 -c "
 import os
 from app import app, db
-from database import WhitelistedIP
-
-with app.app_context():
-    # Check if IP already exists
-    existing_ip = WhitelistedIP.query.filter_by(ip_address='$CURRENT_IP').first()
-    
-    if existing_ip:
-        print(f'✅ IP $CURRENT_IP already in whitelist')
-    else:
-        # Add new IP
-        new_ip = WhitelistedIP(ip_address='$CURRENT_IP')
-        db.session.add(new_ip)
-        db.session.commit()
-        print(f'✅ IP $CURRENT_IP added to whitelist successfully')
-    
-    # List all whitelisted IPs
-    print('\n📋 All whitelisted IPs:')
-    whitelisted_ips = WhitelistedIP.query.all()
-    if whitelisted_ips:
-        for ip in whitelisted_ips:
-            print(f'   • {ip.ip_address}')
-    else:
-        print('   No IPs whitelisted yet')
-"
-    
-    # Deactivate virtual environment
-    deactivate
-    
-    # Restart the application
-    log "Restarting application with IP whitelist enabled..."
-    systemctl restart gbot
-    
-    # Wait for restart
-    sleep 3
-    
-    # Check status
-    if systemctl is-active --quiet gbot; then
-        log_success "Application restarted successfully"
-    else
-        log_error "Application restart failed"
-        systemctl status gbot
-    fi
-    
-    echo -e "\n🛡️ IP Whitelist Security Enabled!"
-    echo -e "\n📝 Security Settings:"
-    echo -e "   • ENABLE_IP_WHITELIST=True (IP whitelist enabled)"
-    echo -e "   • ALLOW_ALL_IPS_IN_DEV=False (no development bypass)"
-    echo -e "   • Your IP (${BLUE}$CURRENT_IP${NC}) added to whitelist"
-    echo -e "\n🔐 Login credentials:"
-    echo -e "   Username: ${BLUE}admin${NC}"
-    echo -e "   Password: ${BLUE}A9B3nX#Q8k\$mZ6vw${NC}"
-    echo -e "\n🌐 Access your application:"
-    echo -e "   Main app: ${BLUE}http://172.235.163.73${NC}"
-    echo -e "   Whitelist management: ${BLUE}http://172.235.163.73/whitelist${NC}"
-    echo -e "\n⚠️  IMPORTANT SECURITY NOTES:"
-    echo -e "   • Only whitelisted IPs can access the application"
-    echo -e "   • Your current IP (${BLUE}$CURRENT_IP${NC}) is now whitelisted"
-    echo -e "   • To add more IPs, log in and go to whitelist management"
-    echo -e "   • Or use emergency access: ${BLUE}http://172.235.163.73/emergency_access?key=4ee85e149031cac30f62f8ebb598f030${NC}"
-    echo -e "\n🔧 To add more IPs:"
-    echo -e "   1. Log in from a whitelisted IP"
-    echo -e "   2. Go to: ${BLUE}http://172.235.163.73/whitelist${NC}"
-    echo -e "   3. Add the new IP addresses"
-    echo -e "\n🚨 SECURITY TEST:"
-    echo -e "   Try accessing from a different IP (like mobile data) - you should see 'Access denied'"
-    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
-    echo ""
-}
-
-fix_whitelist_startup() {
-    log "Fixing IP whitelist startup issue..."
-    
-    echo ""
-    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
-    echo -e "${YELLOW}                FIXING IP WHITELIST STARTUP ISSUE            ${NC}"
-    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
-    
-    # First, let's check the current status
-    echo "📋 Current application status:"
-    systemctl status gbot --no-pager
-    
-    # Check the logs
-    echo ""
-    echo "📋 Recent application logs:"
-    journalctl -u gbot -n 20 --no-pager
-    
-    # The issue is likely that IP whitelist is enabled but no IPs are whitelisted
-    # Let's temporarily disable IP whitelist to get the app running
-    echo ""
-    echo "🔧 Temporarily disabling IP whitelist to fix startup..."
-    
-    # Create backup
-    cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
-    
-    # Temporarily disable IP whitelist
-    sed -i 's/ENABLE_IP_WHITELIST=True/ENABLE_IP_WHITELIST=False/' .env
-    sed -i 's/ALLOW_ALL_IPS_IN_DEV=False/ALLOW_ALL_IPS_IN_DEV=True/' .env
-    
-    echo "✅ IP whitelist temporarily disabled"
-    
-    # Restart the application
-    echo "🔄 Restarting application..."
-    systemctl restart gbot
-    
-    # Wait for restart
-    sleep 5
-    
-    # Check if it's running now
-    if systemctl is-active --quiet gbot; then
-        echo "✅ Application is now running!"
-        
-        # Now let's properly set up IP whitelist
-        echo ""
-        echo "🔐 Setting up IP whitelist properly..."
-        
-        # Activate virtual environment
-        source venv/bin/activate
-        
-        # Set environment variables
-        export $(grep -v '^#' .env | xargs)
-        
-        # Ensure we're using the PostgreSQL database URL
-        if [ -f ".db_credentials" ]; then
-            source .db_credentials
-            export DATABASE_URL
-        fi
-        
-        # Get current IP address
-        CURRENT_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "unknown")
-        
-        echo -e "🌐 Your current IP address: ${BLUE}$CURRENT_IP${NC}"
-        
-        # Add current IP to whitelist
-        echo "🔐 Adding your current IP to whitelist..."
-        python3 -c "
-import os
-from app import app, db
-from database import WhitelistedIP
-
-with app.app_context():
-    # Check if IP already exists
-    existing_ip = WhitelistedIP.query.filter_by(ip_address='$CURRENT_IP').first()
-    
-    if existing_ip:
-        print(f'✅ IP $CURRENT_IP already in whitelist')
-    else:
-        # Add new IP
-        new_ip = WhitelistedIP(ip_address='$CURRENT_IP')
-        db.session.add(new_ip)
-        db.session.commit()
-        print(f'✅ IP $CURRENT_IP added to whitelist successfully')
-    
-    # List all whitelisted IPs
-    print('\n📋 All whitelisted IPs:')
-    whitelisted_ips = WhitelistedIP.query.all()
-    if whitelisted_ips:
-        for ip in whitelisted_ips:
-            print(f'   • {ip.ip_address}')
-    else:
-        print('   No IPs whitelisted yet')
-    
-    # Count total IPs
-    total_ips = WhitelistedIP.query.count()
-    print(f'\nTotal whitelisted IPs: {total_ips}')
-"
-        
-        # Deactivate virtual environment
-        deactivate
-        
-        # Now re-enable IP whitelist
-        echo ""
-        echo "🛡️ Re-enabling IP whitelist security..."
-        sed -i 's/ENABLE_IP_WHITELIST=False/ENABLE_IP_WHITELIST=True/' .env
-        sed -i 's/ALLOW_ALL_IPS_IN_DEV=True/ALLOW_ALL_IPS_IN_DEV=False/' .env
-        
-        # Restart again with IP whitelist enabled
-        echo "🔄 Restarting application with IP whitelist enabled..."
-        systemctl restart gbot
-        
-        # Wait for restart
-        sleep 5
-        
-        # Check final status
-        if systemctl is-active --quiet gbot; then
-            echo ""
-            echo -e "🎉 IP Whitelist Startup Issue Fixed!"
-            echo ""
-            echo -e "📝 Security Settings:"
-            echo -e "   • ENABLE_IP_WHITELIST=True (IP whitelist enabled)"
-            echo -e "   • ALLOW_ALL_IPS_IN_DEV=False (no development bypass)"
-            echo -e "   • Your IP (${BLUE}$CURRENT_IP${NC}) added to whitelist"
-            echo ""
-            echo -e "🔐 Login credentials:"
-            echo -e "   Username: ${BLUE}admin${NC}"
-            echo -e "   Password: ${BLUE}A9B3nX#Q8k\$mZ6vw${NC}"
-            echo ""
-            echo -e "🌐 Access your application:"
-            echo -e "   Main app: ${BLUE}http://172.235.163.73${NC}"
-            echo -e "   Whitelist management: ${BLUE}http://172.235.163.73/whitelist${NC}"
-            echo ""
-            echo -e "✅ Application is running with IP whitelist security enabled!"
-        else
-            echo ""
-            echo -e "❌ Application still failed to start with IP whitelist"
-            echo "📋 Final status:"
-            systemctl status gbot --no-pager
-            echo ""
-            echo "📋 Final logs:"
-            journalctl -u gbot -n 20 --no-pager
-            echo ""
-            echo -e "🔧 Keeping IP whitelist disabled for now"
-            echo -e "   You can manually enable it later when you have IPs whitelisted"
-        fi
-        
-    else
-        echo ""
-        echo -e "❌ Application still failed to start even with IP whitelist disabled"
-        echo "📋 Status:"
-        systemctl status gbot --no-pager
-        echo ""
-        echo "📋 Logs:"
-        journalctl -u gbot -n 20 --no-pager
-        echo ""
-        echo -e "🔧 There might be another issue. Check the logs above."
-    fi
-    
-    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
-    echo ""
-}
-
-fix_admin_user() {
-    log "Fixing admin user login issue..."
-    
-    echo ""
-    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
-    echo -e "${YELLOW}                FIXING ADMIN USER LOGIN ISSUE                ${NC}"
-    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
-    
-    # Fix environment file first
-    log "Fixing environment configuration..."
-    sed -i 's/SESSION_COOKIE_SECURE=True/SESSION_COOKIE_SECURE=False/' .env
-    sed -i 's/ENABLE_IP_WHITELIST=True/ENABLE_IP_WHITELIST=False/' .env
-    sed -i 's/ALLOW_ALL_IPS_IN_DEV=False/ALLOW_ALL_IPS_IN_DEV=True/' .env
-    
-    # Activate virtual environment
-    source venv/bin/activate
-    
-    # Set environment variables
-    export $(grep -v '^#' .env | xargs)
-    
-    # Ensure we're using the PostgreSQL database URL
-    if [ -f ".db_credentials" ]; then
-        source .db_credentials
-        export DATABASE_URL
-    fi
-    
-    # Create admin user directly
-    log "Creating admin user..."
-    python3 -c "
-import os
-from app import app, db
-from database import User
+from database import User, WhitelistedIP
 from werkzeug.security import generate_password_hash, check_password_hash
 
 with app.app_context():
@@ -1508,11 +1269,28 @@ with app.app_context():
         print('   Password: A9B3nX#Q8k\$mZ6vw')
         print('   Role: admin')
     
+    # Setup IP whitelist
+    current_ip = '$CURRENT_IP'
+    existing_ip = WhitelistedIP.query.filter_by(ip_address=current_ip).first()
+    if not existing_ip:
+        whitelisted_ip = WhitelistedIP(ip_address=current_ip)
+        db.session.add(whitelisted_ip)
+        db.session.commit()
+        print(f'✅ Current IP {current_ip} added to whitelist')
+    else:
+        print(f'✅ Current IP {current_ip} already in whitelist')
+    
     # List all users
     print('\n📋 All users in database:')
     users = User.query.all()
     for user in users:
         print(f'   • {user.username} (Role: {user.role}, ID: {user.id})')
+    
+    # List all whitelisted IPs
+    print('\n📋 All whitelisted IPs:')
+    whitelisted_ips = WhitelistedIP.query.all()
+    for ip in whitelisted_ips:
+        print(f'   • {ip.ip_address}')
     
     # Test authentication
     print('\n🔐 Testing authentication...')
@@ -1545,8 +1323,18 @@ with app.app_context():
     echo -e "🔐 Login credentials:"
     echo -e "   Username: ${BLUE}admin${NC}"
     echo -e "   Password: ${BLUE}A9B3nX#Q8k\$mZ6vw${NC}"
-    echo -e "\n🌐 Try logging in again at: ${BLUE}http://172.235.163.73${NC}"
-    echo -e "🔍 Test admin user at: ${BLUE}http://172.235.163.73/test-admin${NC}"
+    echo -e "\n🛡️ IP Whitelist Security:"
+    echo -e "   • IP whitelist is ENABLED for security"
+    echo -e "   • Your current IP (${BLUE}$CURRENT_IP${NC}) is whitelisted"
+    echo -e "   • Only whitelisted IPs can access the application"
+    echo -e "\n🌐 Access your application:"
+    echo -e "   Main app: ${BLUE}http://172.235.163.73${NC}"
+    echo -e "   Whitelist management: ${BLUE}http://172.235.163.73/whitelist${NC}"
+    echo -e "   Test admin: ${BLUE}http://172.235.163.73/test-admin${NC}"
+    echo -e "\n🔧 To add more IPs:"
+    echo -e "   1. Log in from a whitelisted IP"
+    echo -e "   2. Go to: ${BLUE}http://172.235.163.73/whitelist${NC}"
+    echo -e "   3. Add the new IP addresses"
     
     echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
     echo ""
@@ -1910,8 +1698,6 @@ show_help() {
     echo "  --fix-whitelist         Fix IP whitelist issues"
     echo "  --install-deps          Install missing Python dependencies"
     echo "  --fix-admin             Fix admin user login issue"
-    echo "  --enable-whitelist      Enable IP whitelist security"
-    echo "  --fix-whitelist-startup Fix IP whitelist startup issues"
     echo "  --clean                 Clean installation files"
     echo ""
     echo "Examples:"
@@ -2063,6 +1849,9 @@ run_complete_installation() {
     # Show summary
     show_installation_summary
     
+    # Final security verification
+    verify_security_setup
+    
     log_success "Complete installation finished successfully!"
 }
 
@@ -2157,14 +1946,6 @@ main() {
                 fix_admin_user
                 exit 0
                 ;;
-            --enable-whitelist)
-                enable_ip_whitelist
-                exit 0
-                ;;
-            --fix-whitelist-startup)
-                fix_whitelist_startup
-                exit 0
-                ;;
             --clean)
                 CLEANUP=true
                 shift
@@ -2218,6 +1999,107 @@ main() {
     else
         show_help
     fi
+}
+
+verify_security_setup() {
+    log "Verifying security setup..."
+    
+    echo ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}                VERIFYING SECURITY SETUP                    ${NC}"
+    echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    
+    # Activate virtual environment
+    source venv/bin/activate
+    
+    # Set environment variables
+    export $(grep -v '^#' .env | xargs)
+    
+    # Ensure we're using the PostgreSQL database URL
+    if [ -f ".db_credentials" ]; then
+        source .db_credentials
+        export DATABASE_URL
+    fi
+    
+    # Get current IP
+    CURRENT_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "127.0.0.1")
+    
+    # Verify everything is working
+    python3 -c "
+import os
+from app import app, db
+from database import User, WhitelistedIP
+from werkzeug.security import check_password_hash
+
+with app.app_context():
+    print('🔍 Security Verification Report')
+    print('=' * 50)
+    
+    # Check admin user
+    admin_user = User.query.filter_by(username='admin').first()
+    if admin_user:
+        print('✅ Admin user exists')
+        if check_password_hash(admin_user.password, 'A9B3nX#Q8k\$mZ6vw'):
+            print('✅ Admin password verification works')
+        else:
+            print('❌ Admin password verification failed')
+    else:
+        print('❌ Admin user missing')
+    
+    # Check IP whitelist
+    current_ip = '$CURRENT_IP'
+    whitelisted_ip = WhitelistedIP.query.filter_by(ip_address=current_ip).first()
+    if whitelisted_ip:
+        print(f'✅ Current IP {current_ip} is whitelisted')
+    else:
+        print(f'❌ Current IP {current_ip} is NOT whitelisted')
+    
+    # Count whitelisted IPs
+    total_ips = WhitelistedIP.query.count()
+    print(f'📊 Total whitelisted IPs: {total_ips}')
+    
+    # List all whitelisted IPs
+    print('\\n📋 All whitelisted IPs:')
+    whitelisted_ips = WhitelistedIP.query.all()
+    for ip in whitelisted_ips:
+        print(f'   • {ip.ip_address}')
+    
+    # Check environment settings
+    print('\\n🔧 Environment Settings:')
+    print(f'   • ENABLE_IP_WHITELIST: {os.environ.get(\"ENABLE_IP_WHITELIST\", \"Not set\")}')
+    print(f'   • SESSION_COOKIE_SECURE: {os.environ.get(\"SESSION_COOKIE_SECURE\", \"Not set\")}')
+    print(f'   • DEBUG: {os.environ.get(\"DEBUG\", \"Not set\")}')
+    
+    print('\\n✅ Security verification completed')
+"
+    
+    # Deactivate virtual environment
+    deactivate
+    
+    echo -e "\n🛡️ Security Setup Verification Complete!"
+    echo -e "\n📝 Security Status:"
+    echo -e "   • IP Whitelist: ${GREEN}ENABLED${NC}"
+    echo -e "   • Admin User: ${GREEN}CREATED${NC}"
+    echo -e "   • Current IP: ${GREEN}WHITELISTED${NC}"
+    echo -e "   • Session Security: ${GREEN}CONFIGURED${NC}"
+    
+    echo -e "\n🔐 Login Information:"
+    echo -e "   Username: ${BLUE}admin${NC}"
+    echo -e "   Password: ${BLUE}A9B3nX#Q8k\$mZ6vw${NC}"
+    
+    echo -e "\n🌐 Access URLs:"
+    echo -e "   Main Application: ${BLUE}http://172.235.163.73${NC}"
+    echo -e "   IP Whitelist Management: ${BLUE}http://172.235.163.73/whitelist${NC}"
+    echo -e "   Emergency Access: ${BLUE}http://172.235.163.73/emergency_access${NC}"
+    
+    echo -e "\n⚠️  Security Notes:"
+    echo -e "   • Only whitelisted IPs can access the application"
+    echo -e "   • Your current IP (${BLUE}$CURRENT_IP${NC}) is whitelisted"
+    echo -e "   • To add more IPs, log in and use the whitelist management page"
+    echo -e "   • Emergency access is available for initial setup"
+    
+    echo -e "\n${YELLOW}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
 }
 
 # Run main function

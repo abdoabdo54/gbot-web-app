@@ -156,9 +156,9 @@
                                 <div class="display-1 text-muted mb-4">🛡️</div>
                                 <h4 class="text-muted">No IPs Whitelisted</h4>
                                 <p class="text-muted fs-5">Start by adding your first IP address to the whitelist.</p>
-                            </div>
+                </div>
                         {% endif %}
-                    </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -192,10 +192,10 @@
                  <button type="button" class="btn btn-danger btn-lg px-4" id="confirmDeleteBtn">
                      🗑️ Delete
                  </button>
-             </div>
-         </div>
-     </div>
- </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -326,9 +326,9 @@
                         $('#emergency_ip').val('Could not detect');
                         $('#ip_address').val('Could not detect');
                         showStatus('⚠️ Could not automatically detect your IP address. Please enter it manually.', 'warning');
-                    }
-                });
-            }
+                }
+            });
+        }
         });
     }
 
@@ -359,14 +359,14 @@
         
         showStatus('Adding IP to whitelist...', 'info');
         
-        $.ajax({
+            $.ajax({
             url: url,
             type: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(data),
-            success: function(response) {
+                success: function(response) {
                 console.log('Add IP response:', response);
-                if (response.success) {
+                    if (response.success) {
                     showStatus('✅ ' + response.message, 'success');
                     if (!isEmergency) {
                         $("#add-ip-form")[0].reset();
@@ -375,7 +375,7 @@
                     setTimeout(function() {
                         location.reload();
                     }, 1500);
-                } else {
+                    } else {
                     showStatus('❌ ' + response.error, 'error');
                 }
             },
@@ -401,14 +401,14 @@
             return;
         }
         
-        $.ajax({
-            url: "/api/delete-whitelist-ip",
-            type: "POST",
-            contentType: "application/json",
-            data: JSON.stringify({ ip_address: ipAddress }),
-            success: function(response) {
+                $.ajax({
+                    url: "/api/delete-whitelist-ip",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ ip_address: ipAddress }),
+                    success: function(response) {
                 console.log('Delete IP response:', response);
-                if (response.success) {
+                        if (response.success) {
                     showStatus('✅ ' + response.message, 'success');
                     
                     // Hide modal using Bootstrap
@@ -421,17 +421,17 @@
                     setTimeout(function() {
                         location.reload();
                     }, 1000);
-                } else {
+                        } else {
                     showStatus('❌ ' + response.error, 'error');
-                }
+                        }
             },
             error: function(xhr, status, error) {
                 console.log('Delete IP error:', xhr, status, error);
                 console.log('Response text:', xhr.responseText);
                 showStatus('❌ Network error: ' + error, 'error');
+                    }
+                });
             }
-        });
-    }
 
     function showStatus(message, type) {
         console.log('Showing status:', message, type);
