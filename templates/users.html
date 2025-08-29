@@ -1,193 +1,44 @@
 {% extends "base.html" %}
-{% block title %}User Management - GBot{% endblock %}
+{% block title %}User Management - GBot Web{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Header Section -->
-    <div class="section">
-        <h2 style="color: var(--text-primary); font-weight: 700; margin-bottom: 2rem; font-size: 1.5rem;">
-            <i class="bi bi-people me-2"></i>User Management
-        </h2>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
-            <!-- Add New User -->
-            <div style="background: var(--bg-secondary); padding: 2rem; border-radius: 12px; border: 1px solid var(--border-primary);">
-                <h3 style="color: var(--text-primary); font-weight: 600; margin-bottom: 1.5rem; font-size: 1.25rem;">
-                    <i class="bi bi-person-plus me-2"></i>Add New User
-                </h3>
-                <div class="form-group" style="margin-bottom: 1rem;">
-                    <label for="new-username" style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; font-size: 0.875rem;">Username:</label>
-                    <input type="text" id="new-username" placeholder="Enter username" required 
-                           style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-primary); border-radius: 6px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary);">
-                </div>
-                <div class="form-group" style="margin-bottom: 1rem;">
-                    <label for="new-password" style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; font-size: 0.875rem;">Password:</label>
-                    <input type="password" id="new-password" placeholder="Enter password" required 
-                           style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-primary); border-radius: 6px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary);">
-                </div>
-                <div class="form-group" style="margin-bottom: 1.5rem;">
-                    <label for="new-role" style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; font-size: 0.875rem;">Role:</label>
-                    <select id="new-role" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-primary); border-radius: 6px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary);">
-                        <option value="support">Support</option>
-                        <option value="mailer">Mailer</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                </div>
-                <button onclick="addUser()" class="btn btn-primary" style="background: var(--accent-primary); color: var(--bg-primary); padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: 500; font-size: 0.875rem; width: 100%;">
-                    <i class="bi bi-plus-circle me-2"></i>Add User
-                </button>
+<!-- Top Navigation (Same as Dashboard) -->
+<div class="section">
+    <h2>👥 User Management</h2>
+    
+    <div style="display: flex; gap: 2rem; margin-top: 2rem;">
+        <!-- Add New User -->
+        <div style="flex: 1; background: #f8f9fa; padding: 1.5rem; border-radius: 6px;">
+            <h3>Add New User</h3>
+            <div class="form-group">
+                <label for="new-username">Username:</label>
+                <input type="text" id="new-username" placeholder="Enter username" required>
             </div>
-            
-            <!-- Existing Users -->
-            <div>
-                <h3 style="color: var(--text-primary); font-weight: 600; margin-bottom: 1.5rem; font-size: 1.25rem;">
-                    <i class="bi bi-people me-2"></i>Existing Users
-                </h3>
-                <div id="user-list" style="margin-top: 1rem;">
-                    <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
-                        <i class="bi bi-hourglass-split fs-1 mb-3"></i>
-                        <p>Loading users...</p>
-                    </div>
-                </div>
+            <div class="form-group">
+                <label for="new-password">Password:</label>
+                <input type="password" id="new-password" placeholder="Enter password" required>
+            </div>
+            <div class="form-group">
+                <label for="new-role">Role:</label>
+                <select id="new-role">
+                    <option value="support">Support</option>
+                    <option value="mailer">Mailer</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <button onclick="addUser()" class="btn btn-primary">➕ Add User</button>
+        </div>
+        
+        <!-- Existing Users -->
+        <div style="flex: 1;">
+            <h3>Existing Users</h3>
+            <div id="user-list" style="margin-top: 1rem;">
+                <p>Loading users...</p>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-/* Form Control Focus States */
-.form-control:focus, input:focus, select:focus {
-    border-color: var(--accent-secondary);
-    box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1);
-    outline: none;
-}
-
-/* Button Hover Effects */
-.btn:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
-}
-
-/* User Card Styles */
-.user-card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
-    background: var(--bg-primary);
-    margin-bottom: 0.75rem;
-    border-radius: 8px;
-    border: 1px solid var(--border-primary);
-    transition: all 0.2s ease;
-}
-
-.user-card:hover {
-    box-shadow: var(--shadow-sm);
-    transform: translateY(-1px);
-}
-
-.user-info {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.user-number {
-    font-weight: 600;
-    min-width: 30px;
-    color: var(--text-secondary);
-}
-
-.user-details {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.user-name {
-    font-weight: 600;
-    font-size: 1rem;
-    color: var(--text-primary);
-}
-
-.user-role {
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 500;
-}
-
-.user-role.admin {
-    background: var(--accent-error);
-    color: white;
-}
-
-.user-role.mailer {
-    background: #f5a623;
-    color: white;
-}
-
-.user-role.support {
-    background: var(--accent-success);
-    color: white;
-}
-
-.user-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.action-btn {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    border: 1px solid var(--border-primary);
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.action-btn:hover {
-    background: var(--bg-secondary);
-    transform: translateY(-1px);
-}
-
-.action-btn.edit {
-    background: var(--accent-secondary);
-    color: white;
-    border-color: var(--accent-secondary);
-}
-
-.action-btn.delete {
-    background: var(--accent-error);
-    color: white;
-    border-color: var(--accent-error);
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .container-fluid {
-        padding: 1rem;
-    }
-    
-    .section > div {
-        grid-template-columns: 1fr;
-    }
-    
-    .user-card {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-    
-    .user-actions {
-        width: 100%;
-        justify-content: flex-end;
-    }
-}
-</style>
 
 <script>
 // User management functions
@@ -229,100 +80,102 @@ function loadUsers() {
         if (data.success && Array.isArray(data.users)) {
             const userList = document.getElementById('user-list');
             if (data.users.length === 0) {
-                userList.innerHTML = `
-                    <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
-                        <i class="bi bi-people fs-1 mb-3"></i>
-                        <p>No users found.</p>
-                    </div>
-                `;
+                userList.innerHTML = '<p>No users found.</p>';
                 return;
             }
             
             userList.innerHTML = data.users.map((user, index) => `
-                <div class="user-card">
-                    <div class="user-info">
-                        <span class="user-number">${index + 1}</span>
-                        <div class="user-details">
-                            <div class="user-name">${user.username}</div>
-                            <span class="user-role ${user.role}">${user.role}</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: white; margin-bottom: 0.5rem; border-radius: 4px; border: 1px solid #ddd;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span style="font-weight: bold; min-width: 30px;">${index + 1}</span>
+                        <div>
+                            <div style="font-weight: bold; font-size: 1.1rem;">${user.username}</div>
+                            <span style="background: ${user.role === 'admin' ? '#dc3545' : user.role === 'mailer' ? '#ffc107' : '#28a745'}; color: ${user.role === 'mailer' ? '#000' : 'white'}; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem;">
+                                ${user.role}
+                            </span>
                         </div>
                     </div>
-                    <div class="user-actions">
-                        <button onclick="editUser('${user.username}', '${user.role}')" class="action-btn edit">
-                            <i class="bi bi-pencil me-1"></i>Edit
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button onclick="editUser('${user.username}', '${user.role}')" style="background: #007bff; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 3px; cursor: pointer;">
+                            ✏️ Edit
                         </button>
-                        <button onclick="deleteUser('${user.username}')" class="action-btn delete">
-                            <i class="bi bi-trash me-1"></i>Delete
+                        <button onclick="deleteUser('${user.username}')" style="background: #dc3545; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 3px; cursor: pointer;">
+                            🗑️ Delete
                         </button>
                     </div>
                 </div>
             `).join('');
         } else {
-            document.getElementById('user-list').innerHTML = `
-                <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
-                    <i class="bi bi-exclamation-triangle fs-1 mb-3"></i>
-                    <p>Failed to load users</p>
-                </div>
-            `;
+            document.getElementById('user-list').innerHTML = '<p>Error loading users.</p>';
         }
     })
     .catch(error => {
-        document.getElementById('user-list').innerHTML = `
-            <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
-                <i class="bi bi-exclamation-triangle fs-1 mb-3"></i>
-                <p>Network error: ${error}</p>
-            </div>
-        `;
+        console.error("Fetch error:", error);
+        document.getElementById('user-list').innerHTML = '<p>Network error loading users.</p>';
     });
 }
 
 function editUser(username, currentRole) {
-    const newRole = prompt(`Edit role for ${username} (current: ${currentRole}):\nEnter: support, mailer, or admin`);
+    const newPassword = prompt(`Enter new password for user "${username}":`);
+    if (!newPassword) return;
     
-    if (newRole && ['support', 'mailer', 'admin'].includes(newRole.toLowerCase())) {
-        fetch('/api/update-user-role', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({username, role: newRole.toLowerCase()})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('✅ User role updated successfully!');
-                loadUsers();
-            } else {
-                alert('❌ Error: ' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('❌ Network error: ' + error);
-        });
+    const newRole = prompt(`Enter role for "${username}" (admin/support/mailer):`, currentRole);
+    if (!newRole) return;
+    
+    if (newRole !== 'admin' && newRole !== 'support' && newRole !== 'mailer') {
+        alert('Role must be either "admin", "support", or "mailer"');
+        return;
     }
+    
+    fetch('/api/edit-user', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password: newPassword, role: newRole})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ User updated successfully!');
+            loadUsers();
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('❌ Network error: ' + error);
+    });
 }
 
 function deleteUser(username) {
-    if (confirm(`Are you sure you want to delete user "${username}"?`)) {
-        fetch('/api/delete-user', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({username})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('✅ User deleted successfully!');
-                loadUsers();
-            } else {
-                alert('❌ Error: ' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('❌ Network error: ' + error);
-        });
+    if (username === '{{ user }}') {
+        alert('❌ Cannot delete your own account!');
+        return;
     }
+    
+    if (!confirm(`⚠️ Delete user "${username}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    fetch('/api/delete-user', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ User deleted successfully!');
+            loadUsers();
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('❌ Network error: ' + error);
+    });
 }
 
-// Load users on page load
+// Load users when page loads
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
 });
