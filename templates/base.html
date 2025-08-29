@@ -105,10 +105,12 @@
             const overlay = document.querySelector('.overlay');
             const mainContent = document.querySelector('.main-content');
 
-            if (sidebar.style.transform === 'translateX(-100%)' || !sidebar.style.transform) {
+            if (sidebar.style.transform === 'translateX(-100%)' || sidebar.style.transform === '') {
                 sidebar.style.transform = 'translateX(0)';
                 overlay.style.display = 'block';
-                mainContent.style.marginLeft = '280px';
+                if (window.innerWidth <= 768) {
+                    mainContent.style.marginLeft = '0';
+                }
             } else {
                 closeSidebar();
             }
@@ -133,22 +135,60 @@
 
             if (window.innerWidth > 768) {
                 sidebar.style.transform = '';
-                mainContent.style.marginLeft = '';
+                overlay.style.display = 'none';
+                mainContent.style.marginLeft = '280px';
             } else {
                 sidebar.style.transform = 'translateX(-100%)';
+                overlay.style.display = 'none';
                 mainContent.style.marginLeft = '0';
             }
         });
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.innerWidth <= 768) {
-                const sidebar = document.querySelector('.sidebar');
-                const mainContent = document.querySelector('.main-content');
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('.main-content');
+            const overlay = document.querySelector('.overlay');
 
+            if (window.innerWidth <= 768) {
                 sidebar.style.transform = 'translateX(-100%)';
                 mainContent.style.marginLeft = '0';
+                overlay.style.display = 'none';
+            } else {
+                sidebar.style.transform = '';
+                mainContent.style.marginLeft = '280px';
+                overlay.style.display = 'none';
             }
+
+            // Force dark theme
+            document.body.style.background = '#121212';
+            document.body.style.color = '#E0E0E0';
+
+            // Force sidebar dark theme
+            if (sidebar) {
+                sidebar.style.background = '#1E1E2F';
+            }
+        });
+
+        // Force dark theme on page load
+        window.addEventListener('load', function() {
+            document.body.style.background = '#121212 !important';
+            document.body.style.color = '#E0E0E0 !important';
+
+            // Force all cards and containers to be dark
+            const cards = document.querySelectorAll('.card, .status-box, .data-display, .modal-content');
+            cards.forEach(card => {
+                card.style.background = '#1E1E2F !important';
+                card.style.color = '#E0E0E0 !important';
+            });
+
+            // Force all inputs to be dark
+            const inputs = document.querySelectorAll('input, textarea, select');
+            inputs.forEach(input => {
+                input.style.background = '#2A2A3C !important';
+                input.style.color = '#FFFFFF !important';
+                input.style.border = '2px solid #3B3B4A !important';
+            });
         });
     </script>
 
