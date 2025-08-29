@@ -77,7 +77,7 @@ def before_request():
     app.logger.debug(f"Before request: endpoint={request.endpoint}, user={session.get('user')}, emergency_access={session.get('emergency_access')}, client_ip={get_client_ip()}")
     
     # Always allow these routes without any checks (whitelisted routes)
-    if request.endpoint in ['static', 'login', 'emergency_access', 'test-admin', 'whitelist', 'whitelist_bypass']:
+    if request.endpoint in ['static', 'login', 'emergency_access', 'test-admin']:
         app.logger.debug(f"Allowing {request.endpoint} route without restrictions")
         return
 
