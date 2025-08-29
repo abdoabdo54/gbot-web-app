@@ -1,36 +1,117 @@
 {% extends "base.html" %}
-{% block title %}Login - GBot Web{% endblock %}
+{% block title %}Login - GBot{% endblock %}
 
 {% block content %}
 <div class="login-container">
     <div class="login-card">
         <div class="login-header">
-            <h2 class="mb-0">
-                <i class="bi bi-robot me-2"></i>GBot Web
+            <h2 class="mb-0" style="color: #000; font-weight: 700; font-size: 1.5rem;">
+                <i class="bi bi-robot me-2"></i>Welcome to GBot
             </h2>
-            <p class="mb-0 mt-2 opacity-75">Secure Authentication</p>
+            <p class="mb-0 mt-2" style="color: #666; font-size: 0.875rem;">Sign in to your account</p>
         </div>
         <div class="login-body">
             <form method="POST">
-                <div class="mb-3">
-                    <label for="username" class="form-label">
+                <div class="mb-4">
+                    <label for="username" class="form-label" style="font-weight: 500; color: #000; margin-bottom: 0.5rem; font-size: 0.875rem;">
                         <i class="bi bi-person me-2"></i>Username
                     </label>
                     <input type="text" class="form-control" id="username" name="username" required 
-                           placeholder="Enter your username">
+                           placeholder="Enter your username" style="padding: 0.75rem; border: 1px solid #e5e5e5; border-radius: 6px; font-size: 0.875rem;">
                 </div>
                 <div class="mb-4">
-                    <label for="password" class="form-label">
+                    <label for="password" class="form-label" style="font-weight: 500; color: #000; margin-bottom: 0.5rem; font-size: 0.875rem;">
                         <i class="bi bi-lock me-2"></i>Password
                     </label>
                     <input type="password" class="form-control" id="password" name="password" required 
-                           placeholder="Enter your password">
+                           placeholder="Enter your password" style="padding: 0.75rem; border: 1px solid #e5e5e5; border-radius: 6px; font-size: 0.875rem;">
                 </div>
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                <button type="submit" class="btn w-100" style="background: #000; color: white; padding: 0.75rem; border-radius: 6px; font-weight: 500; font-size: 0.875rem;">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
                 </button>
             </form>
         </div>
     </div>
 </div>
+
+<style>
+.login-container {
+    max-width: 400px;
+    margin: 4rem auto;
+    padding: 0 1rem;
+}
+
+.login-card {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.login-header {
+    background: #fafafa;
+    padding: 2rem;
+    text-align: center;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.login-body {
+    padding: 2rem;
+}
+
+.form-control:focus {
+    border-color: #0070f3;
+    box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1);
+    outline: none;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode styles */
+[data-bs-theme="dark"] .login-card {
+    background: #1a1a1a;
+    border: 1px solid #27272a;
+}
+
+[data-bs-theme="dark"] .login-header {
+    background: #111111;
+    border-bottom: 1px solid #27272a;
+}
+
+[data-bs-theme="dark"] .login-header h2 {
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .login-header p {
+    color: #a1a1aa;
+}
+
+[data-bs-theme="dark"] .form-label {
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .form-control {
+    background: #1a1a1a;
+    border: 1px solid #27272a;
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .form-control:focus {
+    background: #1a1a1a;
+    border-color: #0070f3;
+}
+
+[data-bs-theme="dark"] .btn {
+    background: #fff;
+    color: #000;
+}
+
+[data-bs-theme="dark"] .btn:hover {
+    background: #f5f5f5;
+}
+</style>
 {% endblock %}
