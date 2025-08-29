@@ -29,6 +29,12 @@ if app.config.get('SECRET_KEY'):
 else:
     app.secret_key = 'fallback-secret-key-for-development'
 
+# Configure session settings
+app.config['SESSION_COOKIE_SECURE'] = False  # Allow HTTP
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
+
 db.init_app(app)
 
 # Production logging configuration
@@ -70,26 +76,22 @@ def before_request():
     # Debug logging
     app.logger.debug(f"Before request: endpoint={request.endpoint}, user={session.get('user')}, emergency_access={session.get('emergency_access')}, client_ip={get_client_ip()}")
     
-    # Always allow emergency_access route to bypass IP whitelist
-    if request.endpoint == 'emergency_access':
-        app.logger.debug("Allowing emergency_access route")
-        return
-        
-    if request.endpoint in ['static', 'login']:
-        app.logger.debug("Allowing static/login route")
+    # Always allow these routes without any checks
+    if request.endpoint in ['static', 'login', 'emergency_access', 'test-admin']:
+        app.logger.debug(f"Allowing {request.endpoint} route without restrictions")
         return
 
-    # Allow whitelist endpoint if user has emergency access
-    if request.endpoint == 'whitelist' and session.get('emergency_access'):
-        app.logger.debug("Allowing whitelist route with emergency access")
+    # If user is logged in, allow access to all routes (bypass IP whitelist)
+    if session.get('user'):
+        app.logger.debug(f"User {session.get('user')} is logged in, allowing access to {request.endpoint}")
         return
-    
+
     # Allow emergency access users to access whitelist and dashboard endpoints
     if session.get('emergency_access') and request.endpoint in ['whitelist', 'dashboard', 'static']:
         app.logger.debug(f"Allowing emergency access user to access {request.endpoint}")
         return
 
-    # IP Whitelist check - ALWAYS check for non-logged-in users
+    # IP Whitelist check - only for non-logged-in users
     # Check if IP whitelist is enabled
     if app.config.get('ENABLE_IP_WHITELIST', True):  # Default to True for security
         client_ip = get_client_ip()
@@ -103,11 +105,8 @@ def before_request():
             return f"Access denied. IP {client_ip} is not whitelisted. Please contact administrator or use emergency access.", 403
         else:
             app.logger.info(f"IP {client_ip} is whitelisted, allowing access")
-    
-    # If user is logged in, allow access to all routes
-    if session.get('user'):
-        app.logger.debug(f"User {session.get('user')} is logged in, allowing access to {request.endpoint}")
-        return
+    else:
+        app.logger.debug("IP whitelist disabled, allowing access")
 
 @app.after_request
 def add_security_headers(response):

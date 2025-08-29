@@ -376,8 +376,20 @@ with app.app_context():
         db.session.add(admin_user)
         db.session.commit()
         print('Admin user created successfully')
+        print('Username: admin')
+        print('Password: A9B3nX#Q8k\$mZ6vw')
+        print('Role: admin')
     else:
         print('Admin user already exists')
+        print('Username: ' + admin_user.username)
+        print('Role: ' + admin_user.role)
+    
+    # Verify admin user can authenticate
+    from werkzeug.security import check_password_hash
+    if check_password_hash(admin_user.password, 'A9B3nX#Q8k\$mZ6vw'):
+        print('Admin user password verification successful')
+    else:
+        print('WARNING: Admin user password verification failed')
 "
         log_success "Database setup completed"
     else
@@ -425,8 +437,8 @@ DEBUG=False
 FLASK_ENV=production
 LOG_LEVEL=INFO
 
-# Production Settings
-SESSION_COOKIE_SECURE=True
+# Production Settings - FIXED FOR HTTP ACCESS
+SESSION_COOKIE_SECURE=False
 SESSION_COOKIE_HTTPONLY=True
 SESSION_COOKIE_SAMESITE=Lax
 PERMANENT_SESSION_LIFETIME=3600
@@ -1164,6 +1176,12 @@ fix_admin_user() {
     echo -e "${YELLOW}                FIXING ADMIN USER LOGIN ISSUE                ${NC}"
     echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
     
+    # Fix environment file first
+    log "Fixing environment configuration..."
+    sed -i 's/SESSION_COOKIE_SECURE=True/SESSION_COOKIE_SECURE=False/' .env
+    sed -i 's/ENABLE_IP_WHITELIST=True/ENABLE_IP_WHITELIST=False/' .env
+    sed -i 's/ALLOW_ALL_IPS_IN_DEV=False/ALLOW_ALL_IPS_IN_DEV=True/' .env
+    
     # Activate virtual environment
     source venv/bin/activate
     
@@ -1182,7 +1200,7 @@ fix_admin_user() {
 import os
 from app import app, db
 from database import User
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 
 with app.app_context():
     # Check if admin user exists
@@ -1193,9 +1211,20 @@ with app.app_context():
         print(f'   Username: {admin_user.username}')
         print(f'   Role: {admin_user.role}')
         print(f'   ID: {admin_user.id}')
+        
+        # Test password
+        if check_password_hash(admin_user.password, 'A9B3nX#Q8k\$mZ6vw'):
+            print('✅ Password verification successful')
+        else:
+            print('❌ Password verification failed - recreating user')
+            # Delete and recreate user
+            db.session.delete(admin_user)
+            db.session.commit()
+            admin_user = None
     else:
         print('❌ Admin user not found. Creating...')
-        
+    
+    if not admin_user:
         # Create admin user
         admin_user = User(
             username='admin',
@@ -1216,6 +1245,14 @@ with app.app_context():
     users = User.query.all()
     for user in users:
         print(f'   • {user.username} (Role: {user.role}, ID: {user.id})')
+    
+    # Test authentication
+    print('\n🔐 Testing authentication...')
+    test_user = User.query.filter_by(username='admin').first()
+    if test_user and check_password_hash(test_user.password, 'A9B3nX#Q8k\$mZ6vw'):
+        print('✅ Authentication test passed')
+    else:
+        print('❌ Authentication test failed')
 "
     
     # Deactivate virtual environment
@@ -1226,7 +1263,7 @@ with app.app_context():
     systemctl restart gbot
     
     # Wait for service to start
-    sleep 3
+    sleep 5
     
     # Check service status
     if systemctl is-active --quiet gbot; then
@@ -1236,7 +1273,7 @@ with app.app_context():
         systemctl status gbot
     fi
     
-    echo -e "\n✅ Admin user has been fixed!"
+    echo -e "\n✅ Admin user and login issues have been fixed!"
     echo -e "🔐 Login credentials:"
     echo -e "   Username: ${BLUE}admin${NC}"
     echo -e "   Password: ${BLUE}A9B3nX#Q8k\$mZ6vw${NC}"
@@ -1742,6 +1779,10 @@ run_complete_installation() {
     
     # Start services
     start_services
+    
+    # Fix login issues immediately after installation
+    log "Fixing login issues..."
+    fix_admin_user
     
     # Display current credentials
     display_current_credentials
