@@ -728,6 +728,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load account statistics and authentication status
     loadAccountStatistics();
     checkCurrentAuthenticationStatus();
+    
+    // Clear user list initially
+    clearUserList();
+    
+    // Load accounts list
+    loadAccountList();
 });
 
 // Global variables
@@ -1207,13 +1213,313 @@ function previewCSV() {
     showStatus(`CSV preview generated (showing first ${count} of ${actualCount} users)`, 'success');
 }
 
-// Placeholder functions for buttons that need implementation
-function openAddAccountModal() { showStatus('Add Account modal - needs implementation', 'info'); }
-function addFromServerJSON() { showStatus('Add from Server JSON - needs implementation', 'info'); }
+// OAuth Modal Function
+function showOAuthModal(oauthUrl) {
+    const modal = `
+        <div class="modal fade" id="oauthModal" tabindex="-1" style="z-index: 9999;">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content bg-vercel-gray-900 border-vercel-gray-700">
+                    <div class="modal-header bg-vercel-gray-800 border-vercel-gray-700">
+                        <h5 class="modal-title text-white">
+                            <i class="fas fa-shield-alt text-blue-400 mr-2"></i>
+                            OAuth Authentication Required
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                            <i class="fas fa-times text-vercel-gray-400"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="text-center mb-4">
+                            <div class="w-16 h-16 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-key text-blue-500 text-2xl"></i>
+                            </div>
+                            <h4 class="text-white mb-3">Authentication Required</h4>
+                            <p class="text-vercel-gray-400 mb-4">Click the button below to open the Google OAuth authorization page in a new window. After completing authorization, return here to continue.</p>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <a href="${oauthUrl}" target="_blank" class="btn-vercel text-center text-decoration-none">
+                                <i class="fas fa-external-link-alt mr-2"></i>
+                                Open Authorization Page
+                            </a>
+                            <button type="button" class="btn-vercel-secondary" onclick="checkAuthStatus()">
+                                <i class="fas fa-sync-alt mr-2"></i>
+                                Check Authorization Status
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-vercel-gray-800 border-vercel-gray-700">
+                        <button type="button" class="btn-vercel-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times mr-1"></i>
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('oauthModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modal);
+    
+    // Show modal
+    const modalElement = new bootstrap.Modal(document.getElementById('oauthModal'));
+    modalElement.show();
+}
+
+function checkAuthStatus() {
+    const accountSelect = document.getElementById('account-select');
+    const selectedOption = accountSelect.options[accountSelect.selectedIndex];
+    const accountId = selectedOption.getAttribute('data-account-id');
+    const accountName = selectedOption.value;
+    
+    if (!accountName || !accountId) {
+        showStatus('No account selected', 'error');
+        return;
+    }
+    
+    showStatus('Checking authorization status...', 'info');
+    
+    fetch('/api/check-auth-status', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            account_name: accountName,
+            account_id: accountId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.authenticated) {
+            showStatus('Authorization completed successfully!', 'success');
+            updateAuthStatus(accountName, 'authenticated');
+            currentAccountId = accountId;
+            currentAccountName = accountName;
+            sessionStorage.setItem('currentAccountName', accountName);
+            sessionStorage.setItem('currentAccountId', accountId);
+            
+            // Close OAuth modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('oauthModal'));
+            if (modal) modal.hide();
+        } else {
+            showStatus('Authorization not yet completed. Please complete the OAuth process.', 'warning');
+        }
+    })
+    .catch(error => {
+        showStatus('Error checking authorization: ' + error, 'error');
+    });
+}
+
+// Account Management Functions
+function openAddAccountModal() {
+    const modal = `
+        <div class="modal fade" id="addAccountModal" tabindex="-1" style="z-index: 9999;">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content bg-vercel-gray-900 border-vercel-gray-700">
+                    <div class="modal-header bg-vercel-gray-800 border-vercel-gray-700">
+                        <h5 class="modal-title text-white">
+                            <i class="fas fa-plus text-green-400 mr-2"></i>
+                            Add New Account
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                            <i class="fas fa-times text-vercel-gray-400"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="add-account-form">
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="account-name" class="block text-sm font-medium text-vercel-gray-300 mb-2">Account Name:</label>
+                                    <input type="text" id="account-name" class="vercel-input" placeholder="Enter account name" required>
+                                </div>
+                                <div>
+                                    <label for="client-id" class="block text-sm font-medium text-vercel-gray-300 mb-2">Client ID:</label>
+                                    <input type="text" id="client-id" class="vercel-input" placeholder="Enter Google Client ID" required>
+                                </div>
+                                <div>
+                                    <label for="client-secret" class="block text-sm font-medium text-vercel-gray-300 mb-2">Client Secret:</label>
+                                    <input type="password" id="client-secret" class="vercel-input" placeholder="Enter Google Client Secret" required>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer bg-vercel-gray-800 border-vercel-gray-700">
+                        <button type="button" class="btn-vercel-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times mr-1"></i>
+                            Cancel
+                        </button>
+                        <button type="button" class="btn-vercel" onclick="saveNewAccount()">
+                            <i class="fas fa-save mr-1"></i>
+                            Save Account
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('addAccountModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modal);
+    
+    // Show modal
+    const modalElement = new bootstrap.Modal(document.getElementById('addAccountModal'));
+    modalElement.show();
+}
+function saveNewAccount() {
+    const accountName = document.getElementById('account-name').value.trim();
+    const clientId = document.getElementById('client-id').value.trim();
+    const clientSecret = document.getElementById('client-secret').value.trim();
+    
+    if (!accountName || !clientId || !clientSecret) {
+        showStatus('Please fill in all fields', 'error');
+        return;
+    }
+    
+    showStatus('Adding new account...', 'info');
+    
+    fetch('/api/add-account', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            account_name: accountName,
+            client_id: clientId,
+            client_secret: clientSecret
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('Account added successfully!', 'success');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addAccountModal'));
+            if (modal) modal.hide();
+            
+            // Refresh account list
+            loadAccountList();
+        } else {
+            showStatus('Error adding account: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function addFromServerJSON() {
+    showStatus('Fetching accounts from server...', 'info');
+    
+    fetch('/api/add-from-server', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus(`Successfully added ${data.count} accounts from server`, 'success');
+            loadAccountList();
+        } else {
+            showStatus('Error fetching from server: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
 function forceTokenStatusCheck() { showStatus('Force token status check - needs implementation', 'info'); }
 function enterAuthorizationCode() { showStatus('Enter authorization code - needs implementation', 'info'); }
 function updateAllPasswords() { showStatus('Update all passwords - needs implementation', 'info'); }
-function loadSuspendedUsers() { showStatus('Load suspended users - needs implementation', 'info'); }
+function loadSuspendedUsers() {
+    if (!currentAccountName && !sessionStorage.getItem('currentAccountName')) {
+        showStatus('Please authenticate an account first', 'error');
+        return;
+    }
+    
+    const accountName = currentAccountName || sessionStorage.getItem('currentAccountName');
+    showStatus('Loading suspended users...', 'info');
+    
+    fetch('/api/load-suspended-users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            account_name: accountName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displaySuspendedUsers(data.users);
+            showStatus(`Found ${data.users.length} suspended users`, 'success');
+        } else {
+            showStatus('Error loading suspended users: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function displaySuspendedUsers(users) {
+    const suspendedDisplay = document.getElementById('suspended-display');
+    
+    if (!users || users.length === 0) {
+        suspendedDisplay.innerHTML = `
+            <div class="text-center py-8">
+                <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-user-slash text-vercel-gray-400 text-2xl"></i>
+                </div>
+                <p class="text-vercel-gray-400">No suspended users found in this Google Workspace.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    suspendedDisplay.innerHTML = `
+        <div class="space-y-4">
+            <div class="text-center mb-4">
+                <div class="text-2xl font-bold text-red-400">${users.length}</div>
+                <div class="text-vercel-gray-400 text-sm">Suspended Users</div>
+            </div>
+            <div class="vercel-table max-h-64 overflow-y-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr>
+                            <th class="text-left">Name</th>
+                            <th class="text-left">Email</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(user => `
+                            <tr class="bg-red-500 bg-opacity-10">
+                                <td class="font-medium">${user.name || 'N/A'}</td>
+                                <td class="font-mono text-sm">${user.primaryEmail}</td>
+                                <td class="text-center">
+                                    <span class="status-suspended">
+                                        <i class="fas fa-user-slash mr-1"></i>
+                                        Suspended
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
 function copySuspendedUsers() { showStatus('Copy suspended users - needs implementation', 'info'); }
 function refreshSuspendedUsers() { showStatus('Refresh suspended users - needs implementation', 'info'); }
 function clearSuspendedUsers() { showStatus('Clear suspended users - needs implementation', 'info'); }
@@ -1221,6 +1527,141 @@ function selectAccountFromList(accountName, accountId) { showStatus(`Selected ac
 function authenticateFromList() { showStatus('Authenticate from list - needs implementation', 'info'); }
 function deleteFromList() { showStatus('Delete from list - needs implementation', 'info'); }
 function filterAccounts() { showStatus('Filter accounts - needs implementation', 'info'); }
+
+// Account List Management
+function loadAccountList() {
+    fetch('/api/get-accounts')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateAccountSelect(data.accounts);
+            updateAccountList(data.accounts);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading accounts:', error);
+    });
+}
+
+function updateAccountSelect(accounts) {
+    const accountSelect = document.getElementById('account-select');
+    if (!accountSelect) return;
+    
+    accountSelect.innerHTML = '<option value="">Select an account to authenticate</option>';
+    
+    accounts.forEach(account => {
+        const option = document.createElement('option');
+        option.value = account.account_name;
+        option.setAttribute('data-account-id', account.id);
+        option.textContent = `${account.account_name} (${account.is_authenticated ? 'Authenticated' : 'Need Auth'})`;
+        accountSelect.appendChild(option);
+    });
+}
+
+function updateAccountList(accounts) {
+    const accountListDisplay = document.getElementById('account-list-display');
+    if (!accountListDisplay) return;
+    
+    if (!accounts || accounts.length === 0) {
+        accountListDisplay.innerHTML = `
+            <div class="text-center py-8">
+                <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-users text-vercel-gray-400 text-2xl"></i>
+                </div>
+                <p class="text-vercel-gray-400">No accounts available. Add accounts to get started.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    accountListDisplay.innerHTML = `
+        <div class="space-y-2">
+            ${accounts.map(account => `
+                <div class="p-3 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700 hover:border-vercel-gray-600 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-3 h-3 ${account.is_authenticated ? 'bg-green-500' : 'bg-red-500'} rounded-full"></div>
+                            <span class="text-white font-medium">${account.account_name}</span>
+                            <span class="text-xs px-2 py-1 rounded ${account.is_authenticated ? 'bg-green-500 bg-opacity-20 text-green-400' : 'bg-red-500 bg-opacity-20 text-red-400'}">
+                                ${account.is_authenticated ? 'Authenticated' : 'Need Auth'}
+                            </span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="selectAccountFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-1 bg-blue-500 bg-opacity-20 text-blue-400 rounded hover:bg-opacity-30 transition-colors">
+                                Select
+                            </button>
+                            <button onclick="authenticateFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-1 bg-green-500 bg-opacity-20 text-green-400 rounded hover:bg-opacity-30 transition-colors">
+                                Auth
+                            </button>
+                            <button onclick="deleteFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-1 bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30 transition-colors">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function selectAccountFromList(accountName, accountId) {
+    selectedAccountFromList = { name: accountName, id: accountId };
+    const accountSelect = document.getElementById('account-select');
+    if (accountSelect) {
+        // Find and select the option
+        for (let option of accountSelect.options) {
+            if (option.value === accountName) {
+                accountSelect.value = accountName;
+                break;
+            }
+        }
+    }
+    showStatus(`Selected account: ${accountName}`, 'success');
+}
+
+function authenticateFromList(accountName, accountId) {
+    // Set the account in the select dropdown first
+    const accountSelect = document.getElementById('account-select');
+    if (accountSelect) {
+        for (let option of accountSelect.options) {
+            if (option.value === accountName) {
+                accountSelect.value = accountName;
+                break;
+            }
+        }
+    }
+    
+    // Now authenticate
+    authenticateAccount();
+}
+
+function deleteFromList(accountName, accountId) {
+    if (!confirm(`Are you sure you want to delete account "${accountName}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    showStatus('Deleting account...', 'info');
+    
+    fetch('/api/delete-account', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            account_id: accountId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('Account deleted successfully', 'success');
+            loadAccountList();
+        } else {
+            showStatus('Error deleting account: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
 </script>
 
 <style>
