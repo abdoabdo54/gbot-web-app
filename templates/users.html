@@ -2,55 +2,203 @@
 {% block title %}User Management - GBot Web{% endblock %}
 
 {% block content %}
-<!-- Top Navigation (Same as Dashboard) -->
-<div class="section">
-    <h2>👥 User Management</h2>
-    
-    <div style="display: flex; gap: 2rem; margin-top: 2rem;">
+<div class="space-y-8">
+    <!-- Header Section -->
+    <div class="text-center">
+        <div class="flex items-center justify-center space-x-3 mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <i class="fas fa-users text-white text-xl"></i>
+            </div>
+            <h1 class="text-4xl font-bold text-white">User Management</h1>
+        </div>
+        <p class="text-vercel-gray-400 text-lg">Manage application users and their permissions</p>
+    </div>
+
+    <!-- Main Management Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- Add New User -->
-        <div style="flex: 1; background: #f8f9fa; padding: 1.5rem; border-radius: 6px;">
-            <h3>Add New User</h3>
-            <div class="form-group">
-                <label for="new-username">Username:</label>
-                <input type="text" id="new-username" placeholder="Enter username" required>
+        <div class="vercel-card">
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="w-10 h-10 bg-green-500 bg-opacity-20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-user-plus text-green-500"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white">Add New User</h3>
             </div>
-            <div class="form-group">
-                <label for="new-password">Password:</label>
-                <input type="password" id="new-password" placeholder="Enter password" required>
-            </div>
-            <div class="form-group">
-                <label for="new-role">Role:</label>
-                <select id="new-role">
-                    <option value="support">Support</option>
-                    <option value="mailer">Mailer</option>
-                    <option value="admin">Admin</option>
-                </select>
-            </div>
-            <button onclick="addUser()" class="btn btn-primary">➕ Add User</button>
+
+            <form id="add-user-form" class="space-y-6">
+                <div>
+                    <label for="new-username" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                        <i class="fas fa-user mr-2"></i>Username
+                    </label>
+                    <input 
+                        type="text" 
+                        id="new-username" 
+                        placeholder="Enter username" 
+                        required 
+                        class="vercel-input"
+                    >
+                </div>
+
+                <div>
+                    <label for="new-password" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                        <i class="fas fa-lock mr-2"></i>Password
+                    </label>
+                    <input 
+                        type="password" 
+                        id="new-password" 
+                        placeholder="Enter password" 
+                        required 
+                        class="vercel-input"
+                    >
+                </div>
+
+                <div>
+                    <label for="new-role" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                        <i class="fas fa-shield-alt mr-2"></i>Role
+                    </label>
+                    <select id="new-role" class="vercel-select">
+                        <option value="support">Support</option>
+                        <option value="mailer">Mailer</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-vercel w-full" onclick="addUser()">
+                    <i class="fas fa-plus"></i>
+                    Add User
+                </button>
+            </form>
         </div>
         
         <!-- Existing Users -->
-        <div style="flex: 1;">
-            <h3>Existing Users</h3>
-            <div id="user-list" style="margin-top: 1rem;">
-                <p>Loading users...</p>
+        <div class="vercel-card">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-blue-500 bg-opacity-20 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-list text-blue-500"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white">Existing Users</h3>
+                </div>
+                <button onclick="loadUsers()" class="btn-vercel-secondary">
+                    <i class="fas fa-sync-alt"></i>
+                    Refresh
+                </button>
+            </div>
+
+            <div id="user-list" class="space-y-3">
+                <div class="text-center py-8">
+                    <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-users text-vercel-gray-400 text-2xl"></i>
+                    </div>
+                    <p class="text-vercel-gray-400">Loading users...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="status-messages" class="fixed bottom-6 right-6 max-w-md z-50"></div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editUserModal" class="modal fade" tabindex="-1" style="z-index: 9999;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-vercel-accent text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit mr-2"></i>Edit User
+                </h5>
+                <button type="button" class="btn-close btn-close-white" onclick="closeEditModal()"></button>
+            </div>
+            <div class="modal-body p-6">
+                <form id="edit-user-form" class="space-y-4">
+                    <div>
+                        <label for="edit-username" class="block text-sm font-medium text-vercel-gray-300 mb-2">Username:</label>
+                        <input type="text" id="edit-username" readonly class="vercel-input bg-vercel-gray-700">
+                    </div>
+                    <div>
+                        <label for="edit-password" class="block text-sm font-medium text-vercel-gray-300 mb-2">New Password (optional):</label>
+                        <input type="password" id="edit-password" placeholder="Leave blank to keep current password" class="vercel-input">
+                    </div>
+                    <div>
+                        <label for="edit-role" class="block text-sm font-medium text-vercel-gray-300 mb-2">Role:</label>
+                        <select id="edit-role" class="vercel-select">
+                            <option value="support">Support</option>
+                            <option value="mailer">Mailer</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="saveUserChanges()" class="btn-vercel">
+                    <i class="fas fa-save"></i>
+                    Save Changes
+                </button>
+                <button type="button" onclick="closeEditModal()" class="btn-vercel-secondary">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div id="deleteUserModal" class="modal fade" tabindex="-1" style="z-index: 9999;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-red-600 text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close btn-close-white" onclick="closeDeleteModal()"></button>
+            </div>
+            <div class="modal-body text-center p-6">
+                <div class="w-16 h-16 bg-red-500 bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-trash text-red-500 text-2xl"></i>
+                </div>
+                <p class="text-lg font-medium text-vercel-gray-100 mb-2">
+                    Are you sure you want to delete user <strong id="delete-username" class="text-red-400"></strong>?
+                </p>
+                <p class="text-vercel-gray-400 text-sm">
+                    <i class="fas fa-info-circle mr-1"></i>This action cannot be undone.
+                </p>
+            </div>
+            <div class="modal-footer justify-content-center space-x-4">
+                <button type="button" onclick="confirmDeleteUser()" class="btn-vercel-danger">
+                    <i class="fas fa-trash"></i>
+                    Delete User
+                </button>
+                <button type="button" onclick="closeDeleteModal()" class="btn-vercel-secondary">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
+{% block scripts %}
 <script>
+let currentEditUser = '';
+let currentDeleteUser = '';
+
 // User management functions
 function addUser() {
+    event.preventDefault();
+    
     const username = document.getElementById('new-username').value.trim();
     const password = document.getElementById('new-password').value.trim();
     const role = document.getElementById('new-role').value;
     
     if (!username || !password) {
-        alert('Please fill in all fields');
+        showStatus('Please fill in all fields', 'error');
         return;
     }
+    
+    showStatus('Adding user...', 'info');
     
     fetch('/api/add-user', {
         method: 'POST',
@@ -60,101 +208,152 @@ function addUser() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('✅ User added successfully!');
+            showStatus('User added successfully!', 'success');
             document.getElementById('new-username').value = '';
             document.getElementById('new-password').value = '';
+            document.getElementById('new-role').value = 'support';
             loadUsers();
         } else {
-            alert('❌ Error: ' + data.error);
+            showStatus('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
-        alert('❌ Network error: ' + error);
+        showStatus('Network error: ' + error, 'error');
     });
 }
 
 function loadUsers() {
+    showStatus('Loading users...', 'info');
+    
     fetch('/api/list-users')
     .then(response => response.json())
     .then(data => {
         if (data.success && Array.isArray(data.users)) {
             const userList = document.getElementById('user-list');
+            
             if (data.users.length === 0) {
-                userList.innerHTML = '<p>No users found.</p>';
+                userList.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-users text-vercel-gray-400 text-2xl"></i>
+                        </div>
+                        <p class="text-vercel-gray-400">No users found.</p>
+                    </div>
+                `;
                 return;
             }
             
             userList.innerHTML = data.users.map((user, index) => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: white; margin-bottom: 0.5rem; border-radius: 4px; border: 1px solid #ddd;">
-                    <div style="display: flex; align-items: center; gap: 1rem;">
-                        <span style="font-weight: bold; min-width: 30px;">${index + 1}</span>
-                        <div>
-                            <div style="font-weight: bold; font-size: 1.1rem;">${user.username}</div>
-                            <span style="background: ${user.role === 'admin' ? '#dc3545' : user.role === 'mailer' ? '#ffc107' : '#28a745'}; color: ${user.role === 'mailer' ? '#000' : 'white'}; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem;">
-                                ${user.role}
-                            </span>
+                <div class="p-4 bg-vercel-gray-800 hover:bg-vercel-gray-700 rounded-lg border border-vercel-gray-700 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-10 h-10 bg-vercel-gray-700 rounded-full flex items-center justify-center">
+                                <span class="text-vercel-gray-300 font-medium">${index + 1}</span>
+                            </div>
+                            <div>
+                                <div class="text-vercel-gray-100 font-semibold text-lg">${user.username}</div>
+                                <span class="status-${user.role}">
+                                    <i class="fas fa-${user.role === 'admin' ? 'crown' : user.role === 'mailer' ? 'envelope' : 'headset'} mr-1"></i>
+                                    ${user.role}
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button onclick="editUser('${user.username}', '${user.role}')" style="background: #007bff; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 3px; cursor: pointer;">
-                            ✏️ Edit
-                        </button>
-                        <button onclick="deleteUser('${user.username}')" style="background: #dc3545; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 3px; cursor: pointer;">
-                            🗑️ Delete
-                        </button>
+                        <div class="flex space-x-2">
+                            <button onclick="editUser('${user.username}', '${user.role}')" class="btn-vercel-secondary">
+                                <i class="fas fa-edit"></i>
+                                Edit
+                            </button>
+                            <button onclick="deleteUser('${user.username}')" class="btn-vercel-danger">
+                                <i class="fas fa-trash"></i>
+                                Delete
+                            </button>
+                        </div>
                     </div>
                 </div>
             `).join('');
+            
+            showStatus(`Loaded ${data.users.length} users`, 'success');
         } else {
-            document.getElementById('user-list').innerHTML = '<p>Error loading users.</p>';
+            document.getElementById('user-list').innerHTML = `
+                <div class="text-center py-8">
+                    <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-exclamation-triangle text-red-400 text-2xl"></i>
+                    </div>
+                    <p class="text-red-400">Error loading users: ${data.error || 'Unknown error'}</p>
+                </div>
+            `;
+            showStatus('Error loading users: ' + (data.error || 'Unknown error'), 'error');
         }
     })
     .catch(error => {
-        console.error("Fetch error:", error);
-        document.getElementById('user-list').innerHTML = '<p>Network error loading users.</p>';
+        document.getElementById('user-list').innerHTML = `
+            <div class="text-center py-8">
+                <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-exclamation-triangle text-red-400 text-2xl"></i>
+                </div>
+                <p class="text-red-400">Network error: ${error}</p>
+            </div>
+        `;
+        showStatus('Network error: ' + error, 'error');
     });
 }
 
-function editUser(username, currentRole) {
-    const newPassword = prompt(`Enter new password for user "${username}":`);
-    if (!newPassword) return;
+function editUser(username, role) {
+    currentEditUser = username;
+    document.getElementById('edit-username').value = username;
+    document.getElementById('edit-password').value = '';
+    document.getElementById('edit-role').value = role;
     
-    const newRole = prompt(`Enter role for "${username}" (admin/support/mailer):`, currentRole);
-    if (!newRole) return;
+    // Show modal using Bootstrap
+    const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+    modal.show();
+}
+
+function saveUserChanges() {
+    const username = currentEditUser;
+    const password = document.getElementById('edit-password').value.trim();
+    const role = document.getElementById('edit-role').value;
     
-    if (newRole !== 'admin' && newRole !== 'support' && newRole !== 'mailer') {
-        alert('Role must be either "admin", "support", or "mailer"');
-        return;
+    const updateData = {username, role};
+    if (password) {
+        updateData.password = password;
     }
+    
+    showStatus('Updating user...', 'info');
     
     fetch('/api/edit-user', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({username, password: newPassword, role: newRole})
+        body: JSON.stringify(updateData)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('✅ User updated successfully!');
+            showStatus('User updated successfully!', 'success');
+            closeEditModal();
             loadUsers();
         } else {
-            alert('❌ Error: ' + data.error);
+            showStatus('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
-        alert('❌ Network error: ' + error);
+        showStatus('Network error: ' + error, 'error');
     });
 }
 
 function deleteUser(username) {
-    if (username === '{{ user }}') {
-        alert('❌ Cannot delete your own account!');
-        return;
-    }
+    currentDeleteUser = username;
+    document.getElementById('delete-username').textContent = username;
     
-    if (!confirm(`⚠️ Delete user "${username}"?\n\nThis action cannot be undone.`)) {
-        return;
-    }
+    // Show modal using Bootstrap
+    const modal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
+    modal.show();
+}
+
+function confirmDeleteUser() {
+    const username = currentDeleteUser;
+    
+    showStatus('Deleting user...', 'info');
     
     fetch('/api/delete-user', {
         method: 'POST',
@@ -164,20 +363,77 @@ function deleteUser(username) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('✅ User deleted successfully!');
+            showStatus('User deleted successfully!', 'success');
+            closeDeleteModal();
             loadUsers();
         } else {
-            alert('❌ Error: ' + data.error);
+            showStatus('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
-        alert('❌ Network error: ' + error);
+        showStatus('Network error: ' + error, 'error');
     });
+}
+
+function closeEditModal() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('editUserModal'));
+    if (modal) {
+        modal.hide();
+    }
+    currentEditUser = '';
+}
+
+function closeDeleteModal() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteUserModal'));
+    if (modal) {
+        modal.hide();
+    }
+    currentDeleteUser = '';
+}
+
+function showStatus(message, type) {
+    const bgClass = type === 'success' ? 'alert-vercel-success' : 
+                   type === 'error' ? 'alert-vercel-error' : 
+                   type === 'warning' ? 'alert-vercel-warning' : 'alert-vercel-info';
+    
+    const icon = type === 'success' ? 'fa-check-circle' : 
+                type === 'error' ? 'fa-exclamation-triangle' : 
+                type === 'warning' ? 'fa-exclamation-circle' : 'fa-info-circle';
+    
+    const statusHtml = `
+        <div class="${bgClass} flex items-center space-x-3 mb-3 rounded-lg shadow-lg">
+            <i class="fas ${icon} text-lg"></i>
+            <span class="font-medium flex-1">${message}</span>
+            <button type="button" class="text-current opacity-50 hover:opacity-100" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    
+    document.getElementById('status-messages').insertAdjacentHTML('afterbegin', statusHtml);
+    
+    // Auto-hide success and info messages after 5 seconds
+    if (type === 'success' || type === 'info') {
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert-vercel-success, .alert-vercel-info');
+            alerts.forEach(alert => {
+                if (alert.parentElement) {
+                    alert.remove();
+                }
+            });
+        }, 5000);
+    }
 }
 
 // Load users when page loads
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
+    
+    // Prevent form submission from reloading page
+    document.getElementById('add-user-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        addUser();
+    });
 });
 </script>
 {% endblock %}

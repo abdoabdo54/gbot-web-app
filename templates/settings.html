@@ -3,446 +3,569 @@
 {% block title %}Settings - GBot Web{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="space-y-8">
     <!-- Header Section -->
-    <div class="row mb-4">
-        <div class="col-12 text-center">
-            <h2 class="mb-0 display-4 text-primary">⚙️ Settings</h2>
-            <p class="text-muted lead">Configure application settings and server connections</p>
+    <div class="text-center">
+        <div class="flex items-center justify-center space-x-3 mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center">
+                <i class="fas fa-cog text-white text-xl"></i>
+            </div>
+            <h1 class="text-4xl font-bold text-white">Settings</h1>
         </div>
+        <p class="text-vercel-gray-400 text-lg">Configure application settings and server connections</p>
     </div>
 
     <!-- Server Configuration Section -->
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow-lg border-primary">
-                <div class="card-header bg-primary text-white text-center">
-                    <h4 class="mb-0">🖥️ Server Configuration</h4>
+    <div class="vercel-card">
+        <div class="flex items-center space-x-3 mb-6">
+            <div class="w-10 h-10 bg-blue-500 bg-opacity-20 rounded-lg flex items-center justify-center">
+                <i class="fas fa-server text-blue-500"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white">Server Configuration</h3>
+        </div>
+        
+        <div class="mb-6 p-4 bg-blue-500 bg-opacity-10 border border-blue-500 border-opacity-20 rounded-lg">
+            <div class="flex items-start space-x-3">
+                <div class="w-6 h-6 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center mt-0.5">
+                    <i class="fas fa-info-circle text-blue-400 text-sm"></i>
                 </div>
-                <div class="card-body p-4">
-                    <p class="text-muted mb-4">
+                <div>
+                    <p class="text-blue-300 font-medium mb-2">Server Configuration Purpose</p>
+                    <p class="text-blue-200 text-sm">
                         Configure the server connection for importing accounts from JSON files. 
                         This server should contain the credential JSON files for Google Workspace accounts.
                     </p>
-                    
-                    <form id="server-config-form">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="server_host" class="form-label fw-bold">🌐 Server Host/IP</label>
-                                <input type="text" class="form-control form-control-lg" id="server_host" 
-                                       placeholder="192.168.1.100 or server.domain.com" required>
-                                <div class="form-text">IP address or hostname of the server</div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="server_port" class="form-label fw-bold">🔌 Port</label>
-                                <input type="number" class="form-control form-control-lg" id="server_port" 
-                                       value="22" min="1" max="65535" required>
-                                <div class="form-text">SSH port (default: 22)</div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="server_username" class="form-label fw-bold">👤 Username</label>
-                                <input type="text" class="form-control form-control-lg" id="server_username" 
-                                       placeholder="ubuntu or root" required>
-                                <div class="form-text">SSH username for server access</div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="server_auth_method" class="form-label fw-bold">🔐 Authentication Method</label>
-                                <select class="form-select form-select-lg" id="server_auth_method" required>
-                                    <option value="password">Password</option>
-                                    <option value="key">SSH Key</option>
-                                </select>
-                                <div class="form-text">Choose authentication method</div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3" id="password-field">
-                                <label for="server_password" class="form-label fw-bold">🔑 Password</label>
-                                <input type="password" class="form-control form-control-lg" id="server_password" 
-                                       placeholder="Server password">
-                                <div class="form-text">SSH password (if using password auth)</div>
-                            </div>
-                            <div class="col-md-6 mb-3" id="key-field" style="display: none;">
-                                <label for="server_private_key" class="form-label fw-bold">🔑 Private Key</label>
-                                <textarea class="form-control form-control-lg" id="server_private_key" rows="4" 
-                                          placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
-                                <div class="form-text">SSH private key content (if using key auth)</div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-12 mb-3">
-                                <label for="server_json_path" class="form-label fw-bold">📁 JSON Files Path</label>
-                                <input type="text" class="form-control form-control-lg" id="server_json_path" 
-                                       value="/opt/gbot-web-app/credentials/" placeholder="/path/to/json/files/" required>
-                                <div class="form-text">Directory path where JSON credential files are stored on the server</div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-12 mb-3">
-                                <label for="server_file_pattern" class="form-label fw-bold">📋 File Pattern</label>
-                                <input type="text" class="form-control form-control-lg" id="server_file_pattern" 
-                                       value="*.json" placeholder="*.json or admin@*.json" required>
-                                <div class="form-text">File pattern to match JSON files (e.g., *.json, admin@*.json)</div>
-                            </div>
-                        </div>
-                        
-                        <div class="text-center mt-4">
-                            <button type="button" class="btn btn-outline-primary btn-lg me-3" onclick="testServerConnection()">
-                                🔍 Test Connection
-                            </button>
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                💾 Save Configuration
-                            </button>
-                        </div>
-                    </form>
                 </div>
+            </div>
+        </div>
+        
+        <form id="server-config-form" class="space-y-6">
+            <!-- Server Host and Port -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                    <label for="server_host" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                        <i class="fas fa-globe mr-2"></i>Server Host/IP
+                    </label>
+                    <input 
+                        type="text" 
+                        class="vercel-input" 
+                        id="server_host" 
+                        placeholder="192.168.1.100 or server.domain.com" 
+                        required
+                    >
+                    <p class="text-vercel-gray-500 text-xs mt-2">IP address or hostname of the server</p>
+                </div>
+                <div>
+                    <label for="server_port" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                        <i class="fas fa-plug mr-2"></i>Port
+                    </label>
+                    <input 
+                        type="number" 
+                        class="vercel-input" 
+                        id="server_port" 
+                        value="22" 
+                        min="1" 
+                        max="65535" 
+                        required
+                    >
+                    <p class="text-vercel-gray-500 text-xs mt-2">SSH port (default: 22)</p>
+                </div>
+            </div>
+            
+            <!-- Username and Authentication Method -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                    <label for="server_username" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                        <i class="fas fa-user mr-2"></i>Username
+                    </label>
+                    <input 
+                        type="text" 
+                        class="vercel-input" 
+                        id="server_username" 
+                        placeholder="ubuntu or root" 
+                        required
+                    >
+                    <p class="text-vercel-gray-500 text-xs mt-2">SSH username for server access</p>
+                </div>
+                <div>
+                    <label for="server_auth_method" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                        <i class="fas fa-shield-alt mr-2"></i>Authentication Method
+                    </label>
+                    <select class="vercel-select" id="server_auth_method" required>
+                        <option value="password">Password</option>
+                        <option value="key">SSH Key</option>
+                    </select>
+                    <p class="text-vercel-gray-500 text-xs mt-2">Choose authentication method</p>
+                </div>
+            </div>
+            
+            <!-- Authentication Credentials -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div id="password-field">
+                    <label for="server_password" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                        <i class="fas fa-key mr-2"></i>Password
+                    </label>
+                    <input 
+                        type="password" 
+                        class="vercel-input" 
+                        id="server_password" 
+                        placeholder="Server password"
+                    >
+                    <p class="text-vercel-gray-500 text-xs mt-2">SSH password (if using password auth)</p>
+                </div>
+                <div id="key-field" style="display: none;" class="lg:col-span-2">
+                    <label for="server_private_key" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                        <i class="fas fa-key mr-2"></i>Private Key
+                    </label>
+                    <textarea 
+                        class="vercel-input" 
+                        id="server_private_key" 
+                        rows="6" 
+                        placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"
+                    ></textarea>
+                    <p class="text-vercel-gray-500 text-xs mt-2">SSH private key content (if using key auth)</p>
+                </div>
+            </div>
+            
+            <!-- JSON Path Configuration -->
+            <div>
+                <label for="server_json_path" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                    <i class="fas fa-folder mr-2"></i>JSON Files Path
+                </label>
+                <input 
+                    type="text" 
+                    class="vercel-input" 
+                    id="server_json_path" 
+                    value="/opt/gbot-web-app/credentials/" 
+                    placeholder="/path/to/json/files/" 
+                    required
+                >
+                <p class="text-vercel-gray-500 text-xs mt-2">Directory path where JSON credential files are stored on the server</p>
+            </div>
+            
+            <!-- File Pattern -->
+            <div>
+                <label for="server_file_pattern" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                    <i class="fas fa-file-alt mr-2"></i>File Pattern
+                </label>
+                <input 
+                    type="text" 
+                    class="vercel-input" 
+                    id="server_file_pattern" 
+                    value="*.json" 
+                    placeholder="*.json or admin@*.json" 
+                    required
+                >
+                <p class="text-vercel-gray-500 text-xs mt-2">File pattern to match JSON files (e.g., *.json, admin@*.json)</p>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-4 pt-6">
+                <button type="button" class="btn-vercel-secondary" onclick="testServerConnection()">
+                    <i class="fas fa-search"></i>
+                    Test Connection
+                </button>
+                <button type="submit" class="btn-vercel">
+                    <i class="fas fa-save"></i>
+                    Save Configuration
+                </button>
+                <button type="button" class="btn-vercel-secondary" onclick="clearConfiguration()">
+                    <i class="fas fa-broom"></i>
+                    Clear Configuration
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Current Configuration Section -->
+    <div class="vercel-card" id="current-config-section">
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-green-500 bg-opacity-20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-check-circle text-green-500"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white">Current Configuration</h3>
+            </div>
+            <button type="button" class="btn-vercel-secondary" onclick="loadCurrentConfig()">
+                <i class="fas fa-sync-alt"></i>
+                Refresh
+            </button>
+        </div>
+        
+        <div id="current-config-display" class="vercel-table">
+            <div class="text-center py-8">
+                <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-server text-vercel-gray-400 text-2xl"></i>
+                </div>
+                <p class="text-vercel-gray-400">No configuration found. Save a configuration to see details here.</p>
             </div>
         </div>
     </div>
 
-    <!-- Current Configuration Display -->
-    <div class="row justify-content-center mt-4">
-        <div class="col-lg-8">
-            <div class="card shadow-lg border-success">
-                <div class="card-header bg-success text-white text-center">
-                    <h4 class="mb-0">📋 Current Configuration</h4>
-                </div>
-                <div class="card-body p-4">
-                    <div id="current-config-display">
-                        <div class="text-center py-4">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p class="mt-3 text-muted">Loading current configuration...</p>
-                        </div>
-                    </div>
-                </div>
+    <!-- Connection Test Results -->
+    <div class="vercel-card" id="test-results-section" style="display: none;">
+        <div class="flex items-center space-x-3 mb-6">
+            <div class="w-10 h-10 bg-yellow-500 bg-opacity-20 rounded-lg flex items-center justify-center">
+                <i class="fas fa-flask text-yellow-500"></i>
             </div>
+            <h3 class="text-xl font-bold text-white">Connection Test Results</h3>
+        </div>
+        
+        <div id="test-results-display" class="vercel-table min-h-32">
+            <!-- Test results will be populated here -->
         </div>
     </div>
 
     <!-- Status Messages -->
-    <div id="status-messages" class="mt-4 text-center"></div>
-</div>
-
-<!-- Test Connection Modal -->
-<div class="modal fade" id="testConnectionModal" tabindex="-1" aria-labelledby="testModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="card-header bg-info text-white text-center">
-                <h5 class="modal-title w-100" id="testModalLabel">
-                    🔍 Testing Server Connection
-                </h5>
-            </div>
-            <div class="modal-body text-center">
-                <div class="mb-3">
-                    <div class="spinner-border text-info" role="status" style="width: 3rem; height: 3rem;">
-                        <span class="visually-hidden">Testing...</span>
-                    </div>
-                </div>
-                <p class="fs-5">Testing connection to server...</p>
-                <div id="test-progress" class="progress mt-3" style="display: none;">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div id="status-messages" class="fixed bottom-6 right-6 max-w-md z-50"></div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-$(document).ready(function() {
-    console.log('Settings page loaded, initializing...');
+// Toggle authentication method fields
+document.getElementById('server_auth_method').addEventListener('change', function() {
+    const method = this.value;
+    const passwordField = document.getElementById('password-field');
+    const keyField = document.getElementById('key-field');
     
-    // Load current configuration
-    loadCurrentConfiguration();
-    
-    // Handle authentication method change
-    $('#server_auth_method').change(function() {
-        const method = $(this).val();
-        if (method === 'password') {
-            $('#password-field').show();
-            $('#key-field').hide();
-            $('#server_password').prop('required', true);
-            $('#server_private_key').prop('required', false);
-        } else {
-            $('#password-field').hide();
-            $('#key-field').show();
-            $('#server_password').prop('required', false);
-            $('#server_private_key').prop('required', true);
-        }
-    });
-    
-    // Handle form submission
-    $('#server-config-form').submit(function(e) {
-        e.preventDefault();
-        saveServerConfiguration();
-    });
+    if (method === 'password') {
+        passwordField.style.display = 'block';
+        keyField.style.display = 'none';
+        document.getElementById('server_private_key').required = false;
+        document.getElementById('server_password').required = true;
+    } else {
+        passwordField.style.display = 'none';
+        keyField.style.display = 'block';
+        keyField.classList.add('lg:col-span-2');
+        document.getElementById('server_password').required = false;
+        document.getElementById('server_private_key').required = true;
+    }
 });
 
-function loadCurrentConfiguration() {
-    console.log('Loading current server configuration...');
-    
-    fetch('/api/get-server-config', {
-        method: 'GET',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.config) {
-            displayCurrentConfiguration(data.config);
-        } else {
-            displayCurrentConfiguration(null);
-        }
-    })
-    .catch(error => {
-        console.error('Error loading configuration:', error);
-        displayCurrentConfiguration(null);
-    });
-}
-
-function displayCurrentConfiguration(config) {
-    const display = $('#current-config-display');
-    
-    if (!config) {
-        display.html(`
-            <div class="text-center py-4">
-                <div class="display-4 text-muted mb-3">⚙️</div>
-                <h5 class="text-muted">No Configuration Set</h5>
-                <p class="text-muted">Configure server settings above to enable "Add from Server JSON" functionality.</p>
-            </div>
-        `);
-        return;
-    }
-    
-    // Populate form fields
-    $('#server_host').val(config.host || '');
-    $('#server_port').val(config.port || 22);
-    $('#server_username').val(config.username || '');
-    $('#server_auth_method').val(config.auth_method || 'password');
-    $('#server_password').val(config.password || '');
-    $('#server_private_key').val(config.private_key || '');
-    $('#server_json_path').val(config.json_path || '');
-    $('#server_file_pattern').val(config.file_pattern || '');
-    
-    // Trigger auth method change to show/hide fields
-    $('#server_auth_method').trigger('change');
-    
-    // Display current config
-    const statusClass = config.is_configured ? 'success' : 'warning';
-    const statusIcon = config.is_configured ? '✅' : '⚠️';
-    const statusText = config.is_configured ? 'Configured' : 'Not Tested';
-    
-    display.html(`
-        <div class="row">
-            <div class="col-md-6">
-                <h6 class="fw-bold">🖥️ Server Details</h6>
-                <ul class="list-unstyled">
-                    <li><strong>Host:</strong> ${config.host || 'Not set'}</li>
-                    <li><strong>Port:</strong> ${config.port || 'Not set'}</li>
-                    <li><strong>Username:</strong> ${config.username || 'Not set'}</li>
-                    <li><strong>Auth Method:</strong> ${config.auth_method || 'Not set'}</li>
-                </ul>
-            </div>
-            <div class="col-md-6">
-                <h6 class="fw-bold">📁 File Configuration</h6>
-                <ul class="list-unstyled">
-                    <li><strong>JSON Path:</strong> ${config.json_path || 'Not set'}</li>
-                    <li><strong>File Pattern:</strong> ${config.file_pattern || 'Not set'}</li>
-                    <li><strong>Status:</strong> <span class="badge bg-${statusClass}">${statusIcon} ${statusText}</span></li>
-                </ul>
-            </div>
-        </div>
-        <div class="text-center mt-3">
-            <button class="btn btn-outline-danger btn-sm" onclick="clearServerConfiguration()">
-                🗑️ Clear Configuration
-            </button>
-        </div>
-    `);
-}
+// Form submission
+document.getElementById('server-config-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    saveServerConfiguration();
+});
 
 function saveServerConfiguration() {
-    console.log('Saving server configuration...');
-    
-    const config = {
-        host: $('#server_host').val().trim(),
-        port: parseInt($('#server_port').val()),
-        username: $('#server_username').val().trim(),
-        auth_method: $('#server_auth_method').val(),
-        password: $('#server_password').val(),
-        private_key: $('#server_private_key').val().trim(),
-        json_path: $('#server_json_path').val().trim(),
-        file_pattern: $('#server_file_pattern').val().trim()
+    const formData = {
+        host: document.getElementById('server_host').value.trim(),
+        port: parseInt(document.getElementById('server_port').value),
+        username: document.getElementById('server_username').value.trim(),
+        auth_method: document.getElementById('server_auth_method').value,
+        json_path: document.getElementById('server_json_path').value.trim(),
+        file_pattern: document.getElementById('server_file_pattern').value.trim()
     };
     
+    if (formData.auth_method === 'password') {
+        formData.password = document.getElementById('server_password').value;
+    } else {
+        formData.private_key = document.getElementById('server_private_key').value.trim();
+    }
+    
     // Validate required fields
-    if (!config.host || !config.username || !config.json_path || !config.file_pattern) {
+    if (!formData.host || !formData.username || !formData.json_path || !formData.file_pattern) {
         showStatus('Please fill in all required fields', 'error');
         return;
     }
     
-    if (config.auth_method === 'password' && !config.password) {
-        showStatus('Password is required when using password authentication', 'error');
+    if (formData.auth_method === 'password' && !formData.password) {
+        showStatus('Please enter the server password', 'error');
         return;
     }
     
-    if (config.auth_method === 'key' && !config.private_key) {
-        showStatus('Private key is required when using SSH key authentication', 'error');
+    if (formData.auth_method === 'key' && !formData.private_key) {
+        showStatus('Please enter the SSH private key', 'error');
         return;
     }
     
-    showStatus('Saving server configuration...', 'info');
+    showStatus('Saving configuration...', 'info');
     
     fetch('/api/save-server-config', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(config)
+        body: JSON.stringify(formData)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showStatus('✅ Server configuration saved successfully', 'success');
-            loadCurrentConfiguration();
+            showStatus('Configuration saved successfully!', 'success');
+            loadCurrentConfig();
         } else {
-            showStatus('❌ Failed to save configuration: ' + data.error, 'error');
+            showStatus('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
-        console.error('Error saving configuration:', error);
-        showStatus('❌ Network error: ' + error, 'error');
+        showStatus('Network error: ' + error, 'error');
     });
 }
 
 function testServerConnection() {
-    console.log('Testing server connection...');
-    
-    const config = {
-        host: $('#server_host').val().trim(),
-        port: parseInt($('#server_port').val()),
-        username: $('#server_username').val().trim(),
-        auth_method: $('#server_auth_method').val(),
-        password: $('#server_password').val(),
-        private_key: $('#server_private_key').val().trim(),
-        json_path: $('#server_json_path').val().trim(),
-        file_pattern: $('#server_file_pattern').val().trim()
+    const formData = {
+        host: document.getElementById('server_host').value.trim(),
+        port: parseInt(document.getElementById('server_port').value),
+        username: document.getElementById('server_username').value.trim(),
+        auth_method: document.getElementById('server_auth_method').value,
+        json_path: document.getElementById('server_json_path').value.trim(),
+        file_pattern: document.getElementById('server_file_pattern').value.trim()
     };
     
+    if (formData.auth_method === 'password') {
+        formData.password = document.getElementById('server_password').value;
+    } else {
+        formData.private_key = document.getElementById('server_private_key').value.trim();
+    }
+    
     // Validate required fields
-    if (!config.host || !config.username || !config.json_path || !config.file_pattern) {
-        showStatus('Please fill in all required fields before testing', 'error');
+    if (!formData.host || !formData.username) {
+        showStatus('Please enter at least host and username to test connection', 'error');
         return;
     }
     
-    if (config.auth_method === 'password' && !config.password) {
-        showStatus('Password is required when using password authentication', 'error');
-        return;
-    }
+    showStatus('Testing connection...', 'info');
     
-    if (config.auth_method === 'key' && !config.private_key) {
-        showStatus('Private key is required when using SSH key authentication', 'error');
-        return;
-    }
-    
-    // Show test modal
-    const modal = new bootstrap.Modal(document.getElementById('testConnectionModal'));
-    modal.show();
-    
-    // Start progress bar
-    $('#test-progress').show();
-    const progressBar = $('#test-progress .progress-bar');
-    progressBar.css('width', '0%');
-    
-    // Simulate progress
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-        progress += 10;
-        progressBar.css('width', progress + '%');
-        if (progress >= 90) clearInterval(progressInterval);
-    }, 200);
+    // Show test results section
+    document.getElementById('test-results-section').style.display = 'block';
+    document.getElementById('test-results-display').innerHTML = `
+        <div class="text-center py-8">
+            <div class="vercel-spinner mx-auto mb-4"></div>
+            <p class="text-vercel-gray-400">Testing connection to ${formData.host}...</p>
+        </div>
+    `;
     
     fetch('/api/test-server-connection', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(config)
-    })
-    .then(response => response.json())
-    .then(data => {
-        clearInterval(progressInterval);
-        progressBar.css('width', '100%');
-        
-        setTimeout(() => {
-            modal.hide();
-            
-            if (data.success) {
-                showStatus('✅ Server connection successful! Found ' + data.files_count + ' JSON files.', 'success');
-                loadCurrentConfiguration();
-            } else {
-                showStatus('❌ Connection failed: ' + data.error, 'error');
-            }
-        }, 500);
-    })
-    .catch(error => {
-        clearInterval(progressInterval);
-        modal.hide();
-        console.error('Error testing connection:', error);
-        showStatus('❌ Network error: ' + error, 'error');
-    });
-}
-
-function clearServerConfiguration() {
-    if (!confirm('Are you sure you want to clear the server configuration? This will disable the "Add from Server JSON" functionality.')) {
-        return;
-    }
-    
-    console.log('Clearing server configuration...');
-    
-    fetch('/api/clear-server-config', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
+        body: JSON.stringify(formData)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showStatus('✅ Server configuration cleared', 'success');
-            loadCurrentConfiguration();
+            showStatus('Connection test successful!', 'success');
+            
+            document.getElementById('test-results-display').innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex items-center space-x-3 p-4 bg-green-500 bg-opacity-10 border border-green-500 border-opacity-20 rounded-lg">
+                        <i class="fas fa-check-circle text-green-500 text-xl"></i>
+                        <div>
+                            <h4 class="text-green-400 font-medium">Connection Successful</h4>
+                            <p class="text-green-300 text-sm">Successfully connected to ${formData.host}</p>
+                        </div>
+                    </div>
+                    
+                    ${data.files_found ? `
+                        <div class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
+                            <h5 class="text-vercel-gray-200 font-medium mb-2">
+                                <i class="fas fa-file-alt mr-2"></i>Files Found: ${data.files_found.length}
+                            </h5>
+                            <div class="space-y-1">
+                                ${data.files_found.map(file => `
+                                    <div class="text-vercel-gray-400 text-sm flex items-center space-x-2">
+                                        <i class="fas fa-file text-xs"></i>
+                                        <span>${file}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${data.connection_info ? `
+                        <div class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
+                            <h5 class="text-vercel-gray-200 font-medium mb-2">
+                                <i class="fas fa-info-circle mr-2"></i>Connection Details
+                            </h5>
+                            <div class="text-vercel-gray-400 text-sm space-y-1">
+                                <div>Server: ${data.connection_info.host}:${data.connection_info.port}</div>
+                                <div>Authentication: ${data.connection_info.auth_method}</div>
+                                <div>JSON Path: ${data.connection_info.json_path}</div>
+                                <div>File Pattern: ${data.connection_info.file_pattern}</div>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
         } else {
-            showStatus('❌ Failed to clear configuration: ' + data.error, 'error');
+            showStatus('Connection test failed: ' + data.error, 'error');
+            
+            document.getElementById('test-results-display').innerHTML = `
+                <div class="flex items-center space-x-3 p-4 bg-red-500 bg-opacity-10 border border-red-500 border-opacity-20 rounded-lg">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+                    <div>
+                        <h4 class="text-red-400 font-medium">Connection Failed</h4>
+                        <p class="text-red-300 text-sm">${data.error}</p>
+                    </div>
+                </div>
+            `;
         }
     })
     .catch(error => {
-        console.error('Error clearing configuration:', error);
-        showStatus('❌ Network error: ' + error, 'error');
+        showStatus('Network error: ' + error, 'error');
+        
+        document.getElementById('test-results-display').innerHTML = `
+            <div class="flex items-center space-x-3 p-4 bg-red-500 bg-opacity-10 border border-red-500 border-opacity-20 rounded-lg">
+                <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+                <div>
+                    <h4 class="text-red-400 font-medium">Network Error</h4>
+                    <p class="text-red-300 text-sm">${error}</p>
+                </div>
+            </div>
+        `;
     });
 }
 
+function loadCurrentConfig() {
+    showStatus('Loading current configuration...', 'info');
+    
+    fetch('/api/get-server-config')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.config) {
+            const config = data.config;
+            
+            // Populate form fields
+            document.getElementById('server_host').value = config.host || '';
+            document.getElementById('server_port').value = config.port || 22;
+            document.getElementById('server_username').value = config.username || '';
+            document.getElementById('server_auth_method').value = config.auth_method || 'password';
+            document.getElementById('server_json_path').value = config.json_path || '/opt/gbot-web-app/credentials/';
+            document.getElementById('server_file_pattern').value = config.file_pattern || '*.json';
+            
+            // Trigger auth method change to show correct fields
+            document.getElementById('server_auth_method').dispatchEvent(new Event('change'));
+            
+            // Display current config
+            document.getElementById('current-config-display').innerHTML = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
+                            <h5 class="text-vercel-gray-200 font-medium mb-2">Server Details</h5>
+                            <div class="text-vercel-gray-400 text-sm space-y-1">
+                                <div><strong>Host:</strong> ${config.host}</div>
+                                <div><strong>Port:</strong> ${config.port}</div>
+                                <div><strong>Username:</strong> ${config.username}</div>
+                                <div><strong>Auth Method:</strong> ${config.auth_method}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
+                            <h5 class="text-vercel-gray-200 font-medium mb-2">File Configuration</h5>
+                            <div class="text-vercel-gray-400 text-sm space-y-1">
+                                <div><strong>JSON Path:</strong> ${config.json_path}</div>
+                                <div><strong>File Pattern:</strong> ${config.file_pattern}</div>
+                                <div><strong>Status:</strong> 
+                                    <span class="status-${config.is_configured ? 'active' : 'pending'}">
+                                        ${config.is_configured ? 'Configured' : 'Pending'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${config.last_tested ? `
+                        <div class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
+                            <h5 class="text-vercel-gray-200 font-medium mb-2">Last Test</h5>
+                            <div class="text-vercel-gray-400 text-sm">
+                                ${new Date(config.last_tested).toLocaleString()}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            showStatus('Configuration loaded successfully', 'success');
+        } else {
+            document.getElementById('current-config-display').innerHTML = `
+                <div class="text-center py-8">
+                    <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-server text-vercel-gray-400 text-2xl"></i>
+                    </div>
+                    <p class="text-vercel-gray-400">No configuration found. Save a configuration to see details here.</p>
+                </div>
+            `;
+            showStatus('No configuration found', 'warning');
+        }
+    })
+    .catch(error => {
+        showStatus('Error loading configuration: ' + error, 'error');
+    });
+}
+
+function clearConfiguration() {
+    if (confirm('Are you sure you want to clear the server configuration? This action cannot be undone.')) {
+        showStatus('Clearing configuration...', 'info');
+        
+        fetch('/api/clear-server-config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showStatus('Configuration cleared successfully', 'success');
+                
+                // Clear form fields
+                document.getElementById('server-config-form').reset();
+                document.getElementById('server_port').value = 22;
+                document.getElementById('server_json_path').value = '/opt/gbot-web-app/credentials/';
+                document.getElementById('server_file_pattern').value = '*.json';
+                
+                // Trigger auth method change
+                document.getElementById('server_auth_method').dispatchEvent(new Event('change'));
+                
+                // Update current config display
+                loadCurrentConfig();
+                
+                // Hide test results
+                document.getElementById('test-results-section').style.display = 'none';
+            } else {
+                showStatus('Error clearing configuration: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showStatus('Network error: ' + error, 'error');
+        });
+    }
+}
+
 function showStatus(message, type) {
-    console.log('Showing status:', message, type);
-    var alertClass = type === 'success' ? 'alert-success' : 
-                    type === 'error' ? 'alert-danger' : 
-                    type === 'warning' ? 'alert-warning' : 'alert-info';
+    const bgClass = type === 'success' ? 'alert-vercel-success' : 
+                   type === 'error' ? 'alert-vercel-error' : 
+                   type === 'warning' ? 'alert-vercel-warning' : 'alert-vercel-info';
     
-    var icon = type === 'success' ? '✅' : 
-              type === 'error' ? '❌' : 
-              type === 'warning' ? '⚠️' : 'ℹ️';
+    const icon = type === 'success' ? 'fa-check-circle' : 
+                type === 'error' ? 'fa-exclamation-triangle' : 
+                type === 'warning' ? 'fa-exclamation-circle' : 'fa-info-circle';
     
-    var statusHtml = '<div class="alert ' + alertClass + ' alert-dismissible fade show fs-5" role="alert">' +
-                     '<strong>' + icon + '</strong> ' + message +
-                     '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
+    const statusHtml = `
+        <div class="${bgClass} flex items-center space-x-3 mb-3 rounded-lg shadow-lg">
+            <i class="fas ${icon} text-lg"></i>
+            <span class="font-medium flex-1">${message}</span>
+            <button type="button" class="text-current opacity-50 hover:opacity-100" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
     
-    $('#status-messages').html(statusHtml);
+    document.getElementById('status-messages').insertAdjacentHTML('afterbegin', statusHtml);
     
-    // Auto-hide success messages after 5 seconds
-    if (type === 'success') {
+    // Auto-hide success and info messages after 5 seconds
+    if (type === 'success' || type === 'info') {
         setTimeout(function() {
-            $('.alert-success').fadeOut();
+            const alerts = document.querySelectorAll('.alert-vercel-success, .alert-vercel-info');
+            alerts.forEach(alert => {
+                if (alert.parentElement) {
+                    alert.remove();
+                }
+            });
         }, 5000);
     }
 }
+
+// Load current configuration when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadCurrentConfig();
+});
 </script>
 {% endblock %}
