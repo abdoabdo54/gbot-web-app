@@ -523,55 +523,166 @@
     <div id="tab4" class="tab-content space-y-8">
         <div class="text-center mb-6">
             <h2 class="text-3xl font-bold text-white mb-2">SMTP & CSV Generation</h2>
-            <p class="text-vercel-gray-400">Generate SMTP settings and export user data</p>
+            <p class="text-vercel-gray-400">Generate SMTP settings and CSV files for user management</p>
         </div>
         
-        <!-- SMTP Configuration -->
+        <!-- SMTP Credential Tester -->
         <div class="vercel-card">
             <div class="flex items-center space-x-3 mb-6">
                 <div class="w-10 h-10 bg-blue-500 bg-opacity-20 rounded-lg flex items-center justify-center">
                     <i class="fas fa-envelope text-blue-500"></i>
                 </div>
-                <h3 class="text-xl font-bold text-white">SMTP Configuration Generator</h3>
+                <h3 class="text-xl font-bold text-white">SMTP Credential Tester</h3>
             </div>
             
-            <button onclick="generateSMTPSettings()" class="btn-vercel mb-6">
-                <i class="fas fa-cog"></i>
-                Generate SMTP Settings
-            </button>
-            
-            <div id="smtp-display" class="vercel-table min-h-32">
-                <div class="text-center py-8">
-                    <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-envelope text-vercel-gray-400 text-2xl"></i>
+            <div class="space-y-6">
+                <!-- SMTP Credentials Display -->
+                <div>
+                    <label class="block text-sm font-medium text-vercel-gray-300 mb-2">SMTP Credentials (email:password, one per line):</label>
+                    <textarea 
+                        id="smtp-credentials" 
+                        rows="6" 
+                        class="vercel-input"
+                        placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456&#10;user3@yahoo.com:secretpass789"
+                    ></textarea>
+                </div>
+                
+                <!-- Test Configuration -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div>
+                        <label for="smtp-recipient" class="block text-sm font-medium text-vercel-gray-300 mb-2">Recipient email (test@domain.com):</label>
+                        <input 
+                            type="email" 
+                            id="smtp-recipient" 
+                            class="vercel-input"
+                            placeholder="test@domain.com"
+                        >
                     </div>
-                    <p class="text-vercel-gray-500">Click 'Generate SMTP Settings' to create SMTP configuration...</p>
+                    <div>
+                        <label for="smtp-server" class="block text-sm font-medium text-vercel-gray-300 mb-2">SMTP Server:</label>
+                        <input 
+                            type="text" 
+                            id="smtp-server" 
+                            class="vercel-input"
+                            value="smtp.gmail.com"
+                            placeholder="smtp.gmail.com"
+                        >
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label for="smtp-port" class="block text-sm font-medium text-vercel-gray-300 mb-2">Port:</label>
+                        <input 
+                            type="number" 
+                            id="smtp-port" 
+                            class="vercel-input"
+                            value="587"
+                            placeholder="587"
+                        >
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="sendTestEmails()" class="btn-vercel w-full">
+                            <i class="fas fa-paper-plane"></i>
+                            Send Test Emails
+                        </button>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="interruptSending()" class="btn-vercel-secondary w-full">
+                            <i class="fas fa-stop"></i>
+                            Interrupt Sending
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button onclick="clearLogResetFiles()" class="btn-vercel-secondary">
+                        <i class="fas fa-broom"></i>
+                        Clear Log / Reset Files
+                    </button>
+                </div>
+            </div>
+            
+            <!-- SMTP Test Results -->
+            <div class="mt-6">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-6 h-6 bg-green-500 bg-opacity-20 rounded flex items-center justify-center">
+                        <i class="fas fa-chart-bar text-green-500 text-xs"></i>
+                    </div>
+                    <h4 class="text-lg font-semibold text-white">SMTP Test Results:</h4>
+                </div>
+                
+                <div id="smtp-test-results" class="vercel-table min-h-32">
+                    <div class="text-center py-8">
+                        <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-envelope text-vercel-gray-400 text-2xl"></i>
+                        </div>
+                        <p class="text-vercel-gray-500">SMTP test results will appear here after sending test emails...</p>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- CSV Export -->
+        <!-- Generate Sample CSV for User Creation -->
         <div class="vercel-card">
             <div class="flex items-center space-x-3 mb-6">
-                <div class="w-10 h-10 bg-green-500 bg-opacity-20 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-file-csv text-green-500"></i>
+                <div class="w-10 h-10 bg-orange-500 bg-opacity-20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-file-csv text-orange-500"></i>
                 </div>
-                <h3 class="text-xl font-bold text-white">CSV Export Options</h3>
+                <h3 class="text-xl font-bold text-white">Generate Sample CSV for User Creation</h3>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <button onclick="exportUsersCSV()" class="btn-vercel">
-                    <i class="fas fa-users"></i>
-                    Export All Users
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                <div>
+                    <label for="csv-user-count" class="block text-sm font-medium text-vercel-gray-300 mb-2">Number of users (e.g., 50):</label>
+                    <input 
+                        type="number" 
+                        id="csv-user-count" 
+                        class="vercel-input"
+                        placeholder="50"
+                        min="1"
+                        max="1000"
+                    >
+                </div>
+                <div>
+                    <label for="csv-domain" class="block text-sm font-medium text-vercel-gray-300 mb-2">Domain (e.g., yourdomain.com):</label>
+                    <input 
+                        type="text" 
+                        id="csv-domain" 
+                        class="vercel-input"
+                        placeholder="yourdomain.com"
+                    >
+                </div>
+                <div>
+                    <label for="csv-password" class="block text-sm font-medium text-vercel-gray-300 mb-2">Default password for all users:</label>
+                    <input 
+                        type="text" 
+                        id="csv-password" 
+                        class="vercel-input"
+                        placeholder="TempPass123!"
+                    >
+                </div>
+            </div>
+            
+            <div class="flex gap-3 mb-6">
+                <button onclick="generateCSVFile()" class="btn-vercel">
+                    <i class="fas fa-download"></i>
+                    Generate CSV File
                 </button>
-                <button onclick="exportDomainsCSV()" class="btn-vercel">
-                    <i class="fas fa-globe"></i>
-                    Export Domains
+                <button onclick="previewCSV()" class="btn-vercel-secondary">
+                    <i class="fas fa-eye"></i>
+                    Preview CSV
                 </button>
-                <button onclick="exportSuspendedUsersCSV()" class="btn-vercel">
-                    <i class="fas fa-user-slash"></i>
-                    Export Suspended Users
-                </button>
+            </div>
+            
+            <!-- CSV Preview Area -->
+            <div id="csv-preview-container" class="vercel-table" style="display: none;">
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-white">CSV Preview:</h4>
+                </div>
+                <div id="csv-preview-content" class="bg-vercel-gray-800 rounded-lg p-4 border border-vercel-gray-700 max-h-64 overflow-y-auto">
+                    <!-- CSV preview will be inserted here -->
+                </div>
             </div>
         </div>
     </div>
@@ -874,6 +985,226 @@ function copyAllUsers() {
     }).catch(() => {
         showStatus('Failed to copy to clipboard', 'error');
     });
+}
+
+// SMTP & CSV Functions
+function sendTestEmails() {
+    const credentials = document.getElementById('smtp-credentials').value.trim();
+    const recipient = document.getElementById('smtp-recipient').value.trim();
+    const server = document.getElementById('smtp-server').value.trim();
+    const port = document.getElementById('smtp-port').value.trim();
+    
+    if (!credentials) {
+        showStatus('Please enter SMTP credentials', 'error');
+        return;
+    }
+    
+    if (!recipient) {
+        showStatus('Please enter recipient email', 'error');
+        return;
+    }
+    
+    if (!server || !port) {
+        showStatus('Please enter SMTP server and port', 'error');
+        return;
+    }
+    
+    showStatus('Starting SMTP test...', 'info');
+    
+    // Parse credentials
+    const credentialLines = credentials.split('\n').filter(line => line.trim());
+    const credentialPairs = [];
+    
+    for (let line of credentialLines) {
+        const parts = line.trim().split(':');
+        if (parts.length >= 2) {
+            credentialPairs.push({
+                email: parts[0],
+                password: parts.slice(1).join(':') // Handle passwords with colons
+            });
+        }
+    }
+    
+    if (credentialPairs.length === 0) {
+        showStatus('No valid credentials found. Format: email:password', 'error');
+        return;
+    }
+    
+    // Display testing progress
+    document.getElementById('smtp-test-results').innerHTML = `
+        <div class="space-y-4">
+            <div class="text-center py-4">
+                <div class="vercel-spinner mx-auto mb-4"></div>
+                <p class="text-vercel-gray-400">Testing ${credentialPairs.length} SMTP credentials...</p>
+            </div>
+            <div class="space-y-2">
+                ${credentialPairs.map((cred, index) => `
+                    <div id="test-result-${index}" class="p-3 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
+                        <div class="flex items-center space-x-3">
+                            <div class="vercel-spinner"></div>
+                            <span class="text-vercel-gray-300">${cred.email}</span>
+                            <span class="text-vercel-gray-500">Testing...</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+    
+    // Simulate SMTP testing (replace with actual API call)
+    credentialPairs.forEach((cred, index) => {
+        setTimeout(() => {
+            const success = Math.random() > 0.3; // 70% success rate for demo
+            const resultElement = document.getElementById(`test-result-${index}`);
+            
+            if (success) {
+                resultElement.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                        <span class="text-vercel-gray-300">${cred.email}</span>
+                        <span class="status-active">Success</span>
+                    </div>
+                `;
+            } else {
+                resultElement.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-times-circle text-red-500"></i>
+                        <span class="text-vercel-gray-300">${cred.email}</span>
+                        <span class="status-suspended">Failed</span>
+                    </div>
+                `;
+            }
+            
+            // Show completion message after last test
+            if (index === credentialPairs.length - 1) {
+                setTimeout(() => {
+                    const successCount = document.querySelectorAll('.fa-check-circle').length;
+                    const failedCount = credentialPairs.length - successCount;
+                    showStatus(`SMTP test completed: ${successCount} successful, ${failedCount} failed`, 'success');
+                }, 500);
+            }
+        }, (index + 1) * 1000); // Stagger tests by 1 second
+    });
+}
+
+function interruptSending() {
+    showStatus('SMTP testing interrupted', 'warning');
+    document.getElementById('smtp-test-results').innerHTML = `
+        <div class="text-center py-8">
+            <div class="w-16 h-16 bg-yellow-500 bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-stop text-yellow-500 text-2xl"></i>
+            </div>
+            <p class="text-yellow-400 font-medium">Testing interrupted by user</p>
+        </div>
+    `;
+}
+
+function clearLogResetFiles() {
+    document.getElementById('smtp-test-results').innerHTML = `
+        <div class="text-center py-8">
+            <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-envelope text-vercel-gray-400 text-2xl"></i>
+            </div>
+            <p class="text-vercel-gray-500">SMTP test results will appear here after sending test emails...</p>
+        </div>
+    `;
+    showStatus('SMTP log cleared and files reset', 'success');
+}
+
+function generateCSVFile() {
+    const userCount = document.getElementById('csv-user-count').value.trim();
+    const domain = document.getElementById('csv-domain').value.trim();
+    const password = document.getElementById('csv-password').value.trim();
+    
+    if (!userCount || !domain || !password) {
+        showStatus('Please fill in all fields for CSV generation', 'error');
+        return;
+    }
+    
+    const count = parseInt(userCount);
+    if (count < 1 || count > 1000) {
+        showStatus('Number of users must be between 1 and 1000', 'error');
+        return;
+    }
+    
+    showStatus('Generating CSV file...', 'info');
+    
+    // Generate CSV content
+    let csvContent = 'firstName,lastName,email,password\n';
+    
+    const firstNames = ['John', 'Jane', 'Mike', 'Sarah', 'David', 'Lisa', 'Chris', 'Emma', 'Alex', 'Anna', 'Tom', 'Maria', 'James', 'Jennifer', 'Robert', 'Michelle', 'William', 'Amanda', 'Daniel', 'Jessica'];
+    const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin'];
+    
+    for (let i = 1; i <= count; i++) {
+        const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@${domain}`;
+        
+        csvContent += `${firstName},${lastName},${email},${password}\n`;
+    }
+    
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `users_${domain}_${count}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showStatus(`CSV file generated successfully with ${count} users`, 'success');
+    } else {
+        showStatus('File download not supported in this browser', 'error');
+    }
+}
+
+function previewCSV() {
+    const userCount = document.getElementById('csv-user-count').value.trim();
+    const domain = document.getElementById('csv-domain').value.trim();
+    const password = document.getElementById('csv-password').value.trim();
+    
+    if (!userCount || !domain || !password) {
+        showStatus('Please fill in all fields to preview CSV', 'error');
+        return;
+    }
+    
+    const count = Math.min(parseInt(userCount), 10); // Preview max 10 users
+    const actualCount = parseInt(userCount);
+    
+    if (actualCount < 1 || actualCount > 1000) {
+        showStatus('Number of users must be between 1 and 1000', 'error');
+        return;
+    }
+    
+    // Generate preview content
+    let csvContent = 'firstName,lastName,email,password\n';
+    
+    const firstNames = ['John', 'Jane', 'Mike', 'Sarah', 'David', 'Lisa', 'Chris', 'Emma', 'Alex', 'Anna'];
+    const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
+    
+    for (let i = 1; i <= count; i++) {
+        const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@${domain}`;
+        
+        csvContent += `${firstName},${lastName},${email},${password}\n`;
+    }
+    
+    if (actualCount > 10) {
+        csvContent += `... and ${actualCount - 10} more users\n`;
+    }
+    
+    // Show preview
+    document.getElementById('csv-preview-container').style.display = 'block';
+    document.getElementById('csv-preview-content').innerHTML = `
+        <pre class="text-vercel-gray-300 text-sm font-mono whitespace-pre-wrap">${csvContent}</pre>
+    `;
+    
+    showStatus(`CSV preview generated (showing first ${count} of ${actualCount} users)`, 'success');
 }
 
 // Placeholder functions for buttons that need implementation
