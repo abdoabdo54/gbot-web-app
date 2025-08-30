@@ -88,39 +88,37 @@
                 </button>
     </div>
     
-    <!-- Search and Account List Area -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2">
+    <!-- Original Account Search and List -->
+    <div class="row mb-4">
+        <div class="col-md-8">
             <input type="text" id="account-filter" placeholder="Search accounts in list..." 
-                   class="vercel-input mb-4" autocomplete="off" onkeyup="filterAccounts()">
+                   class="form-control mb-3" onkeyup="filterAccounts()">
             
-            <div id="account-list-area" class="bg-vercel-gray-800 border border-vercel-gray-700 rounded-lg p-4 max-h-64 overflow-y-auto">
-                <div id="account-list" class="space-y-2">
-                    <!-- Account list will be populated here -->
+            <div id="account-list-container" style="border: 1px solid #444; border-radius: 8px; padding: 15px; background: #2d3748; max-height: 300px; overflow-y: auto;">
+                <div id="account-list">
+                    <!-- Accounts will be loaded here -->
+                    <div style="color: #999; text-align: center; padding: 20px;">Loading accounts...</div>
                 </div>
                 
-                <!-- Statistics Row -->
-                <div id="account-statistics" class="mt-4 pt-3 border-t border-vercel-gray-700 text-sm">
-                    <span id="account-stats-text" class="text-vercel-gray-300">Loading...</span>
+                <div id="account-stats" style="border-top: 1px solid #444; margin-top: 15px; padding-top: 10px; font-size: 13px; color: #aaa;">
+                    Total: 0
                 </div>
             </div>
         </div>
         
-        <div class="space-y-4">
-            <button onclick="authenticateFromList()" class="btn-vercel w-full">
-                <i class="fas fa-key"></i>
-                Authenticate (List Selection)
+        <div class="col-md-4">
+            <button onclick="authenticateFromList()" class="btn btn-primary btn-block mb-2">
+                <i class="fas fa-key"></i> Authenticate (List Selection)
             </button>
-            <button onclick="deleteFromList()" class="btn-vercel-danger w-full">
-                <i class="fas fa-trash"></i>
-                Delete Account (List Selection)
+            <button onclick="deleteFromList()" class="btn btn-danger btn-block">
+                <i class="fas fa-trash"></i> Delete Account (List Selection)
             </button>
         </div>
     </div>
     
     <!-- Selected Account Status -->
-    <div id="auth-status" class="mt-4 p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
-        <p class="text-vercel-gray-300">No account selected</p>
+    <div id="auth-status-display" style="border: 1px solid #444; border-radius: 8px; padding: 15px; background: #2d3748; margin-top: 15px;">
+        <div style="color: #999;">No account selected</div>
     </div>
 </div>
 
@@ -2094,13 +2092,13 @@ function loadAccountList() {
     
     // Clear loading state
     const accountList = document.getElementById('account-list');
-    const accountStatsText = document.getElementById('account-stats-text');
+    const accountStats = document.getElementById('account-stats');
     
     if (accountList) {
-        accountList.innerHTML = '<div class="text-vercel-gray-400 text-center py-4">Loading accounts...</div>';
+        accountList.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">Loading accounts...</div>';
     }
-    if (accountStatsText) {
-        accountStatsText.textContent = 'Loading...';
+    if (accountStats) {
+        accountStats.textContent = 'Loading...';
     }
     
     fetch('/api/list-accounts')
@@ -2137,10 +2135,10 @@ function loadAccountList() {
         
         // Show error in the UI
         if (accountList) {
-            accountList.innerHTML = '<div class="text-red-400 text-center py-4">Error loading accounts. Check console for details.</div>';
+            accountList.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 20px;">Error loading accounts. Check console for details.</div>';
         }
-        if (accountStatsText) {
-            accountStatsText.textContent = 'Error loading accounts';
+        if (accountStats) {
+            accountStats.textContent = 'Error loading accounts';
         }
     });
 }
@@ -2180,7 +2178,9 @@ function updateAccountList(accounts) {
 
 function renderAccountList(accounts) {
     const accountList = document.getElementById('account-list');
-    const accountStatsText = document.getElementById('account-stats-text');
+    const accountStats = document.getElementById('account-stats');
+    
+    console.log('renderAccountList called with:', accounts);
     
     if (!accountList) {
         console.error('Account list element not found!');
@@ -2188,21 +2188,21 @@ function renderAccountList(accounts) {
     }
     
     if (!accounts || accounts.length === 0) {
-        accountList.innerHTML = '<div class="text-vercel-gray-400 text-center py-4">No accounts available. Click "Add Manually" or "Add from Server JSON" to add accounts.</div>';
-        if (accountStatsText) {
-            accountStatsText.innerHTML = 'Total: <strong>0</strong> &nbsp; Status: <strong>No accounts found</strong>';
+        accountList.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">No accounts available. Add accounts to get started.</div>';
+        if (accountStats) {
+            accountStats.innerHTML = 'Total: <strong>0</strong> &nbsp; Status: <strong>No accounts found</strong>';
         }
         return;
     }
     
-    // Build account list exactly like the original
+    // Build the simple account list like the original
     let listHtml = '';
     let totalAccounts = accounts.length;
     let authenticatedCount = 0;
     let needAuthCount = 0;
     
     accounts.forEach(account => {
-        const isSelected = selectedAccountFromList && selectedAccountFromList.id === account.id;
+        const isSelected = selectedAccountFromList && selectedAccountFromList.id == account.id;
         const isAuthenticated = account.is_authenticated;
         
         if (isAuthenticated) {
@@ -2211,18 +2211,18 @@ function renderAccountList(accounts) {
             needAuthCount++;
         }
         
-        // Create the account row exactly like original
+        // Simple row format like the original
         const authIcon = isAuthenticated ? '✅' : '❌';
-        const selectedStyle = isSelected ? 'background-color: #3b82f6; color: white;' : '';
+        const selectedBg = isSelected ? 'background: #007bff; color: white;' : 'background: transparent;';
         
         listHtml += `
-            <div class="flex items-center justify-between p-2 hover:bg-vercel-gray-700 rounded cursor-pointer"
-                 style="${selectedStyle}"
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-bottom: 5px; border-radius: 4px; cursor: pointer; ${selectedBg}"
                  onclick="selectAccountFromList('${account.account_name}', '${account.id}')"
-                 data-account-id="${account.id}">
-                <div class="flex items-center space-x-2">
-                    <span>${authIcon}</span>
-                    <span class="text-sm font-medium">${account.account_name}</span>
+                 onmouseover="this.style.background='#374151'"
+                 onmouseout="this.style.background='${isSelected ? '#007bff' : 'transparent'}'">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 16px;">${authIcon}</span>
+                    <span style="color: #fff; font-size: 14px;">${account.account_name}</span>
                 </div>
             </div>
         `;
@@ -2230,24 +2230,25 @@ function renderAccountList(accounts) {
     
     accountList.innerHTML = listHtml;
     
-    // Update statistics exactly like original format
-    if (accountStatsText) {
-        accountStatsText.innerHTML = `
-            <span>Total: <strong>${totalAccounts}</strong></span> &nbsp;
-            <span>Checked: <strong>${totalAccounts}/${totalAccounts}</strong></span> &nbsp;
-            <span style="color: #10b981;">✅ Authenticated: <strong>${authenticatedCount}</strong></span> &nbsp;
-            <span style="color: #ef4444;">❌ Need Auth: <strong>${needAuthCount}</strong></span> &nbsp;
-            <span style="color: #3b82f6;">Status: <strong>Database check complete</strong></span>
+    // Update statistics in the original format
+    if (accountStats) {
+        accountStats.innerHTML = `
+            Total: <strong>${totalAccounts}</strong> &nbsp;&nbsp;
+            Checked: <strong>${totalAccounts}/${totalAccounts}</strong> &nbsp;&nbsp;
+            <span style="color: #10b981;">✅ Authenticated: <strong>${authenticatedCount}</strong></span> &nbsp;&nbsp;
+            <span style="color: #ef4444;">❌ Need Auth: <strong>${needAuthCount}</strong></span> &nbsp;&nbsp;
+            <span style="color: #007bff;">Status: <strong>Database check complete</strong></span>
         `;
     }
     
-    console.log('Account list rendered with', accounts.length, 'accounts');
+    console.log('✅ Account list rendered:', totalAccounts, 'total,', authenticatedCount, 'authenticated');
 }
 
 
 
 function selectAccountFromList(accountName, accountId) {
     selectedAccountFromList = { name: accountName, id: accountId };
+    console.log('Selected account:', accountName, 'ID:', accountId);
     
     // Update the dropdown selection
     const accountSelect = document.getElementById('account-select');
@@ -2261,17 +2262,20 @@ function selectAccountFromList(accountName, accountId) {
     }
     
     // Update the status display at bottom
-    const authStatus = document.getElementById('auth-status');
-    if (authStatus && currentAccountList) {
+    const authStatusDisplay = document.getElementById('auth-status-display');
+    if (authStatusDisplay && currentAccountList) {
         const account = currentAccountList.find(acc => acc.id == accountId);
         if (account) {
             const authIcon = account.is_authenticated ? '✅' : '❌';
-            const authText = account.is_authenticated ? 'Authenticated' : 'Need Auth';
-            authStatus.innerHTML = `
-                <div class="p-4">
-                    <div style="color: #10b981; font-weight: bold;">
-                        ${authIcon} Authenticated as: ${accountName}
-                    </div>
+            const statusText = account.is_authenticated ? 'Authenticated' : 'Need Auth';
+            const statusColor = account.is_authenticated ? '#10b981' : '#ef4444';
+            
+            authStatusDisplay.innerHTML = `
+                <div style="color: ${statusColor}; font-weight: bold; font-size: 14px;">
+                    ${authIcon} Authenticated as: ${accountName}
+                </div>
+                <div style="color: #999; font-size: 12px; margin-top: 5px;">
+                    Status: ${statusText}
                 </div>
             `;
         }
