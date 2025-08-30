@@ -1421,7 +1421,7 @@ function saveNewAccount() {
 function addFromServerJSON() {
     showStatus('Fetching accounts from server...', 'info');
     
-    fetch('/api/add-from-server', {
+    fetch('/api/add-from-server-json', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'}
     })
@@ -1438,9 +1438,106 @@ function addFromServerJSON() {
         showStatus('Network error: ' + error, 'error');
     });
 }
-function forceTokenStatusCheck() { showStatus('Force token status check - needs implementation', 'info'); }
-function enterAuthorizationCode() { showStatus('Enter authorization code - needs implementation', 'info'); }
-function updateAllPasswords() { showStatus('Update all passwords - needs implementation', 'info'); }
+function forceTokenStatusCheck() {
+    showStatus('Checking token status for all accounts...', 'info');
+    
+    fetch('/api/force-token-check', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus(`Token status checked: ${data.valid_tokens} valid, ${data.invalid_tokens} invalid`, 'success');
+            loadAccountList();
+        } else {
+            showStatus('Error checking tokens: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function enterAuthorizationCode() {
+    const code = prompt('Enter the authorization code from Google:');
+    if (!code) return;
+    
+    const accountSelect = document.getElementById('account-select');
+    const selectedOption = accountSelect.options[accountSelect.selectedIndex];
+    const accountId = selectedOption.getAttribute('data-account-id');
+    const accountName = selectedOption.value;
+    
+    if (!accountName || !accountId) {
+        showStatus('Please select an account first', 'error');
+        return;
+    }
+    
+    showStatus('Processing authorization code...', 'info');
+    
+    fetch('/api/process-auth-code', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            account_name: accountName,
+            account_id: accountId,
+            auth_code: code
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('Authorization successful!', 'success');
+            updateAuthStatus(accountName, 'authenticated');
+            currentAccountId = accountId;
+            currentAccountName = accountName;
+            sessionStorage.setItem('currentAccountName', accountName);
+            sessionStorage.setItem('currentAccountId', accountId);
+        } else {
+            showStatus('Authorization failed: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function updateAllPasswords() {
+    if (!confirm('Are you sure you want to update passwords for all users? This action cannot be undone.')) {
+        return;
+    }
+    
+    const newPassword = prompt('Enter the new password for all users:');
+    if (!newPassword) return;
+    
+    if (!currentAccountName && !sessionStorage.getItem('currentAccountName')) {
+        showStatus('Please authenticate an account first', 'error');
+        return;
+    }
+    
+    const accountName = currentAccountName || sessionStorage.getItem('currentAccountName');
+    showStatus('Updating passwords for all users...', 'info');
+    
+    fetch('/api/update-all-passwords', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            account_name: accountName,
+            new_password: newPassword
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus(`Password update completed: ${data.successful} successful, ${data.failed} failed`, 'success');
+        } else {
+            showStatus('Error updating passwords: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
 function loadSuspendedUsers() {
     if (!currentAccountName && !sessionStorage.getItem('currentAccountName')) {
         showStatus('Please authenticate an account first', 'error');
@@ -1520,13 +1617,73 @@ function displaySuspendedUsers(users) {
         </div>
     `;
 }
-function copySuspendedUsers() { showStatus('Copy suspended users - needs implementation', 'info'); }
-function refreshSuspendedUsers() { showStatus('Refresh suspended users - needs implementation', 'info'); }
-function clearSuspendedUsers() { showStatus('Clear suspended users - needs implementation', 'info'); }
-function selectAccountFromList(accountName, accountId) { showStatus(`Selected account: ${accountName}`, 'info'); }
-function authenticateFromList() { showStatus('Authenticate from list - needs implementation', 'info'); }
-function deleteFromList() { showStatus('Delete from list - needs implementation', 'info'); }
-function filterAccounts() { showStatus('Filter accounts - needs implementation', 'info'); }
+function copySuspendedUsers() {
+    const suspendedTable = document.querySelector('#suspended-display table tbody');
+    if (!suspendedTable) {
+        showStatus('No suspended users to copy. Please load suspended users first.', 'error');
+        return;
+    }
+    
+    const rows = suspendedTable.querySelectorAll('tr');
+    let userData = 'Name\tEmail\tStatus\n';
+    
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 3) {
+            const name = cells[0].textContent.trim();
+            const email = cells[1].textContent.trim();
+            const status = cells[2].textContent.trim();
+            userData += `${name}\t${email}\t${status}\n`;
+        }
+    });
+    
+    navigator.clipboard.writeText(userData).then(() => {
+        showStatus('Suspended users data copied to clipboard', 'success');
+    }).catch(() => {
+        showStatus('Failed to copy to clipboard', 'error');
+    });
+}
+
+function refreshSuspendedUsers() {
+    loadSuspendedUsers();
+}
+
+function clearSuspendedUsers() {
+    const suspendedDisplay = document.getElementById('suspended-display');
+    if (suspendedDisplay) {
+        suspendedDisplay.innerHTML = `
+            <div class="text-center py-8">
+                <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-user-slash text-vercel-gray-400 text-2xl"></i>
+                </div>
+                <h4 class="text-vercel-gray-300 text-lg font-medium mb-2">Suspended Users</h4>
+                <p class="text-vercel-gray-500">Click "Load Suspended Users" to retrieve and display suspended users from your Google Workspace.</p>
+            </div>
+        `;
+    }
+    showStatus('Suspended users list cleared', 'success');
+}
+function filterAccounts() {
+    const filterInput = document.getElementById('account-filter');
+    if (!filterInput) return;
+    
+    const filter = filterInput.value.toLowerCase();
+    const accountItems = document.querySelectorAll('#account-list-display .space-y-2 > div');
+    
+    accountItems.forEach(item => {
+        const accountName = item.querySelector('.text-white');
+        if (accountName) {
+            const name = accountName.textContent.toLowerCase();
+            if (name.includes(filter)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        }
+    });
+    
+    showStatus(`Filtered accounts by: "${filter}"`, 'info');
+}
 
 // Account List Management
 function loadAccountList() {
@@ -1661,6 +1818,351 @@ function deleteFromList(accountName, accountId) {
     .catch(error => {
         showStatus('Network error: ' + error, 'error');
     });
+}
+
+// User Create/Delete/Domain Management Functions
+function createUsersFromCSV() {
+    // Create modal for CSV upload
+    const modal = `
+        <div class="modal fade" id="createUsersModal" tabindex="-1" style="z-index: 9999;">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content bg-vercel-gray-900 border-vercel-gray-700">
+                    <div class="modal-header bg-vercel-gray-800 border-vercel-gray-700">
+                        <h5 class="modal-title text-white">
+                            <i class="fas fa-users text-green-400 mr-2"></i>
+                            Create Users from CSV
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                            <i class="fas fa-times text-vercel-gray-400"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-vercel-gray-300 mb-2">Upload CSV File:</label>
+                                <input type="file" id="csv-file" accept=".csv" class="vercel-input" />
+                                <p class="text-xs text-vercel-gray-500 mt-1">Expected format: firstName,lastName,email,password</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-vercel-gray-300 mb-2">Or paste CSV data:</label>
+                                <textarea id="csv-data" rows="8" class="vercel-input" placeholder="firstName,lastName,email,password&#10;John,Doe,john.doe@domain.com,password123&#10;Jane,Smith,jane.smith@domain.com,password456"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-vercel-gray-800 border-vercel-gray-700">
+                        <button type="button" class="btn-vercel-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times mr-1"></i>
+                            Cancel
+                        </button>
+                        <button type="button" class="btn-vercel" onclick="processCreateUsersCSV()">
+                            <i class="fas fa-user-plus mr-1"></i>
+                            Create Users
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('createUsersModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modal);
+    
+    // Show modal
+    const modalElement = new bootstrap.Modal(document.getElementById('createUsersModal'));
+    modalElement.show();
+    
+    // Handle file upload
+    document.getElementById('csv-file').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('csv-data').value = e.target.result;
+            };
+            reader.readAsText(file);
+        }
+    });
+}
+
+function processCreateUsersCSV() {
+    const csvData = document.getElementById('csv-data').value.trim();
+    
+    if (!csvData) {
+        showStatus('Please provide CSV data', 'error');
+        return;
+    }
+    
+    if (!currentAccountName && !sessionStorage.getItem('currentAccountName')) {
+        showStatus('Please authenticate an account first', 'error');
+        return;
+    }
+    
+    const accountName = currentAccountName || sessionStorage.getItem('currentAccountName');
+    showStatus('Creating users from CSV...', 'info');
+    
+    // Parse CSV data
+    const lines = csvData.split('\n').filter(line => line.trim());
+    const headers = lines[0].split(',');
+    const users = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',');
+        if (values.length >= 4) {
+            users.push({
+                first_name: values[0].trim(),
+                last_name: values[1].trim(),
+                email: values[2].trim(),
+                password: values[3].trim()
+            });
+        }
+    }
+    
+    if (users.length === 0) {
+        showStatus('No valid user data found in CSV', 'error');
+        return;
+    }
+    
+    // Create users one by one
+    let created = 0;
+    let failed = 0;
+    
+    function createNextUser(index) {
+        if (index >= users.length) {
+            showStatus(`User creation completed: ${created} created, ${failed} failed`, created > 0 ? 'success' : 'error');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('createUsersModal'));
+            if (modal) modal.hide();
+            
+            return;
+        }
+        
+        const user = users[index];
+        
+        fetch('/api/create-gsuite-user', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                account_name: accountName,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                email: user.email,
+                password: user.password
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                created++;
+                showStatus(`Created user ${index + 1}/${users.length}: ${user.email}`, 'success');
+            } else {
+                failed++;
+                showStatus(`Failed to create ${user.email}: ${data.error}`, 'error');
+            }
+            
+            // Create next user after a short delay
+            setTimeout(() => createNextUser(index + 1), 500);
+        })
+        .catch(error => {
+            failed++;
+            showStatus(`Error creating ${user.email}: ${error}`, 'error');
+            setTimeout(() => createNextUser(index + 1), 500);
+        });
+    }
+    
+    createNextUser(0);
+}
+
+function changeDomainForUsers() {
+    // Create modal for domain change
+    const modal = `
+        <div class="modal fade" id="changeDomainModal" tabindex="-1" style="z-index: 9999;">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content bg-vercel-gray-900 border-vercel-gray-700">
+                    <div class="modal-header bg-vercel-gray-800 border-vercel-gray-700">
+                        <h5 class="modal-title text-white">
+                            <i class="fas fa-globe text-blue-400 mr-2"></i>
+                            Change Domain for Selected Users
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                            <i class="fas fa-times text-vercel-gray-400"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-vercel-gray-300 mb-2">From Domain:</label>
+                                <input type="text" id="from-domain" class="vercel-input" placeholder="old-domain.com" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-vercel-gray-300 mb-2">To Domain:</label>
+                                <input type="text" id="to-domain" class="vercel-input" placeholder="new-domain.com" />
+                            </div>
+                            <div class="bg-yellow-500 bg-opacity-10 border border-yellow-500 border-opacity-30 rounded-lg p-3">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                                    <span class="text-yellow-400 font-medium">Warning</span>
+                                </div>
+                                <p class="text-yellow-300 text-sm mt-1">This will change the email domain for all users with the specified domain. This action cannot be undone.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-vercel-gray-800 border-vercel-gray-700">
+                        <button type="button" class="btn-vercel-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times mr-1"></i>
+                            Cancel
+                        </button>
+                        <button type="button" class="btn-vercel" onclick="processChangeDomain()">
+                            <i class="fas fa-exchange-alt mr-1"></i>
+                            Change Domain
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('changeDomainModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modal);
+    
+    // Show modal
+    const modalElement = new bootstrap.Modal(document.getElementById('changeDomainModal'));
+    modalElement.show();
+}
+
+function processChangeDomain() {
+    const fromDomain = document.getElementById('from-domain').value.trim();
+    const toDomain = document.getElementById('to-domain').value.trim();
+    
+    if (!fromDomain || !toDomain) {
+        showStatus('Please fill in both domain fields', 'error');
+        return;
+    }
+    
+    if (!currentAccountName && !sessionStorage.getItem('currentAccountName')) {
+        showStatus('Please authenticate an account first', 'error');
+        return;
+    }
+    
+    const accountName = currentAccountName || sessionStorage.getItem('currentAccountName');
+    
+    if (!confirm(`Are you sure you want to change all users from ${fromDomain} to ${toDomain}? This action cannot be undone.`)) {
+        return;
+    }
+    
+    showStatus('Changing domain for users...', 'info');
+    
+    fetch('/api/change-domain-all-users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            account_name: accountName,
+            old_domain: fromDomain,
+            new_domain: toDomain
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus(`Domain change completed: ${data.successful_updates} successful, ${data.failed_updates} failed`, 'success');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('changeDomainModal'));
+            if (modal) modal.hide();
+        } else {
+            showStatus('Error changing domain: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function changeDomainAllUsers() {
+    changeDomainForUsers(); // Same functionality
+}
+
+function getDomainUsageStats() {
+    showStatus('Loading domain usage statistics...', 'info');
+    
+    fetch('/api/get-domain-usage-stats')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayDomainStats(data.domains);
+            showStatus(`Found ${data.domains.length} domains in database`, 'success');
+        } else {
+            showStatus('Error loading domain stats: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function displayDomainStats(domains) {
+    const domainDisplay = document.getElementById('domain-stats-display');
+    if (!domainDisplay) return;
+    
+    if (!domains || domains.length === 0) {
+        domainDisplay.innerHTML = `
+            <div class="text-center py-8">
+                <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-globe text-vercel-gray-400 text-2xl"></i>
+                </div>
+                <p class="text-vercel-gray-400">No domain usage data found.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    domainDisplay.innerHTML = `
+        <div class="space-y-4">
+            <div class="text-center mb-4">
+                <div class="text-2xl font-bold text-blue-400">${domains.length}</div>
+                <div class="text-vercel-gray-400 text-sm">Tracked Domains</div>
+            </div>
+            <div class="vercel-table max-h-64 overflow-y-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr>
+                            <th class="text-left">Domain</th>
+                            <th class="text-center">Users</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${domains.map(domain => `
+                            <tr>
+                                <td class="font-mono text-sm">${domain.domain_name}</td>
+                                <td class="text-center font-bold text-blue-400">${domain.user_count || 0}</td>
+                                <td class="text-center">
+                                    <span class="status-${domain.is_verified ? 'active' : 'suspended'}">
+                                        <i class="fas fa-${domain.is_verified ? 'check-circle' : 'exclamation-circle'} mr-1"></i>
+                                        ${domain.is_verified ? 'Verified' : 'Unverified'}
+                                    </span>
+                                </td>
+                                <td class="text-center text-xs text-vercel-gray-500">${domain.updated_at || 'Never'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
 }
 </script>
 
