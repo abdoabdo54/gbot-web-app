@@ -480,27 +480,107 @@
             border-color: #e2e8f0 !important;
         }
 
-        /* Light theme modal fixes */
+        /* Light theme modal fixes - Enhanced readability */
         .light .modal-content {
-            background: linear-gradient(to bottom right, #ffffff, #f8fafc) !important;
+            background: linear-gradient(to bottom right, #ffffff, #fafbfc) !important;
             color: #1e293b !important;
-            border: 1px solid #e2e8f0 !important;
+            border: 2px solid #d1d5db !important;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.08) !important;
         }
 
         .light .modal-header {
-            background: linear-gradient(to right, #6b7280, #9ca3af) !important;
+            background: linear-gradient(to right, #1e40af, #3b82f6) !important;
             color: #ffffff !important;
-            border-bottom: 1px solid #e2e8f0 !important;
+            border-bottom: 2px solid #d1d5db !important;
         }
 
         .light .modal-body {
             background-color: #ffffff !important;
-            color: #1e293b !important;
+            color: #1f2937 !important;
         }
 
         .light .modal-footer {
-            background-color: #f8fafc !important;
-            border-top: 1px solid #e2e8f0 !important;
+            background: linear-gradient(to right, #f9fafb, #ffffff) !important;
+            color: #374151 !important;
+            border-top: 2px solid #d1d5db !important;
+        }
+
+        /* Light theme form controls */
+        .light .modal input,
+        .light .modal textarea,
+        .light .modal select {
+            background: #f9fafb !important;
+            border: 2px solid #d1d5db !important;
+            color: #1f2937 !important;
+        }
+
+        .light .modal input:focus,
+        .light .modal textarea:focus,
+        .light .modal select:focus {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
+            background: #ffffff !important;
+        }
+
+        /* Light theme buttons - NO GREEN */
+        .light .btn-vercel {
+            background: linear-gradient(to right, #1e40af, #3b82f6) !important;
+            color: #ffffff !important;
+            border: none !important;
+            font-weight: 600 !important;
+        }
+
+        .light .btn-vercel:hover {
+            background: linear-gradient(to right, #1d4ed8, #2563eb) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.25) !important;
+        }
+
+        .light .btn-vercel-secondary {
+            background: linear-gradient(to right, #6b7280, #4b5563) !important;
+            color: #ffffff !important;
+            border: 2px solid #9ca3af !important;
+            font-weight: 600 !important;
+        }
+
+        .light .btn-vercel-secondary:hover {
+            background: linear-gradient(to right, #4b5563, #374151) !important;
+            box-shadow: 0 8px 25px rgba(75, 85, 99, 0.25) !important;
+        }
+
+        /* Light theme text colors */
+        .light .modal .text-white {
+            color: #1f2937 !important;
+        }
+
+        .light .modal .text-vercel-gray-300,
+        .light .modal .text-vercel-gray-400 {
+            color: #6b7280 !important;
+        }
+
+        .light .modal .text-vercel-gray-200 {
+            color: #1f2937 !important;
+        }
+
+        /* Light theme backgrounds */
+        .light .modal .bg-vercel-gray-800,
+        .light .modal .bg-vercel-gray-700 {
+            background: #f3f4f6 !important;
+            border-color: #d1d5db !important;
+        }
+
+        /* Light theme alert colors - NO GREEN */
+        .light .modal .bg-blue-500 {
+            background: rgba(59, 130, 246, 0.08) !important;
+        }
+
+        .light .modal .border-blue-500 {
+            border-color: #3b82f6 !important;
+        }
+
+        .light .modal .text-blue-300,
+        .light .modal .text-blue-400 {
+            color: #1e40af !important;
         }
 
         /* Light theme specific overrides for blue/red accents */

@@ -1104,39 +1104,67 @@ function sendTestEmails() {
         </div>
     `;
     
-    // Simulate SMTP testing (replace with actual API call)
-    credentialPairs.forEach((cred, index) => {
-        setTimeout(() => {
-            const success = Math.random() > 0.3; // 70% success rate for demo
-            const resultElement = document.getElementById(`test-result-${index}`);
+    // Make actual API call to test SMTP
+    fetch('/api/test-smtp', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            credentials: credentialPairs,
+            recipient: recipient,
+            server: server,
+            port: parseInt(port)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update results with actual test results
+            data.results.forEach((result, index) => {
+                const resultElement = document.getElementById(`test-result-${index}`);
+                
+                if (result.success) {
+                    resultElement.innerHTML = `
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-check-circle text-green-500"></i>
+                            <span class="text-vercel-gray-300">${result.email}</span>
+                            <span class="status-active">Success - ${result.message || 'Email sent'}</span>
+                        </div>
+                    `;
+                } else {
+                    resultElement.innerHTML = `
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-times-circle text-red-500"></i>
+                            <span class="text-vercel-gray-300">${result.email}</span>
+                            <span class="status-suspended">Failed - ${result.error || 'Unknown error'}</span>
+                        </div>
+                    `;
+                }
+            });
             
-            if (success) {
-                resultElement.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <i class="fas fa-check-circle text-green-500"></i>
-                        <span class="text-vercel-gray-300">${cred.email}</span>
-                        <span class="status-active">Success</span>
-                    </div>
-                `;
-            } else {
-                resultElement.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <i class="fas fa-times-circle text-red-500"></i>
-                        <span class="text-vercel-gray-300">${cred.email}</span>
-                        <span class="status-suspended">Failed</span>
-                    </div>
-                `;
-            }
-            
-            // Show completion message after last test
-            if (index === credentialPairs.length - 1) {
-                setTimeout(() => {
-                    const successCount = document.querySelectorAll('.fa-check-circle').length;
-                    const failedCount = credentialPairs.length - successCount;
-                    showStatus(`SMTP test completed: ${successCount} successful, ${failedCount} failed`, 'success');
-                }, 500);
-            }
-        }, (index + 1) * 1000); // Stagger tests by 1 second
+            showStatus(`SMTP test completed. ${data.successful} successful, ${data.failed} failed`, 'success');
+        } else {
+            showStatus(`SMTP test failed: ${data.error}`, 'error');
+            // Clear the loading display
+            document.getElementById('smtp-test-results').innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                    <p class="text-red-400">SMTP test failed</p>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        showStatus('Network error during SMTP test: ' + error, 'error');
+        console.error('SMTP test error:', error);
+        // Clear the loading display
+        document.getElementById('smtp-test-results').innerHTML = `
+            <div class="text-center py-8">
+                <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                <p class="text-red-400">Network error occurred</p>
+            </div>
+        `;
     });
 }
 
@@ -1263,7 +1291,7 @@ function previewCSV() {
 // OAuth Modal Function
 function showOAuthModal(oauthUrl) {
     const isLightTheme = document.body.classList.contains('light');
-    const headerGradient = isLightTheme ? 'from-gray-500 to-gray-600' : 'from-purple-600 to-purple-700';
+    const headerGradient = isLightTheme ? 'from-slate-600 to-slate-700' : 'from-purple-600 to-purple-700';
     const themeEmoji = isLightTheme ? '🔐' : '🛡️';
     const keyEmoji = isLightTheme ? '🗝️' : '🔑';
     
@@ -1284,7 +1312,7 @@ function showOAuthModal(oauthUrl) {
                     </div>
                     <div class="modal-body p-6">
                         <div class="text-center mb-6">
-                            <div class="w-20 h-20 bg-gradient-to-br from-green-500 to-blue-500 bg-opacity-20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-500 bg-opacity-20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                                 <span class="text-4xl">${keyEmoji}</span>
                             </div>
                             <h4 class="text-white font-semibold text-xl mb-3">Authentication Required</h4>
@@ -1314,7 +1342,7 @@ function showOAuthModal(oauthUrl) {
                                 <i class="fas fa-copy mr-3"></i>
                                 📋 Copy Link
                             </button>
-                            <a href="${oauthUrl}" target="_blank" class="block w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold py-3 px-6 rounded-xl text-center text-decoration-none transition-all transform hover:scale-105 shadow-lg">
+                            <a href="${oauthUrl}" target="_blank" class="block w-full bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 text-white font-semibold py-3 px-6 rounded-xl text-center text-decoration-none transition-all transform hover:scale-105 shadow-lg">
                                 <i class="fas fa-external-link-alt mr-3"></i>
                                 🔗 Open Link
                             </a>
@@ -1420,7 +1448,7 @@ function checkAuthStatus() {
 // Account Management Functions
 function openAddAccountModal() {
     const isLightTheme = document.body.classList.contains('light');
-    const headerGradient = isLightTheme ? 'from-slate-500 to-slate-600' : 'from-purple-600 to-indigo-600';
+    const headerGradient = isLightTheme ? 'from-blue-600 to-blue-700' : 'from-purple-600 to-indigo-600';
     const themeEmoji = isLightTheme ? '➕' : '✨';
     const userEmoji = isLightTheme ? '👤' : '🤖';
     const keyEmoji = isLightTheme ? '🔑' : '🗝️';
@@ -1576,7 +1604,7 @@ function saveNewAccount() {
 
 function addFromServerJSON() {
     const isLightTheme = document.body.classList.contains('light');
-    const headerGradient = isLightTheme ? 'from-amber-500 to-orange-500' : 'from-purple-600 to-violet-600';
+    const headerGradient = isLightTheme ? 'from-indigo-600 to-blue-600' : 'from-purple-600 to-violet-600';
     const themeEmoji = isLightTheme ? '📂' : '🗂️';
     const folderEmoji = isLightTheme ? '📁' : '🗃️';
     const searchEmoji = isLightTheme ? '🔍' : '🔎';
@@ -2137,6 +2165,159 @@ function deleteFromList(accountName, accountId) {
 }
 
 // User Create/Delete/Domain Management Functions
+function createSingleUser() {
+    const accountSelect = document.getElementById('account-select');
+    const email = document.getElementById('new-user-email').value.trim();
+    const firstName = document.getElementById('new-user-firstname').value.trim();
+    const lastName = document.getElementById('new-user-lastname').value.trim();
+    const password = document.getElementById('new-user-password').value.trim();
+    
+    if (!accountSelect.value) {
+        showStatus('Please select an account first', 'error');
+        return;
+    }
+    
+    if (!email || !firstName || !lastName || !password) {
+        showStatus('Please fill in all fields', 'error');
+        return;
+    }
+    
+    if (!email.includes('@')) {
+        showStatus('Please enter a valid email address', 'error');
+        return;
+    }
+    
+    showStatus('Creating user...', 'info');
+    
+    fetch('/api/create-gsuite-user', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            account_name: accountSelect.value,
+            email: email,
+            first_name: firstName,
+            last_name: lastName,
+            password: password
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('User created successfully!', 'success');
+            // Clear form
+            document.getElementById('new-user-email').value = '';
+            document.getElementById('new-user-firstname').value = '';
+            document.getElementById('new-user-lastname').value = '';
+            document.getElementById('new-user-password').value = '';
+        } else {
+            showStatus('Failed to create user: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function addDomainAlias() {
+    const accountSelect = document.getElementById('account-select');
+    const domainAlias = document.getElementById('domain-alias-input').value.trim();
+    
+    if (!accountSelect.value) {
+        showStatus('Please select an account first', 'error');
+        return;
+    }
+    
+    if (!domainAlias) {
+        showStatus('Please enter a domain alias', 'error');
+        return;
+    }
+    
+    if (!domainAlias.includes('.')) {
+        showStatus('Please enter a valid domain name', 'error');
+        return;
+    }
+    
+    showStatus('Adding domain alias...', 'info');
+    
+    fetch('/api/add-domain-alias', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            account_name: accountSelect.value,
+            domain_alias: domainAlias
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('Domain alias added successfully!', 'success');
+            document.getElementById('domain-alias-input').value = '';
+        } else {
+            showStatus('Failed to add domain alias: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function createRandomUsers() {
+    const accountSelect = document.getElementById('account-select');
+    const numUsers = document.getElementById('random-users-count').value;
+    const domain = document.getElementById('random-users-domain').value.trim();
+    
+    if (!accountSelect.value) {
+        showStatus('Please select an account first', 'error');
+        return;
+    }
+    
+    if (!numUsers || numUsers < 1 || numUsers > 100) {
+        showStatus('Please enter a number between 1 and 100', 'error');
+        return;
+    }
+    
+    if (!domain) {
+        showStatus('Please enter a domain', 'error');
+        return;
+    }
+    
+    if (!domain.includes('.')) {
+        showStatus('Please enter a valid domain name', 'error');
+        return;
+    }
+    
+    showStatus(`Creating ${numUsers} random users...`, 'info');
+    
+    fetch('/api/create-random-users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            account_name: accountSelect.value,
+            count: parseInt(numUsers),
+            domain: domain
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus(`Successfully created ${data.created} random users!`, 'success');
+            document.getElementById('random-users-count').value = '';
+            document.getElementById('random-users-domain').value = '';
+        } else {
+            showStatus('Failed to create random users: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
 function createUsersFromCSV() {
     // Create modal for CSV upload
     const modal = `
@@ -2408,6 +2589,242 @@ function processChangeDomain() {
 
 function changeDomainAllUsers() {
     changeDomainForUsers(); // Same functionality
+}
+
+function downloadAllUsersCSV() {
+    const accountSelect = document.getElementById('account-select');
+    
+    if (!accountSelect.value) {
+        showStatus('Please select an account first', 'error');
+        return;
+    }
+    
+    showStatus('Downloading all users to CSV...', 'info');
+    
+    fetch('/api/retrieve-users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            account_name: accountSelect.value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.users) {
+            // Convert users to CSV
+            const headers = ['Email', 'First Name', 'Last Name', 'Status', 'Domain'];
+            const csvContent = [
+                headers.join(','),
+                ...data.users.map(user => [
+                    user.primaryEmail || '',
+                    user.name?.givenName || '',
+                    user.name?.familyName || '',
+                    user.suspended ? 'Suspended' : 'Active',
+                    user.primaryEmail ? user.primaryEmail.split('@')[1] : ''
+                ].join(','))
+            ].join('\n');
+            
+            // Download CSV file
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `all_users_${accountSelect.value}_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            showStatus(`Downloaded ${data.users.length} users to CSV file`, 'success');
+        } else {
+            showStatus('Failed to retrieve users: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function retrieveAvailableDomains() {
+    const accountSelect = document.getElementById('account-select');
+    
+    if (!accountSelect.value) {
+        showStatus('Please select an account first', 'error');
+        return;
+    }
+    
+    showStatus('Retrieving available domains...', 'info');
+    
+    fetch('/api/retrieve-domains', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            account_name: accountSelect.value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const domainSelect = document.getElementById('available-domains-select');
+            if (domainSelect) {
+                domainSelect.innerHTML = '<option value="">Select a domain...</option>';
+                data.domains.forEach(domain => {
+                    const option = document.createElement('option');
+                    option.value = domain.domainName;
+                    option.textContent = `${domain.domainName} (${domain.verified ? 'Verified' : 'Unverified'})`;
+                    domainSelect.appendChild(option);
+                });
+            }
+            showStatus(`Retrieved ${data.domains.length} available domains`, 'success');
+        } else {
+            showStatus('Failed to retrieve domains: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function deleteSpecificUsers() {
+    const accountSelect = document.getElementById('account-select');
+    const emailsText = document.getElementById('delete-user-emails').value.trim();
+    
+    if (!accountSelect.value) {
+        showStatus('Please select an account first', 'error');
+        return;
+    }
+    
+    if (!emailsText) {
+        showStatus('Please enter email addresses to delete', 'error');
+        return;
+    }
+    
+    const emails = emailsText.split('\n').map(email => email.trim()).filter(email => email);
+    
+    if (emails.length === 0) {
+        showStatus('No valid email addresses found', 'error');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${emails.length} users? This action cannot be undone.`)) {
+        return;
+    }
+    
+    showStatus(`Deleting ${emails.length} users...`, 'info');
+    
+    const results = [];
+    let completed = 0;
+    
+    emails.forEach((email, index) => {
+        fetch('/api/delete-user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                account_name: accountSelect.value,
+                user_email: email
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            completed++;
+            if (data.success) {
+                results.push(`✅ ${email}: Deleted successfully`);
+            } else {
+                results.push(`❌ ${email}: ${data.error}`);
+            }
+            
+            if (completed === emails.length) {
+                // Display results
+                const logArea = document.getElementById('results-log');
+                if (logArea) {
+                    logArea.value = results.join('\n') + '\n\n' + logArea.value;
+                }
+                
+                const successful = results.filter(r => r.includes('✅')).length;
+                showStatus(`Deletion completed: ${successful} successful, ${emails.length - successful} failed`, 'success');
+                
+                // Clear the input
+                document.getElementById('delete-user-emails').value = '';
+            }
+        })
+        .catch(error => {
+            completed++;
+            results.push(`❌ ${email}: Network error - ${error}`);
+            
+            if (completed === emails.length) {
+                const logArea = document.getElementById('results-log');
+                if (logArea) {
+                    logArea.value = results.join('\n') + '\n\n' + logArea.value;
+                }
+                showStatus('Deletion completed with errors', 'warning');
+            }
+        });
+    });
+}
+
+function clearResultsLog() {
+    const logArea = document.getElementById('results-log');
+    if (logArea) {
+        logArea.value = '';
+        showStatus('Results log cleared', 'success');
+    }
+}
+
+function copyResultsLog() {
+    const logArea = document.getElementById('results-log');
+    if (logArea && logArea.value) {
+        logArea.select();
+        document.execCommand('copy');
+        showStatus('Results log copied to clipboard', 'success');
+    } else {
+        showStatus('No results to copy', 'warning');
+    }
+}
+
+function markDomainUsed() {
+    const accountSelect = document.getElementById('account-select');
+    const domainName = document.getElementById('domain-to-mark').value.trim();
+    
+    if (!accountSelect.value) {
+        showStatus('Please select an account first', 'error');
+        return;
+    }
+    
+    if (!domainName) {
+        showStatus('Please enter a domain name', 'error');
+        return;
+    }
+    
+    showStatus('Marking domain as used...', 'info');
+    
+    fetch('/api/mark-domain-used', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            account_name: accountSelect.value,
+            domain_name: domainName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('Domain marked as used successfully', 'success');
+            document.getElementById('domain-to-mark').value = '';
+        } else {
+            showStatus('Failed to mark domain as used: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
 }
 
 function getDomainUsageStats() {
