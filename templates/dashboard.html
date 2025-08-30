@@ -14,7 +14,7 @@
         <p class="text-vercel-gray-400 text-lg">Manage Google Workspace accounts and users</p>
     </div>
 
-    <!-- Tab Navigation -->
+<!-- Tab Navigation -->
     <div class="vercel-card">
         <div class="flex flex-wrap gap-2 p-2 bg-vercel-gray-800 rounded-lg">
             <button class="tab-button active flex items-center space-x-2 px-4 py-2 rounded-md font-medium transition-colors" onclick="showTab('tab1')">
@@ -34,11 +34,11 @@
                 <span>SMTP & CSV Gen</span>
             </button>
         </div>
-    </div>
+</div>
 
     <!-- Tab 1: Account & User Management -->
     <div id="tab1" class="tab-content active space-y-8">
-        <!-- Account Selection & Authentication -->
+<!-- Account Selection & Authentication -->
         <div class="vercel-card">
             <div class="flex items-center space-x-3 mb-6">
                 <div class="w-10 h-10 bg-vercel-accent bg-opacity-20 rounded-lg flex items-center justify-center">
@@ -51,11 +51,11 @@
                 <div>
                     <label for="account-select" class="block text-sm font-medium text-vercel-gray-300 mb-2">Select Account:</label>
                     <select id="account-select" class="vercel-select">
-                        <option value="">Choose an account...</option>
+            <option value="">Choose an account...</option>
                         {% for account in accounts %}
                         <option value="{{ account.account_name }}" data-account-id="{{ account.id }}">{{ account.account_name }}</option>
-                        {% endfor %}
-                    </select>
+            {% endfor %}
+        </select>
                 </div>
                 <div class="flex items-end">
                     <button onclick="authenticateAccount()" class="btn-vercel w-full">
@@ -63,8 +63,8 @@
                         Authenticate Selected
                     </button>
                 </div>
-            </div>
-            
+    </div>
+    
             <div class="flex flex-wrap gap-3 mb-6">
                 {% if session.role != 'mailer' %}
                 <button onclick="openAddAccountModal()" class="btn-vercel-secondary">
@@ -76,25 +76,25 @@
                     Add from Server JSON
                 </button>
                 {% endif %}
-                {% if session.role == 'admin' %}
+        {% if session.role == 'admin' %}
                 <button onclick="forceTokenStatusCheck()" class="btn-vercel-secondary">
                     <i class="fas fa-search"></i>
                     Check Token Status Now (Admin)
-                </button>
-                {% endif %}
+        </button>
+        {% endif %}    
                 <button onclick="enterAuthorizationCode()" class="btn-vercel-secondary">
                     <i class="fas fa-edit"></i>
                     Enter Authorization Code
                 </button>
-            </div>
-            
-            <!-- Search and Account List Area -->
+    </div>
+    
+    <!-- Search and Account List Area -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="lg:col-span-2">
-                    <label for="account-search" class="block text-sm font-medium text-vercel-gray-300 mb-2">Search Accounts:</label>
-                    <input type="text" id="account-search" placeholder="Search accounts in list..." 
-                           oninput="filterAccounts()" class="vercel-input mb-4"
-                           autocomplete="off" readonly onfocus="this.removeAttribute('readonly');">
+                    <label for="account-filter" class="block text-sm font-medium text-vercel-gray-300 mb-2">🔍 Search Accounts:</label>
+            <input type="text" id="account-filter" placeholder="Type to search accounts..." 
+                           class="vercel-input mb-4"
+                           autocomplete="off">
                     
                     <div id="account-list-area" class="vercel-table max-h-64 overflow-y-auto">
                         <div class="space-y-2">
@@ -105,40 +105,40 @@
                                     <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                                     <span class="text-vercel-gray-100">{{ account.account_name }}</span>
                                 </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
                 </div>
-                
+                {% endfor %}
+                        </div>
+            </div>
+        </div>
+        
                 <div class="space-y-4">
                     <button onclick="authenticateFromList()" class="btn-vercel w-full">
                         <i class="fas fa-key"></i>
                         Authenticate (List Selection)
-                    </button>
+            </button>
                     <button onclick="deleteFromList()" class="btn-vercel-danger w-full">
                         <i class="fas fa-trash"></i>
                         Delete Account (List Selection)
-                    </button>
-                </div>
-            </div>
+            </button>
+        </div>
+    </div>
             
             <div class="mt-6 space-y-4">
                 <div id="account-count-display" class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
                     <span id="account-stats" class="text-vercel-gray-300">Loading account statistics...</span>
-                </div>
+    </div>
                 <div id="auth-status" class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
                     <p class="text-vercel-gray-300">No account authenticated</p>
                 </div>
-            </div>
-        </div>
+    </div>
+</div>
 
         <!-- User Listing & Actions -->
         <div class="vercel-card">
             <div class="flex items-center space-x-3 mb-6">
                 <div class="w-10 h-10 bg-green-500 bg-opacity-20 rounded-lg flex items-center justify-center">
                     <i class="fas fa-users text-green-500"></i>
-                </div>
+            </div>
                 <h3 class="text-xl font-bold text-white">User Listing & Basic Actions</h3>
             </div>
             
@@ -161,13 +161,13 @@
                 <div class="text-center py-8">
                     <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
                         <i class="fas fa-users text-vercel-gray-400 text-2xl"></i>
-                    </div>
+            </div>
                     <h4 class="text-vercel-gray-300 text-lg font-medium mb-2">User Management</h4>
                     <p class="text-vercel-gray-500">Click "Retrieve All Users" to load and display all users from your Google Workspace.</p>
                     <p class="text-vercel-gray-500 text-sm mt-2">This will show user status (Active/Suspended), admin privileges, and provide options for bulk operations.</p>
-                </div>
-            </div>
-            
+    </div>
+</div>
+
             <div class="mt-6 space-y-4">
                 <div id="user-count" class="p-3 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
                     <span class="text-vercel-gray-300">Total Users: 0</span>
@@ -180,8 +180,8 @@
                         <i class="fas fa-key"></i>
                         Update Password (All)
                     </button>
-                </div>
-            </div>
+        </div>
+        </div>
         </div>
 
         <!-- Suspended Users -->
@@ -189,10 +189,10 @@
             <div class="flex items-center space-x-3 mb-6">
                 <div class="w-10 h-10 bg-red-500 bg-opacity-20 rounded-lg flex items-center justify-center">
                     <i class="fas fa-user-slash text-red-500"></i>
-                </div>
+    </div>
                 <h3 class="text-xl font-bold text-white">Suspended User Management</h3>
-            </div>
-            
+</div>
+
             <div class="flex flex-wrap gap-3 mb-6">
                 <button onclick="loadSuspendedUsers()" class="btn-vercel">
                     <i class="fas fa-search"></i>
@@ -210,13 +210,13 @@
                     <i class="fas fa-broom"></i>
                     Clear Display
                 </button>
-            </div>
-            
+        </div>
+        
             <div id="suspended-display" class="vercel-table min-h-32">
                 <div class="text-center py-8">
                     <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
                         <i class="fas fa-user-slash text-vercel-gray-400 text-2xl"></i>
-                    </div>
+        </div>
                     <h4 class="text-vercel-gray-300 text-lg font-medium mb-2">Suspended User Management</h4>
                     <p class="text-vercel-gray-500">Click "Load Suspended Users" to check for suspended accounts in your Google Workspace.</p>
                     <p class="text-vercel-gray-500 text-sm mt-2">This will show all users with suspended status, including their names, emails, and admin privileges.</p>
@@ -239,30 +239,30 @@
                     <i class="fas fa-user-plus text-blue-500"></i>
                 </div>
                 <h3 class="text-xl font-bold text-white">Create Single User</h3>
-            </div>
-            
+        </div>
+        
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <input type="text" id="new-user-first-name" placeholder="First Name" class="vercel-input">
                 <input type="text" id="new-user-last-name" placeholder="Last Name" class="vercel-input">
                 <input type="email" id="new-user-email" placeholder="Email Address" class="vercel-input">
                 <input type="password" id="new-user-password" placeholder="Password" class="vercel-input">
-            </div>
+        </div>
             
             <button onclick="createSingleUser()" class="btn-vercel">
                 <i class="fas fa-plus"></i>
                 Create User
             </button>
         </div>
-
+        
         <!-- Domain Management -->
         <div class="vercel-card">
             <div class="flex items-center space-x-3 mb-6">
                 <div class="w-10 h-10 bg-purple-500 bg-opacity-20 rounded-lg flex items-center justify-center">
                     <i class="fas fa-globe text-purple-500"></i>
-                </div>
+        </div>
                 <h3 class="text-xl font-bold text-white">Domain Management</h3>
-            </div>
-            
+</div>
+
             <button onclick="getDomainInfo()" class="btn-vercel mb-6">
                 <i class="fas fa-search"></i>
                 Retrieve Domains
@@ -272,18 +272,18 @@
                 <div class="text-center py-8">
                     <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
                         <i class="fas fa-globe text-vercel-gray-400 text-2xl"></i>
-                    </div>
+        </div>
                     <p class="text-vercel-gray-500">Click 'Retrieve Domains' to view domains here...</p>
-                </div>
-            </div>
-            
+        </div>
+    </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <input type="text" id="new-domain-alias" placeholder="Enter new domain alias" class="vercel-input">
                 <button onclick="addDomainAlias()" class="btn-vercel">
                     <i class="fas fa-plus"></i>
                     Add Domain Alias
                 </button>
-            </div>
+        </div>
         </div>
 
         <!-- Create Users from CSV File -->
@@ -291,20 +291,20 @@
             <div class="flex items-center space-x-3 mb-6">
                 <div class="w-10 h-10 bg-green-500 bg-opacity-20 rounded-lg flex items-center justify-center">
                     <i class="fas fa-file-csv text-green-500"></i>
-                </div>
+        </div>
                 <h3 class="text-xl font-bold text-white">Create Users from CSV File</h3>
-            </div>
-            
+    </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <input type="file" id="csv-file-input" accept=".csv" class="vercel-input">
                 <button onclick="createUsersFromCSV()" class="btn-vercel">
                     <i class="fas fa-upload"></i>
                     Create Users from CSV
                 </button>
-            </div>
         </div>
+    </div>
 
-        <!-- Create Random Users -->
+    <!-- Create Random Users -->
         <div class="vercel-card">
             <div class="flex items-center space-x-3 mb-6">
                 <div class="w-10 h-10 bg-yellow-500 bg-opacity-20 rounded-lg flex items-center justify-center">
@@ -320,15 +320,15 @@
                     <i class="fas fa-dice"></i>
                     Create Random Users
                 </button>
-            </div>
         </div>
+    </div>
 
-        <!-- Change Domain for Specific Users -->
+    <!-- Change Domain for Specific Users -->
         <div class="vercel-card">
             <div class="flex items-center space-x-3 mb-6">
                 <div class="w-10 h-10 bg-orange-500 bg-opacity-20 rounded-lg flex items-center justify-center">
                     <i class="fas fa-exchange-alt text-orange-500"></i>
-                </div>
+        </div>
                 <h3 class="text-xl font-bold text-white">Change Domain for Specific Users</h3>
             </div>
             
@@ -343,9 +343,9 @@
                 <i class="fas fa-exchange-alt"></i>
                 Change Domain for These Users
             </button>
-        </div>
+    </div>
 
-        <!-- Delete Specific Users -->
+    <!-- Delete Specific Users -->
         <div class="vercel-card border-red-500 border-opacity-30">
             <div class="flex items-center space-x-3 mb-6">
                 <div class="w-10 h-10 bg-red-500 bg-opacity-20 rounded-lg flex items-center justify-center">
@@ -360,15 +360,15 @@
                 <i class="fas fa-trash"></i>
                 Delete These Users
             </button>
-        </div>
+    </div>
 
-        <!-- Results Log -->
+    <!-- Results Log -->
         <div class="vercel-card">
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center space-x-3">
                     <div class="w-10 h-10 bg-gray-500 bg-opacity-20 rounded-lg flex items-center justify-center">
                         <i class="fas fa-clipboard-list text-gray-400"></i>
-                    </div>
+        </div>
                     <h3 class="text-xl font-bold text-white">Results Log</h3>
                 </div>
                 <div class="flex space-x-2">
@@ -380,9 +380,9 @@
                         <i class="fas fa-copy"></i>
                         Copy Log
                     </button>
-                </div>
-            </div>
-            
+    </div>
+</div>
+
             <div id="results-log" class="vercel-table min-h-32 max-h-64 overflow-y-auto">
                 <div class="text-center py-8">
                     <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -401,7 +401,7 @@
             <p class="text-vercel-gray-400">Change domains for multiple users using different workflows</p>
         </div>
         
-        <!-- Workflow 1: Change Domain using CSV File -->
+    <!-- Workflow 1: Change Domain using CSV File -->
         <div class="vercel-card">
             <div class="flex items-center space-x-3 mb-6">
                 <div class="w-10 h-10 bg-blue-500 bg-opacity-20 rounded-lg flex items-center justify-center">
@@ -409,8 +409,8 @@
                 </div>
                 <h3 class="text-xl font-bold text-white">Workflow 1: Change Domain using CSV File</h3>
             </div>
-            
-            <!-- Step 1.1: Download Current Users to CSV -->
+        
+        <!-- Step 1.1: Download Current Users to CSV -->
             <div class="bg-vercel-gray-800 rounded-lg p-6 mb-6">
                 <h4 class="text-lg font-semibold text-white mb-4">Step 1.1: Download Current Users to CSV</h4>
                 <div class="flex flex-col lg:flex-row lg:items-center gap-4">
@@ -420,11 +420,11 @@
                     </button>
                     <div class="text-vercel-gray-400 text-sm">
                         CSV will be saved to: <span id="csv-save-path" class="text-vercel-gray-300">Downloads folder</span>
-                    </div>
                 </div>
             </div>
-            
-            <!-- Step 1.2: Select New Domain and Apply to Downloaded CSV -->
+        </div>
+        
+        <!-- Step 1.2: Select New Domain and Apply to Downloaded CSV -->
             <div class="bg-vercel-gray-800 rounded-lg p-6 mb-6">
                 <h4 class="text-lg font-semibold text-white mb-4">Step 1.2: Select New Domain and Apply to Downloaded CSV</h4>
                 <div class="flex flex-wrap gap-3 mb-4">
@@ -454,12 +454,12 @@
                     <div class="text-center py-8">
                         <div class="w-16 h-16 bg-vercel-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                             <i class="fas fa-globe text-vercel-gray-400 text-2xl"></i>
-                        </div>
-                        <p class="text-vercel-gray-500">Click 'Retrieve Available Domains' to see available domains...</p>
                     </div>
+                        <p class="text-vercel-gray-500">Click 'Retrieve Available Domains' to see available domains...</p>
                 </div>
             </div>
-            
+        </div>
+        
             <!-- Step 1.3: Upload and Process Modified CSV -->
             <div class="bg-vercel-gray-800 rounded-lg p-6">
                 <h4 class="text-lg font-semibold text-white mb-4">Step 1.3: Upload and Process Modified CSV</h4>
@@ -470,18 +470,18 @@
                         Upload and Process CSV
                     </button>
                 </div>
+                </div>
             </div>
-        </div>
 
         <!-- Workflow 2: Select Domain and Change All Users -->
         <div class="vercel-card">
             <div class="flex items-center space-x-3 mb-6">
                 <div class="w-10 h-10 bg-purple-500 bg-opacity-20 rounded-lg flex items-center justify-center">
                     <i class="fas fa-exchange-alt text-purple-500"></i>
-                </div>
+        </div>
                 <h3 class="text-xl font-bold text-white">Workflow 2: Select Domain and Change All Users</h3>
-            </div>
-            
+    </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                 <div>
                     <label class="block text-sm font-medium text-vercel-gray-300 mb-2">Current Domain:</label>
@@ -512,7 +512,7 @@
                 <div class="text-center py-8">
                     <div class="w-16 h-16 bg-vercel-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                         <i class="fas fa-globe text-vercel-gray-400 text-2xl"></i>
-                    </div>
+            </div>
                     <p class="text-vercel-gray-500">Click 'Retrieve Current Domains' to see domains in use...</p>
                 </div>
             </div>
@@ -533,8 +533,8 @@
                     <i class="fas fa-envelope text-blue-500"></i>
                 </div>
                 <h3 class="text-xl font-bold text-white">SMTP Credential Tester</h3>
-            </div>
-            
+        </div>
+        
             <div class="space-y-6">
                 <!-- SMTP Credentials Display -->
                 <div>
@@ -545,7 +545,7 @@
                         class="vercel-input"
                         placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456&#10;user3@yahoo.com:secretpass789"
                     ></textarea>
-                </div>
+        </div>
                 
                 <!-- Test Configuration -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -557,7 +557,7 @@
                             class="vercel-input"
                             placeholder="test@domain.com"
                         >
-                    </div>
+    </div>
                     <div>
                         <label for="smtp-server" class="block text-sm font-medium text-vercel-gray-300 mb-2">SMTP Server:</label>
                         <input 
@@ -567,9 +567,9 @@
                             value="smtp.gmail.com"
                             placeholder="smtp.gmail.com"
                         >
-                    </div>
-                </div>
-                
+</div>
+</div>
+
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div>
                         <label for="smtp-port" class="block text-sm font-medium text-vercel-gray-300 mb-2">Port:</label>
@@ -580,7 +580,7 @@
                             value="587"
                             placeholder="587"
                         >
-                    </div>
+        </div>
                     <div class="flex items-end">
                         <button onclick="sendTestEmails()" class="btn-vercel w-full">
                             <i class="fas fa-paper-plane"></i>
@@ -600,9 +600,9 @@
                         <i class="fas fa-broom"></i>
                         Clear Log / Reset Files
                     </button>
-                </div>
             </div>
-            
+        </div>
+        
             <!-- SMTP Test Results -->
             <div class="mt-6">
                 <div class="flex items-center space-x-3 mb-4">
@@ -610,8 +610,8 @@
                         <i class="fas fa-chart-bar text-green-500 text-xs"></i>
                     </div>
                     <h4 class="text-lg font-semibold text-white">SMTP Test Results:</h4>
-                </div>
-                
+        </div>
+        
                 <div id="smtp-test-results" class="vercel-table min-h-32">
                     <div class="text-center py-8">
                         <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -620,10 +620,10 @@
                         <p class="text-vercel-gray-500">SMTP test results will appear here after sending test emails...</p>
                     </div>
                 </div>
-            </div>
         </div>
+    </div>
 
-        <!-- Generate Sample CSV for User Creation -->
+    <!-- Generate Sample CSV for User Creation -->
         <div class="vercel-card">
             <div class="flex items-center space-x-3 mb-6">
                 <div class="w-10 h-10 bg-orange-500 bg-opacity-20 rounded-lg flex items-center justify-center">
@@ -643,7 +643,7 @@
                         min="1"
                         max="1000"
                     >
-                </div>
+            </div>
                 <div>
                     <label for="csv-domain" class="block text-sm font-medium text-vercel-gray-300 mb-2">Domain (e.g., yourdomain.com):</label>
                     <input 
@@ -652,7 +652,7 @@
                         class="vercel-input"
                         placeholder="yourdomain.com"
                     >
-                </div>
+        </div>
                 <div>
                     <label for="csv-password" class="block text-sm font-medium text-vercel-gray-300 mb-2">Default password for all users:</label>
                     <input 
@@ -662,8 +662,8 @@
                         placeholder="TempPass123!"
                     >
                 </div>
-            </div>
-            
+    </div>
+
             <div class="flex gap-3 mb-6">
                 <button onclick="generateCSVFile()" class="btn-vercel">
                     <i class="fas fa-download"></i>
@@ -679,11 +679,11 @@
             <div id="csv-preview-container" class="vercel-table" style="display: none;">
                 <div class="mb-4">
                     <h4 class="text-lg font-semibold text-white">CSV Preview:</h4>
-                </div>
+            </div>
                 <div id="csv-preview-content" class="bg-vercel-gray-800 rounded-lg p-4 border border-vercel-gray-700 max-h-64 overflow-y-auto">
                     <!-- CSV preview will be inserted here -->
-                </div>
-            </div>
+        </div>
+    </div>
         </div>
     </div>
 </div>
@@ -795,8 +795,8 @@ function retrieveUsers() {
     showStatus('Retrieving users...', 'info');
     
     fetch('/api/retrieve-users', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             account_name: accountName
         })
@@ -1142,7 +1142,7 @@ function sendTestEmails() {
                             <span class="status-active">Success - ${result.message || 'Email sent'}</span>
                         </div>
                     `;
-                } else {
+            } else {
                     resultElement.innerHTML = `
                         <div class="flex items-center space-x-3">
                             <i class="fas fa-times-circle text-red-500"></i>
@@ -1248,7 +1248,7 @@ function generateCSVFile() {
         document.body.removeChild(link);
         
         showStatus(`CSV file generated successfully with ${count} users`, 'success');
-    } else {
+        } else {
         showStatus('File download not supported in this browser', 'error');
     }
 }
@@ -1805,7 +1805,7 @@ function enterAuthorizationCode() {
             currentAccountName = accountName;
             sessionStorage.setItem('currentAccountName', accountName);
             sessionStorage.setItem('currentAccountId', accountId);
-        } else {
+            } else {
             showStatus('Authorization failed: ' + data.error, 'error');
         }
     })
@@ -1977,9 +1977,13 @@ function clearSuspendedUsers() {
 }
 function filterAccounts() {
     const filterInput = document.getElementById('account-filter');
-    if (!filterInput) return;
+    if (!filterInput) {
+        console.log('Search input not found!');
+        return;
+    }
     
     const filter = filterInput.value.toLowerCase().trim();
+    console.log('Filtering accounts with:', filter);
     
     if (filter === '') {
         // Show all accounts
@@ -1992,6 +1996,8 @@ function filterAccounts() {
         account.account_name.toLowerCase().includes(filter)
     );
     
+    console.log('Filtered accounts:', filteredAccounts.length);
+    
     // Re-render with filtered accounts
     renderAccountList(filteredAccounts);
     
@@ -2000,15 +2006,51 @@ function filterAccounts() {
     }
 }
 
-// Add event listener for real-time search
-document.addEventListener('DOMContentLoaded', function() {
+// Enhanced event listener setup
+function setupAccountSearch() {
     const filterInput = document.getElementById('account-filter');
     if (filterInput) {
+        console.log('Setting up account search functionality');
+        
+        // Remove any existing listeners
+        filterInput.removeEventListener('input', filterAccounts);
+        filterInput.removeEventListener('keyup', filterAccounts);
+        filterInput.removeEventListener('change', filterAccounts);
+        
+        // Add new listeners
         filterInput.addEventListener('input', filterAccounts);
         filterInput.addEventListener('keyup', filterAccounts);
         filterInput.addEventListener('change', filterAccounts);
+        
+        // Add focus/blur styling
+        filterInput.addEventListener('focus', function() {
+            this.style.borderColor = '#3b82f6';
+            this.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+        });
+        
+        filterInput.addEventListener('blur', function() {
+            this.style.borderColor = '';
+            this.style.boxShadow = '';
+        });
+        
+        console.log('Account search setup completed');
+    } else {
+        console.error('Account search input not found!');
     }
+}
+
+// Add event listener for real-time search
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, setting up account search');
+    setupAccountSearch();
 });
+
+// Call setup again when accounts are loaded
+function setupAccountSearchAfterLoad() {
+    setTimeout(() => {
+        setupAccountSearch();
+    }, 100);
+}
 
 // Utility function for password visibility toggle
 function togglePasswordVisibility(inputId) {
@@ -2032,6 +2074,8 @@ function loadAccountList() {
         if (data.success) {
             updateAccountSelect(data.accounts);
             updateAccountList(data.accounts);
+            // Setup search functionality after accounts are loaded
+            setupAccountSearchAfterLoad();
         }
     })
     .catch(error => {
@@ -2084,33 +2128,40 @@ function renderAccountList(accounts) {
     if (!accountListDisplay) return;
     
     accountListDisplay.innerHTML = `
-        <div class="space-y-2">
+        <div class="space-y-3">
             ${accounts.map(account => {
                 const isSelected = selectedAccountFromList && selectedAccountFromList.id === account.id;
-                const selectedClass = isSelected ? 'border-blue-500 bg-blue-500 bg-opacity-20 ring-2 ring-blue-500 ring-opacity-30' : 'border-vercel-gray-700 hover:border-vercel-gray-600';
+                const selectedClass = isSelected ? 
+                    'border-blue-500 bg-gradient-to-r from-blue-500 to-indigo-500 bg-opacity-15 ring-4 ring-blue-500 ring-opacity-30 shadow-lg shadow-blue-500/25' : 
+                    'border-vercel-gray-700 hover:border-vercel-gray-600 hover:shadow-lg';
+                
+                const selectedTextClass = isSelected ? 'text-blue-100 font-bold' : 'text-white font-semibold';
                 
                 return `
-                    <div id="account-${account.id}" class="p-4 bg-vercel-gray-800 rounded-lg border ${selectedClass} transition-all duration-200 cursor-pointer" onclick="selectAccountFromList('${account.account_name}', '${account.id}')">
+                    <div id="account-${account.id}" class="p-4 bg-vercel-gray-800 rounded-xl border-2 ${selectedClass} transition-all duration-300 cursor-pointer transform hover:scale-[1.02]" onclick="selectAccountFromList('${account.account_name}', '${account.id}')">
                         <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-4 h-4 ${account.is_authenticated ? 'bg-green-500' : 'bg-red-500'} rounded-full shadow-lg"></div>
-                                <span class="text-white font-semibold">${account.account_name}</span>
-                                <span class="text-xs px-3 py-1 rounded-full ${account.is_authenticated ? 'bg-green-500 bg-opacity-20 text-green-400 border border-green-500 border-opacity-30' : 'bg-red-500 bg-opacity-20 text-red-400 border border-red-500 border-opacity-30'}">
+                            <div class="flex items-center space-x-4">
+                                <div class="relative">
+                                    <div class="w-5 h-5 ${account.is_authenticated ? 'bg-green-500' : 'bg-red-500'} rounded-full shadow-lg"></div>
+                                    ${isSelected ? '<div class="absolute -top-1 -right-1 w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>' : ''}
+        </div>
+                                <span class="${selectedTextClass} text-lg">${account.account_name}</span>
+                                <span class="text-xs px-3 py-1 rounded-full font-medium ${account.is_authenticated ? 'bg-green-500 bg-opacity-20 text-green-400 border border-green-500 border-opacity-30' : 'bg-red-500 bg-opacity-20 text-red-400 border border-red-500 border-opacity-30'}">
                                     ${account.is_authenticated ? '✅ Authenticated' : '❌ Need Auth'}
                                 </span>
-                                ${isSelected ? '<div class="flex items-center space-x-1"><i class="fas fa-check-circle text-blue-400 text-lg"></i><span class="text-blue-400 font-medium text-sm">SELECTED</span></div>' : ''}
-                            </div>
+                                ${isSelected ? '<div class="flex items-center space-x-2 bg-blue-500 bg-opacity-20 px-3 py-1 rounded-full border border-blue-500 border-opacity-30"><i class="fas fa-check-circle text-blue-400 text-lg"></i><span class="text-blue-400 font-bold text-sm">SELECTED</span></div>' : ''}
+        </div>
                             <div class="flex space-x-2" onclick="event.stopPropagation()">
-                                <button onclick="authenticateFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-2 bg-green-500 bg-opacity-20 text-green-400 rounded-lg hover:bg-opacity-30 transition-colors border border-green-500 border-opacity-30">
+                                <button onclick="authenticateFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-2 bg-green-500 bg-opacity-20 text-green-400 rounded-lg hover:bg-opacity-30 transition-colors border border-green-500 border-opacity-30 font-medium">
                                     <i class="fas fa-key mr-1"></i>Auth
-                                </button>
-                                <button onclick="deleteFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-2 bg-red-500 bg-opacity-20 text-red-400 rounded-lg hover:bg-opacity-30 transition-colors border border-red-500 border-opacity-30">
+            </button>
+                                <button onclick="deleteFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-2 bg-red-500 bg-opacity-20 text-red-400 rounded-lg hover:bg-opacity-30 transition-colors border border-red-500 border-opacity-30 font-medium">
                                     <i class="fas fa-trash mr-1"></i>Delete
-                                </button>
+            </button>
                             </div>
                         </div>
-                    </div>
-                `;
+        </div>
+    `;
             }).join('')}
         </div>
     `;
@@ -2170,7 +2221,7 @@ function deleteFromList(accountName, accountId) {
         if (data.success) {
             showStatus('Account deleted successfully', 'success');
             loadAccountList();
-        } else {
+                } else {
             showStatus('Error deleting account: ' + data.error, 'error');
         }
     })
@@ -2226,7 +2277,7 @@ function createSingleUser() {
             document.getElementById('new-user-firstname').value = '';
             document.getElementById('new-user-lastname').value = '';
             document.getElementById('new-user-password').value = '';
-        } else {
+                    } else {
             showStatus('Failed to create user: ' + data.error, 'error');
         }
     })
@@ -2271,7 +2322,7 @@ function addDomainAlias() {
         if (data.success) {
             showStatus('Domain alias added successfully!', 'success');
             document.getElementById('domain-alias-input').value = '';
-        } else {
+                    } else {
             showStatus('Failed to add domain alias: ' + data.error, 'error');
         }
     })
@@ -2324,7 +2375,7 @@ function createRandomUsers() {
             showStatus(`Successfully created ${data.created} random users!`, 'success');
             document.getElementById('random-users-count').value = '';
             document.getElementById('random-users-domain').value = '';
-        } else {
+                    } else {
             showStatus('Failed to create random users: ' + data.error, 'error');
         }
     })
@@ -2439,7 +2490,7 @@ function processCreateUsersCSV() {
         showStatus('No valid user data found in CSV', 'error');
         return;
     }
-    
+
     // Create users one by one
     let created = 0;
     let failed = 0;
@@ -2452,36 +2503,36 @@ function processCreateUsersCSV() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('createUsersModal'));
             if (modal) modal.hide();
             
-            return;
-        }
-        
+        return;
+    }
+
         const user = users[index];
-        
-        fetch('/api/create-gsuite-user', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
+
+    fetch('/api/create-gsuite-user', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
                 account_name: accountName,
                 first_name: user.first_name,
                 last_name: user.last_name,
                 email: user.email,
                 password: user.password
-            })
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
                 created++;
                 showStatus(`Created user ${index + 1}/${users.length}: ${user.email}`, 'success');
-            } else {
+        } else {
                 failed++;
                 showStatus(`Failed to create ${user.email}: ${data.error}`, 'error');
-            }
+        }
             
             // Create next user after a short delay
             setTimeout(() => createNextUser(index + 1), 500);
-        })
-        .catch(error => {
+    })
+    .catch(error => {
             failed++;
             showStatus(`Error creating ${user.email}: ${error}`, 'error');
             setTimeout(() => createNextUser(index + 1), 500);
@@ -2562,20 +2613,20 @@ function processChangeDomain() {
         showStatus('Please fill in both domain fields', 'error');
         return;
     }
-    
+
     if (!currentAccountName && !sessionStorage.getItem('currentAccountName')) {
         showStatus('Please authenticate an account first', 'error');
         return;
     }
-    
+
     const accountName = currentAccountName || sessionStorage.getItem('currentAccountName');
     
     if (!confirm(`Are you sure you want to change all users from ${fromDomain} to ${toDomain}? This action cannot be undone.`)) {
         return;
     }
-    
+
     showStatus('Changing domain for users...', 'info');
-    
+
     fetch('/api/change-domain-all-users', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -2736,21 +2787,21 @@ function deleteSpecificUsers() {
     
     emails.forEach((email, index) => {
         fetch('/api/delete-user', {
-            method: 'POST',
+        method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
+        body: JSON.stringify({
                 account_name: accountSelect.value,
                 user_email: email
-            })
         })
-        .then(response => response.json())
-        .then(data => {
+    })
+    .then(response => response.json())
+    .then(data => {
             completed++;
-            if (data.success) {
+        if (data.success) {
                 results.push(`✅ ${email}: Deleted successfully`);
-            } else {
+        } else {
                 results.push(`❌ ${email}: ${data.error}`);
             }
             
@@ -2766,9 +2817,9 @@ function deleteSpecificUsers() {
                 
                 // Clear the input
                 document.getElementById('delete-user-emails').value = '';
-            }
-        })
-        .catch(error => {
+        }
+    })
+    .catch(error => {
             completed++;
             results.push(`❌ ${email}: Network error - ${error}`);
             
@@ -2833,8 +2884,233 @@ function markDomainUsed() {
         if (data.success) {
             showStatus('Domain marked as used successfully', 'success');
             document.getElementById('domain-to-mark').value = '';
-        } else {
+                    } else {
             showStatus('Failed to mark domain as used: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+// Missing User Create/Delete/Domain Functions
+function getDomainInfo() {
+    const accountSelect = document.getElementById('account-select');
+    
+    if (!accountSelect.value) {
+        showStatus('Please select an account first', 'error');
+        return;
+    }
+    
+    showStatus('Retrieving domain information...', 'info');
+    
+    fetch('/api/retrieve-domains', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            account_name: accountSelect.value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.domains) {
+            const domainDisplay = document.getElementById('domain-info-display');
+            if (domainDisplay) {
+                domainDisplay.innerHTML = `
+                    <div class="space-y-2">
+                        ${data.domains.map(domain => `
+                            <div class="p-3 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-white font-medium">${domain.domainName}</span>
+                                    <span class="text-xs px-2 py-1 rounded ${domain.verified ? 'bg-green-500 bg-opacity-20 text-green-400' : 'bg-yellow-500 bg-opacity-20 text-yellow-400'}">
+                                        ${domain.verified ? 'Verified' : 'Unverified'}
+                                    </span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            showStatus(`Retrieved ${data.domains.length} domains`, 'success');
+                    } else {
+            showStatus('Failed to retrieve domains: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function clearOldDomainData() {
+    const accountSelect = document.getElementById('account-select');
+    
+    if (!accountSelect.value) {
+        showStatus('Please select an account first', 'error');
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to clear old domain data? This action cannot be undone.')) {
+        return;
+    }
+    
+    showStatus('Clearing old domain data...', 'info');
+    
+    fetch('/api/clear-old-domain-data', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            account_name: accountSelect.value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('Old domain data cleared successfully', 'success');
+                } else {
+            showStatus('Failed to clear domain data: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function applySelectedDomainToCSV() {
+    const domainSelect = document.getElementById('available-domains-select');
+    const csvFile = document.getElementById('csv-upload-input').files[0];
+    
+    if (!domainSelect || !domainSelect.value) {
+        showStatus('Please select a domain first', 'error');
+        return;
+    }
+    
+    if (!csvFile) {
+        showStatus('Please upload a CSV file first', 'error');
+        return;
+    }
+    
+    showStatus('Applying selected domain to CSV...', 'info');
+    
+    const formData = new FormData();
+    formData.append('csv_file', csvFile);
+    formData.append('new_domain', domainSelect.value);
+    
+    fetch('/api/apply-domain-to-csv', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('Domain applied to CSV successfully', 'success');
+            if (data.download_url) {
+                // Auto download the modified CSV
+                const a = document.createElement('a');
+                a.href = data.download_url;
+                a.download = data.filename || 'modified_users.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        } else {
+            showStatus('Failed to apply domain to CSV: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function uploadAndProcessCSV() {
+    const accountSelect = document.getElementById('account-select');
+    const csvFile = document.getElementById('csv-upload-input').files[0];
+    
+    if (!accountSelect.value) {
+        showStatus('Please select an account first', 'error');
+        return;
+    }
+    
+    if (!csvFile) {
+        showStatus('Please select a CSV file to upload', 'error');
+        return;
+    }
+    
+    showStatus('Uploading and processing CSV...', 'info');
+    
+    const formData = new FormData();
+    formData.append('csv_file', csvFile);
+    formData.append('account_name', accountSelect.value);
+    
+    fetch('/api/upload-process-csv', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus(`CSV processed successfully. ${data.processed} users processed`, 'success');
+            
+            // Display results
+            const resultsDisplay = document.getElementById('csv-process-results');
+            if (resultsDisplay) {
+                resultsDisplay.innerHTML = `
+                    <div class="space-y-2">
+                        <h4 class="text-white font-semibold">Processing Results:</h4>
+                        <p class="text-vercel-gray-300">Total processed: ${data.processed}</p>
+                        <p class="text-vercel-gray-300">Successful: ${data.successful}</p>
+                        <p class="text-vercel-gray-300">Failed: ${data.failed}</p>
+                    </div>
+                `;
+            }
+        } else {
+            showStatus('Failed to process CSV: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function debugDomainUsers() {
+    const accountSelect = document.getElementById('account-select');
+    
+    if (!accountSelect.value) {
+        showStatus('Please select an account first', 'error');
+        return;
+    }
+    
+    showStatus('Running domain users debug...', 'info');
+    
+    fetch('/api/debug-domain-users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            account_name: accountSelect.value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('Debug completed successfully', 'success');
+            
+            // Display debug results
+            const debugDisplay = document.getElementById('debug-results-display');
+            if (debugDisplay) {
+                debugDisplay.innerHTML = `
+                    <div class="space-y-2">
+                        <h4 class="text-white font-semibold">Debug Results:</h4>
+                        <pre class="text-vercel-gray-300 bg-vercel-gray-800 p-3 rounded text-sm">${JSON.stringify(data.debug_info, null, 2)}</pre>
+                    </div>
+                `;
+            }
+        } else {
+            showStatus('Debug failed: ' + data.error, 'error');
         }
     })
     .catch(error => {

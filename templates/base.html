@@ -660,7 +660,9 @@
         }
 
         .light .bg-red-500 {
-            background-color: #ef4444 !important;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.08) 100%) !important;
+            border: 2px solid rgba(239, 68, 68, 0.3) !important;
+            border-radius: 12px !important;
         }
 
         .light .text-blue-400 {
@@ -669,6 +671,28 @@
 
         .light .text-red-400 {
             color: #dc2626 !important;
+            font-weight: 600 !important;
+        }
+
+        /* Light theme suspended user management fixes */
+        .light .bg-red-500.bg-opacity-20 {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(185, 28, 28, 0.06) 100%) !important;
+            border: 2px solid rgba(220, 38, 38, 0.2) !important;
+            border-radius: 12px !important;
+        }
+
+        .light .status-suspended {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(185, 28, 28, 0.08) 100%) !important;
+            color: #991b1b !important;
+            border: 1px solid rgba(220, 38, 38, 0.3) !important;
+            border-radius: 8px !important;
+            padding: 4px 8px !important;
+            font-weight: 600 !important;
+        }
+
+        .light .text-red-500 {
+            color: #dc2626 !important;
+            font-weight: 600 !important;
         }
 
         .light .border-blue-500 {
@@ -764,25 +788,45 @@
             font-weight: 500 !important;
         }
 
-        /* Light theme tab buttons */
+        /* Light theme tab buttons - Enhanced visibility */
         .light .tab-button {
             background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
             color: #475569 !important;
-            border: 2px solid #cbd5e1 !important;
+            border: 3px solid #cbd5e1 !important;
             border-radius: 12px !important;
             font-weight: 600 !important;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+            transition: all 0.3s ease !important;
         }
 
         .light .tab-button.active {
             background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #2563eb 100%) !important;
             color: #ffffff !important;
-            border-color: #2563eb !important;
-            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.25) !important;
+            border: 3px solid #2563eb !important;
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.35), 0 4px 12px rgba(15, 23, 42, 0.1) !important;
+            transform: translateY(-2px) !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
         }
 
-        .light .tab-button:hover {
+        .light .tab-button:hover:not(.active) {
             background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%) !important;
             border-color: #94a3b8 !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08) !important;
+            color: #334155 !important;
+        }
+
+        /* Dark theme tab enhancements for consistency */
+        .tab-button {
+            transition: all 0.3s ease !important;
+        }
+
+        .tab-button.active {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.35) !important;
+        }
+
+        .tab-button:hover:not(.active) {
             transform: translateY(-1px) !important;
         }
 
