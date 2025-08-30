@@ -2,76 +2,19 @@
 {% block title %}Login - GBot Web{% endblock %}
 
 {% block content %}
-<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full">
-        <!-- Logo and Title -->
-        <div class="text-center mb-8">
-            <div class="w-16 h-16 bg-gradient-to-br from-vercel-accent to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-robot text-white text-2xl"></i>
-            </div>
-            <h2 class="text-3xl font-bold text-white">Welcome to GBot</h2>
-            <p class="text-vercel-gray-400 mt-2">Sign in to your account to continue</p>
+<div class="login-container">
+    <h2>GBot Web Login</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
         </div>
-
-        <!-- Login Form -->
-        <div class="vercel-card">
-            <form method="POST" class="space-y-6">
-                <!-- Username Field -->
-                <div>
-                    <label for="username" class="block text-sm font-medium text-vercel-gray-300 mb-2">
-                        <i class="fas fa-user mr-2"></i>Username
-                    </label>
-                    <input 
-                        type="text" 
-                        id="username" 
-                        name="username" 
-                        required 
-                        class="vercel-input"
-                        placeholder="Enter your username"
-                        autocomplete="username"
-                    >
-                </div>
-
-                <!-- Password Field -->
-                <div>
-                    <label for="password" class="block text-sm font-medium text-vercel-gray-300 mb-2">
-                        <i class="fas fa-lock mr-2"></i>Password
-                    </label>
-                    <input 
-                        type="password" 
-                        id="password" 
-                        name="password" 
-                        required 
-                        class="vercel-input"
-                        placeholder="Enter your password"
-                        autocomplete="current-password"
-                    >
-                </div>
-
-                <!-- Login Button -->
-                <button type="submit" class="btn-vercel w-full">
-                    <i class="fas fa-sign-in-alt"></i>
-                    Sign In
-                </button>
-            </form>
-
-            <!-- Additional Info -->
-            <div class="mt-6 pt-6 border-t border-vercel-gray-700">
-                <div class="text-center">
-                    <p class="text-vercel-gray-400 text-sm">
-                        <i class="fas fa-shield-alt mr-1"></i>
-                        Secure access powered by AI
-                    </p>
-                </div>
-            </div>
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
         </div>
+        <button type="submit">Login</button>
+    </form>
 
-        <!-- Footer -->
-        <div class="mt-8 text-center">
-            <p class="text-vercel-gray-500 text-sm">
-                &copy; 2024 GBot Web Application. All rights reserved.
-            </p>
-        </div>
-    </div>
 </div>
 {% endblock %}

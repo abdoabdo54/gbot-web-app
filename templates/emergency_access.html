@@ -1,330 +1,67 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Emergency Access - GBot Web App</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        vercel: {
-                            gray: {
-                                50: '#fafafa',
-                                100: '#f5f5f5',
-                                200: '#e5e5e5',
-                                300: '#d4d4d4',
-                                400: '#a3a3a3',
-                                500: '#737373',
-                                600: '#525252',
-                                700: '#404040',
-                                800: '#262626',
-                                900: '#171717',
-                                950: '#0a0a0a'
-                            },
-                            accent: '#0070f3'
-                        }
-                    },
-                    fontFamily: {
-                        'inter': ['Inter', 'system-ui', '-apple-system', 'sans-serif']
-                    }
-                }
-            }
-        }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        }
-        
-        /* Vercel-style gradient background */
-        .vercel-gradient {
-            background: linear-gradient(135deg, #0a0a0a 0%, #171717 100%);
-        }
-        
-        /* Glassmorphism effect */
-        .glass {
-            background: rgba(38, 38, 38, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(64, 64, 64, 0.3);
-        }
-        
-        /* Emergency card styling */
-        .emergency-card {
-            background: rgba(38, 38, 38, 0.9);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(239, 68, 68, 0.1);
-            backdrop-filter: blur(10px);
-        }
-        
-        .emergency-header {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            border-radius: 16px 16px 0 0;
-        }
-        
-        /* Form inputs */
-        .vercel-input {
-            background: rgba(23, 23, 23, 0.8);
-            border: 1px solid rgba(64, 64, 64, 0.5);
-            border-radius: 8px;
-            padding: 12px 16px;
-            color: #f5f5f5;
-            font-size: 14px;
-            transition: all 0.2s ease;
-            width: 100%;
-        }
-        
-        .vercel-input:focus {
-            outline: none;
-            border-color: #ef4444;
-            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
-            background: rgba(23, 23, 23, 0.9);
-        }
-        
-        .vercel-input::placeholder {
-            color: #737373;
-        }
-        
-        .vercel-input:read-only {
-            background: rgba(64, 64, 64, 0.3);
-            color: #a3a3a3;
-        }
-        
-        /* Emergency button */
-        .btn-emergency {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            border: none;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 16px;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            width: 100%;
-            justify-content: center;
-        }
-        
-        .btn-emergency:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
-        }
-        
-        .btn-emergency:disabled {
-            opacity: 0.6;
-            transform: none;
-            cursor: not-allowed;
-        }
-        
-        .btn-detect {
-            background: rgba(64, 64, 64, 0.8);
-            border: 1px solid rgba(82, 82, 82, 0.5);
-            color: #f5f5f5;
-            padding: 12px 16px;
-            border-radius: 0 8px 8px 0;
-            font-weight: 500;
-            font-size: 14px;
-            transition: all 0.2s ease;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .btn-detect:hover {
-            background: rgba(82, 82, 82, 0.9);
-            border-color: rgba(115, 115, 115, 0.5);
-        }
-        
-        /* Alert styles */
-        .alert-emergency-success {
-            background: rgba(34, 197, 94, 0.1);
-            border: 1px solid rgba(34, 197, 94, 0.2);
-            color: #22c55e;
-            border-radius: 8px;
-            padding: 16px;
-        }
-        
-        .alert-emergency-error {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-            border-radius: 8px;
-            padding: 16px;
-        }
-        
-        .alert-emergency-warning {
-            background: rgba(251, 191, 36, 0.1);
-            border: 1px solid rgba(251, 191, 36, 0.2);
-            color: #fbbf24;
-            border-radius: 8px;
-            padding: 16px;
-        }
-        
-        .alert-emergency-info {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.2);
-            color: #3b82f6;
-            border-radius: 8px;
-            padding: 16px;
-        }
-        
-        /* Loading spinner */
-        .vercel-spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(239, 68, 68, 0.2);
-            border-left: 2px solid #ef4444;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        /* Code styles */
-        .code-highlight {
-            background: rgba(64, 64, 64, 0.5);
-            color: #f59e0b;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-        }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; }
+        .emergency-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: none; border-radius: 15px; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1); }
+        .emergency-header { background: linear-gradient(45deg, #ff6b6b, #ee5a24); color: white; border-radius: 15px 15px 0 0; padding: 2rem; }
+        .btn-emergency { background: linear-gradient(45deg, #ff6b6b, #ee5a24); border: none; border-radius: 25px; padding: 12px 30px; font-weight: 600; transition: all 0.3s ease; }
+        .btn-emergency:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4); }
+        .ip-input { border: 2px solid #e9ecef; border-radius: 10px; padding: 12px 15px; transition: all 0.3s ease; }
+        .ip-input:focus { border-color: #ff6b6b; box-shadow: 0 0 0 0.2rem rgba(255, 107, 107, 0.25); }
+        .status-message { border-radius: 10px; padding: 15px; margin-top: 20px; }
     </style>
 </head>
-<body class="bg-vercel-gray-950 text-vercel-gray-100 min-h-screen vercel-gradient">
-    <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-lg w-full">
-            <!-- Emergency Access Card -->
-            <div class="emergency-card">
-                <!-- Header -->
-                <div class="emergency-header p-6 text-center">
-                    <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-exclamation-triangle text-white text-2xl"></i>
+<body>
+    <div class="container">
+        <div class="row justify-content-center align-items-center min-vh-100">
+            <div class="col-md-8 col-lg-6">
+                <div class="card emergency-card">
+                    <div class="card-header emergency-header text-center">
+                        <h1 class="mb-0">🚨 Emergency Access</h1>
+                        <p class="mb-0 mt-2">GBot Web Application</p>
                     </div>
-                    <h1 class="text-2xl font-bold text-white mb-2">Emergency Access</h1>
-                    <p class="text-red-100 opacity-90">GBot Web Application</p>
-                </div>
-
-                <!-- Form Content -->
-                <div class="p-6">
-                    <!-- Info Message -->
-                    <div class="text-center mb-6">
-                        <div class="bg-yellow-500 bg-opacity-10 border border-yellow-500 border-opacity-20 rounded-lg p-4">
-                            <div class="flex items-center justify-center mb-2">
-                                <i class="fas fa-shield-alt text-yellow-500 text-lg"></i>
+                    <div class="card-body p-4">
+                        <div class="text-center mb-4">
+                            <p class="text-muted">You are accessing this application from an IP address that is not whitelisted. Use this emergency access to add your IP to the whitelist.</p>
+                        </div>
+                        <form id="emergency-form">
+                            <div class="mb-3">
+                                <label for="current_ip" class="form-label">Your Current IP Address</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control ip-input" id="current_ip" readonly>
+                                    <button class="btn btn-outline-secondary" type="button" onclick="detectIP()">🔍 Detect</button>
+                                </div>
+                                <div class="form-text">This will be automatically detected</div>
                             </div>
-                            <p class="text-vercel-gray-300 text-sm">
-                                You are accessing this application from an IP address that is not whitelisted. 
-                                Use this emergency access to add your IP to the whitelist.
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- Emergency Form -->
-                    <form id="emergency-form" class="space-y-6">
-                        <!-- Current IP Field -->
-                        <div>
-                            <label for="current_ip" class="block text-sm font-medium text-vercel-gray-300 mb-2">
-                                <i class="fas fa-map-marker-alt mr-2"></i>Your Current IP Address
-                            </label>
-                            <div class="flex">
-                                <input 
-                                    type="text" 
-                                    id="current_ip" 
-                                    class="vercel-input rounded-r-none border-r-0"
-                                    readonly
-                                    placeholder="Detecting..."
-                                >
-                                <button 
-                                    type="button" 
-                                    class="btn-detect"
-                                    onclick="detectIP()"
-                                >
-                                    <i class="fas fa-search"></i>
-                                    Detect
-                                </button>
-                            </div>
-                            <p class="text-vercel-gray-500 text-xs mt-2">This will be automatically detected</p>
-                        </div>
-
-                        <!-- Emergency Key Field -->
-                        <div>
-                            <label for="emergency_key" class="block text-sm font-medium text-vercel-gray-300 mb-2">
-                                <i class="fas fa-key mr-2"></i>Emergency Access Key
-                            </label>
-                            <input 
-                                type="text" 
-                                id="emergency_key" 
-                                class="vercel-input"
-                                placeholder="Enter your WHITELIST_TOKEN or SECRET_KEY" 
-                                required
-                            >
-                            <div class="mt-3 p-3 bg-vercel-gray-800 bg-opacity-50 rounded-lg border border-vercel-gray-700">
-                                <p class="text-vercel-gray-400 text-sm font-medium mb-2">
-                                    <i class="fas fa-info-circle mr-1"></i>Instructions:
-                                </p>
-                                <ul class="text-vercel-gray-400 text-xs space-y-1">
-                                    <li>• Use <span class="code-highlight">WHITELIST_TOKEN</span> to automatically whitelist your current IP</li>
-                                    <li>• Use <span class="code-highlight">SECRET_KEY</span> to manually add an IP address</li>
-                                    <li>• Both keys are found in your <span class="code-highlight">.env</span> file</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <!-- Submit Button -->
-                        <button type="submit" class="btn-emergency" id="emergency-btn">
-                            <i class="fas fa-shield-alt"></i>
-                            Grant Emergency Access
-                        </button>
-                    </form>
-
-                    <!-- Status Container -->
-                    <div id="status-container" class="mt-6"></div>
-
-                    <!-- Footer Note -->
-                    <div class="mt-6 pt-6 border-t border-vercel-gray-700">
-                        <div class="text-center">
-                            <p class="text-vercel-gray-500 text-xs">
-                                <i class="fas fa-info-circle mr-1"></i>
-                                <strong>Note:</strong> This emergency access is only for initial setup. 
-                                Once your IP is whitelisted, you can access the main application normally.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+                                    <div class="mb-3">
+            <label for="emergency_key" class="form-label">Emergency Access Key</label>
+            <input type="text" class="form-control ip-input" id="emergency_key" placeholder="Enter your WHITELIST_TOKEN or SECRET_KEY" required>
+            <div class="form-text">
+                <strong>Instructions:</strong><br>
+                • Use <code>WHITELIST_TOKEN</code> to automatically whitelist your current IP<br>
+                • Use <code>SECRET_KEY</code> to manually add an IP address<br>
+                • Both keys are found in your <code>.env</code> file
             </div>
-
-            <!-- Footer -->
-            <div class="mt-8 text-center">
-                <p class="text-vercel-gray-500 text-sm">
-                    &copy; 2024 GBot Web Application. All rights reserved.
-                </p>
+        </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-emergency btn-lg">🚨 Grant Emergency Access</button>
+                            </div>
+                        </form>
+                        <div id="status-container"></div>
+                        <div class="text-center mt-4">
+                            <small class="text-muted"><strong>Note:</strong> This emergency access is only for initial setup. Once your IP is whitelisted, you can access the main application normally.</small>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {
             detectIP();
@@ -333,25 +70,19 @@
                 grantEmergencyAccess();
             });
         });
-
         function detectIP() {
             $("#current_ip").val("Detecting...");
-            
             $.ajax({
                 url: "https://api.ipify.org?format=json",
                 type: "GET",
                 timeout: 5000,
-                success: function(data) {
-                    $("#current_ip").val(data.ip);
-                },
+                success: function(data) { $("#current_ip").val(data.ip); },
                 error: function() {
                     $.ajax({
                         url: "https://ipinfo.io/ip",
                         type: "GET",
                         timeout: 5000,
-                        success: function(ip) {
-                            $("#current_ip").val(ip.trim());
-                        },
+                        success: function(ip) { $("#current_ip").val(ip.trim()); },
                         error: function() {
                             $("#current_ip").val("Could not detect");
                             showStatus("Could not automatically detect your IP address. Please enter it manually.", "warning");
@@ -360,67 +91,43 @@
                 }
             });
         }
-
         function grantEmergencyAccess() {
             var ipAddress = $("#current_ip").val().trim();
             var emergencyKey = $("#emergency_key").val().trim();
-            
             if (!ipAddress || ipAddress === "Could not detect" || ipAddress === "Detecting...") {
                 showStatus("Please wait for IP detection to complete or enter your IP manually.", "warning");
                 return;
             }
-            
             if (!emergencyKey) {
                 showStatus("Please enter the emergency access key.", "warning");
                 return;
             }
-
-            // Disable button and show loading
-            $("#emergency-btn").prop('disabled', true).html('<div class="vercel-spinner"></div> Processing...');
             showStatus("Granting emergency access...", "info");
-
             $.ajax({
                 url: "/api/emergency-add-ip",
                 type: "POST",
                 contentType: "application/json",
-                data: JSON.stringify({ 
-                    ip_address: ipAddress, 
-                    emergency_key: emergencyKey 
-                }),
+                data: JSON.stringify({ ip_address: ipAddress, emergency_key: emergencyKey }),
                 success: function(response) {
                     if (response.success) {
                         showStatus("✅ Emergency access granted! Your IP has been whitelisted. Redirecting to main application...", "success");
-                        setTimeout(function() { 
-                            window.location.href = "/dashboard"; 
-                        }, 2000);
+                        setTimeout(function() { window.location.href = "/dashboard"; }, 2000);
                     } else {
-                        showStatus("❌ " + response.error, "error");
-                        $("#emergency-btn").prop('disabled', false).html('<i class="fas fa-shield-alt"></i> Grant Emergency Access');
+                        showStatus("❌ " + response.error, "danger");
                     }
                 },
                 error: function(xhr, status, error) {
                     if (xhr.status === 403) {
-                        showStatus("❌ Access denied. Please check your emergency access key.", "error");
+                        showStatus("❌ Access denied. Please check your emergency access key.", "danger");
                     } else {
-                        showStatus("❌ Network error: " + error, "error");
+                        showStatus("❌ Network error: " + error, "danger");
                     }
-                    $("#emergency-btn").prop('disabled', false).html('<i class="fas fa-shield-alt"></i> Grant Emergency Access');
                 }
             });
         }
-
         function showStatus(message, type) {
-            var alertClass = "alert-emergency-" + type;
-            var iconClass = type === "success" ? "fa-check-circle" : 
-                           type === "error" ? "fa-exclamation-triangle" : 
-                           type === "warning" ? "fa-exclamation-circle" : "fa-info-circle";
-            
-            var statusHtml = `
-                <div class="${alertClass} flex items-center space-x-3">
-                    <i class="fas ${iconClass} text-lg"></i>
-                    <span class="font-medium">${message}</span>
-                </div>
-            `;
+            var alertClass = type === "success" ? "alert-success" : type === "danger" ? "alert-danger" : type === "warning" ? "alert-warning" : "alert-info";
+            var statusHtml = "<div class=\"alert " + alertClass + " status-message\" role=\"alert\">" + message + "</div>";
             $("#status-container").html(statusHtml);
         }
     </script>
