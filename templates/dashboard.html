@@ -1218,39 +1218,50 @@ function showOAuthModal(oauthUrl) {
     const modal = `
         <div class="modal fade" id="oauthModal" tabindex="-1" style="z-index: 9999;">
             <div class="modal-dialog modal-lg">
-                <div class="modal-content bg-vercel-gray-900 border-vercel-gray-700">
-                    <div class="modal-header bg-vercel-gray-800 border-vercel-gray-700">
-                        <h5 class="modal-title text-white">
-                            <i class="fas fa-shield-alt text-blue-400 mr-2"></i>
+                <div class="modal-content bg-gradient-to-br from-vercel-gray-900 to-vercel-gray-800 border border-vercel-gray-700 shadow-2xl">
+                    <div class="modal-header bg-gradient-to-r from-green-600 to-blue-600 border-none">
+                        <h5 class="modal-title text-white font-bold text-lg flex items-center">
+                            <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-shield-alt text-white text-xl"></i>
+                            </div>
                             OAuth Authentication Required
                         </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
-                            <i class="fas fa-times text-vercel-gray-400"></i>
+                        <button type="button" class="btn-close text-white opacity-70 hover:opacity-100" data-bs-dismiss="modal" aria-label="Close">
+                            <i class="fas fa-times text-lg"></i>
                         </button>
                     </div>
-                    <div class="modal-body">
-                        <div class="text-center mb-4">
-                            <div class="w-16 h-16 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <i class="fas fa-key text-blue-500 text-2xl"></i>
+                    <div class="modal-body p-6">
+                        <div class="text-center mb-6">
+                            <div class="w-20 h-20 bg-gradient-to-br from-green-500 to-blue-500 bg-opacity-20 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+                                <i class="fas fa-key text-green-400 text-3xl"></i>
                             </div>
-                            <h4 class="text-white mb-3">Authentication Required</h4>
-                            <p class="text-vercel-gray-400 mb-4">Click the button below to open the Google OAuth authorization page in a new window. After completing authorization, return here to continue.</p>
+                            <h4 class="text-white font-semibold text-xl mb-3">Authentication Required</h4>
+                            <p class="text-vercel-gray-300 mb-6 leading-relaxed">Click the button below to open the Google OAuth authorization page in a new window. After completing authorization, return here to continue.</p>
                         </div>
                         
-                        <div class="d-grid gap-2">
-                            <a href="${oauthUrl}" target="_blank" class="btn-vercel text-center text-decoration-none">
-                                <i class="fas fa-external-link-alt mr-2"></i>
+                        <div class="space-y-3">
+                            <a href="${oauthUrl}" target="_blank" class="block w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-semibold py-4 px-6 rounded-xl text-center text-decoration-none transition-all transform hover:scale-105 shadow-lg">
+                                <i class="fas fa-external-link-alt mr-3"></i>
                                 Open Authorization Page
                             </a>
-                            <button type="button" class="btn-vercel-secondary" onclick="checkAuthStatus()">
+                            <button type="button" class="w-full btn-vercel-secondary py-3" onclick="checkAuthStatus()">
                                 <i class="fas fa-sync-alt mr-2"></i>
                                 Check Authorization Status
                             </button>
                         </div>
+                        
+                        <div class="mt-6 p-4 bg-blue-500 bg-opacity-10 border border-blue-500 border-opacity-30 rounded-xl">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-info-circle text-blue-400"></i>
+                                <div class="text-blue-300 text-sm">
+                                    <strong>Note:</strong> A new window will open for Google authentication. Complete the process and return here.
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="modal-footer bg-vercel-gray-800 border-vercel-gray-700">
+                    <div class="modal-footer bg-vercel-gray-800 border-none p-6">
                         <button type="button" class="btn-vercel-secondary" data-bs-dismiss="modal">
-                            <i class="fas fa-times mr-1"></i>
+                            <i class="fas fa-times mr-2"></i>
                             Cancel
                         </button>
                     </div>
@@ -1321,41 +1332,89 @@ function openAddAccountModal() {
     const modal = `
         <div class="modal fade" id="addAccountModal" tabindex="-1" style="z-index: 9999;">
             <div class="modal-dialog modal-lg">
-                <div class="modal-content bg-vercel-gray-900 border-vercel-gray-700">
-                    <div class="modal-header bg-vercel-gray-800 border-vercel-gray-700">
-                        <h5 class="modal-title text-white">
-                            <i class="fas fa-plus text-green-400 mr-2"></i>
-                            Add New Account
+                <div class="modal-content bg-gradient-to-br from-vercel-gray-900 to-vercel-gray-800 border border-vercel-gray-700 shadow-2xl">
+                    <div class="modal-header bg-gradient-to-r from-green-600 to-emerald-600 border-none">
+                        <h5 class="modal-title text-white font-bold text-lg flex items-center">
+                            <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-plus text-white text-xl"></i>
+                            </div>
+                            Add New Google Account
                         </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
-                            <i class="fas fa-times text-vercel-gray-400"></i>
+                        <button type="button" class="btn-close text-white opacity-70 hover:opacity-100" data-bs-dismiss="modal" aria-label="Close">
+                            <i class="fas fa-times text-lg"></i>
                         </button>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body p-6">
+                        <!-- Instructions -->
+                        <div class="bg-green-500 bg-opacity-10 border border-green-500 border-opacity-30 rounded-xl p-4 mb-6">
+                            <div class="flex items-start space-x-3">
+                                <i class="fas fa-info-circle text-green-400 text-lg mt-0.5"></i>
+                                <div>
+                                    <h4 class="text-green-400 font-semibold mb-2">Google Cloud Console Setup</h4>
+                                    <p class="text-green-300 text-sm">You'll need to create credentials in Google Cloud Console and enable the Admin SDK API for your project.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <form id="add-account-form">
-                            <div class="space-y-4">
+                            <div class="space-y-6">
                                 <div>
-                                    <label for="account-name" class="block text-sm font-medium text-vercel-gray-300 mb-2">Account Name:</label>
-                                    <input type="text" id="account-name" class="vercel-input" placeholder="Enter account name" required>
+                                    <label for="account-name" class="block text-sm font-semibold text-vercel-gray-300 mb-3">
+                                        <i class="fas fa-user mr-2 text-blue-400"></i>
+                                        Account Name
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        id="account-name" 
+                                        class="w-full bg-vercel-gray-800 border border-vercel-gray-600 text-white rounded-xl p-4 focus:border-green-500 focus:ring-2 focus:ring-green-500 focus:ring-opacity-20 transition-all" 
+                                        placeholder="e.g., admin@company.com or Company Admin"
+                                        required
+                                    >
+                                    <p class="text-xs text-vercel-gray-500 mt-2">A descriptive name for this Google Workspace account</p>
                                 </div>
                                 <div>
-                                    <label for="client-id" class="block text-sm font-medium text-vercel-gray-300 mb-2">Client ID:</label>
-                                    <input type="text" id="client-id" class="vercel-input" placeholder="Enter Google Client ID" required>
+                                    <label for="client-id" class="block text-sm font-semibold text-vercel-gray-300 mb-3">
+                                        <i class="fas fa-key mr-2 text-purple-400"></i>
+                                        Google Client ID
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        id="client-id" 
+                                        class="w-full bg-vercel-gray-800 border border-vercel-gray-600 text-white rounded-xl p-4 font-mono text-sm focus:border-green-500 focus:ring-2 focus:ring-green-500 focus:ring-opacity-20 transition-all" 
+                                        placeholder="123456789-abcdefghijk.apps.googleusercontent.com"
+                                        required
+                                    >
+                                    <p class="text-xs text-vercel-gray-500 mt-2">From your Google Cloud Console OAuth 2.0 credentials</p>
                                 </div>
                                 <div>
-                                    <label for="client-secret" class="block text-sm font-medium text-vercel-gray-300 mb-2">Client Secret:</label>
-                                    <input type="password" id="client-secret" class="vercel-input" placeholder="Enter Google Client Secret" required>
+                                    <label for="client-secret" class="block text-sm font-semibold text-vercel-gray-300 mb-3">
+                                        <i class="fas fa-shield-alt mr-2 text-red-400"></i>
+                                        Client Secret
+                                    </label>
+                                    <div class="relative">
+                                        <input 
+                                            type="password" 
+                                            id="client-secret" 
+                                            class="w-full bg-vercel-gray-800 border border-vercel-gray-600 text-white rounded-xl p-4 pr-12 font-mono text-sm focus:border-green-500 focus:ring-2 focus:ring-green-500 focus:ring-opacity-20 transition-all" 
+                                            placeholder="Your Google Client Secret"
+                                            required
+                                        >
+                                        <button type="button" onclick="togglePasswordVisibility('client-secret')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-vercel-gray-400 hover:text-white transition-colors">
+                                            <i class="fas fa-eye text-sm"></i>
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-vercel-gray-500 mt-2">Keep this secret secure - it's used for API authentication</p>
                                 </div>
                             </div>
                         </form>
                     </div>
-                    <div class="modal-footer bg-vercel-gray-800 border-vercel-gray-700">
-                        <button type="button" class="btn-vercel-secondary" data-bs-dismiss="modal">
-                            <i class="fas fa-times mr-1"></i>
+                    <div class="modal-footer bg-vercel-gray-800 border-none p-6">
+                        <button type="button" class="btn-vercel-secondary mr-3" data-bs-dismiss="modal">
+                            <i class="fas fa-times mr-2"></i>
                             Cancel
                         </button>
                         <button type="button" class="btn-vercel" onclick="saveNewAccount()">
-                            <i class="fas fa-save mr-1"></i>
+                            <i class="fas fa-save mr-2"></i>
                             Save Account
                         </button>
                     </div>
@@ -1419,30 +1478,237 @@ function saveNewAccount() {
 }
 
 function addFromServerJSON() {
-    showStatus('Fetching accounts from server...', 'info');
+    // Create modern modal for JSON input
+    const modal = `
+        <div class="modal fade" id="addFromJSONModal" tabindex="-1" style="z-index: 9999;">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content bg-gradient-to-br from-vercel-gray-900 to-vercel-gray-800 border border-vercel-gray-700 shadow-2xl">
+                    <div class="modal-header bg-gradient-to-r from-blue-600 to-purple-600 border-none">
+                        <h5 class="modal-title text-white font-bold text-lg flex items-center">
+                            <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-file-code text-white text-xl"></i>
+                            </div>
+                            Import Accounts from JSON
+                        </h5>
+                        <button type="button" class="btn-close text-white opacity-70 hover:opacity-100" data-bs-dismiss="modal" aria-label="Close">
+                            <i class="fas fa-times text-lg"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body p-6">
+                        <div class="space-y-6">
+                            <!-- Instructions -->
+                            <div class="bg-blue-500 bg-opacity-10 border border-blue-500 border-opacity-30 rounded-xl p-4">
+                                <div class="flex items-start space-x-3">
+                                    <i class="fas fa-info-circle text-blue-400 text-lg mt-0.5"></i>
+                                    <div>
+                                        <h4 class="text-blue-400 font-semibold mb-2">JSON Format</h4>
+                                        <p class="text-blue-300 text-sm mb-2">Paste your accounts JSON data below. Expected format:</p>
+                                        <pre class="bg-vercel-gray-800 text-green-400 p-3 rounded-lg text-xs overflow-x-auto"><code>{
+  "accounts": [
+    {
+      "account_name": "account1@domain.com",
+      "client_id": "123456789.apps.googleusercontent.com",
+      "client_secret": "your-secret-key"
+    },
+    {
+      "account_name": "account2@domain.com", 
+      "client_id": "987654321.apps.googleusercontent.com",
+      "client_secret": "another-secret-key"
+    }
+  ]
+}</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- JSON Input -->
+                            <div>
+                                <label class="block text-sm font-semibold text-vercel-gray-300 mb-3">
+                                    <i class="fas fa-code mr-2 text-purple-400"></i>
+                                    JSON Data
+                                </label>
+                                <div class="relative">
+                                    <textarea 
+                                        id="json-data" 
+                                        rows="12" 
+                                        class="w-full bg-vercel-gray-800 border border-vercel-gray-600 text-green-400 rounded-xl p-4 font-mono text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 transition-all resize-none"
+                                        placeholder='{"accounts": [{"account_name": "example@domain.com", "client_id": "123456789.apps.googleusercontent.com", "client_secret": "your-secret-key"}]}'
+                                    ></textarea>
+                                    <div class="absolute top-3 right-3">
+                                        <button type="button" onclick="validateJSON()" class="text-xs px-3 py-1.5 bg-purple-500 bg-opacity-20 text-purple-400 rounded-lg hover:bg-opacity-30 transition-colors">
+                                            <i class="fas fa-check mr-1"></i>
+                                            Validate
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="json-validation" class="mt-2 text-sm"></div>
+                            </div>
+                            
+                            <!-- Statistics -->
+                            <div id="json-stats" class="hidden">
+                                <div class="grid grid-cols-3 gap-4">
+                                    <div class="bg-vercel-gray-800 rounded-xl p-4 text-center border border-vercel-gray-700">
+                                        <div class="text-2xl font-bold text-green-400" id="accounts-count">0</div>
+                                        <div class="text-vercel-gray-400 text-sm">Accounts</div>
+                                    </div>
+                                    <div class="bg-vercel-gray-800 rounded-xl p-4 text-center border border-vercel-gray-700">
+                                        <div class="text-2xl font-bold text-blue-400" id="valid-count">0</div>
+                                        <div class="text-vercel-gray-400 text-sm">Valid</div>
+                                    </div>
+                                    <div class="bg-vercel-gray-800 rounded-xl p-4 text-center border border-vercel-gray-700">
+                                        <div class="text-2xl font-bold text-red-400" id="invalid-count">0</div>
+                                        <div class="text-vercel-gray-400 text-sm">Invalid</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-vercel-gray-800 border-none p-6">
+                        <button type="button" class="btn-vercel-secondary mr-3" data-bs-dismiss="modal">
+                            <i class="fas fa-times mr-2"></i>
+                            Cancel
+                        </button>
+                        <button type="button" class="btn-vercel" onclick="processJSONAccounts()">
+                            <i class="fas fa-upload mr-2"></i>
+                            Import Accounts
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
     
-    fetch('/api/add-from-server-json', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showStatus(`Successfully added ${data.count} accounts from server`, 'success');
-            loadAccountList();
-        } else {
-            showStatus('Error fetching from server: ' + data.error, 'error');
+    // Remove existing modal if any
+    const existingModal = document.getElementById('addFromJSONModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modal);
+    
+    // Show modal
+    const modalElement = new bootstrap.Modal(document.getElementById('addFromJSONModal'));
+    modalElement.show();
+}
+
+function validateJSON() {
+    const jsonData = document.getElementById('json-data').value.trim();
+    const validationDiv = document.getElementById('json-validation');
+    const statsDiv = document.getElementById('json-stats');
+    
+    if (!jsonData) {
+        validationDiv.innerHTML = '<span class="text-yellow-400"><i class="fas fa-exclamation-triangle mr-1"></i>Please enter JSON data</span>';
+        statsDiv.classList.add('hidden');
+        return false;
+    }
+    
+    try {
+        const parsed = JSON.parse(jsonData);
+        
+        if (!parsed.accounts || !Array.isArray(parsed.accounts)) {
+            throw new Error('JSON must contain an "accounts" array');
         }
-    })
-    .catch(error => {
-        showStatus('Network error: ' + error, 'error');
-    });
+        
+        let validCount = 0;
+        let invalidCount = 0;
+        const errors = [];
+        
+        parsed.accounts.forEach((account, index) => {
+            if (!account.account_name || !account.client_id || !account.client_secret) {
+                invalidCount++;
+                errors.push(`Account ${index + 1}: Missing required fields`);
+            } else {
+                validCount++;
+            }
+        });
+        
+        // Update stats
+        document.getElementById('accounts-count').textContent = parsed.accounts.length;
+        document.getElementById('valid-count').textContent = validCount;
+        document.getElementById('invalid-count').textContent = invalidCount;
+        statsDiv.classList.remove('hidden');
+        
+        if (invalidCount > 0) {
+            validationDiv.innerHTML = `
+                <span class="text-yellow-400">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    ${validCount} valid, ${invalidCount} invalid accounts
+                </span>
+                <div class="mt-2 text-xs text-red-400">
+                    ${errors.slice(0, 3).join('<br>')}
+                    ${errors.length > 3 ? `<br>... and ${errors.length - 3} more errors` : ''}
+                </div>
+            `;
+        } else {
+            validationDiv.innerHTML = `
+                <span class="text-green-400">
+                    <i class="fas fa-check-circle mr-1"></i>
+                    JSON is valid! Found ${validCount} accounts ready to import.
+                </span>
+            `;
+        }
+        
+        return invalidCount === 0;
+        
+    } catch (error) {
+        validationDiv.innerHTML = `
+            <span class="text-red-400">
+                <i class="fas fa-times-circle mr-1"></i>
+                Invalid JSON: ${error.message}
+            </span>
+        `;
+        statsDiv.classList.add('hidden');
+        return false;
+    }
+}
+
+function processJSONAccounts() {
+    if (!validateJSON()) {
+        showStatus('Please fix JSON validation errors first', 'error');
+        return;
+    }
+    
+    const jsonData = document.getElementById('json-data').value.trim();
+    
+    try {
+        const parsed = JSON.parse(jsonData);
+        
+        showStatus('Importing accounts from JSON...', 'info');
+        
+        fetch('/api/add-accounts-from-json', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(parsed)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showStatus(`Successfully imported ${data.added_count} accounts`, 'success');
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addFromJSONModal'));
+                if (modal) modal.hide();
+                
+                // Refresh account list
+                loadAccountList();
+            } else {
+                showStatus('Error importing accounts: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showStatus('Network error: ' + error, 'error');
+        });
+        
+    } catch (error) {
+        showStatus('JSON parsing error: ' + error.message, 'error');
+    }
 }
 function forceTokenStatusCheck() {
     showStatus('Checking token status for all accounts...', 'info');
     
-    fetch('/api/force-token-check', {
-        method: 'POST',
+    fetch('/api/check-token-status', {
+        method: 'GET',
         headers: {'Content-Type': 'application/json'}
     })
     .then(response => response.json())
@@ -1683,6 +1949,20 @@ function filterAccounts() {
     });
     
     showStatus(`Filtered accounts by: "${filter}"`, 'info');
+}
+
+// Utility function for password visibility toggle
+function togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    const icon = input.nextElementSibling.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fas fa-eye-slash text-sm';
+    } else {
+        input.type = 'password';
+        icon.className = 'fas fa-eye text-sm';
+    }
 }
 
 // Account List Management
