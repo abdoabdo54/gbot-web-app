@@ -96,7 +96,7 @@
                            class="vercel-input mb-4"
                            autocomplete="off">
                     
-                    <div id="account-list-area" class="vercel-table max-h-64 overflow-y-auto">
+                    <div id="account-list-display" class="vercel-table max-h-64 overflow-y-auto">
                         <div class="space-y-2">
                             {% for account in accounts %}
                             <div class="account-item p-3 bg-vercel-gray-800 hover:bg-vercel-gray-700 rounded-lg cursor-pointer transition-colors border border-vercel-gray-700" 
@@ -901,7 +901,7 @@ function showStatus(message, type) {
         notificationContainer.id = 'notification-container';
         notificationContainer.style.cssText = `
             position: fixed;
-            top: 20px;
+            bottom: 20px;
             right: 20px;
             z-index: 10000;
             max-width: 400px;
@@ -1398,17 +1398,50 @@ function showOAuthModal(oauthUrl) {
 
 function copyOAuthUrl() {
     const urlInput = document.getElementById('oauth-url-display');
-    if (urlInput) {
-        urlInput.select();
-        urlInput.setSelectionRange(0, 99999); // For mobile devices
-        
-        navigator.clipboard.writeText(urlInput.value).then(() => {
-            showStatus('OAuth URL copied to clipboard!', 'success');
-        }).catch(() => {
-            // Fallback for older browsers
-            document.execCommand('copy');
-            showStatus('OAuth URL copied to clipboard!', 'success');
+    if (!urlInput) {
+        console.error('OAuth URL input not found');
+        showStatus('Error: URL input not found', 'error');
+        return;
+    }
+    
+    const urlValue = urlInput.value;
+    if (!urlValue) {
+        console.error('No URL value to copy');
+        showStatus('Error: No URL to copy', 'error');
+        return;
+    }
+    
+    console.log('Copying URL:', urlValue);
+    
+    // Try modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(urlValue).then(() => {
+            showStatus('✅ OAuth URL copied to clipboard!', 'success');
+            console.log('URL copied successfully with clipboard API');
+        }).catch((err) => {
+            console.error('Clipboard API failed:', err);
+            fallbackCopy(urlInput, urlValue);
         });
+    } else {
+        fallbackCopy(urlInput, urlValue);
+    }
+}
+
+function fallbackCopy(urlInput, urlValue) {
+    try {
+        urlInput.select();
+        urlInput.setSelectionRange(0, 99999);
+        const successful = document.execCommand('copy');
+        
+        if (successful) {
+            showStatus('✅ OAuth URL copied to clipboard!', 'success');
+            console.log('URL copied successfully with execCommand');
+        } else {
+            throw new Error('execCommand failed');
+        }
+    } catch (err) {
+        console.error('Fallback copy failed:', err);
+        showStatus('❌ Copy failed. Please copy manually: ' + urlValue, 'error');
     }
 }
 
@@ -2140,17 +2173,20 @@ function renderAccountList(accounts) {
                 return `
                     <div id="account-${account.id}" class="p-4 bg-vercel-gray-800 rounded-xl border-2 ${selectedClass} transition-all duration-300 cursor-pointer transform hover:scale-[1.02]" onclick="selectAccountFromList('${account.account_name}', '${account.id}')">
                         <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-4">
-                                <div class="relative">
-                                    <div class="w-5 h-5 ${account.is_authenticated ? 'bg-green-500' : 'bg-red-500'} rounded-full shadow-lg"></div>
+                                                        <div class="flex items-center space-x-4">
+                                <div class="relative flex items-center justify-center w-8 h-8">
+                                    ${account.is_authenticated ? 
+                                        '<i class="fas fa-check-circle text-green-500 text-2xl"></i>' : 
+                                        '<i class="fas fa-times-circle text-red-500 text-2xl"></i>'
+                                    }
                                     ${isSelected ? '<div class="absolute -top-1 -right-1 w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>' : ''}
-        </div>
+                                </div>
                                 <span class="${selectedTextClass} text-lg">${account.account_name}</span>
                                 <span class="text-xs px-3 py-1 rounded-full font-medium ${account.is_authenticated ? 'bg-green-500 bg-opacity-20 text-green-400 border border-green-500 border-opacity-30' : 'bg-red-500 bg-opacity-20 text-red-400 border border-red-500 border-opacity-30'}">
                                     ${account.is_authenticated ? '✅ Authenticated' : '❌ Need Auth'}
                                 </span>
                                 ${isSelected ? '<div class="flex items-center space-x-2 bg-blue-500 bg-opacity-20 px-3 py-1 rounded-full border border-blue-500 border-opacity-30"><i class="fas fa-check-circle text-blue-400 text-lg"></i><span class="text-blue-400 font-bold text-sm">SELECTED</span></div>' : ''}
-        </div>
+                            </div>
                             <div class="flex space-x-2" onclick="event.stopPropagation()">
                                 <button onclick="authenticateFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-2 bg-green-500 bg-opacity-20 text-green-400 rounded-lg hover:bg-opacity-30 transition-colors border border-green-500 border-opacity-30 font-medium">
                                     <i class="fas fa-key mr-1"></i>Auth

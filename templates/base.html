@@ -869,14 +869,27 @@
 
         .modal.show {
             display: flex !important;
-            align-items: center !important;
+            align-items: flex-end !important;
             justify-content: center !important;
+            padding-bottom: 2rem !important;
         }
 
         .modal-dialog {
             position: relative !important;
             max-width: 90% !important;
             margin: auto !important;
+            animation: slideUpFromBottom 0.3s ease-out !important;
+        }
+
+        @keyframes slideUpFromBottom {
+            from {
+                transform: translateY(100%) !important;
+                opacity: 0 !important;
+            }
+            to {
+                transform: translateY(0) !important;
+                opacity: 1 !important;
+            }
         }
 
         .modal-backdrop {
