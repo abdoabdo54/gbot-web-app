@@ -89,47 +89,36 @@
     </div>
     
     <!-- Search and Account List Area -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2">
-                    <label for="account-filter" class="block text-sm font-medium text-vercel-gray-300 mb-2">🔍 Search Accounts:</label>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2">
+            <label for="account-filter" class="block text-sm font-medium text-vercel-gray-300 mb-2">🔍 Search Accounts:</label>
             <input type="text" id="account-filter" placeholder="Type to search accounts..." 
-                           class="vercel-input mb-4"
-                           autocomplete="off">
-                    
-                    <div id="account-list-display" class="vercel-table max-h-64 overflow-y-auto">
-                        <div class="space-y-2">
-                            {% for account in accounts %}
-                            <div class="account-item p-3 bg-vercel-gray-800 hover:bg-vercel-gray-700 rounded-lg cursor-pointer transition-colors border border-vercel-gray-700" 
-                                 onclick="selectAccountFromList('{{ account.account_name }}', {{ account.id }})" data-account-id="{{ account.id }}">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                    <span class="text-vercel-gray-100">{{ account.account_name }}</span>
-                                </div>
-                </div>
-                {% endfor %}
-                        </div>
+                   class="vercel-input mb-4" autocomplete="off">
+            
+            <div id="account-list-display" class="vercel-table max-h-64 overflow-y-auto">
+                <!-- This will be populated by JavaScript -->
             </div>
         </div>
         
-                <div class="space-y-4">
-                    <button onclick="authenticateFromList()" class="btn-vercel w-full">
-                        <i class="fas fa-key"></i>
-                        Authenticate (List Selection)
+        <div class="space-y-4">
+            <button onclick="authenticateFromList()" class="btn-vercel w-full">
+                <i class="fas fa-key"></i>
+                Authenticate (List Selection)
             </button>
-                    <button onclick="deleteFromList()" class="btn-vercel-danger w-full">
-                        <i class="fas fa-trash"></i>
-                        Delete Account (List Selection)
+            <button onclick="deleteFromList()" class="btn-vercel-danger w-full">
+                <i class="fas fa-trash"></i>
+                Delete Account (List Selection)
             </button>
         </div>
     </div>
-            
-            <div class="mt-6 space-y-4">
-                <div id="account-count-display" class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
-                    <span id="account-stats" class="text-vercel-gray-300">Loading account statistics...</span>
-    </div>
-                <div id="auth-status" class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
-                    <p class="text-vercel-gray-300">No account authenticated</p>
-                </div>
+    
+    <div class="mt-6 space-y-4">
+        <div id="account-count-display" class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
+            <span id="account-stats" class="text-vercel-gray-300">Loading account statistics...</span>
+        </div>
+        <div id="auth-status" class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700">
+            <p class="text-vercel-gray-300">No account authenticated</p>
+        </div>
     </div>
 </div>
 
@@ -725,15 +714,13 @@ function showTab(tabId) {
 document.addEventListener('DOMContentLoaded', function() {
     showTab('tab1');
     
-    // Load account statistics and authentication status
+    // Load account list and statistics
+    loadAccountList();
     loadAccountStatistics();
     checkCurrentAuthenticationStatus();
     
     // Clear user list initially
     clearUserList();
-    
-    // Load accounts list
-    loadAccountList();
 });
 
 // Global variables
@@ -2018,6 +2005,11 @@ function filterAccounts() {
     const filter = filterInput.value.toLowerCase().trim();
     console.log('Filtering accounts with:', filter);
     
+    if (!currentAccountList || currentAccountList.length === 0) {
+        console.log('No accounts to filter');
+        return;
+    }
+    
     if (filter === '') {
         // Show all accounts
         renderAccountList(currentAccountList);
@@ -2026,17 +2018,16 @@ function filterAccounts() {
     
     // Filter accounts based on search term
     const filteredAccounts = currentAccountList.filter(account => 
-        account.account_name.toLowerCase().includes(filter)
+        account.account_name && account.account_name.toLowerCase().includes(filter)
     );
     
-    console.log('Filtered accounts:', filteredAccounts.length);
+    console.log('Filtered accounts:', filteredAccounts.length, 'out of', currentAccountList.length);
     
     // Re-render with filtered accounts
     renderAccountList(filteredAccounts);
     
-    if (filter) {
-        showStatus(`🔍 Found ${filteredAccounts.length} accounts matching: "${filter}"`, 'info');
-    }
+    // Show status message
+    showStatus(`🔍 Found ${filteredAccounts.length} accounts matching: "${filter}"`, 'info');
 }
 
 // Enhanced event listener setup
@@ -2101,18 +2092,25 @@ function togglePasswordVisibility(inputId) {
 
 // Account List Management
 function loadAccountList() {
+    console.log('Loading account list...');
     fetch('/api/get-accounts')
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
+        console.log('Account data received:', data);
+        if (data.success && data.accounts) {
             updateAccountSelect(data.accounts);
             updateAccountList(data.accounts);
             // Setup search functionality after accounts are loaded
             setupAccountSearchAfterLoad();
+            console.log('Account list loaded successfully with', data.accounts.length, 'accounts');
+        } else {
+            console.error('Failed to load accounts:', data.error);
+            showStatus('Failed to load accounts: ' + (data.error || 'Unknown error'), 'error');
         }
     })
     .catch(error => {
         console.error('Error loading accounts:', error);
+        showStatus('Network error loading accounts: ' + error, 'error');
     });
 }
 
@@ -2158,49 +2156,132 @@ function updateAccountList(accounts) {
 
 function renderAccountList(accounts) {
     const accountListDisplay = document.getElementById('account-list-display');
-    if (!accountListDisplay) return;
+    if (!accountListDisplay) {
+        console.error('Account list display element not found!');
+        return;
+    }
     
-    accountListDisplay.innerHTML = `
-        <div class="space-y-3">
-            ${accounts.map(account => {
-                const isSelected = selectedAccountFromList && selectedAccountFromList.id === account.id;
-                const selectedClass = isSelected ? 
-                    'border-blue-500 bg-gradient-to-r from-blue-500 to-indigo-500 bg-opacity-15 ring-4 ring-blue-500 ring-opacity-30 shadow-lg shadow-blue-500/25' : 
-                    'border-vercel-gray-700 hover:border-vercel-gray-600 hover:shadow-lg';
+    if (!accounts || accounts.length === 0) {
+        accountListDisplay.innerHTML = `
+            <div class="text-center py-8">
+                <div class="w-16 h-16 bg-vercel-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-users text-vercel-gray-400 text-2xl"></i>
+                </div>
+                <p class="text-vercel-gray-400">No accounts available. Add accounts to get started.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div class="space-y-2">';
+    
+    accounts.forEach(account => {
+        const isSelected = selectedAccountFromList && selectedAccountFromList.id === account.id;
+        const selectedClass = isSelected ? 'border-blue-500 bg-blue-500 bg-opacity-10' : 'border-vercel-gray-700';
+        const authIcon = account.is_authenticated ? 
+            '<i class="fas fa-check-circle text-green-500"></i>' : 
+            '<i class="fas fa-times-circle text-red-500"></i>';
+        const authStatus = account.is_authenticated ? 'Authenticated' : 'Need Auth';
+        const authClass = account.is_authenticated ? 
+            'bg-green-500 bg-opacity-20 text-green-400' : 
+            'bg-red-500 bg-opacity-20 text-red-400';
+        
+        html += `
+            <div id="account-${account.id}" 
+                 class="p-3 bg-vercel-gray-800 hover:bg-vercel-gray-700 rounded-lg cursor-pointer transition-colors border ${selectedClass}" 
+                 onclick="selectAccountFromList('${account.account_name}', '${account.id}')"
+                 data-account-id="${account.id}">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        ${authIcon}
+                        <span class="text-white font-medium">${account.account_name}</span>
+                        <span class="text-xs px-2 py-1 rounded ${authClass}">
+                            ${authStatus}
+                        </span>
+                        ${isSelected ? '<i class="fas fa-arrow-left text-blue-400"></i>' : ''}
+                    </div>
+                    <div class="flex space-x-2" onclick="event.stopPropagation()">
+                        <button onclick="authenticateFromList('${account.account_name}', '${account.id}')" 
+                                class="text-xs px-2 py-1 bg-green-500 bg-opacity-20 text-green-400 rounded hover:bg-opacity-30 transition-colors">
+                            Auth
+                        </button>
+                        <button onclick="deleteFromList('${account.account_name}', '${account.id}')" 
+                                class="text-xs px-2 py-1 bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30 transition-colors">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    accountListDisplay.innerHTML = html;
+    
+    console.log('Account list rendered with', accounts.length, 'accounts');
+    
+    // Update account statistics
+    updateAccountStatistics(accounts);
+}
+
+function updateAccountStatistics(accounts) {
+    const accountStatsElement = document.getElementById('account-stats');
+    const authStatusElement = document.getElementById('auth-status');
+    
+    if (!accounts || accounts.length === 0) {
+        if (accountStatsElement) {
+            accountStatsElement.textContent = 'No accounts available';
+        }
+        if (authStatusElement) {
+            authStatusElement.innerHTML = '<p class="text-vercel-gray-300">No account authenticated</p>';
+        }
+        return;
+    }
+    
+    const totalAccounts = accounts.length;
+    const authenticatedAccounts = accounts.filter(acc => acc.is_authenticated).length;
+    const needAuthAccounts = totalAccounts - authenticatedAccounts;
+    
+    if (accountStatsElement) {
+        accountStatsElement.innerHTML = `
+            <div class="space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-vercel-gray-300">Total Accounts:</span>
+                    <span class="text-white font-bold">${totalAccounts}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-green-400">✅ Authenticated:</span>
+                    <span class="text-green-400 font-bold">${authenticatedAccounts}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-red-400">❌ Need Auth:</span>
+                    <span class="text-red-400 font-bold">${needAuthAccounts}</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (authStatusElement) {
+        const selectedAccount = selectedAccountFromList;
+        if (selectedAccount) {
+            const account = accounts.find(acc => acc.id === selectedAccount.id);
+            if (account) {
+                const statusIcon = account.is_authenticated ? '✅' : '❌';
+                const statusText = account.is_authenticated ? 'Authenticated' : 'Needs Authentication';
+                const statusClass = account.is_authenticated ? 'text-green-400' : 'text-red-400';
                 
-                const selectedTextClass = isSelected ? 'text-blue-100 font-bold' : 'text-white font-semibold';
-                
-                return `
-                    <div id="account-${account.id}" class="p-4 bg-vercel-gray-800 rounded-xl border-2 ${selectedClass} transition-all duration-300 cursor-pointer transform hover:scale-[1.02]" onclick="selectAccountFromList('${account.account_name}', '${account.id}')">
-                        <div class="flex items-center justify-between">
-                                                        <div class="flex items-center space-x-4">
-                                <div class="relative flex items-center justify-center w-8 h-8">
-                                    ${account.is_authenticated ? 
-                                        '<i class="fas fa-check-circle text-green-500 text-2xl"></i>' : 
-                                        '<i class="fas fa-times-circle text-red-500 text-2xl"></i>'
-                                    }
-                                    ${isSelected ? '<div class="absolute -top-1 -right-1 w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>' : ''}
-                                </div>
-                                <span class="${selectedTextClass} text-lg">${account.account_name}</span>
-                                <span class="text-xs px-3 py-1 rounded-full font-medium ${account.is_authenticated ? 'bg-green-500 bg-opacity-20 text-green-400 border border-green-500 border-opacity-30' : 'bg-red-500 bg-opacity-20 text-red-400 border border-red-500 border-opacity-30'}">
-                                    ${account.is_authenticated ? '✅ Authenticated' : '❌ Need Auth'}
-                                </span>
-                                ${isSelected ? '<div class="flex items-center space-x-2 bg-blue-500 bg-opacity-20 px-3 py-1 rounded-full border border-blue-500 border-opacity-30"><i class="fas fa-check-circle text-blue-400 text-lg"></i><span class="text-blue-400 font-bold text-sm">SELECTED</span></div>' : ''}
-                            </div>
-                            <div class="flex space-x-2" onclick="event.stopPropagation()">
-                                <button onclick="authenticateFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-2 bg-green-500 bg-opacity-20 text-green-400 rounded-lg hover:bg-opacity-30 transition-colors border border-green-500 border-opacity-30 font-medium">
-                                    <i class="fas fa-key mr-1"></i>Auth
-            </button>
-                                <button onclick="deleteFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-2 bg-red-500 bg-opacity-20 text-red-400 rounded-lg hover:bg-opacity-30 transition-colors border border-red-500 border-opacity-30 font-medium">
-                                    <i class="fas fa-trash mr-1"></i>Delete
-            </button>
-                            </div>
-                        </div>
-        </div>
-    `;
-            }).join('')}
-        </div>
-    `;
+                authStatusElement.innerHTML = `
+                    <div class="space-y-2">
+                        <p class="text-vercel-gray-300">Selected Account:</p>
+                        <p class="text-white font-bold">${account.account_name}</p>
+                        <p class="${statusClass}">${statusIcon} ${statusText}</p>
+                    </div>
+                `;
+            }
+        } else {
+            authStatusElement.innerHTML = '<p class="text-vercel-gray-300">No account selected</p>';
+        }
+    }
 }
 
 function selectAccountFromList(accountName, accountId) {
