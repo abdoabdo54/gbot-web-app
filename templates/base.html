@@ -383,6 +383,132 @@
             border-radius: 8px;
             padding: 16px;
         }
+
+        /* Light Theme Styles */
+        .light {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-tertiary: #64748b;
+            --border-primary: #e2e8f0;
+            --border-secondary: #cbd5e1;
+        }
+
+        .light .vercel-gradient {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+
+        .light .vercel-card {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #e2e8f0;
+            color: #1e293b;
+        }
+
+        .light .vercel-input {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            color: #1e293b;
+        }
+
+        .light .vercel-input:focus {
+            border-color: #0070f3;
+            box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1);
+        }
+
+        .light .vercel-select {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            color: #1e293b;
+        }
+
+        .light .vercel-table {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #e2e8f0;
+        }
+
+        .light .vercel-table th {
+            background: #f1f5f9;
+            color: #1e293b;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .light .vercel-table td {
+            color: #475569;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .light .vercel-table tr:hover {
+            background: rgba(248, 250, 252, 0.8);
+        }
+
+        .light .glass {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(226, 232, 240, 0.3);
+        }
+
+        .light .text-white {
+            color: #1e293b !important;
+        }
+
+        .light .text-vercel-gray-100 {
+            color: #1e293b !important;
+        }
+
+        .light .text-vercel-gray-300 {
+            color: #475569 !important;
+        }
+
+        .light .text-vercel-gray-400 {
+            color: #64748b !important;
+        }
+
+        .light .text-vercel-gray-500 {
+            color: #64748b !important;
+        }
+
+        .light .bg-vercel-gray-800 {
+            background: #f1f5f9 !important;
+        }
+
+        .light .bg-vercel-gray-700 {
+            background: #f8fafc !important;
+        }
+
+        .light .border-vercel-gray-700 {
+            border-color: #e2e8f0 !important;
+        }
+
+        /* Enhanced hover effects */
+        .btn-vercel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 112, 243, 0.4);
+        }
+
+        .btn-vercel-secondary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-vercel-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-vercel-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4);
+        }
+
+        .vercel-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .light .vercel-card:hover {
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+        }
         
         /* Table styles */
         .vercel-table {
@@ -479,6 +605,12 @@
                         </div>
                     </div>
 
+                    <!-- Theme Toggle -->
+                    <button onclick="toggleTheme()" class="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-vercel-gray-300 hover:text-white hover:bg-vercel-gray-800 rounded-lg transition-colors" title="Toggle Theme">
+                        <i id="theme-icon" class="fas fa-sun text-xs"></i>
+                        <span id="theme-text">Light</span>
+                    </button>
+
                     <!-- Logout -->
                     <a href="{{ url_for('logout') }}" class="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-vercel-gray-300 hover:text-red-400 hover:bg-vercel-gray-800 rounded-lg transition-colors">
                         <i class="fas fa-sign-out-alt text-xs"></i>
@@ -513,5 +645,57 @@
     </main>
 
     {% block scripts %}{% endblock %}
+
+    <!-- Theme Toggle Script -->
+    <script>
+        // Theme management
+        function toggleTheme() {
+            const body = document.body;
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('theme-icon');
+            const themeText = document.getElementById('theme-text');
+            
+            if (body.classList.contains('light')) {
+                // Switch to dark theme
+                body.classList.remove('light');
+                html.classList.remove('light');
+                html.classList.add('dark');
+                themeIcon.className = 'fas fa-sun text-xs';
+                themeText.textContent = 'Light';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                // Switch to light theme
+                body.classList.add('light');
+                html.classList.add('light');
+                html.classList.remove('dark');
+                themeIcon.className = 'fas fa-moon text-xs';
+                themeText.textContent = 'Dark';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme');
+            const themeIcon = document.getElementById('theme-icon');
+            const themeText = document.getElementById('theme-text');
+            
+            if (savedTheme === 'light') {
+                document.body.classList.add('light');
+                document.documentElement.classList.add('light');
+                document.documentElement.classList.remove('dark');
+                if (themeIcon) {
+                    themeIcon.className = 'fas fa-moon text-xs';
+                    themeText.textContent = 'Dark';
+                }
+            } else {
+                document.documentElement.classList.add('dark');
+                if (themeIcon) {
+                    themeIcon.className = 'fas fa-sun text-xs';
+                    themeText.textContent = 'Light';
+                }
+            }
+        });
+    </script>
 </body>
 </html>

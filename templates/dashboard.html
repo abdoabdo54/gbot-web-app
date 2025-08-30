@@ -614,13 +614,282 @@ function showTab(tabId) {
 document.addEventListener('DOMContentLoaded', function() {
     showTab('tab1');
     
-    // Add all existing dashboard JavaScript functionality here
-    // This is where you would add all the original functions like:
-    // - authenticateAccount()
-    // - retrieveUsers()
-    // - loadSuspendedUsers()
-    // etc.
+    // Load account statistics and authentication status
+    loadAccountStatistics();
+    checkCurrentAuthenticationStatus();
 });
+
+// Global variables
+let currentAccountId = null;
+let currentAccountName = null;
+let selectedAccountFromList = null;
+
+// Account Management Functions
+function authenticateAccount() {
+    const accountSelect = document.getElementById('account-select');
+    const selectedValue = accountSelect.value;
+    const selectedOption = accountSelect.options[accountSelect.selectedIndex];
+    
+    if (!selectedValue) {
+        showStatus('Please select an account to authenticate', 'error');
+        return;
+    }
+    
+    const accountId = selectedOption.getAttribute('data-account-id');
+    const accountName = selectedValue;
+    
+    showStatus('Authenticating account...', 'info');
+    
+    fetch('/api/authenticate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            account_name: accountName,
+            account_id: accountId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus(data.message, 'success');
+            currentAccountId = accountId;
+            currentAccountName = accountName;
+            updateAuthStatus(accountName, 'authenticated');
+            sessionStorage.setItem('currentAccountName', accountName);
+            sessionStorage.setItem('currentAccountId', accountId);
+        } else if (data.oauth_url) {
+            showOAuthModal(data.oauth_url);
+        } else {
+            showStatus('Authentication failed: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function retrieveUsers() {
+    if (!currentAccountName && !sessionStorage.getItem('currentAccountName')) {
+        showStatus('Please authenticate an account first', 'error');
+        return;
+    }
+    
+    const accountName = currentAccountName || sessionStorage.getItem('currentAccountName');
+    showStatus('Retrieving users...', 'info');
+    
+    fetch('/api/retrieve-users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            account_name: accountName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayUsers(data.users);
+            updateUserCount(data.users.length);
+            showStatus(`Retrieved ${data.users.length} users successfully`, 'success');
+        } else {
+            showStatus('Error retrieving users: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showStatus('Network error: ' + error, 'error');
+    });
+}
+
+function displayUsers(users) {
+    const userDisplay = document.getElementById('user-display');
+    
+    if (!users || users.length === 0) {
+        userDisplay.innerHTML = `
+            <div class="text-center py-8">
+                <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-users text-vercel-gray-400 text-2xl"></i>
+                </div>
+                <p class="text-vercel-gray-400">No users found in this Google Workspace.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let totalUsers = users.length;
+    let activeUsers = users.filter(u => !u.suspended).length;
+    let suspendedUsers = users.filter(u => u.suspended).length;
+    let adminUsers = users.filter(u => u.isAdmin).length;
+    
+    userDisplay.innerHTML = `
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700 text-center">
+                    <div class="text-2xl font-bold text-blue-400">${totalUsers}</div>
+                    <div class="text-vercel-gray-400 text-sm">Total Users</div>
+                </div>
+                <div class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700 text-center">
+                    <div class="text-2xl font-bold text-green-400">${activeUsers}</div>
+                    <div class="text-vercel-gray-400 text-sm">Active</div>
+                </div>
+                <div class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700 text-center">
+                    <div class="text-2xl font-bold text-red-400">${suspendedUsers}</div>
+                    <div class="text-vercel-gray-400 text-sm">Suspended</div>
+                </div>
+                <div class="p-4 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700 text-center">
+                    <div class="text-2xl font-bold text-purple-400">${adminUsers}</div>
+                    <div class="text-vercel-gray-400 text-sm">Admins</div>
+                </div>
+            </div>
+            <div class="vercel-table max-h-96 overflow-y-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr>
+                            <th class="text-left">Name</th>
+                            <th class="text-left">Email</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Admin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(user => `
+                            <tr class="${user.suspended ? 'bg-red-500 bg-opacity-10' : ''}">
+                                <td class="font-medium">${user.name || 'N/A'}</td>
+                                <td class="font-mono text-sm">${user.primaryEmail}</td>
+                                <td class="text-center">
+                                    <span class="status-${user.suspended ? 'suspended' : 'active'}">
+                                        <i class="fas fa-${user.suspended ? 'user-slash' : 'user-check'} mr-1"></i>
+                                        ${user.suspended ? 'Suspended' : 'Active'}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    ${user.isAdmin ? 
+                                        '<span class="status-admin"><i class="fas fa-crown mr-1"></i>Admin</span>' : 
+                                        '<span class="text-vercel-gray-500">User</span>'
+                                    }
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+// Helper Functions
+function showStatus(message, type) {
+    const statusHtml = `
+        <div class="alert-vercel-${type} flex items-center space-x-3 mb-3 rounded-lg shadow-lg" style="position: fixed; top: 20px; right: 20px; z-index: 10000; max-width: 400px;">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : type === 'warning' ? 'exclamation-circle' : 'info-circle'} text-lg"></i>
+            <span class="font-medium flex-1">${message}</span>
+            <button type="button" class="text-current opacity-50 hover:opacity-100" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('afterbegin', statusHtml);
+    
+    if (type === 'success' || type === 'info') {
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert-vercel-success, .alert-vercel-info');
+            alerts.forEach(alert => alert.remove());
+        }, 5000);
+    }
+}
+
+function updateAuthStatus(accountName, status) {
+    const authStatus = document.getElementById('auth-status');
+    if (authStatus) {
+        authStatus.innerHTML = `
+            <div class="flex items-center space-x-3">
+                <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span class="text-green-400 font-medium">Authenticated: ${accountName}</span>
+            </div>
+        `;
+    }
+}
+
+function loadAccountStatistics() {
+    const accountStats = document.getElementById('account-stats');
+    if (accountStats) {
+        accountStats.textContent = 'Ready for account operations';
+    }
+}
+
+function checkCurrentAuthenticationStatus() {
+    const storedAccountName = sessionStorage.getItem('currentAccountName');
+    const storedAccountId = sessionStorage.getItem('currentAccountId');
+    
+    if (storedAccountName && storedAccountId) {
+        currentAccountName = storedAccountName;
+        currentAccountId = storedAccountId;
+        updateAuthStatus(storedAccountName, 'authenticated');
+    }
+}
+
+function updateUserCount(count) {
+    const userCountElement = document.getElementById('user-count');
+    if (userCountElement) {
+        userCountElement.innerHTML = `<span class="text-vercel-gray-300">Total Users: ${count}</span>`;
+    }
+}
+
+function clearUserList() {
+    const userDisplay = document.getElementById('user-display');
+    userDisplay.innerHTML = `
+        <div class="text-center py-8">
+            <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-users text-vercel-gray-400 text-2xl"></i>
+            </div>
+            <h4 class="text-vercel-gray-300 text-lg font-medium mb-2">User Management</h4>
+            <p class="text-vercel-gray-500">Click "Retrieve All Users" to load and display all users from your Google Workspace.</p>
+        </div>
+    `;
+    updateUserCount(0);
+}
+
+function copyAllUsers() {
+    const userTable = document.querySelector('#user-display table tbody');
+    if (!userTable) {
+        showStatus('No users to copy. Please retrieve users first.', 'error');
+        return;
+    }
+    
+    const rows = userTable.querySelectorAll('tr');
+    let userData = 'Name\tEmail\tStatus\tAdmin\n';
+    
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 4) {
+            const name = cells[0].textContent.trim();
+            const email = cells[1].textContent.trim();
+            const status = cells[2].textContent.trim();
+            const admin = cells[3].textContent.trim();
+            userData += `${name}\t${email}\t${status}\t${admin}\n`;
+        }
+    });
+    
+    navigator.clipboard.writeText(userData).then(() => {
+        showStatus('User data copied to clipboard', 'success');
+    }).catch(() => {
+        showStatus('Failed to copy to clipboard', 'error');
+    });
+}
+
+// Placeholder functions for buttons that need implementation
+function openAddAccountModal() { showStatus('Add Account modal - needs implementation', 'info'); }
+function addFromServerJSON() { showStatus('Add from Server JSON - needs implementation', 'info'); }
+function forceTokenStatusCheck() { showStatus('Force token status check - needs implementation', 'info'); }
+function enterAuthorizationCode() { showStatus('Enter authorization code - needs implementation', 'info'); }
+function updateAllPasswords() { showStatus('Update all passwords - needs implementation', 'info'); }
+function loadSuspendedUsers() { showStatus('Load suspended users - needs implementation', 'info'); }
+function copySuspendedUsers() { showStatus('Copy suspended users - needs implementation', 'info'); }
+function refreshSuspendedUsers() { showStatus('Refresh suspended users - needs implementation', 'info'); }
+function clearSuspendedUsers() { showStatus('Clear suspended users - needs implementation', 'info'); }
+function selectAccountFromList(accountName, accountId) { showStatus(`Selected account: ${accountName}`, 'info'); }
+function authenticateFromList() { showStatus('Authenticate from list - needs implementation', 'info'); }
+function deleteFromList() { showStatus('Delete from list - needs implementation', 'info'); }
+function filterAccounts() { showStatus('Filter accounts - needs implementation', 'info'); }
 </script>
 
 <style>
