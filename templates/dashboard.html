@@ -153,31 +153,49 @@
     </div>
 </div>
 
-    <!-- User Listing & Actions -->
-    <div class="section">
-        <h3>🧑‍💻 User Listing & Basic Actions</h3>
-        
-        <div class="button-row">
-            <button onclick="retrieveUsers()">📊 Retrieve All Users</button>
-            <button onclick="clearUserList()">🧹 Clear List</button>
-            <button onclick="copyAllUsers()">📋 Copy All</button>
-        </div>
-        
-        <div id="user-display" class="data-display">
-            <div class="status-info">
-                <p><strong>👥 User Management</strong></p>
-                <p>Click "📊 Retrieve All Users" to load and display all users from your Google Workspace.</p>
-                <p><small>This will show user status (Active/Suspended), admin privileges, and provide options for bulk operations.</small></p>
-            </div>
-        </div>
-        
-        <div id="user-count" class="count-display">Total Users: 0</div>
-        
-        <div class="form-row">
-            <input type="password" id="new-password" placeholder="New password for all users" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly');">
-            <button onclick="updateAllPasswords()">🔑 Update Password (All)</button>
+<!-- User Listing & Actions -->
+<div class="github-card">
+    <div class="github-card-header">
+        <h3 class="github-card-title">
+            <i class="fas fa-users"></i>
+            User Listing & Basic Actions
+        </h3>
+    </div>
+    
+    <div class="button-row">
+        <button onclick="retrieveUsers()" class="btn-github btn-github-primary">
+            <i class="fas fa-chart-bar"></i> Retrieve All Users
+        </button>
+        <button onclick="clearUserList()" class="btn-github">
+            <i class="fas fa-broom"></i> Clear List
+        </button>
+        <button onclick="copyAllUsers()" class="btn-github">
+            <i class="fas fa-copy"></i> Copy All
+        </button>
+    </div>
+    
+    <div id="user-display" class="data-display">
+        <div class="status-info">
+            <p><strong><i class="fas fa-users"></i> User Management</strong></p>
+            <p>Click "Retrieve All Users" to load and display all users from your Google Workspace.</p>
+            <p><small>This will show user status (Active/Suspended), admin privileges, and provide options for bulk operations.</small></p>
         </div>
     </div>
+    
+    <div id="user-count" class="count-display">Total Users: 0</div>
+    
+    <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; margin-top: 16px;">
+        <div class="form-group-github">
+            <label for="new-password" class="form-label-github">
+                <i class="fas fa-lock"></i> New Password for All Users
+            </label>
+            <input type="password" id="new-password" class="form-control-github" placeholder="Enter new password for all users" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly');">
+        </div>
+        <button onclick="updateAllPasswords()" class="btn-github btn-github-danger">
+            <i class="fas fa-key"></i> Update Password (All)
+        </button>
+    </div>
+</div>
 
     <!-- Domain Info
     <div class="section">
@@ -193,246 +211,481 @@
         </div>
     </div> -->
 
-    <!-- Suspended Users -->
-    <div class="section">
-        <h3>⛔ Suspended User Management</h3>
-        
-        <div class="button-row">
-            <button onclick="loadSuspendedUsers()">🔍 Load Suspended Users</button>
-            <button onclick="copySuspendedUsers()">📋 Copy Selected</button>
-            <button onclick="refreshSuspendedUsers()" class="secondary-button">🔄 Refresh Status</button>
-            <button onclick="clearSuspendedUsers()" class="secondary-button">🧹 Clear Display</button>
-        </div>
-        
-        <div id="suspended-display" class="data-display">
-            <div class="status-info">
-                <p><strong>⛔ Suspended User Management</strong></p>
-                <p>Click "🔍 Load Suspended Users" to check for suspended accounts in your Google Workspace.</p>
-                <p><small>This will show all users with suspended status, including their names, emails, and admin privileges.</small></p>
-            </div>
+<!-- Suspended Users -->
+<div class="github-card">
+    <div class="github-card-header">
+        <h3 class="github-card-title">
+            <i class="fas fa-user-slash"></i>
+            Suspended User Management
+        </h3>
+    </div>
+    
+    <div class="button-row">
+        <button onclick="loadSuspendedUsers()" class="btn-github btn-github-primary">
+            <i class="fas fa-search"></i> Load Suspended Users
+        </button>
+        <button onclick="copySuspendedUsers()" class="btn-github">
+            <i class="fas fa-copy"></i> Copy Selected
+        </button>
+        <button onclick="refreshSuspendedUsers()" class="btn-github">
+            <i class="fas fa-sync-alt"></i> Refresh Status
+        </button>
+        <button onclick="clearSuspendedUsers()" class="btn-github">
+            <i class="fas fa-broom"></i> Clear Display
+        </button>
+    </div>
+    
+    <div id="suspended-display" class="data-display">
+        <div class="status-info">
+            <p><strong><i class="fas fa-user-slash"></i> Suspended User Management</strong></p>
+            <p>Click "Load Suspended Users" to check for suspended accounts in your Google Workspace.</p>
+            <p><small>This will show all users with suspended status, including their names, emails, and admin privileges.</small></p>
         </div>
     </div>
+</div>
 </div>
 </div>
 
 <!-- Tab 2: User Create/Delete/Domain -->
 <div id="tab2" class="tab-content">
-    <h2>User Create/Delete/Domain</h2>
     
     <!-- Create Single User -->
-    <div class="section">
-        <h3>👤 Create Single User</h3>
-        <div class="form-row">
-            <input type="text" id="new-user-first-name" placeholder="First Name">
-            <input type="text" id="new-user-last-name" placeholder="Last Name">
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-user-plus"></i>
+                Create Single User
+            </h3>
         </div>
-        <div class="form-row">
-            <input type="email" id="new-user-email" placeholder="Email Address">
-            <input type="password" id="new-user-password" placeholder="Password">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div class="form-group-github">
+                <label for="new-user-first-name" class="form-label-github">
+                    <i class="fas fa-user"></i> First Name
+                </label>
+                <input type="text" id="new-user-first-name" class="form-control-github" placeholder="Enter first name">
+            </div>
+            <div class="form-group-github">
+                <label for="new-user-last-name" class="form-label-github">
+                    <i class="fas fa-user"></i> Last Name
+                </label>
+                <input type="text" id="new-user-last-name" class="form-control-github" placeholder="Enter last name">
+            </div>
         </div>
-        <button onclick="createSingleUser()">➕ Create User</button>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="new-user-email" class="form-label-github">
+                    <i class="fas fa-envelope"></i> Email Address
+                </label>
+                <input type="email" id="new-user-email" class="form-control-github" placeholder="user@domain.com">
+            </div>
+            <div class="form-group-github">
+                <label for="new-user-password" class="form-label-github">
+                    <i class="fas fa-lock"></i> Password
+                </label>
+                <input type="password" id="new-user-password" class="form-control-github" placeholder="Enter password">
+            </div>
+        </div>
+        <button onclick="createSingleUser()" class="btn-github btn-github-primary">
+            <i class="fas fa-plus"></i> Create User
+        </button>
     </div>
 
     <!-- Domain Management -->
-    <div class="section">
-        <h3>🌐 Domain Management</h3>
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-globe"></i>
+                Domain Management
+            </h3>
+        </div>
         <div class="button-row">
-            <button onclick="getDomainInfo()">🔍 Retrieve Domains</button>
+            <button onclick="getDomainInfo()" class="btn-github btn-github-primary">
+                <i class="fas fa-search"></i> Retrieve Domains
+            </button>
         </div>
         <div id="domain-info-display" class="data-display">
-            <p>Click 'Retrieve Domains' to view domains here...</p>
+            <div class="status-info">
+                <p><strong><i class="fas fa-globe"></i> Domain Information</strong></p>
+                <p>Click "Retrieve Domains" to view domains here...</p>
+            </div>
         </div>
-        <div class="form-row">
-            <input type="text" id="new-domain-alias" placeholder="Enter new domain alias">
-            <button onclick="addDomainAlias()">➕ Add Domain Alias</button>
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; margin-top: 16px;">
+            <div class="form-group-github">
+                <label for="new-domain-alias" class="form-label-github">
+                    <i class="fas fa-plus"></i> New Domain Alias
+                </label>
+                <input type="text" id="new-domain-alias" class="form-control-github" placeholder="Enter new domain alias">
+            </div>
+            <button onclick="addDomainAlias()" class="btn-github btn-github-primary">
+                <i class="fas fa-plus"></i> Add Domain Alias
+            </button>
         </div>
     </div>
 
     <!-- Create Users from CSV File -->
-    <div class="section">
-        <h3>📥 Create Users from CSV File</h3>
-        <div class="form-row">
-            <input type="file" id="csv-file-input" accept=".csv">
-            <button onclick="createUsersFromCSV()">📥 Create Users from CSV</button>
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-file-csv"></i>
+                Create Users from CSV File
+            </h3>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end;">
+            <div class="form-group-github">
+                <label for="csv-file-input" class="form-label-github">
+                    <i class="fas fa-file-upload"></i> Select CSV File
+                </label>
+                <input type="file" id="csv-file-input" class="form-control-github" accept=".csv">
+            </div>
+            <button onclick="createUsersFromCSV()" class="btn-github btn-github-primary">
+                <i class="fas fa-upload"></i> Create Users from CSV
+            </button>
         </div>
     </div>
 
     <!-- Create Random Users -->
-    <div class="section">
-        <h3>🎲 Create Random Users</h3>
-        <div class="form-row">
-            <input type="number" id="random-user-count" min="1" max="100" placeholder="Number of users">
-            <input type="text" id="random-user-domain" placeholder="Domain (e.g., example.com)">
-            <button onclick="createRandomUsers()">🎲 Create Random Users</button>
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-random"></i>
+                Create Random Users
+            </h3>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end;">
+            <div class="form-group-github">
+                <label for="random-user-count" class="form-label-github">
+                    <i class="fas fa-hashtag"></i> Number of Users
+                </label>
+                <input type="number" id="random-user-count" class="form-control-github" min="1" max="100" placeholder="e.g., 10">
+            </div>
+            <div class="form-group-github">
+                <label for="random-user-domain" class="form-label-github">
+                    <i class="fas fa-globe"></i> Domain
+                </label>
+                <input type="text" id="random-user-domain" class="form-control-github" placeholder="example.com">
+            </div>
+            <button onclick="createRandomUsers()" class="btn-github btn-github-primary">
+                <i class="fas fa-random"></i> Create Random Users
+            </button>
         </div>
     </div>
 
     <!-- Change Domain for Specific Users -->
-    <div class="section">
-        <h3>🔄 Change Domain for Specific Users</h3>
-        <div class="form-row">
-            <input type="text" id="old-domain" placeholder="Current Domain (e.g., old.com)">
-            <input type="text" id="new-domain" placeholder="New Domain (e.g., new.com)">
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-exchange-alt"></i>
+                Change Domain for Specific Users
+            </h3>
         </div>
-        <textarea id="domain-change-emails" rows="4" placeholder="Enter email addresses, one per line"></textarea>
-        <button onclick="changeDomainForUsers()">🔄 Change Domain for These Users</button>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div class="form-group-github">
+                <label for="old-domain" class="form-label-github">
+                    <i class="fas fa-globe"></i> Current Domain
+                </label>
+                <input type="text" id="old-domain" class="form-control-github" placeholder="old.com">
+            </div>
+            <div class="form-group-github">
+                <label for="new-domain" class="form-label-github">
+                    <i class="fas fa-globe"></i> New Domain
+                </label>
+                <input type="text" id="new-domain" class="form-control-github" placeholder="new.com">
+            </div>
+        </div>
+        <div class="form-group-github" style="margin-bottom: 20px;">
+            <label for="domain-change-emails" class="form-label-github">
+                <i class="fas fa-envelope"></i> Email Addresses (one per line)
+            </label>
+            <textarea id="domain-change-emails" class="form-control-github" rows="4" placeholder="user1@old.com&#10;user2@old.com&#10;user3@old.com"></textarea>
+        </div>
+        <button onclick="changeDomainForUsers()" class="btn-github btn-github-primary">
+            <i class="fas fa-exchange-alt"></i> Change Domain for These Users
+        </button>
     </div>
 
     <!-- Delete Specific Users -->
-    <div class="section">
-        <h3>❌ Delete Specific Users</h3>
-        <textarea id="delete-user-emails" rows="4" placeholder="Enter email addresses to delete, one per line"></textarea>
-        <button onclick="deleteSpecificUsers()" class="delete-button">❌ Delete These Users</button>
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-user-times"></i>
+                Delete Specific Users
+            </h3>
+        </div>
+        <div class="form-group-github" style="margin-bottom: 20px;">
+            <label for="delete-user-emails" class="form-label-github">
+                <i class="fas fa-envelope"></i> Email Addresses to Delete (one per line)
+            </label>
+            <textarea id="delete-user-emails" class="form-control-github" rows="4" placeholder="user1@domain.com&#10;user2@domain.com&#10;user3@domain.com"></textarea>
+        </div>
+        <button onclick="deleteSpecificUsers()" class="btn-github btn-github-danger">
+            <i class="fas fa-trash"></i> Delete These Users
+        </button>
     </div>
 
     <!-- Results Log -->
-    <div class="section">
-        <h3>📝 Results Log</h3>
-        <div class="log-controls">
-            <button onclick="clearResultsLog()">🧹 Clear Log</button>
-            <button onclick="copyResultsLog()">📋 Copy Log</button>
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-file-alt"></i>
+                Results Log
+            </h3>
         </div>
-        <div id="results-log" class="results-log"></div>
+        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <button onclick="clearResultsLog()" class="btn-github">
+                <i class="fas fa-broom"></i> Clear Log
+            </button>
+            <button onclick="copyResultsLog()" class="btn-github">
+                <i class="fas fa-copy"></i> Copy Log
+            </button>
+        </div>
+        <div id="results-log" class="data-display" style="font-family: monospace; font-size: 13px;"></div>
     </div>
 </div>
 
-<!-- Tab 3: Placeholder -->
+<!-- Tab 3: Bulk Domain Change -->
 <div id="tab3" class="tab-content">
-    <h2>Bulk Domain Change</h2>
+    
     <!-- Workflow 1: Change Domain using CSV File -->
-    <div class="section">
-        <h3>📋 Workflow 1: Change Domain using CSV File</h3>
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-file-csv"></i>
+                Workflow 1: Change Domain using CSV File
+            </h3>
+        </div>
         
         <!-- Step 1.1: Download Current Users to CSV -->
-        <div class="workflow-step">
-            <h4>Step 1.1: Download Current Users to CSV</h4>
-            <div class="step-content">
-                <button onclick="downloadAllUsersCSV()" class="primary-button">📥 Download All Users</button>
-                <div class="info-text">
-                    CSV will be saved to: <span id="csv-save-path">Downloads folder</span>
-                </div>
+        <div style="margin-bottom: 32px;">
+            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-download" style="color: var(--color-accent-fg);"></i>
+                Step 1.1: Download Current Users to CSV
+            </h4>
+            <div style="margin-bottom: 16px;">
+                <button onclick="downloadAllUsersCSV()" class="btn-github btn-github-primary">
+                    <i class="fas fa-download"></i> Download All Users
+                </button>
+            </div>
+            <div style="background-color: rgba(9, 105, 218, 0.1); border: 1px solid var(--color-accent-emphasis); border-radius: 6px; padding: 12px; color: var(--color-accent-fg); font-size: 14px;">
+                <i class="fas fa-info-circle"></i>
+                CSV will be saved to: <strong id="csv-save-path">Downloads folder</strong>
             </div>
         </div>
         
         <!-- Step 1.2: Select New Domain and Apply to Downloaded CSV -->
-        <div class="workflow-step">
-            <h4>Step 1.2: Select New Domain and Apply to Downloaded CSV</h4>
-            <div class="step-content">
-                <div class="form-row">
-                    <button onclick="retrieveAvailableDomains()" class="secondary-button">🔍 Retrieve Available Domains</button>
-        <button onclick="getDomainUsageStats()" class="info-button">📊 Domain Usage Stats</button>
-        <button onclick="clearOldDomainData()" class="warning-button">🗑️ Clear Old Data</button>
-                    <button onclick="applySelectedDomainToCSV()" class="primary-button">✅ Apply Selected Domain to CSV</button>
-        <button onclick="debugDomainUsers()" class="debug-button">🐛 Debug Domain Users</button>
-                </div>
-                
-                <div class="domain-selection-area">
-                    <div id="available-domains" class="domain-list">
-                        <p class="placeholder-text">Click 'Retrieve Available Domains' to view domains</p>
-                    </div>
+        <div style="margin-bottom: 32px;">
+            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-globe" style="color: var(--color-accent-fg);"></i>
+                Step 1.2: Select New Domain and Apply to Downloaded CSV
+            </h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+                <button onclick="retrieveAvailableDomains()" class="btn-github">
+                    <i class="fas fa-search"></i> Retrieve Available Domains
+                </button>
+                <button onclick="getDomainUsageStats()" class="btn-github" style="background-color: var(--color-success-emphasis); border-color: var(--color-success-emphasis); color: #ffffff;">
+                    <i class="fas fa-chart-bar"></i> Domain Usage Stats
+                </button>
+                <button onclick="clearOldDomainData()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+                    <i class="fas fa-trash"></i> Clear Old Data
+                </button>
+                <button onclick="applySelectedDomainToCSV()" class="btn-github btn-github-primary">
+                    <i class="fas fa-check"></i> Apply Selected Domain to CSV
+                </button>
+                <button onclick="debugDomainUsers()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: #ffffff;">
+                    <i class="fas fa-bug"></i> Debug Domain Users
+                </button>
+            </div>
+            
+            <div id="available-domains" class="data-display">
+                <div class="status-info">
+                    <p><strong><i class="fas fa-globe"></i> Domain Selection</strong></p>
+                    <p>Click 'Retrieve Available Domains' to view available domains</p>
                 </div>
             </div>
         </div>
         
         <!-- Step 1.3: Process Domain Changes from Modified CSV -->
-        <div class="workflow-step">
-            <h4>Step 1.3: Process Domain Changes from Modified CSV</h4>
-            <div class="step-content">
-                <div class="form-row">
-                    <input type="text" id="csv-file-path" placeholder="CSV file path will appear here after download/apply, or browse manually..." readonly>
-                    <button onclick="browseCSVFile()" class="secondary-button">📁 Browse Manually...</button>
+        <div>
+            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-cogs" style="color: var(--color-accent-fg);"></i>
+                Step 1.3: Process Domain Changes from Modified CSV
+            </h4>
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; margin-bottom: 16px;">
+                <div class="form-group-github">
+                    <label for="csv-file-path" class="form-label-github">
+                        <i class="fas fa-file-csv"></i> CSV File Path
+                    </label>
+                    <input type="text" id="csv-file-path" class="form-control-github" placeholder="CSV file path will appear here after download/apply, or browse manually..." readonly>
                 </div>
-                <div class="form-row">
-                    <button onclick="processDomainChangesFromCSV()" class="primary-button">⚙️ Process Domain Changes from CSV</button>
-                </div>
+                <button onclick="browseCSVFile()" class="btn-github">
+                    <i class="fas fa-folder-open"></i> Browse Manually...
+                </button>
             </div>
+            <button onclick="processDomainChangesFromCSV()" class="btn-github btn-github-primary">
+                <i class="fas fa-cogs"></i> Process Domain Changes from CSV
+            </button>
         </div>
     </div>
 
     <!-- Workflow 2: Change Domain for All Users (Non-CSV, Excludes Admin) -->
-    <div class="section">
-        <h3>🔄 Workflow 2: Change Domain for All Users (Non-CSV, Excludes Admin)</h3>
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-exchange-alt"></i>
+                Workflow 2: Change Domain for All Users (Non-CSV, Excludes Admin)
+            </h3>
+        </div>
         
-        <div class="workflow-step">
-            <div class="form-row">
-                <label for="current-domain-suffix">Current Domain Suffix:</label>
-                <input type="text" id="current-domain-suffix" placeholder="e.g., old-domain.com">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="current-domain-suffix" class="form-label-github">
+                    <i class="fas fa-globe"></i> Current Domain Suffix
+                </label>
+                <input type="text" id="current-domain-suffix" class="form-control-github" placeholder="old-domain.com">
             </div>
-            <div class="form-row">
-                <label for="new-domain-suffix">New Domain Suffix:</label>
-                <input type="text" id="new-domain-suffix" placeholder="e.g., new-domain.com">
-            </div>
-            <div class="form-row">
-                <button onclick="changeDomainForAllUsers()" class="warning-button">🔄 Change Domain for ALL Matching Users (Non-Admin)</button>
+            <div class="form-group-github">
+                <label for="new-domain-suffix" class="form-label-github">
+                    <i class="fas fa-globe"></i> New Domain Suffix
+                </label>
+                <input type="text" id="new-domain-suffix" class="form-control-github" placeholder="new-domain.com">
             </div>
         </div>
+        
+        <button onclick="changeDomainForAllUsers()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+            <i class="fas fa-exchange-alt"></i> Change Domain for ALL Matching Users (Non-Admin)
+        </button>
     </div>
 
     <!-- Results Log (Covers Both Workflows) -->
-    <div class="section">
-        <h3>📝 Results Log (Covers Both Workflows)</h3>
-        
-        <div class="log-controls">
-            <button onclick="clearBulkDomainLog()" class="secondary-button">🧹 Clear Log</button>
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-file-alt"></i>
+                Results Log (Covers Both Workflows)
+            </h3>
         </div>
         
-        <div id="bulk-domain-results" class="results-log">
-            <p class="placeholder-text">Processing results will appear here...</p>
+        <div style="margin-bottom: 16px;">
+            <button onclick="clearBulkDomainLog()" class="btn-github">
+                <i class="fas fa-broom"></i> Clear Log
+            </button>
+        </div>
+        
+        <div id="bulk-domain-results" class="data-display" style="font-family: monospace; font-size: 13px;">
+            <div class="status-info">
+                <p><strong><i class="fas fa-file-alt"></i> Processing Results</strong></p>
+                <p>Processing results will appear here...</p>
+            </div>
         </div>
     </div>
 </div>
 </div>
 
-<!-- Tab 4: Placeholder -->
+<!-- Tab 4: SMTP & CSV Generation -->
 <div id="tab4" class="tab-content">
-    <h2>SMTP & CSV Generation</h2>
+    
     <!-- SMTP Credential Tester -->
-    <div class="section">
-        <h3>✉️ SMTP Credential Tester</h3>
-        
-        <div class="form-row">
-            <label for="smtp-credentials">SMTP Credentials (email:password, one per line):</label>
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-envelope"></i>
+                SMTP Credential Tester
+            </h3>
         </div>
-        <textarea id="smtp-credentials" rows="5" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456&#10;user3@yahoo.com:secretpass789"></textarea>
         
-        <div class="smtp-settings">
-            <div class="form-row">
-                <input type="email" id="smtp-recipient" placeholder="Recipient email (test@domain.com)">
-                <input type="text" id="smtp-server" value="smtp.gmail.com" placeholder="SMTP Server">
-                <input type="number" id="smtp-port" value="587" placeholder="Port">
+        <div class="form-group-github" style="margin-bottom: 20px;">
+            <label for="smtp-credentials" class="form-label-github">
+                <i class="fas fa-key"></i> SMTP Credentials (email:password, one per line)
+            </label>
+            <textarea id="smtp-credentials" class="form-control-github" rows="5" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456&#10;user3@yahoo.com:secretpass789"></textarea>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="smtp-recipient" class="form-label-github">
+                    <i class="fas fa-envelope"></i> Recipient Email
+                </label>
+                <input type="email" id="smtp-recipient" class="form-control-github" placeholder="test@domain.com">
+            </div>
+            <div class="form-group-github">
+                <label for="smtp-server" class="form-label-github">
+                    <i class="fas fa-server"></i> SMTP Server
+                </label>
+                <input type="text" id="smtp-server" class="form-control-github" value="smtp.gmail.com" placeholder="SMTP Server">
+            </div>
+            <div class="form-group-github">
+                <label for="smtp-port" class="form-label-github">
+                    <i class="fas fa-plug"></i> Port
+                </label>
+                <input type="number" id="smtp-port" class="form-control-github" value="587" placeholder="Port">
             </div>
         </div>
         
-        <div class="button-row">
-            <button onclick="testSMTPCredentials()">✉️ Send Test Emails</button>
-            <button onclick="interruptSMTPTesting()" class="button-warning">⏹️ Interrupt Sending</button>
-            <button onclick="clearSMTPResults()">🧹 Clear Log / Reset Files</button>
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <button onclick="testSMTPCredentials()" class="btn-github btn-github-primary">
+                <i class="fas fa-paper-plane"></i> Send Test Emails
+            </button>
+            <button onclick="interruptSMTPTesting()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+                <i class="fas fa-stop"></i> Interrupt Sending
+            </button>
+            <button onclick="clearSMTPResults()" class="btn-github">
+                <i class="fas fa-broom"></i> Clear Log / Reset Files
+            </button>
         </div>
         
-        <div class="smtp-results">
-            <h4>📊 SMTP Test Results:</h4>
-            <div id="smtp-results-log" class="results-log"></div>
+        <div>
+            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-chart-bar" style="color: var(--color-accent-fg);"></i>
+                SMTP Test Results
+            </h4>
+            <div id="smtp-results-log" class="data-display" style="font-family: monospace; font-size: 13px;">
+                <div class="status-info">
+                    <p><strong><i class="fas fa-envelope"></i> SMTP Testing Results</strong></p>
+                    <p>Test results will appear here...</p>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Generate Sample CSV for User Creation -->
-    <div class="section">
-        <h3>📝 Generate Sample CSV for User Creation</h3>
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-file-csv"></i>
+                Generate Sample CSV for User Creation
+            </h3>
+        </div>
         
-        <div class="csv-form">
-            <div class="form-row">
-                <input type="number" id="csv-num-users" min="1" max="1000" placeholder="Number of users (e.g., 50)">
-                <input type="text" id="csv-domain" placeholder="Domain (e.g., yourdomain.com)">
-                <input type="text" id="csv-password" placeholder="Default password for all users">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="csv-num-users" class="form-label-github">
+                    <i class="fas fa-hashtag"></i> Number of Users
+                </label>
+                <input type="number" id="csv-num-users" class="form-control-github" min="1" max="1000" placeholder="e.g., 50">
             </div>
-            
-            <div class="button-row">
-                <button onclick="generateUserCSV()">📥 Generate CSV File</button>
-                <button onclick="previewCSV()">👁️ Preview CSV</button>
+            <div class="form-group-github">
+                <label for="csv-domain" class="form-label-github">
+                    <i class="fas fa-globe"></i> Domain
+                </label>
+                <input type="text" id="csv-domain" class="form-control-github" placeholder="yourdomain.com">
+            </div>
+            <div class="form-group-github">
+                <label for="csv-password" class="form-label-github">
+                    <i class="fas fa-lock"></i> Default Password
+                </label>
+                <input type="text" id="csv-password" class="form-control-github" placeholder="Default password for all users">
             </div>
         </div>
         
-        <div id="csv-download-area" class="download-area"></div>
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <button onclick="generateUserCSV()" class="btn-github btn-github-primary">
+                <i class="fas fa-download"></i> Generate CSV File
+            </button>
+            <button onclick="previewCSV()" class="btn-github">
+                <i class="fas fa-eye"></i> Preview CSV
+            </button>
+        </div>
+        
+        <div id="csv-download-area" class="data-display"></div>
         
         <div id="csv-preview-area" class="csv-preview"></div>
     </div>
