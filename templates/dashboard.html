@@ -1264,6 +1264,8 @@ function previewCSV() {
 function showOAuthModal(oauthUrl) {
     const isLightTheme = document.body.classList.contains('light');
     const headerGradient = isLightTheme ? 'from-gray-500 to-gray-600' : 'from-purple-600 to-purple-700';
+    const themeEmoji = isLightTheme ? '🔐' : '🛡️';
+    const keyEmoji = isLightTheme ? '🗝️' : '🔑';
     
     const modal = `
         <div class="modal fade" id="oauthModal" tabindex="-1" style="z-index: 9999;">
@@ -1272,7 +1274,7 @@ function showOAuthModal(oauthUrl) {
                     <div class="modal-header bg-gradient-to-r ${headerGradient} border-none">
                         <h5 class="modal-title text-white font-bold text-lg flex items-center">
                             <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
-                                <i class="fas fa-shield-alt text-white text-xl"></i>
+                                <span class="text-white text-xl">${themeEmoji}</span>
                             </div>
                             OAuth Authentication Required
                         </h5>
@@ -1282,21 +1284,43 @@ function showOAuthModal(oauthUrl) {
                     </div>
                     <div class="modal-body p-6">
                         <div class="text-center mb-6">
-                            <div class="w-20 h-20 bg-gradient-to-br from-green-500 to-blue-500 bg-opacity-20 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
-                                <i class="fas fa-key text-green-400 text-3xl"></i>
+                            <div class="w-20 h-20 bg-gradient-to-br from-green-500 to-blue-500 bg-opacity-20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <span class="text-4xl">${keyEmoji}</span>
                             </div>
                             <h4 class="text-white font-semibold text-xl mb-3">Authentication Required</h4>
-                            <p class="text-vercel-gray-300 mb-6 leading-relaxed">Click the button below to open the Google OAuth authorization page in a new window. After completing authorization, return here to continue.</p>
+                            <p class="text-vercel-gray-300 mb-4 leading-relaxed">Use the buttons below to access the Google OAuth authorization page.</p>
                         </div>
                         
-                        <div class="space-y-3">
-                            <a href="${oauthUrl}" target="_blank" class="block w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-semibold py-4 px-6 rounded-xl text-center text-decoration-none transition-all transform hover:scale-105 shadow-lg">
+                        <!-- URL Display -->
+                        <div class="mb-6 p-4 bg-vercel-gray-800 rounded-xl border border-vercel-gray-700">
+                            <label class="block text-sm font-medium text-vercel-gray-300 mb-2">Authorization URL:</label>
+                            <div class="flex items-center space-x-2">
+                                <input 
+                                    type="text" 
+                                    id="oauth-url-display" 
+                                    class="flex-1 bg-vercel-gray-700 border border-vercel-gray-600 text-vercel-gray-200 rounded-lg p-3 font-mono text-sm" 
+                                    value="${oauthUrl}" 
+                                    readonly
+                                >
+                                <button type="button" onclick="copyOAuthUrl()" class="px-4 py-3 bg-blue-500 bg-opacity-20 text-blue-400 rounded-lg hover:bg-opacity-30 transition-colors">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="grid grid-cols-1 gap-3">
+                            <button type="button" onclick="copyOAuthUrl()" class="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold py-3 px-6 rounded-xl transition-all transform hover:scale-105 shadow-lg">
+                                <i class="fas fa-copy mr-3"></i>
+                                📋 Copy Link
+                            </button>
+                            <a href="${oauthUrl}" target="_blank" class="block w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold py-3 px-6 rounded-xl text-center text-decoration-none transition-all transform hover:scale-105 shadow-lg">
                                 <i class="fas fa-external-link-alt mr-3"></i>
-                                Open Authorization Page
+                                🔗 Open Link
                             </a>
                             <button type="button" class="w-full btn-vercel-secondary py-3" onclick="checkAuthStatus()">
                                 <i class="fas fa-sync-alt mr-2"></i>
-                                Check Authorization Status
+                                🔄 Check Status
                             </button>
                         </div>
                         
@@ -1304,7 +1328,7 @@ function showOAuthModal(oauthUrl) {
                             <div class="flex items-center space-x-3">
                                 <i class="fas fa-info-circle text-blue-400"></i>
                                 <div class="text-blue-300 text-sm">
-                                    <strong>Note:</strong> A new window will open for Google authentication. Complete the process and return here.
+                                    <strong>Instructions:</strong> Copy the link or open it directly. Complete Google authentication and return here to check status.
                                 </div>
                             </div>
                         </div>
@@ -1312,7 +1336,7 @@ function showOAuthModal(oauthUrl) {
                     <div class="modal-footer bg-vercel-gray-800 border-none p-6">
                         <button type="button" class="btn-vercel-secondary" data-bs-dismiss="modal">
                             <i class="fas fa-times mr-2"></i>
-                            Cancel
+                            ❌ Close
                         </button>
                     </div>
                 </div>
@@ -1332,6 +1356,22 @@ function showOAuthModal(oauthUrl) {
     // Show modal
     const modalElement = new bootstrap.Modal(document.getElementById('oauthModal'));
     modalElement.show();
+}
+
+function copyOAuthUrl() {
+    const urlInput = document.getElementById('oauth-url-display');
+    if (urlInput) {
+        urlInput.select();
+        urlInput.setSelectionRange(0, 99999); // For mobile devices
+        
+        navigator.clipboard.writeText(urlInput.value).then(() => {
+            showStatus('OAuth URL copied to clipboard!', 'success');
+        }).catch(() => {
+            // Fallback for older browsers
+            document.execCommand('copy');
+            showStatus('OAuth URL copied to clipboard!', 'success');
+        });
+    }
 }
 
 function checkAuthStatus() {
@@ -1380,7 +1420,11 @@ function checkAuthStatus() {
 // Account Management Functions
 function openAddAccountModal() {
     const isLightTheme = document.body.classList.contains('light');
-    const headerGradient = isLightTheme ? 'from-gray-500 to-gray-600' : 'from-purple-600 to-purple-700';
+    const headerGradient = isLightTheme ? 'from-slate-500 to-slate-600' : 'from-purple-600 to-indigo-600';
+    const themeEmoji = isLightTheme ? '➕' : '✨';
+    const userEmoji = isLightTheme ? '👤' : '🤖';
+    const keyEmoji = isLightTheme ? '🔑' : '🗝️';
+    const shieldEmoji = isLightTheme ? '🛡️' : '🔐';
     
     const modal = `
         <div class="modal fade" id="addAccountModal" tabindex="-1" style="z-index: 9999;">
@@ -1389,7 +1433,7 @@ function openAddAccountModal() {
                     <div class="modal-header bg-gradient-to-r ${headerGradient} border-none">
                         <h5 class="modal-title text-white font-bold text-lg flex items-center">
                             <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
-                                <i class="fas fa-plus text-white text-xl"></i>
+                                <span class="text-white text-xl">${themeEmoji}</span>
                             </div>
                             Add New Google Account
                         </h5>
@@ -1413,7 +1457,7 @@ function openAddAccountModal() {
                             <div class="space-y-6">
                                 <div>
                                     <label for="account-name" class="block text-sm font-semibold text-vercel-gray-300 mb-3">
-                                        <i class="fas fa-user mr-2 text-blue-400"></i>
+                                        <span class="mr-2">${userEmoji}</span>
                                         Account Name
                                     </label>
                                     <input 
@@ -1427,7 +1471,7 @@ function openAddAccountModal() {
                                 </div>
                                 <div>
                                     <label for="client-id" class="block text-sm font-semibold text-vercel-gray-300 mb-3">
-                                        <i class="fas fa-key mr-2 text-purple-400"></i>
+                                        <span class="mr-2">${keyEmoji}</span>
                                         Google Client ID
                                     </label>
                                     <input 
@@ -1441,7 +1485,7 @@ function openAddAccountModal() {
                                 </div>
                                 <div>
                                     <label for="client-secret" class="block text-sm font-semibold text-vercel-gray-300 mb-3">
-                                        <i class="fas fa-shield-alt mr-2 text-red-400"></i>
+                                        <span class="mr-2">${shieldEmoji}</span>
                                         Client Secret
                                     </label>
                                     <div class="relative">
@@ -1532,7 +1576,11 @@ function saveNewAccount() {
 
 function addFromServerJSON() {
     const isLightTheme = document.body.classList.contains('light');
-    const headerGradient = isLightTheme ? 'from-gray-500 to-gray-600' : 'from-purple-600 to-purple-700';
+    const headerGradient = isLightTheme ? 'from-amber-500 to-orange-500' : 'from-purple-600 to-violet-600';
+    const themeEmoji = isLightTheme ? '📂' : '🗂️';
+    const folderEmoji = isLightTheme ? '📁' : '🗃️';
+    const searchEmoji = isLightTheme ? '🔍' : '🔎';
+    const cancelEmoji = isLightTheme ? '❌' : '✖️';
     
     // Create original-style modal for email addresses (like in screenshot)
     const modal = `
@@ -1542,9 +1590,9 @@ function addFromServerJSON() {
                     <div class="modal-header bg-gradient-to-r ${headerGradient} border-none">
                         <h5 class="modal-title text-white font-bold text-lg flex items-center">
                             <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
-                                <i class="fas fa-folder text-white text-xl"></i>
+                                <span class="text-white text-xl">${themeEmoji}</span>
                             </div>
-                            📁 Add Accounts from Server JSON
+                            ${folderEmoji} Add Accounts from Server JSON
                         </h5>
                         <button type="button" class="btn-close text-white opacity-70 hover:opacity-100" data-bs-dismiss="modal" aria-label="Close">
                             <i class="fas fa-times text-lg"></i>
@@ -1589,11 +1637,11 @@ function addFromServerJSON() {
                     <div class="modal-footer bg-vercel-gray-800 border-none p-6">
                         <button type="button" class="btn-vercel-secondary mr-3" data-bs-dismiss="modal">
                             <i class="fas fa-times mr-2"></i>
-                            ❌ Cancel
+                            ${cancelEmoji} Cancel
                         </button>
                         <button type="button" class="btn-vercel" onclick="searchAndAddAccountsFromServer()">
                             <i class="fas fa-search mr-2"></i>
-                            🔍 Search & Add Accounts
+                            ${searchEmoji} Search & Add Accounts
                         </button>
                     </div>
                 </div>
@@ -1894,22 +1942,34 @@ function filterAccounts() {
     if (!filterInput) return;
     
     const filter = filterInput.value.toLowerCase();
-    const accountItems = document.querySelectorAll('#account-list-display .space-y-2 > div');
+    const accountItems = document.querySelectorAll('#account-list-display [id^="account-"]');
     
+    let visibleCount = 0;
     accountItems.forEach(item => {
-        const accountName = item.querySelector('.text-white');
+        const accountName = item.querySelector('.text-white.font-medium');
         if (accountName) {
             const name = accountName.textContent.toLowerCase();
-            if (name.includes(filter)) {
+            if (name.includes(filter) || filter === '') {
                 item.style.display = 'block';
+                visibleCount++;
             } else {
                 item.style.display = 'none';
             }
         }
     });
     
-    showStatus(`Filtered accounts by: "${filter}"`, 'info');
+    if (filter) {
+        showStatus(`Found ${visibleCount} accounts matching: "${filter}"`, 'info');
+    }
 }
+
+// Add event listener for real-time search
+document.addEventListener('DOMContentLoaded', function() {
+    const filterInput = document.getElementById('account-filter');
+    if (filterInput) {
+        filterInput.addEventListener('input', filterAccounts);
+    }
+});
 
 // Utility function for password visibility toggle
 function togglePasswordVisibility(inputId) {
@@ -1973,30 +2033,33 @@ function updateAccountList(accounts) {
     
     accountListDisplay.innerHTML = `
         <div class="space-y-2">
-            ${accounts.map(account => `
-                <div class="p-3 bg-vercel-gray-800 rounded-lg border border-vercel-gray-700 hover:border-vercel-gray-600 transition-colors">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-3 h-3 ${account.is_authenticated ? 'bg-green-500' : 'bg-red-500'} rounded-full"></div>
-                            <span class="text-white font-medium">${account.account_name}</span>
-                            <span class="text-xs px-2 py-1 rounded ${account.is_authenticated ? 'bg-green-500 bg-opacity-20 text-green-400' : 'bg-red-500 bg-opacity-20 text-red-400'}">
-                                ${account.is_authenticated ? 'Authenticated' : 'Need Auth'}
-                            </span>
-                        </div>
-                        <div class="flex space-x-2">
-                            <button onclick="selectAccountFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-1 bg-blue-500 bg-opacity-20 text-blue-400 rounded hover:bg-opacity-30 transition-colors">
-                                Select
-                            </button>
-                            <button onclick="authenticateFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-1 bg-green-500 bg-opacity-20 text-green-400 rounded hover:bg-opacity-30 transition-colors">
-                                Auth
-                            </button>
-                            <button onclick="deleteFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-1 bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30 transition-colors">
-                                Delete
-                            </button>
+            ${accounts.map(account => {
+                const isSelected = selectedAccountFromList && selectedAccountFromList.id === account.id;
+                const selectedClass = isSelected ? 'border-blue-500 bg-blue-500 bg-opacity-10' : 'border-vercel-gray-700 hover:border-vercel-gray-600';
+                
+                return `
+                    <div id="account-${account.id}" class="p-3 bg-vercel-gray-800 rounded-lg border ${selectedClass} transition-colors cursor-pointer" onclick="selectAccountFromList('${account.account_name}', '${account.id}')">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-3 h-3 ${account.is_authenticated ? 'bg-green-500' : 'bg-red-500'} rounded-full"></div>
+                                <span class="text-white font-medium">${account.account_name}</span>
+                                <span class="text-xs px-2 py-1 rounded ${account.is_authenticated ? 'bg-green-500 bg-opacity-20 text-green-400' : 'bg-red-500 bg-opacity-20 text-red-400'}">
+                                    ${account.is_authenticated ? 'Authenticated' : 'Need Auth'}
+                                </span>
+                                ${isSelected ? '<i class="fas fa-check-circle text-blue-400 text-sm"></i>' : ''}
+                            </div>
+                            <div class="flex space-x-2" onclick="event.stopPropagation()">
+                                <button onclick="authenticateFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-1 bg-green-500 bg-opacity-20 text-green-400 rounded hover:bg-opacity-30 transition-colors">
+                                    Auth
+                                </button>
+                                <button onclick="deleteFromList('${account.account_name}', '${account.id}')" class="text-xs px-3 py-1 bg-red-500 bg-opacity-20 text-red-400 rounded hover:bg-opacity-30 transition-colors">
+                                    Delete
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `).join('')}
+                `;
+            }).join('')}
         </div>
     `;
 }
@@ -2013,6 +2076,19 @@ function selectAccountFromList(accountName, accountId) {
             }
         }
     }
+    
+    // Update visual selection in account list
+    document.querySelectorAll('[id^="account-"]').forEach(elem => {
+        elem.classList.remove('border-blue-500', 'bg-blue-500', 'bg-opacity-10');
+        elem.classList.add('border-vercel-gray-700');
+    });
+    
+    const selectedElement = document.getElementById(`account-${accountId}`);
+    if (selectedElement) {
+        selectedElement.classList.remove('border-vercel-gray-700');
+        selectedElement.classList.add('border-blue-500', 'bg-blue-500', 'bg-opacity-10');
+    }
+    
     showStatus(`Selected account: ${accountName}`, 'success');
 }
 
