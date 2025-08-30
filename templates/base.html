@@ -245,6 +245,7 @@
         html {
             background-color: var(--color-canvas-default);
             transition: background-color 0.3s ease;
+            min-height: 100vh;
         }
 
         body {
@@ -256,11 +257,48 @@
             margin: 0;
             min-height: 100vh;
             transition: all 0.3s ease;
+            width: 100%;
         }
 
-        /* Ensure all containers inherit background */
+        /* Ensure all containers inherit background and cover full width */
         .main-container {
             background-color: var(--color-canvas-default);
+            width: 100%;
+            min-height: calc(100vh - 80px);
+        }
+
+        /* Force full-width background coverage */
+        [data-color-mode="dark"] html,
+        [data-color-mode="dark"] body {
+            background-color: var(--color-canvas-default) !important;
+        }
+
+        /* Add dark blue-purple gradient for dark mode side areas */
+        [data-color-mode="dark"] body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.08) 0%, transparent 50%),
+                linear-gradient(135deg, #0d1117 0%, #161b22 30%, #1a1f2e 70%, #1e2337 100%);
+            z-index: -1;
+        }
+
+        /* Enhanced main container with better styling */
+        [data-color-mode="dark"] .main-container {
+            background-color: var(--color-canvas-default) !important;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Ensure the header stays on top */
+        .github-header {
+            position: relative;
+            z-index: 1000;
         }
 
         /* GitHub Header */
@@ -779,18 +817,75 @@
         /* Ensure tab content is visible */
         #tab1.active {
             display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
 
         #tab2.active {
             display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
 
         #tab3.active {
             display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
 
         #tab4.active {
             display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            height: auto !important;
+            overflow: visible !important;
+        }
+
+        /* Force all tab content to be visible when active */
+        .tab-content.active {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+            z-index: 1 !important;
+        }
+
+        /* Ensure tab4 children are visible */
+        #tab4 .github-card,
+        #tab4 .form-group-github,
+        #tab4 .btn-github,
+        #tab4 input,
+        #tab4 textarea,
+        #tab4 label,
+        #tab4 h3,
+        #tab4 h4,
+        #tab4 div {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        #tab4 .github-card-header {
+            display: block !important;
+        }
+
+        #tab4 .github-card-title {
+            display: flex !important;
+            align-items: center !important;
+        }
+
+        #tab4 [style*="display: grid"] {
+            display: grid !important;
+        }
+
+        #tab4 [style*="display: flex"] {
+            display: flex !important;
+        }
+
+        /* Force Tab 4 specific styling */
+        #tab4 {
+            min-height: 600px !important;
+            padding: 24px 0 !important;
         }
 
         /* Dashboard sections */

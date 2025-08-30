@@ -778,6 +778,27 @@ function showTab(tabId) {
         selectedTab.classList.add('active');
         selectedTab.style.display = 'block';
         selectedTab.style.visibility = 'visible';
+        selectedTab.style.opacity = '1';
+        selectedTab.style.height = 'auto';
+        selectedTab.style.overflow = 'visible';
+        
+        // Special handling for tab4
+        if (tabId === 'tab4') {
+            console.log('Special handling for tab4');
+            setTimeout(() => {
+                selectedTab.style.display = 'block';
+                selectedTab.style.visibility = 'visible';
+                selectedTab.style.opacity = '1';
+                
+                // Force all children to be visible
+                const children = selectedTab.querySelectorAll('*');
+                children.forEach(child => {
+                    child.style.visibility = 'visible';
+                    child.style.opacity = '1';
+                });
+                console.log('Tab4 children forced visible:', children.length);
+            }, 100);
+        }
     } else {
         console.error('Tab not found:', tabId);
     }
@@ -795,8 +816,28 @@ function showTab(tabId) {
 
 // Initialize tabs on page load
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing tabs...');
+    
+    // Check if all tabs exist
+    for (let i = 1; i <= 4; i++) {
+        const tab = document.getElementById(`tab${i}`);
+        console.log(`Tab ${i} exists:`, !!tab);
+        if (tab) {
+            console.log(`Tab ${i} content length:`, tab.innerHTML.length);
+        }
+    }
+    
     // Ensure tab1 is visible by default
     showTab('tab1');
+    
+    // Force Tab 4 to be properly initialized
+    const tab4 = document.getElementById('tab4');
+    if (tab4) {
+        tab4.style.display = 'none';
+        tab4.style.visibility = 'visible';
+        tab4.style.opacity = '1';
+        console.log('Tab 4 initialized');
+    }
 });
 
 async function loadTokenStatusWithLive() {
