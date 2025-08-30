@@ -2090,25 +2090,58 @@ function togglePasswordVisibility(inputId) {
 
 // Account List Management
 function loadAccountList() {
-    console.log('Loading account list...');
-    fetch('/api/get-accounts')
-    .then(response => response.json())
+    console.log('🔄 Loading account list...');
+    
+    // Clear loading state
+    const accountList = document.getElementById('account-list');
+    const accountStatsText = document.getElementById('account-stats-text');
+    
+    if (accountList) {
+        accountList.innerHTML = '<div class="text-vercel-gray-400 text-center py-4">Loading accounts...</div>';
+    }
+    if (accountStatsText) {
+        accountStatsText.textContent = 'Loading...';
+    }
+    
+    fetch('/api/list-accounts')
+    .then(response => {
+        console.log('✅ Response received, status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
-        console.log('Account data received:', data);
-        if (data.success && data.accounts) {
-            updateAccountSelect(data.accounts);
-            updateAccountList(data.accounts);
-            // Setup search functionality after accounts are loaded
-            setupAccountSearchAfterLoad();
-            console.log('Account list loaded successfully with', data.accounts.length, 'accounts');
+        console.log('📊 Account data received:', data);
+        if (data.success) {
+            if (data.accounts && data.accounts.length > 0) {
+                updateAccountSelect(data.accounts);
+                updateAccountList(data.accounts);
+                // Setup search functionality after accounts are loaded
+                setupAccountSearchAfterLoad();
+                console.log('✅ Account list loaded successfully with', data.accounts.length, 'accounts');
+                showStatus(`✅ Loaded ${data.accounts.length} accounts successfully`, 'success');
+            } else {
+                console.log('⚠️ No accounts found in database');
+                updateAccountList([]);
+                showStatus('No accounts found. Add accounts to get started.', 'info');
+            }
         } else {
-            console.error('Failed to load accounts:', data.error);
+            console.error('❌ API returned error:', data.error);
             showStatus('Failed to load accounts: ' + (data.error || 'Unknown error'), 'error');
         }
     })
     .catch(error => {
-        console.error('Error loading accounts:', error);
-        showStatus('Network error loading accounts: ' + error, 'error');
+        console.error('❌ Network error loading accounts:', error);
+        showStatus('Network error loading accounts: ' + error.message, 'error');
+        
+        // Show error in the UI
+        if (accountList) {
+            accountList.innerHTML = '<div class="text-red-400 text-center py-4">Error loading accounts. Check console for details.</div>';
+        }
+        if (accountStatsText) {
+            accountStatsText.textContent = 'Error loading accounts';
+        }
     });
 }
 
@@ -2131,24 +2164,17 @@ function updateAccountSelect(accounts) {
 let currentAccountList = [];
 
 function updateAccountList(accounts) {
-    const accountListDisplay = document.getElementById('account-list-display');
-    if (!accountListDisplay) return;
+    console.log('updateAccountList called with:', accounts);
     
     // Store accounts globally for filtering
     currentAccountList = accounts || [];
     
     if (!accounts || accounts.length === 0) {
-        accountListDisplay.innerHTML = `
-            <div class="text-center py-8">
-                <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-users text-vercel-gray-400 text-2xl"></i>
-                </div>
-                <p class="text-vercel-gray-400">No accounts available. Add accounts to get started.</p>
-            </div>
-        `;
+        console.log('No accounts provided to updateAccountList');
         return;
     }
     
+    console.log('Rendering account list with', accounts.length, 'accounts');
     renderAccountList(accounts);
 }
 
@@ -2162,9 +2188,9 @@ function renderAccountList(accounts) {
     }
     
     if (!accounts || accounts.length === 0) {
-        accountList.innerHTML = '<div class="text-vercel-gray-400 text-center py-4">No accounts available</div>';
+        accountList.innerHTML = '<div class="text-vercel-gray-400 text-center py-4">No accounts available. Click "Add Manually" or "Add from Server JSON" to add accounts.</div>';
         if (accountStatsText) {
-            accountStatsText.textContent = 'Total: 0';
+            accountStatsText.innerHTML = 'Total: <strong>0</strong> &nbsp; Status: <strong>No accounts found</strong>';
         }
         return;
     }
