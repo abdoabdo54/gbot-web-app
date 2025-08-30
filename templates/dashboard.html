@@ -106,49 +106,80 @@
 </div>
 
 <!-- Add Account Modal -->
-<div id="addAccountModal" class="modal">
+<div id="addAccountModal" class="modal" style="display: none;">
     <div class="modal-content">
-        <span class="close" onclick="closeAddAccountModal()">&times;</span>
-        <h3>Add Account Manually</h3>
-        <form id="addAccountForm">
-            <div class="form-group">
-                <label for="new-account-email">Account Email:</label>
-                <input type="email" id="new-account-email" required placeholder="admin@yourdomain.com">
-            </div>
-            <div class="form-group">
-                <label for="new-client-id">Client ID:</label>
-                <input type="text" id="new-client-id" required placeholder="123456789-abcdef.apps.googleusercontent.com">
-            </div>
-            <div class="form-group">
-                <label for="new-client-secret">Client Secret:</label>
-                <input type="password" id="new-client-secret" required placeholder="GOCSPX-your_client_secret">
-            </div>
-            <div class="form-buttons">
-                <button type="button" onclick="saveNewAccount()">💾 Save Account</button>
-                <button type="button" onclick="closeAddAccountModal()">❌ Cancel</button>
-            </div>
-        </form>
+        <div class="modal-header">
+            <h3 class="modal-title">
+                <i class="fas fa-plus"></i> Add Account Manually
+            </h3>
+            <button type="button" class="btn-github" onclick="closeAddAccountModal()" style="margin-left: auto;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="addAccountForm">
+                <div class="form-group-github">
+                    <label for="new-account-email" class="form-label-github">
+                        <i class="fas fa-envelope"></i> Account Email
+                    </label>
+                    <input type="email" id="new-account-email" class="form-control-github" required placeholder="admin@yourdomain.com">
+                </div>
+                <div class="form-group-github">
+                    <label for="new-client-id" class="form-label-github">
+                        <i class="fas fa-key"></i> Client ID
+                    </label>
+                    <input type="text" id="new-client-id" class="form-control-github" required placeholder="123456789-abcdef.apps.googleusercontent.com">
+                </div>
+                <div class="form-group-github">
+                    <label for="new-client-secret" class="form-label-github">
+                        <i class="fas fa-lock"></i> Client Secret
+                    </label>
+                    <input type="password" id="new-client-secret" class="form-control-github" required placeholder="GOCSPX-your_client_secret">
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" onclick="saveNewAccount()" class="btn-github btn-github-primary">
+                <i class="fas fa-save"></i> Save Account
+            </button>
+            <button type="button" onclick="closeAddAccountModal()" class="btn-github">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
     </div>
 </div>
 
 
 
-<!-- OAuth Authorization Modal (ADD THIS NEW MODAL RIGHT HERE) -->
-<div id="oauthModal" class="modal">
+<!-- OAuth Authorization Modal -->
+<div id="oauthModal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 class="modal-title">🔗 OAuth Authorization Required</h3>
-            <button class="modal-close" onclick="closeOAuthModal()">&times;</button>
+            <h3 class="modal-title">
+                <i class="fas fa-link"></i> OAuth Authorization Required
+            </h3>
+            <button type="button" class="btn-github" onclick="closeOAuthModal()" style="margin-left: auto;">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
         <div class="modal-body">
             <p>Please copy this link and open it in your browser to authorize the account:</p>
-            <div id="oauthUrl" class="account-details"></div>
-            <p><small>💡 <strong>Tip:</strong> You can copy this link to use in another browser or app for authorization.</small></p>
+            <div id="oauthUrl" class="data-display" style="font-family: monospace; word-break: break-all; margin: 16px 0;"></div>
+            <div style="background-color: rgba(9, 105, 218, 0.1); border: 1px solid var(--color-accent-emphasis); border-radius: 6px; padding: 12px; color: var(--color-accent-fg); font-size: 14px;">
+                <i class="fas fa-lightbulb"></i>
+                <strong>Tip:</strong> You can copy this link to use in another browser or app for authorization.
+            </div>
         </div>
         <div class="modal-footer">
-            <button class="btn-copy" onclick="copyOAuthUrl()">📋 Copy Link</button>
-            <button class="btn-close" onclick="openOAuthUrl()">🌐 Open Link</button>
-            <button class="btn-close" onclick="closeOAuthModal()">Close</button>
+            <button onclick="copyOAuthUrl()" class="btn-github">
+                <i class="fas fa-copy"></i> Copy Link
+            </button>
+            <button onclick="openOAuthUrl()" class="btn-github btn-github-primary">
+                <i class="fas fa-external-link-alt"></i> Open Link
+            </button>
+            <button onclick="closeOAuthModal()" class="btn-github">
+                <i class="fas fa-times"></i> Close
+            </button>
         </div>
     </div>
 </div>

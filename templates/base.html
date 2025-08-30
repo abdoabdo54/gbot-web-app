@@ -1070,6 +1070,199 @@
         input[type="file"].form-control-github::-webkit-file-upload-button:hover {
             background-color: var(--color-btn-hover-bg);
         }
+
+        /* Backward compatibility for existing classes */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--color-fg-default);
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            background-color: var(--color-input-bg);
+            border: 1px solid var(--color-input-border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 14px;
+            color: var(--color-fg-default);
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: var(--color-accent-emphasis);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
+        }
+
+        [data-color-mode="dark"] .form-group input:focus,
+        [data-color-mode="dark"] .form-group select:focus,
+        [data-color-mode="dark"] .form-group textarea:focus {
+            box-shadow: 0 0 0 3px rgba(47, 129, 247, 0.3);
+        }
+
+        /* Legacy button compatibility */
+        .primary-button {
+            background-color: var(--color-btn-primary-bg);
+            border: 1px solid var(--color-btn-primary-border);
+            color: var(--color-btn-primary-text);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .primary-button:hover {
+            background-color: var(--color-btn-primary-hover-bg);
+        }
+
+        .secondary-button {
+            background-color: var(--color-btn-bg);
+            border: 1px solid var(--color-btn-border);
+            color: var(--color-btn-text);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .secondary-button:hover {
+            background-color: var(--color-btn-hover-bg);
+        }
+
+        .warning-button {
+            background-color: var(--color-warning-emphasis);
+            border: 1px solid var(--color-warning-emphasis);
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .info-button {
+            background-color: var(--color-success-emphasis);
+            border: 1px solid var(--color-success-emphasis);
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .debug-button {
+            background-color: #6f42c1;
+            border: 1px solid #6f42c1;
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .results-log {
+            background-color: var(--color-canvas-subtle);
+            border: 1px solid var(--color-border-default);
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+            font-family: monospace;
+            font-size: 13px;
+            color: var(--color-fg-default);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .placeholder-text {
+            color: var(--color-fg-muted);
+            font-style: italic;
+        }
+
+        .domain-list {
+            background-color: var(--color-canvas-subtle);
+            border: 1px solid var(--color-border-default);
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .workflow-step {
+            margin-bottom: 32px;
+        }
+
+        .step-content {
+            margin-top: 16px;
+        }
+
+        .info-text {
+            background-color: rgba(9, 105, 218, 0.1);
+            border: 1px solid var(--color-accent-emphasis);
+            border-radius: 6px;
+            padding: 12px;
+            color: var(--color-accent-fg);
+            font-size: 14px;
+            margin-top: 12px;
+        }
+
+        .csv-preview {
+            background-color: var(--color-canvas-subtle);
+            border: 1px solid var(--color-border-default);
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow: auto;
+        }
+
+        .download-area {
+            background-color: var(--color-canvas-subtle);
+            border: 1px solid var(--color-border-default);
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+            text-align: center;
+        }
     </style>
     
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
