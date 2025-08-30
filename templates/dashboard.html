@@ -275,7 +275,6 @@
     </div>
 </div>
 </div>
-</div>
 
 <!-- Tab 2: User Create/Delete/Domain -->
 <div id="tab2" class="tab-content">
@@ -751,6 +750,54 @@ let selectedAccountFromList = null;
 let selectedAccountId = null;
 let smtpTesting = false;
 let selectedDomain = null;
+
+// Tab switching functionality
+function showTab(tabId) {
+    console.log('Switching to tab:', tabId);
+    
+    // Hide all tab contents
+    const tabs = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => {
+        tab.classList.remove('active');
+        tab.style.display = 'none';
+    });
+    
+    // Remove active class from all tab buttons
+    const buttons = document.querySelectorAll('.tab-button');
+    buttons.forEach(button => {
+        button.classList.remove('active');
+        button.style.background = 'var(--color-canvas-subtle)';
+        button.style.borderBottom = '1px solid var(--color-border-default)';
+        button.style.color = 'var(--color-fg-muted)';
+    });
+    
+    // Show selected tab
+    const selectedTab = document.getElementById(tabId);
+    if (selectedTab) {
+        console.log('Found tab element:', selectedTab);
+        selectedTab.classList.add('active');
+        selectedTab.style.display = 'block';
+        selectedTab.style.visibility = 'visible';
+    } else {
+        console.error('Tab not found:', tabId);
+    }
+    
+    // Add active class to clicked button  
+    const clickedButton = event ? event.target.closest('.tab-button') : document.querySelector(`[onclick="showTab('${tabId}')"]`);
+    if (clickedButton) {
+        clickedButton.classList.add('active');
+        clickedButton.style.background = 'var(--color-canvas-default)';
+        clickedButton.style.borderBottom = '3px solid var(--color-accent-emphasis)';
+        clickedButton.style.color = 'var(--color-fg-default)';
+        clickedButton.style.fontWeight = '600';
+    }
+}
+
+// Initialize tabs on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure tab1 is visible by default
+    showTab('tab1');
+});
 
 async function loadTokenStatusWithLive() {
     try {

@@ -101,6 +101,143 @@
             --color-shadow-large: rgba(1,4,9,0.8);
         }
 
+        /* Force dark theme on ALL elements */
+        [data-color-mode="dark"] * {
+            border-color: var(--color-border-default) !important;
+        }
+
+        [data-color-mode="dark"] input,
+        [data-color-mode="dark"] select,
+        [data-color-mode="dark"] textarea,
+        [data-color-mode="dark"] .form-control,
+        [data-color-mode="dark"] .form-control-github {
+            background-color: var(--color-input-bg) !important;
+            border-color: var(--color-input-border) !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        [data-color-mode="dark"] button,
+        [data-color-mode="dark"] .btn,
+        [data-color-mode="dark"] .btn-github {
+            background-color: var(--color-btn-bg) !important;
+            border-color: var(--color-btn-border) !important;
+            color: var(--color-btn-text) !important;
+        }
+
+        [data-color-mode="dark"] .btn-primary,
+        [data-color-mode="dark"] .btn-github-primary {
+            background-color: var(--color-btn-primary-bg) !important;
+            border-color: var(--color-btn-primary-border) !important;
+            color: var(--color-btn-primary-text) !important;
+        }
+
+        [data-color-mode="dark"] .btn-danger,
+        [data-color-mode="dark"] .btn-github-danger {
+            background-color: var(--color-btn-danger-bg) !important;
+            border-color: var(--color-btn-danger-border) !important;
+            color: var(--color-btn-danger-text) !important;
+        }
+
+        [data-color-mode="dark"] div,
+        [data-color-mode="dark"] p,
+        [data-color-mode="dark"] span,
+        [data-color-mode="dark"] h1,
+        [data-color-mode="dark"] h2,
+        [data-color-mode="dark"] h3,
+        [data-color-mode="dark"] h4,
+        [data-color-mode="dark"] h5,
+        [data-color-mode="dark"] h6,
+        [data-color-mode="dark"] label {
+            color: var(--color-fg-default) !important;
+        }
+
+        [data-color-mode="dark"] .card,
+        [data-color-mode="dark"] .github-card,
+        [data-color-mode="dark"] .modal-content {
+            background-color: var(--color-canvas-default) !important;
+            border-color: var(--color-border-default) !important;
+        }
+
+        /* Force dark theme for ALL possible elements */
+        [data-color-mode="dark"] .section,
+        [data-color-mode="dark"] .data-display,
+        [data-color-mode="dark"] .status-box,
+        [data-color-mode="dark"] .count-display,
+        [data-color-mode="dark"] .status-info,
+        [data-color-mode="dark"] .account-list,
+        [data-color-mode="dark"] .search-input,
+        [data-color-mode="dark"] .results-log,
+        [data-color-mode="dark"] .domain-list,
+        [data-color-mode="dark"] .csv-preview,
+        [data-color-mode="dark"] .download-area {
+            background-color: var(--color-canvas-subtle) !important;
+            border-color: var(--color-border-default) !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        [data-color-mode="dark"] .account-item {
+            background-color: transparent !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        [data-color-mode="dark"] .account-item:hover {
+            background-color: var(--color-canvas-default) !important;
+        }
+
+        [data-color-mode="dark"] .account-item.selected {
+            background-color: var(--color-accent-emphasis) !important;
+            color: #ffffff !important;
+        }
+
+        [data-color-mode="dark"] .action-button {
+            background-color: var(--color-btn-bg) !important;
+            border-color: var(--color-btn-border) !important;
+            color: var(--color-btn-text) !important;
+        }
+
+        [data-color-mode="dark"] .action-button:hover {
+            background-color: var(--color-btn-hover-bg) !important;
+        }
+
+        [data-color-mode="dark"] .delete-button {
+            background-color: var(--color-btn-danger-bg) !important;
+            border-color: var(--color-btn-danger-border) !important;
+            color: var(--color-btn-danger-text) !important;
+        }
+
+        [data-color-mode="dark"] .delete-button:hover {
+            background-color: var(--color-btn-danger-hover-bg) !important;
+        }
+
+        /* Force specific background for main containers */
+        [data-color-mode="dark"] .main-container,
+        [data-color-mode="dark"] .tab-content {
+            background-color: var(--color-canvas-default) !important;
+        }
+
+        /* Force tab navigation styling */
+        [data-color-mode="dark"] .tab-navigation {
+            background-color: var(--color-canvas-default) !important;
+            border-color: var(--color-border-default) !important;
+        }
+
+        [data-color-mode="dark"] .tab-button {
+            background-color: var(--color-canvas-subtle) !important;
+            color: var(--color-fg-muted) !important;
+            border-color: var(--color-border-default) !important;
+        }
+
+        [data-color-mode="dark"] .tab-button:hover {
+            color: var(--color-fg-default) !important;
+            border-bottom-color: var(--color-border-muted) !important;
+        }
+
+        [data-color-mode="dark"] .tab-button.active {
+            background-color: var(--color-canvas-default) !important;
+            color: var(--color-fg-default) !important;
+            border-bottom-color: var(--color-accent-emphasis) !important;
+        }
+
         * {
             box-sizing: border-box;
         }
@@ -629,12 +766,31 @@
         }
 
         .tab-content {
-            display: none;
+            display: none !important;
             background-color: var(--color-canvas-default);
+            padding: 24px 0;
+            min-height: 400px;
         }
 
         .tab-content.active {
-            display: block;
+            display: block !important;
+        }
+
+        /* Ensure tab content is visible */
+        #tab1.active {
+            display: block !important;
+        }
+
+        #tab2.active {
+            display: block !important;
+        }
+
+        #tab3.active {
+            display: block !important;
+        }
+
+        #tab4.active {
+            display: block !important;
         }
 
         /* Dashboard sections */
