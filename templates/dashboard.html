@@ -4,11 +4,21 @@
 
 {% block content %}
 <!-- Tab Navigation -->
-<div class="tab-navigation">
-    <button class="tab-button active" onclick="showTab('tab1')">👤 Account & User Mgmt</button>
-    <button class="tab-button" onclick="showTab('tab2')">➕✏️ User Create/Delete/Domain</button>
-    <button class="tab-button" onclick="showTab('tab3')">🔄 Bulk Domain Change</button>
-    <button class="tab-button" onclick="showTab('tab4')">✉️ SMTP & CSV Gen</button>
+<div style="border-bottom: 1px solid #d0d7de; margin-bottom: 24px;">
+    <nav style="display: flex; gap: 0; margin-bottom: -1px;">
+        <button class="tab-button active" onclick="showTab('tab1')" style="background: #ffffff; border: 1px solid #d0d7de; border-bottom: 1px solid #ffffff; padding: 12px 16px; border-radius: 6px 6px 0 0; font-weight: 500; color: #24292f; cursor: pointer; margin-right: 4px; position: relative; z-index: 1;">
+            <i class="fas fa-user-friends"></i> Account & User Mgmt
+        </button>
+        <button class="tab-button" onclick="showTab('tab2')" style="background: #f6f8fa; border: 1px solid #d0d7de; border-bottom: 1px solid #d0d7de; padding: 12px 16px; border-radius: 6px 6px 0 0; font-weight: 500; color: #656d76; cursor: pointer; margin-right: 4px;">
+            <i class="fas fa-user-plus"></i> User Create/Delete/Domain
+        </button>
+        <button class="tab-button" onclick="showTab('tab3')" style="background: #f6f8fa; border: 1px solid #d0d7de; border-bottom: 1px solid #d0d7de; padding: 12px 16px; border-radius: 6px 6px 0 0; font-weight: 500; color: #656d76; cursor: pointer; margin-right: 4px;">
+            <i class="fas fa-exchange-alt"></i> Bulk Domain Change
+        </button>
+        <button class="tab-button" onclick="showTab('tab4')" style="background: #f6f8fa; border: 1px solid #d0d7de; border-bottom: 1px solid #d0d7de; padding: 12px 16px; border-radius: 6px 6px 0 0; font-weight: 500; color: #656d76; cursor: pointer;">
+            <i class="fas fa-envelope"></i> SMTP & CSV Gen
+        </button>
+    </nav>
 </div>
 
 <!-- Tab 1: Account & User Management (existing content) -->

@@ -3,151 +3,173 @@
 {% block title %}Settings - GBot Web{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <!-- Header Section -->
-    <div class="row mb-4">
-        <div class="col-12 text-center">
-            <h2 class="mb-0 display-4 text-primary">⚙️ Settings</h2>
-            <p class="text-muted lead">Configure application settings and server connections</p>
-        </div>
+<div class="github-card">
+    <div class="github-card-header">
+        <h1 class="github-card-title">
+            <i class="fas fa-cog"></i>
+            Settings
+        </h1>
+        <p style="color: #656d76; margin: 8px 0 0 0; font-size: 14px;">
+            Configure application settings and server connections
+        </p>
     </div>
 
     <!-- Server Configuration Section -->
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow-lg border-primary">
-                <div class="card-header bg-primary text-white text-center">
-                    <h4 class="mb-0">🖥️ Server Configuration</h4>
+    <div class="github-card" style="margin-bottom: 24px;">
+        <div class="github-card-header">
+            <h3 class="github-card-title" style="font-size: 18px;">
+                <i class="fas fa-server"></i>
+                Server Configuration
+            </h3>
+        </div>
+        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
+            Configure the server connection for importing accounts from JSON files. 
+            This server should contain the credential JSON files for Google Workspace accounts.
+        </p>
+        
+        <form id="server-config-form">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div class="form-group-github">
+                    <label for="server_host" class="form-label-github">
+                        <i class="fas fa-globe"></i> Server Host/IP
+                    </label>
+                    <input type="text" class="form-control-github" id="server_host" 
+                           placeholder="192.168.1.100 or server.domain.com" required>
+                    <small style="color: #656d76; font-size: 12px;">
+                        IP address or hostname of the server
+                    </small>
                 </div>
-                <div class="card-body p-4">
-                    <p class="text-muted mb-4">
-                        Configure the server connection for importing accounts from JSON files. 
-                        This server should contain the credential JSON files for Google Workspace accounts.
-                    </p>
-                    
-                    <form id="server-config-form">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="server_host" class="form-label fw-bold">🌐 Server Host/IP</label>
-                                <input type="text" class="form-control form-control-lg" id="server_host" 
-                                       placeholder="192.168.1.100 or server.domain.com" required>
-                                <div class="form-text">IP address or hostname of the server</div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="server_port" class="form-label fw-bold">🔌 Port</label>
-                                <input type="number" class="form-control form-control-lg" id="server_port" 
-                                       value="22" min="1" max="65535" required>
-                                <div class="form-text">SSH port (default: 22)</div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="server_username" class="form-label fw-bold">👤 Username</label>
-                                <input type="text" class="form-control form-control-lg" id="server_username" 
-                                       placeholder="ubuntu or root" required>
-                                <div class="form-text">SSH username for server access</div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="server_auth_method" class="form-label fw-bold">🔐 Authentication Method</label>
-                                <select class="form-select form-select-lg" id="server_auth_method" required>
-                                    <option value="password">Password</option>
-                                    <option value="key">SSH Key</option>
-                                </select>
-                                <div class="form-text">Choose authentication method</div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3" id="password-field">
-                                <label for="server_password" class="form-label fw-bold">🔑 Password</label>
-                                <input type="password" class="form-control form-control-lg" id="server_password" 
-                                       placeholder="Server password">
-                                <div class="form-text">SSH password (if using password auth)</div>
-                            </div>
-                            <div class="col-md-6 mb-3" id="key-field" style="display: none;">
-                                <label for="server_private_key" class="form-label fw-bold">🔑 Private Key</label>
-                                <textarea class="form-control form-control-lg" id="server_private_key" rows="4" 
-                                          placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
-                                <div class="form-text">SSH private key content (if using key auth)</div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-12 mb-3">
-                                <label for="server_json_path" class="form-label fw-bold">📁 JSON Files Path</label>
-                                <input type="text" class="form-control form-control-lg" id="server_json_path" 
-                                       value="/opt/gbot-web-app/credentials/" placeholder="/path/to/json/files/" required>
-                                <div class="form-text">Directory path where JSON credential files are stored on the server</div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-12 mb-3">
-                                <label for="server_file_pattern" class="form-label fw-bold">📋 File Pattern</label>
-                                <input type="text" class="form-control form-control-lg" id="server_file_pattern" 
-                                       value="*.json" placeholder="*.json or admin@*.json" required>
-                                <div class="form-text">File pattern to match JSON files (e.g., *.json, admin@*.json)</div>
-                            </div>
-                        </div>
-                        
-                        <div class="text-center mt-4">
-                            <button type="button" class="btn btn-outline-primary btn-lg me-3" onclick="testServerConnection()">
-                                🔍 Test Connection
-                            </button>
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                💾 Save Configuration
-                            </button>
-                        </div>
-                    </form>
+                <div class="form-group-github">
+                    <label for="server_port" class="form-label-github">
+                        <i class="fas fa-plug"></i> Port
+                    </label>
+                    <input type="number" class="form-control-github" id="server_port" 
+                           value="22" min="1" max="65535" required>
+                    <small style="color: #656d76; font-size: 12px;">
+                        SSH port (default: 22)
+                    </small>
                 </div>
             </div>
-        </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div class="form-group-github">
+                    <label for="server_username" class="form-label-github">
+                        <i class="fas fa-user"></i> Username
+                    </label>
+                    <input type="text" class="form-control-github" id="server_username" 
+                           placeholder="ubuntu or root" required>
+                    <small style="color: #656d76; font-size: 12px;">
+                        SSH username for server access
+                    </small>
+                </div>
+                <div class="form-group-github">
+                    <label for="server_auth_method" class="form-label-github">
+                        <i class="fas fa-lock"></i> Authentication Method
+                    </label>
+                    <select class="form-control-github" id="server_auth_method" required>
+                        <option value="password">Password</option>
+                        <option value="key">SSH Key</option>
+                    </select>
+                    <small style="color: #656d76; font-size: 12px;">
+                        Choose authentication method
+                    </small>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div class="form-group-github" id="password-field">
+                    <label for="server_password" class="form-label-github">
+                        <i class="fas fa-key"></i> Password
+                    </label>
+                    <input type="password" class="form-control-github" id="server_password" 
+                           placeholder="Server password">
+                    <small style="color: #656d76; font-size: 12px;">
+                        SSH password (if using password auth)
+                    </small>
+                </div>
+                <div class="form-group-github" id="key-field" style="display: none;">
+                    <label for="server_private_key" class="form-label-github">
+                        <i class="fas fa-key"></i> Private Key
+                    </label>
+                    <textarea class="form-control-github" id="server_private_key" rows="4" 
+                              placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" 
+                              style="resize: vertical; font-family: 'Courier New', monospace; font-size: 12px;"></textarea>
+                    <small style="color: #656d76; font-size: 12px;">
+                        SSH private key content (if using key auth)
+                    </small>
+                </div>
+            </div>
+            
+            <div class="form-group-github">
+                <label for="server_json_path" class="form-label-github">
+                    <i class="fas fa-folder"></i> JSON Files Path
+                </label>
+                <input type="text" class="form-control-github" id="server_json_path" 
+                       value="/opt/gbot-web-app/credentials/" placeholder="/path/to/json/files/" required>
+                <small style="color: #656d76; font-size: 12px;">
+                    Directory path where JSON credential files are stored on the server
+                </small>
+            </div>
+            
+            <div class="form-group-github">
+                <label for="server_file_pattern" class="form-label-github">
+                    <i class="fas fa-file-code"></i> File Pattern
+                </label>
+                <input type="text" class="form-control-github" id="server_file_pattern" 
+                       value="*.json" placeholder="*.json or admin@*.json" required>
+                <small style="color: #656d76; font-size: 12px;">
+                    File pattern to match JSON files (e.g., *.json, admin@*.json)
+                </small>
+            </div>
+            
+            <div style="display: flex; gap: 16px; justify-content: center; margin-top: 24px;">
+                <button type="button" class="btn-github" onclick="testServerConnection()">
+                    <i class="fas fa-search"></i> Test Connection
+                </button>
+                <button type="submit" class="btn-github btn-github-primary">
+                    <i class="fas fa-save"></i> Save Configuration
+                </button>
+            </div>
+        </form>
     </div>
 
     <!-- Current Configuration Display -->
-    <div class="row justify-content-center mt-4">
-        <div class="col-lg-8">
-            <div class="card shadow-lg border-success">
-                <div class="card-header bg-success text-white text-center">
-                    <h4 class="mb-0">📋 Current Configuration</h4>
-                </div>
-                <div class="card-body p-4">
-                    <div id="current-config-display">
-                        <div class="text-center py-4">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p class="mt-3 text-muted">Loading current configuration...</p>
-                        </div>
-                    </div>
-                </div>
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title" style="font-size: 18px;">
+                <i class="fas fa-list"></i>
+                Current Configuration
+            </h3>
+        </div>
+        <div id="current-config-display">
+            <div style="display: flex; align-items: center; justify-content: center; padding: 40px; color: #656d76;">
+                <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
+                Loading current configuration...
             </div>
         </div>
     </div>
 
     <!-- Status Messages -->
-    <div id="status-messages" class="mt-4 text-center"></div>
+    <div id="status-messages" style="margin-top: 24px;"></div>
 </div>
 
 <!-- Test Connection Modal -->
 <div class="modal fade" id="testConnectionModal" tabindex="-1" aria-labelledby="testModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="card-header bg-info text-white text-center">
-                <h5 class="modal-title w-100" id="testModalLabel">
-                    🔍 Testing Server Connection
+        <div class="modal-content" style="border: 1px solid #d0d7de; border-radius: 12px;">
+            <div class="modal-header" style="background: #0969da; color: white; border-radius: 12px 12px 0 0; border-bottom: none; padding: 20px;">
+                <h5 class="modal-title w-100" id="testModalLabel" style="text-align: center; margin: 0; font-weight: 600;">
+                    <i class="fas fa-search"></i>
+                    Testing Server Connection
                 </h5>
             </div>
-            <div class="modal-body text-center">
-                <div class="mb-3">
-                    <div class="spinner-border text-info" role="status" style="width: 3rem; height: 3rem;">
-                        <span class="visually-hidden">Testing...</span>
-                    </div>
+            <div class="modal-body" style="text-align: center; padding: 32px;">
+                <div style="margin-bottom: 24px;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 48px; color: #0969da;"></i>
                 </div>
-                <p class="fs-5">Testing connection to server...</p>
-                <div id="test-progress" class="progress mt-3" style="display: none;">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                <p style="font-size: 16px; margin-bottom: 16px;">Testing connection to server...</p>
+                <div id="test-progress" style="display: none; background: #f6f8fa; border-radius: 6px; height: 8px; margin-top: 16px; overflow: hidden;">
+                    <div style="background: #0969da; height: 100%; width: 0%; transition: width 0.3s; border-radius: 6px;"></div>
                 </div>
             </div>
         </div>
@@ -212,10 +234,10 @@ function displayCurrentConfiguration(config) {
     
     if (!config) {
         display.html(`
-            <div class="text-center py-4">
-                <div class="display-4 text-muted mb-3">⚙️</div>
-                <h5 class="text-muted">No Configuration Set</h5>
-                <p class="text-muted">Configure server settings above to enable "Add from Server JSON" functionality.</p>
+            <div style="text-align: center; padding: 40px; color: #656d76;">
+                <i class="fas fa-cog" style="font-size: 48px; margin-bottom: 16px; color: #d0d7de;"></i>
+                <h5 style="color: #656d76; margin-bottom: 8px;">No Configuration Set</h5>
+                <p style="color: #656d76;">Configure server settings above to enable "Add from Server JSON" functionality.</p>
             </div>
         `);
         return;
@@ -235,33 +257,41 @@ function displayCurrentConfiguration(config) {
     $('#server_auth_method').trigger('change');
     
     // Display current config
-    const statusClass = config.is_configured ? 'success' : 'warning';
-    const statusIcon = config.is_configured ? '✅' : '⚠️';
+    const statusColor = config.is_configured ? '#2da44e' : '#fb8500';
+    const statusIcon = config.is_configured ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
     const statusText = config.is_configured ? 'Configured' : 'Not Tested';
     
     display.html(`
-        <div class="row">
-            <div class="col-md-6">
-                <h6 class="fw-bold">🖥️ Server Details</h6>
-                <ul class="list-unstyled">
-                    <li><strong>Host:</strong> ${config.host || 'Not set'}</li>
-                    <li><strong>Port:</strong> ${config.port || 'Not set'}</li>
-                    <li><strong>Username:</strong> ${config.username || 'Not set'}</li>
-                    <li><strong>Auth Method:</strong> ${config.auth_method || 'Not set'}</li>
-                </ul>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+            <div>
+                <h6 style="font-weight: 600; margin-bottom: 16px; color: #24292f;">
+                    <i class="fas fa-server"></i> Server Details
+                </h6>
+                <div style="background: #f6f8fa; padding: 16px; border-radius: 6px; border: 1px solid #d0d7de;">
+                    <div style="margin-bottom: 8px;"><strong>Host:</strong> <code>${config.host || 'Not set'}</code></div>
+                    <div style="margin-bottom: 8px;"><strong>Port:</strong> <code>${config.port || 'Not set'}</code></div>
+                    <div style="margin-bottom: 8px;"><strong>Username:</strong> <code>${config.username || 'Not set'}</code></div>
+                    <div><strong>Auth Method:</strong> <code>${config.auth_method || 'Not set'}</code></div>
+                </div>
             </div>
-            <div class="col-md-6">
-                <h6 class="fw-bold">📁 File Configuration</h6>
-                <ul class="list-unstyled">
-                    <li><strong>JSON Path:</strong> ${config.json_path || 'Not set'}</li>
-                    <li><strong>File Pattern:</strong> ${config.file_pattern || 'Not set'}</li>
-                    <li><strong>Status:</strong> <span class="badge bg-${statusClass}">${statusIcon} ${statusText}</span></li>
-                </ul>
+            <div>
+                <h6 style="font-weight: 600; margin-bottom: 16px; color: #24292f;">
+                    <i class="fas fa-folder"></i> File Configuration
+                </h6>
+                <div style="background: #f6f8fa; padding: 16px; border-radius: 6px; border: 1px solid #d0d7de;">
+                    <div style="margin-bottom: 8px;"><strong>JSON Path:</strong> <code>${config.json_path || 'Not set'}</code></div>
+                    <div style="margin-bottom: 8px;"><strong>File Pattern:</strong> <code>${config.file_pattern || 'Not set'}</code></div>
+                    <div><strong>Status:</strong> 
+                        <span style="display: inline-flex; align-items: center; gap: 4px; background: ${statusColor}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">
+                            <i class="${statusIcon}"></i> ${statusText}
+                        </span>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="text-center mt-3">
-            <button class="btn btn-outline-danger btn-sm" onclick="clearServerConfiguration()">
-                🗑️ Clear Configuration
+        <div style="text-align: center;">
+            <button class="btn-github btn-github-danger" onclick="clearServerConfiguration()" style="padding: 4px 16px; font-size: 12px;">
+                <i class="fas fa-trash"></i> Clear Configuration
             </button>
         </div>
     `);
@@ -423,24 +453,34 @@ function clearServerConfiguration() {
 
 function showStatus(message, type) {
     console.log('Showing status:', message, type);
-    var alertClass = type === 'success' ? 'alert-success' : 
-                    type === 'error' ? 'alert-danger' : 
-                    type === 'warning' ? 'alert-warning' : 'alert-info';
+    var bgColor = type === 'success' ? '#dafbe1' : 
+                 type === 'error' ? '#ffebe9' : 
+                 type === 'warning' ? '#fff8c5' : '#dbeafe';
     
-    var icon = type === 'success' ? '✅' : 
-              type === 'error' ? '❌' : 
-              type === 'warning' ? '⚠️' : 'ℹ️';
+    var borderColor = type === 'success' ? '#2da44e' : 
+                     type === 'error' ? '#da3633' : 
+                     type === 'warning' ? '#d1242f' : '#0969da';
     
-    var statusHtml = '<div class="alert ' + alertClass + ' alert-dismissible fade show fs-5" role="alert">' +
-                     '<strong>' + icon + '</strong> ' + message +
-                     '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
+    var textColor = type === 'success' ? '#1a7f37' : 
+                   type === 'error' ? '#cf222e' : 
+                   type === 'warning' ? '#7d4e00' : '#0969da';
+    
+    var icon = type === 'success' ? 'fas fa-check-circle' : 
+              type === 'error' ? 'fas fa-exclamation-circle' : 
+              type === 'warning' ? 'fas fa-exclamation-triangle' : 'fas fa-info-circle';
+    
+    var statusHtml = '<div class="alert-github" style="background: ' + bgColor + '; border: 1px solid ' + borderColor + '; color: ' + textColor + '; display: flex; align-items: center; gap: 8px; padding: 16px; border-radius: 6px;">' +
+                     '<i class="' + icon + '"></i>' +
+                     '<span>' + message + '</span>' +
+                     '<button type="button" onclick="this.parentElement.style.display=\'none\'" style="background: none; border: none; color: ' + textColor + '; cursor: pointer; margin-left: auto; padding: 4px; font-size: 16px;">×</button>' +
+                     '</div>';
     
     $('#status-messages').html(statusHtml);
     
     // Auto-hide success messages after 5 seconds
     if (type === 'success') {
         setTimeout(function() {
-            $('.alert-success').fadeOut();
+            $('#status-messages .alert-github').fadeOut();
         }, 5000);
     }
 }

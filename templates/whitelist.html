@@ -3,195 +3,204 @@
 {% block title %}IP Whitelist Management{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <!-- Header Section - Centered -->
-    <div class="row mb-4">
-        <div class="col-12 text-center">
-            <h2 class="mb-0 display-4 text-primary">🛡️ IP Whitelist Management</h2>
-            <p class="text-muted lead">Manage access control for your application</p>
-            {% if session.get('emergency_access') %}
-            <div class="mt-3">
-                <span class="badge bg-warning text-dark px-4 py-2 fs-6">
-                    ⚠️ Emergency Access Mode
-                </span>
-                <a href="/logout" class="btn btn-outline-danger ms-3">
-                    🚪 Exit Emergency Mode
-                </a>
+<div class="github-card">
+    <div class="github-card-header">
+        <h1 class="github-card-title">
+            <i class="fas fa-shield-alt"></i>
+            IP Whitelist Management
+        </h1>
+        <p style="color: #656d76; margin: 8px 0 0 0; font-size: 14px;">
+            Manage access control for your application
+        </p>
+        {% if session.get('emergency_access') %}
+        <div style="margin-top: 16px; padding: 12px; background: #fff8c5; border: 1px solid #d1242f; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
+            <span style="color: #7d4e00; font-weight: 500;">
+                <i class="fas fa-exclamation-triangle"></i>
+                Emergency Access Mode Active
+            </span>
+            <a href="/logout" class="btn-github btn-github-danger" style="font-size: 12px; padding: 4px 12px;">
+                <i class="fas fa-sign-out-alt"></i>
+                Exit Emergency Mode
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Emergency Access Section -->
+    <div class="github-card" style="background: #fff8c5; border-color: #d1242f;">
+        <div class="github-card-header" style="background: #fb8500; color: white; margin: -24px -24px 24px -24px; padding: 16px 24px; border-radius: 12px 12px 0 0;">
+            <h3 class="github-card-title" style="color: white; margin: 0;">
+                <i class="fas fa-exclamation-triangle"></i>
+                Emergency Access
+            </h3>
+        </div>
+        <p style="text-align: center; color: #7d4e00; font-size: 16px; margin-bottom: 24px;">
+            If you're locked out due to IP restrictions, use this emergency access method
+        </p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+            <div class="form-group-github">
+                <label for="emergency_ip" class="form-label-github">
+                    <i class="fas fa-globe"></i> Your Current IP Address
+                </label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" class="form-control-github" id="emergency_ip" readonly 
+                           style="flex: 1;" placeholder="Detecting...">
+                    <button class="btn-github btn-github-primary" type="button" id="detectBtn">
+                        <i class="fas fa-search"></i> Detect
+                    </button>
+                </div>
+                <small style="color: #656d76; font-size: 12px;">
+                    <i class="fas fa-info-circle"></i> Automatically detected or enter manually
+                </small>
             </div>
-            {% endif %}
+            <div class="form-group-github">
+                <label for="emergency_key" class="form-label-github">
+                    <i class="fas fa-key"></i> Emergency Access Key
+                </label>
+                <input type="text" class="form-control-github" id="emergency_key" 
+                       placeholder="Enter WHITELIST_TOKEN or SECRET_KEY">
+                <small style="color: #656d76; font-size: 12px;">
+                    <i class="fas fa-info-circle"></i> Use key from your environment configuration
+                </small>
+            </div>
+        </div>
+        <div style="text-align: center;">
+            <button type="button" class="btn-github btn-github-primary" id="emergencyBtn" 
+                    style="padding: 12px 32px; font-size: 16px; font-weight: 600;">
+                <i class="fas fa-shield-alt"></i>
+                Grant Emergency Access
+            </button>
         </div>
     </div>
 
-    <!-- Emergency Access Section - Centered -->
-    <div class="row mb-5 justify-content-center">
-        <div class="col-lg-10">
-            <div class="card border-warning shadow-lg">
-                <div class="card-header bg-warning text-dark text-center">
-                    <h4 class="mb-0">🚨 Emergency Access</h4>
-                </div>
-                <div class="card-body p-5 text-center">
-                    <p class="lead mb-4">If you're locked out due to IP restrictions, use this emergency access method:</p>
-                    <div class="row justify-content-center">
-                        <div class="col-md-5 mb-4">
-                            <label for="emergency_ip" class="form-label fw-bold fs-5">
-                                🌐 Your Current IP Address
-                            </label>
-                            <div class="input-group input-group-lg">
-                                <input type="text" class="form-control" id="emergency_ip" readonly>
-                                <button class="btn btn-primary" type="button" id="detectBtn">
-                                    🔍 Detect
-                                </button>
-                            </div>
-                            <div class="form-text mt-2">
-                                ℹ️ Automatically detected or enter manually
-                            </div>
-                        </div>
-                        <div class="col-md-5 mb-4">
-                            <label for="emergency_key" class="form-label fw-bold fs-5">
-                                🔑 Emergency Access Key
-                            </label>
-                            <input type="text" class="form-control form-control-lg" id="emergency_key" 
-                                   placeholder="Enter WHITELIST_TOKEN or SECRET_KEY">
-                            <div class="form-text mt-2">
-                                ℹ️ Use key from your environment configuration
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <button type="button" class="btn btn-warning btn-lg px-5 py-3" id="emergencyBtn">
-                            🛡️ Grant Emergency Access
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Management Section - Centered -->
-    <div class="row justify-content-center">
+    <!-- Main Management Section -->
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px;">
         <!-- Add IP Section -->
-        <div class="col-lg-4 mb-4">
-            <div class="card h-100 shadow-lg border-primary">
-                <div class="card-header bg-primary text-white text-center">
-                    <h5 class="mb-0">
-                        ➕ Add IP to Whitelist
-                    </h5>
-                </div>
-                <div class="card-body p-4 text-center">
-                    <form id="add-ip-form">
-                        <div class="mb-4">
-                            <label for="ip_address" class="form-label fw-bold fs-5">IP Address</label>
-                            <input type="text" class="form-control form-control-lg" id="ip_address" name="ip_address" 
-                                   placeholder="e.g., 192.168.1.100" required>
-                            <div class="form-text mt-2">
-                                ℹ️ Enter the IP address you want to whitelist
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-lg w-100">
-                            ➕ Add IP
-                        </button>
-                    </form>
-                </div>
+        <div class="github-card" style="margin-bottom: 0;">
+            <div class="github-card-header">
+                <h3 class="github-card-title" style="font-size: 16px;">
+                    <i class="fas fa-plus"></i>
+                    Add IP to Whitelist
+                </h3>
             </div>
+            <form id="add-ip-form">
+                <div class="form-group-github">
+                    <label for="ip_address" class="form-label-github">
+                        <i class="fas fa-network-wired"></i> IP Address
+                    </label>
+                    <input type="text" class="form-control-github" id="ip_address" name="ip_address" 
+                           placeholder="e.g., 192.168.1.100" required>
+                    <small style="color: #656d76; font-size: 12px;">
+                        <i class="fas fa-info-circle"></i> Enter the IP address you want to whitelist
+                    </small>
+                </div>
+                <button type="submit" class="btn-github btn-github-primary" style="width: 100%;">
+                    <i class="fas fa-plus"></i>
+                    Add IP
+                </button>
+            </form>
         </div>
 
         <!-- Whitelisted IPs Section -->
-        <div class="col-lg-8 mb-4">
-            <div class="card h-100 shadow-lg border-success">
-                <div class="card-header bg-success text-white text-center">
-                    <h5 class="mb-0">
-                        📋 Whitelisted IPs
-                    </h5>
+        <div class="github-card" style="margin-bottom: 0;">
+            <div class="github-card-header">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 class="github-card-title" style="font-size: 16px; margin: 0;">
+                        <i class="fas fa-list"></i>
+                        Whitelisted IPs
+                    </h3>
+                    <button class="btn-github" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
                 </div>
-                <div class="card-body p-4">
-                    <div class="text-center mb-3">
-                        <button class="btn btn-outline-success" id="refreshBtn">
-                            🔄 Refresh List
-                        </button>
+            </div>
+            
+            <div id="ip-loading" style="display: none; text-align: center; padding: 40px; color: #656d76;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 16px;"></i>
+                <p>Loading IP list...</p>
+            </div>
+            
+            <div id="ip-list-container">
+                {% if whitelisted_ips %}
+                    <table class="table-github">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-network-wired"></i> IP Address</th>
+                                <th><i class="fas fa-calendar"></i> Added Date</th>
+                                <th><i class="fas fa-cog"></i> Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ip in whitelisted_ips %}
+                            <tr>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="background: #2da44e; color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px;">
+                                            <i class="fas fa-check"></i>
+                                        </span>
+                                        <code style="background: #f6f8fa; padding: 4px 8px; border-radius: 4px; font-family: 'Courier New', monospace;">{{ ip }}</code>
+                                    </div>
+                                </td>
+                                <td style="color: #656d76;">
+                                    <small>Recently added</small>
+                                </td>
+                                <td>
+                                    <button class="btn-github btn-github-danger delete-ip-btn" data-ip="{{ ip }}" 
+                                            title="Remove IP from whitelist" style="padding: 4px 12px; font-size: 12px;">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div style="text-align: center; padding: 40px; color: #656d76;">
+                        <i class="fas fa-shield-alt" style="font-size: 48px; margin-bottom: 16px; color: #d0d7de;"></i>
+                        <h4 style="color: #656d76; margin-bottom: 8px;">No IPs Whitelisted</h4>
+                        <p style="color: #656d76;">Start by adding your first IP address to the whitelist.</p>
                     </div>
-                    
-                    <div id="ip-loading" class="text-center py-5" style="display: none;">
-                        <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="mt-3 text-muted fs-5">Loading IP list...</p>
-                    </div>
-                    
-                    <div id="ip-list-container">
-                        {% if whitelisted_ips %}
-                            <div class="table-responsive">
-                                <table class="table table-hover table-striped">
-                                    <thead class="table-success">
-                                        <tr class="text-center">
-                                            <th class="fs-5">🌐 IP Address</th>
-                                            <th class="fs-5">📅 Added Date</th>
-                                            <th class="fs-5">⚙️ Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for ip in whitelisted_ips %}
-                                        <tr class="text-center align-middle">
-                                            <td>
-                                                <span class="badge bg-success fs-6 me-2">
-                                                    ✅
-                                                </span>
-                                                <code class="fs-5 fw-bold">{{ ip }}</code>
-                                            </td>
-                                            <td class="text-muted">
-                                                <small class="fs-6">Recently added</small>
-                                            </td>
-                                            <td>
-                                                <button class="btn btn-danger btn-lg delete-ip-btn" data-ip="{{ ip }}" 
-                                                        title="Remove IP from whitelist">
-                                                    🗑️ Delete
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        {% else %}
-                            <div class="text-center py-5">
-                                <div class="display-1 text-muted mb-4">🛡️</div>
-                                <h4 class="text-muted">No IPs Whitelisted</h4>
-                                <p class="text-muted fs-5">Start by adding your first IP address to the whitelist.</p>
-                </div>
-                        {% endif %}
-                </div>
-                </div>
+                {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Status Messages - Centered -->
-    <div id="status-messages" class="mt-4 text-center"></div>
+        <!-- Status Messages -->
+    <div id="status-messages" style="margin-top: 24px;"></div>
 </div>
 
- <!-- Delete Confirmation Modal -->
- <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true" style="z-index: 9999;">
-     <div class="modal-dialog modal-dialog-centered">
-         <div class="modal-content">
-             <div class="modal-header bg-danger text-white text-center">
-                 <h5 class="modal-title w-100" id="deleteModalLabel">
-                     ⚠️ Confirm Deletion
-                 </h5>
-                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-             </div>
-             <div class="modal-body text-center">
-                 <div class="mb-3">
-                     <div class="display-4 text-danger">🗑️</div>
-                 </div>
-                 <p class="fs-5">Are you sure you want to remove <strong id="delete-ip-address" class="text-danger"></strong> from the whitelist?</p>
-                 <p class="text-muted">
-                     ℹ️ This action cannot be undone.
-                 </p>
-             </div>
-             <div class="modal-footer justify-content-center">
-                 <button type="button" class="btn btn-secondary btn-lg px-4" id="cancelDeleteBtn">Cancel</button>
-                 <button type="button" class="btn btn-danger btn-lg px-4" id="confirmDeleteBtn">
-                     🗑️ Delete
-                 </button>
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true" style="z-index: 9999;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border: 1px solid #d0d7de; border-radius: 12px;">
+            <div class="modal-header" style="background: #da3633; color: white; border-radius: 12px 12px 0 0; border-bottom: none; padding: 20px;">
+                <h5 class="modal-title w-100" id="deleteModalLabel" style="text-align: center; margin: 0; font-weight: 600;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 32px;">
+                <div style="margin-bottom: 24px;">
+                    <i class="fas fa-trash" style="font-size: 48px; color: #da3633;"></i>
+                </div>
+                <p style="font-size: 16px; margin-bottom: 16px;">
+                    Are you sure you want to remove <strong id="delete-ip-address" style="color: #da3633;"></strong> from the whitelist?
+                </p>
+                <p style="color: #656d76; margin: 0;">
+                    <i class="fas fa-info-circle"></i>
+                    This action cannot be undone.
+                </p>
+            </div>
+            <div class="modal-footer" style="justify-content: center; gap: 16px; padding: 20px; border-top: 1px solid #d0d7de;">
+                <button type="button" class="btn-github" id="cancelDeleteBtn" style="padding: 8px 24px;">
+                    Cancel
+                </button>
+                <button type="button" class="btn-github btn-github-danger" id="confirmDeleteBtn" style="padding: 8px 24px;">
+                    <i class="fas fa-trash"></i>
+                    Delete
+                </button>
             </div>
         </div>
     </div>
@@ -439,20 +448,34 @@
                         type === 'error' ? 'alert-danger' : 
                         type === 'warning' ? 'alert-warning' : 'alert-info';
         
-        var icon = type === 'success' ? '✅' : 
-                  type === 'error' ? '❌' : 
-                  type === 'warning' ? '⚠️' : 'ℹ️';
+        var bgColor = type === 'success' ? '#dafbe1' : 
+                     type === 'error' ? '#ffebe9' : 
+                     type === 'warning' ? '#fff8c5' : '#dbeafe';
         
-        var statusHtml = '<div class="alert ' + alertClass + ' alert-dismissible fade show fs-5" role="alert">' +
-                         '<strong>' + icon + '</strong> ' + message +
-                         '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
+        var borderColor = type === 'success' ? '#2da44e' : 
+                         type === 'error' ? '#da3633' : 
+                         type === 'warning' ? '#d1242f' : '#0969da';
+        
+        var textColor = type === 'success' ? '#1a7f37' : 
+                       type === 'error' ? '#cf222e' : 
+                       type === 'warning' ? '#7d4e00' : '#0969da';
+        
+        var icon = type === 'success' ? 'fas fa-check-circle' : 
+                  type === 'error' ? 'fas fa-exclamation-circle' : 
+                  type === 'warning' ? 'fas fa-exclamation-triangle' : 'fas fa-info-circle';
+        
+        var statusHtml = '<div class="alert-github" style="background: ' + bgColor + '; border: 1px solid ' + borderColor + '; color: ' + textColor + '; display: flex; align-items: center; gap: 8px;">' +
+                         '<i class="' + icon + '"></i>' +
+                         '<span>' + message + '</span>' +
+                         '<button type="button" onclick="this.parentElement.style.display=\'none\'" style="background: none; border: none; color: ' + textColor + '; cursor: pointer; margin-left: auto; padding: 4px;">×</button>' +
+                         '</div>';
         
         $('#status-messages').html(statusHtml);
         
         // Auto-hide success messages after 5 seconds
         if (type === 'success') {
             setTimeout(function() {
-                $('.alert-success').fadeOut();
+                $('#status-messages .alert-github').fadeOut();
             }, 5000);
         }
     }

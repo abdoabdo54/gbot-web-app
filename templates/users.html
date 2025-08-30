@@ -2,38 +2,64 @@
 {% block title %}User Management - GBot Web{% endblock %}
 
 {% block content %}
-<!-- Top Navigation (Same as Dashboard) -->
-<div class="section">
-    <h2>👥 User Management</h2>
+<div class="github-card">
+    <div class="github-card-header">
+        <h1 class="github-card-title">
+            <i class="fas fa-users"></i>
+            User Management
+        </h1>
+    </div>
     
-    <div style="display: flex; gap: 2rem; margin-top: 2rem;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
         <!-- Add New User -->
-        <div style="flex: 1; background: #f8f9fa; padding: 1.5rem; border-radius: 6px;">
-            <h3>Add New User</h3>
-            <div class="form-group">
-                <label for="new-username">Username:</label>
-                <input type="text" id="new-username" placeholder="Enter username" required>
+        <div class="github-card" style="margin-bottom: 0;">
+            <div class="github-card-header">
+                <h3 class="github-card-title" style="font-size: 16px;">
+                    <i class="fas fa-user-plus"></i>
+                    Add New User
+                </h3>
             </div>
-            <div class="form-group">
-                <label for="new-password">Password:</label>
-                <input type="password" id="new-password" placeholder="Enter password" required>
+            <div class="form-group-github">
+                <label for="new-username" class="form-label-github">
+                    <i class="fas fa-user"></i> Username
+                </label>
+                <input type="text" id="new-username" class="form-control-github" placeholder="Enter username" required>
             </div>
-            <div class="form-group">
-                <label for="new-role">Role:</label>
-                <select id="new-role">
+            <div class="form-group-github">
+                <label for="new-password" class="form-label-github">
+                    <i class="fas fa-lock"></i> Password
+                </label>
+                <input type="password" id="new-password" class="form-control-github" placeholder="Enter password" required>
+            </div>
+            <div class="form-group-github">
+                <label for="new-role" class="form-label-github">
+                    <i class="fas fa-user-tag"></i> Role
+                </label>
+                <select id="new-role" class="form-control-github">
                     <option value="support">Support</option>
                     <option value="mailer">Mailer</option>
                     <option value="admin">Admin</option>
                 </select>
             </div>
-            <button onclick="addUser()" class="btn btn-primary">➕ Add User</button>
+            <button onclick="addUser()" class="btn-github btn-github-primary" style="width: 100%;">
+                <i class="fas fa-plus"></i>
+                Add User
+            </button>
         </div>
         
         <!-- Existing Users -->
-        <div style="flex: 1;">
-            <h3>Existing Users</h3>
-            <div id="user-list" style="margin-top: 1rem;">
-                <p>Loading users...</p>
+        <div class="github-card" style="margin-bottom: 0;">
+            <div class="github-card-header">
+                <h3 class="github-card-title" style="font-size: 16px;">
+                    <i class="fas fa-list"></i>
+                    Existing Users
+                </h3>
+            </div>
+            <div id="user-list">
+                <div style="display: flex; align-items: center; justify-content: center; padding: 40px; color: #656d76;">
+                    <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
+                    Loading users...
+                </div>
             </div>
         </div>
     </div>
@@ -85,22 +111,25 @@ function loadUsers() {
             }
             
             userList.innerHTML = data.users.map((user, index) => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: white; margin-bottom: 0.5rem; border-radius: 4px; border: 1px solid #ddd;">
-                    <div style="display: flex; align-items: center; gap: 1rem;">
-                        <span style="font-weight: bold; min-width: 30px;">${index + 1}</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f6f8fa; margin-bottom: 8px; border-radius: 6px; border: 1px solid #d0d7de; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='#f6f8fa'">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <span style="background: #24292f; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">${index + 1}</span>
                         <div>
-                            <div style="font-weight: bold; font-size: 1.1rem;">${user.username}</div>
-                            <span style="background: ${user.role === 'admin' ? '#dc3545' : user.role === 'mailer' ? '#ffc107' : '#28a745'}; color: ${user.role === 'mailer' ? '#000' : 'white'}; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem;">
+                            <div style="font-weight: 600; font-size: 14px; color: #24292f; margin-bottom: 4px;">
+                                <i class="fas fa-user" style="margin-right: 6px; color: #656d76;"></i>
+                                ${user.username}
+                            </div>
+                            <span style="background: ${user.role === 'admin' ? '#da3633' : user.role === 'mailer' ? '#fb8500' : '#2da44e'}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">
                                 ${user.role}
                             </span>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button onclick="editUser('${user.username}', '${user.role}')" style="background: #007bff; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 3px; cursor: pointer;">
-                            ✏️ Edit
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="editUser('${user.username}', '${user.role}')" class="btn-github" style="padding: 4px 12px; font-size: 12px;">
+                            <i class="fas fa-edit"></i> Edit
                         </button>
-                        <button onclick="deleteUser('${user.username}')" style="background: #dc3545; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 3px; cursor: pointer;">
-                            🗑️ Delete
+                        <button onclick="deleteUser('${user.username}')" class="btn-github btn-github-danger" style="padding: 4px 12px; font-size: 12px;">
+                            <i class="fas fa-trash"></i> Delete
                         </button>
                     </div>
                 </div>
