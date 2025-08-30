@@ -3,195 +3,240 @@
 {% block title %}IP Whitelist Management{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <!-- Header Section - Centered -->
-    <div class="row mb-4">
-        <div class="col-12 text-center">
-            <h2 class="mb-0 display-4 text-primary">🛡️ IP Whitelist Management</h2>
-            <p class="text-muted lead">Manage access control for your application</p>
-            {% if session.get('emergency_access') %}
-            <div class="mt-3">
-                <span class="badge bg-warning text-dark px-4 py-2 fs-6">
-                    ⚠️ Emergency Access Mode
-                </span>
-                <a href="/logout" class="btn btn-outline-danger ms-3">
-                    🚪 Exit Emergency Mode
-                </a>
+<div class="space-y-8">
+    <!-- Header Section -->
+    <div class="text-center">
+        <div class="flex items-center justify-center space-x-3 mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <i class="fas fa-shield-alt text-white text-xl"></i>
             </div>
-            {% endif %}
+            <h1 class="text-4xl font-bold text-white">IP Whitelist Management</h1>
+        </div>
+        <p class="text-vercel-gray-400 text-lg">Secure access control for your application</p>
+        
+        {% if session.get('emergency_access') %}
+        <div class="mt-6 flex items-center justify-center space-x-4">
+            <span class="px-4 py-2 bg-yellow-500 bg-opacity-20 border border-yellow-500 border-opacity-30 rounded-lg text-yellow-400 font-medium">
+                <i class="fas fa-exclamation-triangle mr-2"></i>Emergency Access Mode
+            </span>
+            <a href="/logout" class="btn-vercel-danger">
+                <i class="fas fa-sign-out-alt"></i>
+                Exit Emergency Mode
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Emergency Access Section -->
+    <div class="vercel-card border-yellow-500 border-opacity-30">
+        <div class="mb-6">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-10 h-10 bg-yellow-500 bg-opacity-20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-exclamation-triangle text-yellow-500"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white">Emergency Access</h2>
+            </div>
+            <p class="text-vercel-gray-400">If you're locked out due to IP restrictions, use this emergency access method:</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Current IP Detection -->
+            <div>
+                <label for="emergency_ip" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                    <i class="fas fa-map-marker-alt mr-2"></i>Your Current IP Address
+                </label>
+                <div class="flex">
+                    <input 
+                        type="text" 
+                        id="emergency_ip" 
+                        class="vercel-input rounded-r-none border-r-0"
+                        readonly
+                        placeholder="Detecting..."
+                    >
+                    <button 
+                        type="button" 
+                        class="btn-vercel-secondary rounded-l-none border-l-0 px-4"
+                        id="detectBtn"
+                    >
+                        <i class="fas fa-search"></i>
+                        Detect
+                    </button>
+                </div>
+                <p class="text-vercel-gray-500 text-xs mt-2">Automatically detected or enter manually</p>
+            </div>
+
+            <!-- Emergency Key -->
+            <div>
+                <label for="emergency_key" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                    <i class="fas fa-key mr-2"></i>Emergency Access Key
+                </label>
+                <input 
+                    type="text" 
+                    id="emergency_key" 
+                    class="vercel-input"
+                    placeholder="Enter WHITELIST_TOKEN or SECRET_KEY"
+                >
+                <p class="text-vercel-gray-500 text-xs mt-2">Use key from your environment configuration</p>
+            </div>
+        </div>
+
+        <div class="mt-6 text-center">
+            <button type="button" class="btn-vercel-danger" id="emergencyBtn">
+                <i class="fas fa-shield-alt"></i>
+                Grant Emergency Access
+            </button>
         </div>
     </div>
 
-    <!-- Emergency Access Section - Centered -->
-    <div class="row mb-5 justify-content-center">
-        <div class="col-lg-10">
-            <div class="card border-warning shadow-lg">
-                <div class="card-header bg-warning text-dark text-center">
-                    <h4 class="mb-0">🚨 Emergency Access</h4>
-                </div>
-                <div class="card-body p-5 text-center">
-                    <p class="lead mb-4">If you're locked out due to IP restrictions, use this emergency access method:</p>
-                    <div class="row justify-content-center">
-                        <div class="col-md-5 mb-4">
-                            <label for="emergency_ip" class="form-label fw-bold fs-5">
-                                🌐 Your Current IP Address
-                            </label>
-                            <div class="input-group input-group-lg">
-                                <input type="text" class="form-control" id="emergency_ip" readonly>
-                                <button class="btn btn-primary" type="button" id="detectBtn">
-                                    🔍 Detect
-                                </button>
-                            </div>
-                            <div class="form-text mt-2">
-                                ℹ️ Automatically detected or enter manually
-                            </div>
-                        </div>
-                        <div class="col-md-5 mb-4">
-                            <label for="emergency_key" class="form-label fw-bold fs-5">
-                                🔑 Emergency Access Key
-                            </label>
-                            <input type="text" class="form-control form-control-lg" id="emergency_key" 
-                                   placeholder="Enter WHITELIST_TOKEN or SECRET_KEY">
-                            <div class="form-text mt-2">
-                                ℹ️ Use key from your environment configuration
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <button type="button" class="btn btn-warning btn-lg px-5 py-3" id="emergencyBtn">
-                            🛡️ Grant Emergency Access
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Management Section - Centered -->
-    <div class="row justify-content-center">
+    <!-- Main Management Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Add IP Section -->
-        <div class="col-lg-4 mb-4">
-            <div class="card h-100 shadow-lg border-primary">
-                <div class="card-header bg-primary text-white text-center">
-                    <h5 class="mb-0">
-                        ➕ Add IP to Whitelist
-                    </h5>
+        <div class="lg:col-span-1">
+            <div class="vercel-card h-full">
+                <div class="flex items-center space-x-3 mb-6">
+                    <div class="w-10 h-10 bg-vercel-accent bg-opacity-20 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-plus text-vercel-accent"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white">Add IP to Whitelist</h3>
                 </div>
-                <div class="card-body p-4 text-center">
-                    <form id="add-ip-form">
-                        <div class="mb-4">
-                            <label for="ip_address" class="form-label fw-bold fs-5">IP Address</label>
-                            <input type="text" class="form-control form-control-lg" id="ip_address" name="ip_address" 
-                                   placeholder="e.g., 192.168.1.100" required>
-                            <div class="form-text mt-2">
-                                ℹ️ Enter the IP address you want to whitelist
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-lg w-100">
-                            ➕ Add IP
-                        </button>
-                    </form>
-                </div>
+
+                <form id="add-ip-form" class="space-y-6">
+                    <div>
+                        <label for="ip_address" class="block text-sm font-medium text-vercel-gray-300 mb-2">
+                            <i class="fas fa-globe mr-2"></i>IP Address
+                        </label>
+                        <input 
+                            type="text" 
+                            id="ip_address" 
+                            name="ip_address" 
+                            class="vercel-input"
+                            placeholder="e.g., 192.168.1.100" 
+                            required
+                        >
+                        <p class="text-vercel-gray-500 text-xs mt-2">Enter the IP address you want to whitelist</p>
+                    </div>
+                    
+                    <button type="submit" class="btn-vercel w-full">
+                        <i class="fas fa-plus"></i>
+                        Add IP Address
+                    </button>
+                </form>
             </div>
         </div>
 
         <!-- Whitelisted IPs Section -->
-        <div class="col-lg-8 mb-4">
-            <div class="card h-100 shadow-lg border-success">
-                <div class="card-header bg-success text-white text-center">
-                    <h5 class="mb-0">
-                        📋 Whitelisted IPs
-                    </h5>
-                </div>
-                <div class="card-body p-4">
-                    <div class="text-center mb-3">
-                        <button class="btn btn-outline-success" id="refreshBtn">
-                            🔄 Refresh List
-                        </button>
-                    </div>
-                    
-                    <div id="ip-loading" class="text-center py-5" style="display: none;">
-                        <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
-                            <span class="visually-hidden">Loading...</span>
+        <div class="lg:col-span-2">
+            <div class="vercel-card h-full">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-green-500 bg-opacity-20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-list text-green-500"></i>
                         </div>
-                        <p class="mt-3 text-muted fs-5">Loading IP list...</p>
+                        <h3 class="text-xl font-bold text-white">Whitelisted IP Addresses</h3>
                     </div>
-                    
-                    <div id="ip-list-container">
-                        {% if whitelisted_ips %}
-                            <div class="table-responsive">
-                                <table class="table table-hover table-striped">
-                                    <thead class="table-success">
-                                        <tr class="text-center">
-                                            <th class="fs-5">🌐 IP Address</th>
-                                            <th class="fs-5">📅 Added Date</th>
-                                            <th class="fs-5">⚙️ Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for ip in whitelisted_ips %}
-                                        <tr class="text-center align-middle">
-                                            <td>
-                                                <span class="badge bg-success fs-6 me-2">
-                                                    ✅
-                                                </span>
-                                                <code class="fs-5 fw-bold">{{ ip }}</code>
-                                            </td>
-                                            <td class="text-muted">
-                                                <small class="fs-6">Recently added</small>
-                                            </td>
-                                            <td>
-                                                <button class="btn btn-danger btn-lg delete-ip-btn" data-ip="{{ ip }}" 
-                                                        title="Remove IP from whitelist">
-                                                    🗑️ Delete
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                    <button class="btn-vercel-secondary" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                </div>
+
+                <!-- Loading State -->
+                <div id="ip-loading" class="text-center py-12 hidden">
+                    <div class="vercel-spinner mx-auto mb-4"></div>
+                    <p class="text-vercel-gray-400">Loading IP list...</p>
+                </div>
+
+                <!-- IP List Container -->
+                <div id="ip-list-container">
+                    {% if whitelisted_ips %}
+                        <div class="vercel-table">
+                            <table class="w-full">
+                                <thead>
+                                    <tr>
+                                        <th class="text-left">IP Address</th>
+                                        <th class="text-left">Status</th>
+                                        <th class="text-left">Added Date</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ip in whitelisted_ips %}
+                                    <tr>
+                                        <td>
+                                            <div class="flex items-center space-x-3">
+                                                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                                <code class="text-vercel-gray-100 font-mono">{{ ip }}</code>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="status-active">
+                                                <i class="fas fa-check-circle mr-1"></i>Active
+                                            </span>
+                                        </td>
+                                        <td class="text-vercel-gray-400">Recently added</td>
+                                        <td class="text-center">
+                                            <button 
+                                                class="btn-vercel-danger delete-ip-btn" 
+                                                data-ip="{{ ip }}"
+                                                title="Remove IP from whitelist"
+                                            >
+                                                <i class="fas fa-trash"></i>
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-12">
+                            <div class="w-16 h-16 bg-vercel-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-shield-alt text-vercel-gray-400 text-2xl"></i>
                             </div>
-                        {% else %}
-                            <div class="text-center py-5">
-                                <div class="display-1 text-muted mb-4">🛡️</div>
-                                <h4 class="text-muted">No IPs Whitelisted</h4>
-                                <p class="text-muted fs-5">Start by adding your first IP address to the whitelist.</p>
-                </div>
-                        {% endif %}
-                </div>
+                            <h4 class="text-vercel-gray-300 text-lg font-medium mb-2">No IP Addresses Whitelisted</h4>
+                            <p class="text-vercel-gray-500">Start by adding your first IP address to the whitelist.</p>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Status Messages - Centered -->
-    <div id="status-messages" class="mt-4 text-center"></div>
+    <!-- Status Messages -->
+    <div id="status-messages" class="fixed bottom-6 right-6 max-w-md z-50"></div>
 </div>
 
- <!-- Delete Confirmation Modal -->
- <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true" style="z-index: 9999;">
-     <div class="modal-dialog modal-dialog-centered">
-         <div class="modal-content">
-             <div class="modal-header bg-danger text-white text-center">
-                 <h5 class="modal-title w-100" id="deleteModalLabel">
-                     ⚠️ Confirm Deletion
-                 </h5>
-                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-             </div>
-             <div class="modal-body text-center">
-                 <div class="mb-3">
-                     <div class="display-4 text-danger">🗑️</div>
-                 </div>
-                 <p class="fs-5">Are you sure you want to remove <strong id="delete-ip-address" class="text-danger"></strong> from the whitelist?</p>
-                 <p class="text-muted">
-                     ℹ️ This action cannot be undone.
-                 </p>
-             </div>
-             <div class="modal-footer justify-content-center">
-                 <button type="button" class="btn btn-secondary btn-lg px-4" id="cancelDeleteBtn">Cancel</button>
-                 <button type="button" class="btn btn-danger btn-lg px-4" id="confirmDeleteBtn">
-                     🗑️ Delete
-                 </button>
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true" style="z-index: 9999;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-red-600 text-white">
+                <h5 class="modal-title w-100 text-center" id="deleteModalLabel">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-6">
+                <div class="w-16 h-16 bg-red-500 bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-trash text-red-500 text-2xl"></i>
+                </div>
+                <p class="text-lg font-medium text-vercel-gray-100 mb-2">
+                    Are you sure you want to remove <strong id="delete-ip-address" class="text-red-400"></strong> from the whitelist?
+                </p>
+                <p class="text-vercel-gray-400 text-sm">
+                    <i class="fas fa-info-circle mr-1"></i>This action cannot be undone.
+                </p>
+            </div>
+            <div class="modal-footer justify-content-center space-x-4">
+                <button type="button" class="btn-vercel-secondary" id="cancelDeleteBtn">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </button>
+                <button type="button" class="btn-vercel-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash"></i>
+                    Delete IP
+                </button>
             </div>
         </div>
     </div>
@@ -306,7 +351,7 @@
                 console.log('IP detected:', data.ip);
                 $('#emergency_ip').val(data.ip);
                 $('#ip_address').val(data.ip);
-                showStatus('✅ IP address detected: ' + data.ip, 'success');
+                showStatus('IP address detected: ' + data.ip, 'success');
             },
             error: function(xhr, status, error) {
                 console.log('First IP detection failed, trying fallback...');
@@ -319,16 +364,16 @@
                         console.log('IP detected via fallback:', ip.trim());
                         $('#emergency_ip').val(ip.trim());
                         $('#ip_address').val(ip.trim());
-                        showStatus('✅ IP address detected: ' + ip.trim(), 'success');
+                        showStatus('IP address detected: ' + ip.trim(), 'success');
                     },
                     error: function(xhr2, status2, error2) {
                         console.log('All IP detection failed');
                         $('#emergency_ip').val('Could not detect');
                         $('#ip_address').val('Could not detect');
-                        showStatus('⚠️ Could not automatically detect your IP address. Please enter it manually.', 'warning');
-                }
-            });
-        }
+                        showStatus('Could not automatically detect your IP address. Please enter it manually.', 'warning');
+                    }
+                });
+            }
         });
     }
 
@@ -359,15 +404,15 @@
         
         showStatus('Adding IP to whitelist...', 'info');
         
-            $.ajax({
+        $.ajax({
             url: url,
             type: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(data),
-                success: function(response) {
+            success: function(response) {
                 console.log('Add IP response:', response);
-                    if (response.success) {
-                    showStatus('✅ ' + response.message, 'success');
+                if (response.success) {
+                    showStatus(response.message, 'success');
                     if (!isEmergency) {
                         $("#add-ip-form")[0].reset();
                     }
@@ -375,13 +420,13 @@
                     setTimeout(function() {
                         location.reload();
                     }, 1500);
-                    } else {
-                    showStatus('❌ ' + response.error, 'error');
+                } else {
+                    showStatus(response.error, 'error');
                 }
             },
             error: function(xhr, status, error) {
                 console.log('Add IP error:', xhr, status, error);
-                showStatus('❌ Network error: ' + error, 'error');
+                showStatus('Network error: ' + error, 'error');
             }
         });
     }
@@ -397,19 +442,19 @@
         
         if (!ipAddress) {
             console.error('No IP address provided for deletion');
-            showStatus('❌ Error: No IP address specified', 'error');
+            showStatus('Error: No IP address specified', 'error');
             return;
         }
         
-                $.ajax({
-                    url: "/api/delete-whitelist-ip",
-                    type: "POST",
-                    contentType: "application/json",
-                    data: JSON.stringify({ ip_address: ipAddress }),
-                    success: function(response) {
+        $.ajax({
+            url: "/api/delete-whitelist-ip",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ ip_address: ipAddress }),
+            success: function(response) {
                 console.log('Delete IP response:', response);
-                        if (response.success) {
-                    showStatus('✅ ' + response.message, 'success');
+                if (response.success) {
+                    showStatus(response.message, 'success');
                     
                     // Hide modal using Bootstrap
                     var modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
@@ -421,38 +466,45 @@
                     setTimeout(function() {
                         location.reload();
                     }, 1000);
-                        } else {
-                    showStatus('❌ ' + response.error, 'error');
-                        }
+                } else {
+                    showStatus(response.error, 'error');
+                }
             },
             error: function(xhr, status, error) {
                 console.log('Delete IP error:', xhr, status, error);
                 console.log('Response text:', xhr.responseText);
-                showStatus('❌ Network error: ' + error, 'error');
-                    }
-                });
+                showStatus('Network error: ' + error, 'error');
             }
+        });
+    }
 
     function showStatus(message, type) {
         console.log('Showing status:', message, type);
-        var alertClass = type === 'success' ? 'alert-success' : 
-                        type === 'error' ? 'alert-danger' : 
-                        type === 'warning' ? 'alert-warning' : 'alert-info';
         
-        var icon = type === 'success' ? '✅' : 
-                  type === 'error' ? '❌' : 
-                  type === 'warning' ? '⚠️' : 'ℹ️';
+        var bgClass = type === 'success' ? 'alert-vercel-success' : 
+                     type === 'error' ? 'alert-vercel-error' : 
+                     type === 'warning' ? 'alert-vercel-warning' : 'alert-vercel-info';
         
-        var statusHtml = '<div class="alert ' + alertClass + ' alert-dismissible fade show fs-5" role="alert">' +
-                         '<strong>' + icon + '</strong> ' + message +
-                         '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
+        var icon = type === 'success' ? 'fa-check-circle' : 
+                  type === 'error' ? 'fa-exclamation-triangle' : 
+                  type === 'warning' ? 'fa-exclamation-circle' : 'fa-info-circle';
         
-        $('#status-messages').html(statusHtml);
+        var statusHtml = `
+            <div class="${bgClass} flex items-center space-x-3 mb-3 rounded-lg shadow-lg">
+                <i class="fas ${icon} text-lg"></i>
+                <span class="font-medium flex-1">${message}</span>
+                <button type="button" class="text-current opacity-50 hover:opacity-100" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        $('#status-messages').prepend(statusHtml);
         
         // Auto-hide success messages after 5 seconds
         if (type === 'success') {
             setTimeout(function() {
-                $('.alert-success').fadeOut();
+                $('.alert-vercel-success').fadeOut();
             }, 5000);
         }
     }
