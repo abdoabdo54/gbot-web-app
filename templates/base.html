@@ -482,14 +482,14 @@
 
         /* Light theme modal fixes */
         .light .modal-content {
-            background-color: #ffffff !important;
+            background: linear-gradient(to bottom right, #ffffff, #f8fafc) !important;
             color: #1e293b !important;
             border: 1px solid #e2e8f0 !important;
         }
 
         .light .modal-header {
-            background-color: #f8fafc !important;
-            color: #1e293b !important;
+            background: linear-gradient(to right, #6b7280, #9ca3af) !important;
+            color: #ffffff !important;
             border-bottom: 1px solid #e2e8f0 !important;
         }
 
@@ -501,6 +501,31 @@
         .light .modal-footer {
             background-color: #f8fafc !important;
             border-top: 1px solid #e2e8f0 !important;
+        }
+
+        /* Light theme specific overrides for blue/red accents */
+        .light .bg-blue-500 {
+            background-color: #3b82f6 !important;
+        }
+
+        .light .bg-red-500 {
+            background-color: #ef4444 !important;
+        }
+
+        .light .text-blue-400 {
+            color: #2563eb !important;
+        }
+
+        .light .text-red-400 {
+            color: #dc2626 !important;
+        }
+
+        .light .border-blue-500 {
+            border-color: #3b82f6 !important;
+        }
+
+        .light .border-red-500 {
+            border-color: #ef4444 !important;
         }
 
         .light .bg-vercel-gray-900 {
@@ -573,6 +598,96 @@
         /* Fix for light theme modals */
         .light .modal-backdrop {
             background-color: rgba(0, 0, 0, 0.3) !important;
+        }
+
+        /* Notification animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+        }
+
+        /* Notification container styles */
+        #notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        /* Individual notification styles */
+        .alert-vercel-success,
+        .alert-vercel-error,
+        .alert-vercel-warning,
+        .alert-vercel-info {
+            pointer-events: auto;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .alert-vercel-success {
+            background: rgba(34, 197, 94, 0.9);
+            color: white;
+        }
+
+        .alert-vercel-error {
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+        }
+
+        .alert-vercel-warning {
+            background: rgba(245, 158, 11, 0.9);
+            color: white;
+        }
+
+        .alert-vercel-info {
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+        }
+
+        /* Light theme notification overrides */
+        .light .alert-vercel-success {
+            background: rgba(34, 197, 94, 0.95);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .light .alert-vercel-error {
+            background: rgba(239, 68, 68, 0.95);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .light .alert-vercel-warning {
+            background: rgba(245, 158, 11, 0.95);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .light .alert-vercel-info {
+            background: rgba(59, 130, 246, 0.95);
+            border: 1px solid rgba(59, 130, 246, 0.3);
         }
 
         /* Enhanced hover effects */

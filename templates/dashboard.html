@@ -894,23 +894,70 @@ function displayUsers(users) {
 
 // Helper Functions
 function showStatus(message, type) {
-    const statusHtml = `
-        <div class="alert-vercel-${type} flex items-center space-x-3 mb-3 rounded-lg shadow-lg" style="position: fixed; top: 20px; right: 20px; z-index: 10000; max-width: 400px;">
-            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : type === 'warning' ? 'exclamation-circle' : 'info-circle'} text-lg"></i>
-            <span class="font-medium flex-1">${message}</span>
-            <button type="button" class="text-current opacity-50 hover:opacity-100" onclick="this.parentElement.remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
+    // Create notification container if it doesn't exist
+    let notificationContainer = document.getElementById('notification-container');
+    if (!notificationContainer) {
+        notificationContainer = document.createElement('div');
+        notificationContainer.id = 'notification-container';
+        notificationContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        `;
+        document.body.appendChild(notificationContainer);
+    }
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert-vercel-${type} flex items-center space-x-3 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out`;
+    notification.style.cssText = `
+        pointer-events: auto;
+        opacity: 0;
+        transform: translateX(100%);
+        animation: slideIn 0.3s ease-out forwards;
     `;
     
-    document.body.insertAdjacentHTML('afterbegin', statusHtml);
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : type === 'warning' ? 'exclamation-circle' : 'info-circle'} text-lg"></i>
+        <span class="font-medium flex-1">${message}</span>
+        <button type="button" class="text-current opacity-50 hover:opacity-100 transition-opacity" onclick="removeNotification(this.parentElement)">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
     
+    // Add to container
+    notificationContainer.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translateX(0)';
+    }, 10);
+    
+    // Auto-remove for success and info messages
     if (type === 'success' || type === 'info') {
         setTimeout(() => {
-            const alerts = document.querySelectorAll('.alert-vercel-success, .alert-vercel-info');
-            alerts.forEach(alert => alert.remove());
+            removeNotification(notification);
         }, 5000);
+    }
+}
+
+// Function to remove notifications with animation
+function removeNotification(notification) {
+    if (notification && notification.parentElement) {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 300);
     }
 }
 
@@ -1215,11 +1262,14 @@ function previewCSV() {
 
 // OAuth Modal Function
 function showOAuthModal(oauthUrl) {
+    const isLightTheme = document.body.classList.contains('light');
+    const headerGradient = isLightTheme ? 'from-gray-500 to-gray-600' : 'from-purple-600 to-purple-700';
+    
     const modal = `
         <div class="modal fade" id="oauthModal" tabindex="-1" style="z-index: 9999;">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content bg-gradient-to-br from-vercel-gray-900 to-vercel-gray-800 border border-vercel-gray-700 shadow-2xl">
-                    <div class="modal-header bg-gradient-to-r from-green-600 to-blue-600 border-none">
+                    <div class="modal-header bg-gradient-to-r ${headerGradient} border-none">
                         <h5 class="modal-title text-white font-bold text-lg flex items-center">
                             <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
                                 <i class="fas fa-shield-alt text-white text-xl"></i>
@@ -1329,11 +1379,14 @@ function checkAuthStatus() {
 
 // Account Management Functions
 function openAddAccountModal() {
+    const isLightTheme = document.body.classList.contains('light');
+    const headerGradient = isLightTheme ? 'from-gray-500 to-gray-600' : 'from-purple-600 to-purple-700';
+    
     const modal = `
         <div class="modal fade" id="addAccountModal" tabindex="-1" style="z-index: 9999;">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content bg-gradient-to-br from-vercel-gray-900 to-vercel-gray-800 border border-vercel-gray-700 shadow-2xl">
-                    <div class="modal-header bg-gradient-to-r from-green-600 to-emerald-600 border-none">
+                    <div class="modal-header bg-gradient-to-r ${headerGradient} border-none">
                         <h5 class="modal-title text-white font-bold text-lg flex items-center">
                             <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
                                 <i class="fas fa-plus text-white text-xl"></i>
@@ -1478,12 +1531,15 @@ function saveNewAccount() {
 }
 
 function addFromServerJSON() {
+    const isLightTheme = document.body.classList.contains('light');
+    const headerGradient = isLightTheme ? 'from-gray-500 to-gray-600' : 'from-purple-600 to-purple-700';
+    
     // Create original-style modal for email addresses (like in screenshot)
     const modal = `
         <div class="modal fade" id="addFromServerModal" tabindex="-1" style="z-index: 9999;">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content bg-gradient-to-br from-vercel-gray-900 to-vercel-gray-800 border border-vercel-gray-700 shadow-2xl">
-                    <div class="modal-header bg-gradient-to-r from-blue-600 to-purple-600 border-none">
+                    <div class="modal-header bg-gradient-to-r ${headerGradient} border-none">
                         <h5 class="modal-title text-white font-bold text-lg flex items-center">
                             <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
                                 <i class="fas fa-folder text-white text-xl"></i>
