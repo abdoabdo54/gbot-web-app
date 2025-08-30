@@ -4,19 +4,23 @@
 
 {% block content %}
 <!-- Tab Navigation -->
-<div style="border-bottom: 1px solid #d0d7de; margin-bottom: 24px;">
-    <nav style="display: flex; gap: 0; margin-bottom: -1px;">
-        <button class="tab-button active" onclick="showTab('tab1')" style="background: #ffffff; border: 1px solid #d0d7de; border-bottom: 1px solid #ffffff; padding: 12px 16px; border-radius: 6px 6px 0 0; font-weight: 500; color: #24292f; cursor: pointer; margin-right: 4px; position: relative; z-index: 1;">
-            <i class="fas fa-user-friends"></i> Account & User Mgmt
+<div class="tab-navigation">
+    <nav>
+        <button class="tab-button active" onclick="showTab('tab1')">
+            <i class="fas fa-user-friends"></i>
+            <span>Account & User Mgmt</span>
         </button>
-        <button class="tab-button" onclick="showTab('tab2')" style="background: #f6f8fa; border: 1px solid #d0d7de; border-bottom: 1px solid #d0d7de; padding: 12px 16px; border-radius: 6px 6px 0 0; font-weight: 500; color: #656d76; cursor: pointer; margin-right: 4px;">
-            <i class="fas fa-user-plus"></i> User Create/Delete/Domain
+        <button class="tab-button" onclick="showTab('tab2')">
+            <i class="fas fa-user-plus"></i>
+            <span>User Create/Delete/Domain</span>
         </button>
-        <button class="tab-button" onclick="showTab('tab3')" style="background: #f6f8fa; border: 1px solid #d0d7de; border-bottom: 1px solid #d0d7de; padding: 12px 16px; border-radius: 6px 6px 0 0; font-weight: 500; color: #656d76; cursor: pointer; margin-right: 4px;">
-            <i class="fas fa-exchange-alt"></i> Bulk Domain Change
+        <button class="tab-button" onclick="showTab('tab3')">
+            <i class="fas fa-exchange-alt"></i>
+            <span>Bulk Domain Change</span>
         </button>
-        <button class="tab-button" onclick="showTab('tab4')" style="background: #f6f8fa; border: 1px solid #d0d7de; border-bottom: 1px solid #d0d7de; padding: 12px 16px; border-radius: 6px 6px 0 0; font-weight: 500; color: #656d76; cursor: pointer;">
-            <i class="fas fa-envelope"></i> SMTP & CSV Gen
+        <button class="tab-button" onclick="showTab('tab4')">
+            <i class="fas fa-envelope"></i>
+            <span>SMTP & CSV Gen</span>
         </button>
     </nav>
 </div>
@@ -24,34 +28,48 @@
 <!-- Tab 1: Account & User Management (existing content) -->
 <div id="tab1" class="tab-content active">    
 <!-- Account Selection & Authentication -->
-<div class="section">
-    <h3>👤 Account Selection & Authentication</h3>
-    
-    <div class="form-row">
-        <label for="account-select">Select Account:</label>
-        <select id="account-select">
-            <option value="">Choose an account...</option>
-            {% for account in accounts %}
-            <option value="{{ account.account_name }}" data-account-id="{{ account.id }}">{{ account.account_name }}</option>
-            {% endfor %}
-        </select>
-        <button onclick="authenticateAccount()">🔑 Authenticate Selected</button>
+<div class="github-card">
+    <div class="github-card-header">
+        <h3 class="github-card-title">
+            <i class="fas fa-user-friends"></i>
+            Account Selection & Authentication
+        </h3>
     </div>
     
-    <div class="form-row">
+    <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; margin-bottom: 20px;">
+        <div class="form-group-github">
+            <label for="account-select" class="form-label-github">
+                <i class="fas fa-user-circle"></i> Select Account
+            </label>
+            <select id="account-select" class="form-control-github">
+                <option value="">Choose an account...</option>
+                {% for account in accounts %}
+                <option value="{{ account.account_name }}" data-account-id="{{ account.id }}">{{ account.account_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button onclick="authenticateAccount()" class="btn-github btn-github-primary">
+            <i class="fas fa-key"></i> Authenticate Selected
+        </button>
+    </div>
+    
+    <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
         {% if session.role != 'mailer' %}
-        <button onclick="openAddAccountModal()">➕ Add Manually</button>
-        <!-- <button onclick="refreshAccounts()">🔄 Refresh List</button> -->
-        <button onclick="addFromServerJSON()">📁 Add from Server JSON</button>
+        <button onclick="openAddAccountModal()" class="btn-github">
+            <i class="fas fa-plus"></i> Add Manually
+        </button>
+        <button onclick="addFromServerJSON()" class="btn-github">
+            <i class="fas fa-folder-open"></i> Add from Server JSON
+        </button>
         {% endif %}
-        <!-- <button onclick="backupFiles()">💾 Backup Files</button> -->
         {% if session.role == 'admin' %}
-        <button onclick="forceTokenStatusCheck()" class="btn btn-warning">
-            🔍 Check Token Status Now (Admin)
+        <button onclick="forceTokenStatusCheck()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+            <i class="fas fa-search"></i> Check Token Status Now (Admin)
         </button>
         {% endif %}    
-        <button onclick="enterAuthorizationCode()">📝 Enter Authorization Code</button>
-        <!-- <button onclick="completeOAuthWithCode()">📝 Complete OAuth with Code</button> -->
+        <button onclick="enterAuthorizationCode()" class="btn-github">
+            <i class="fas fa-code"></i> Enter Authorization Code
+        </button>
     </div>
     
     <!-- Search and Account List Area -->

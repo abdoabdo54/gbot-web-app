@@ -1,167 +1,304 @@
 <!DOCTYPE html>
-<html lang="en" data-color-mode="light" data-light-theme="light">
+<html lang="en" data-color-mode="auto" data-light-theme="light" data-dark-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}GBot Web{% endblock %}</title>
     
     <!-- GitHub Primer CSS -->
-    <link href="https://unpkg.com/@primer/css@^20.2.4/dist/primer.css" rel="stylesheet">
+    <link href="https://unpkg.com/@primer/css@^21.0.0/dist/primer.css" rel="stylesheet">
     
     <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <!-- Bootstrap JS (for modal compatibility) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Custom GitHub-like styles -->
+    <!-- Professional GitHub Theme -->
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
-            background-color: #f6f8fa;
-            margin: 0;
-            color: #24292f;
+        :root {
+            /* Light theme variables */
+            --color-canvas-default: #ffffff;
+            --color-canvas-subtle: #f6f8fa;
+            --color-canvas-inset: #f6f8fa;
+            --color-border-default: #d0d7de;
+            --color-border-muted: #d8dee4;
+            --color-border-subtle: rgba(27,31,36,0.15);
+            --color-fg-default: #1f2328;
+            --color-fg-muted: #656d76;
+            --color-fg-subtle: #6e7781;
+            --color-accent-fg: #0969da;
+            --color-accent-emphasis: #0969da;
+            --color-success-fg: #1a7f37;
+            --color-success-emphasis: #2da44e;
+            --color-danger-fg: #cf222e;
+            --color-danger-emphasis: #da3633;
+            --color-warning-fg: #9a6700;
+            --color-warning-emphasis: #fb8500;
+            --color-header-bg: #24292f;
+            --color-header-text: #f0f6fc;
+            --color-btn-text: #24292f;
+            --color-btn-bg: #f6f8fa;
+            --color-btn-border: #d0d7de;
+            --color-btn-hover-bg: #f3f4f6;
+            --color-btn-hover-border: #afb8c1;
+            --color-btn-primary-text: #ffffff;
+            --color-btn-primary-bg: #2da44e;
+            --color-btn-primary-border: #2da44e;
+            --color-btn-primary-hover-bg: #2c974b;
+            --color-btn-danger-text: #ffffff;
+            --color-btn-danger-bg: #da3633;
+            --color-btn-danger-border: #da3633;
+            --color-btn-danger-hover-bg: #b62324;
+            --color-input-bg: #ffffff;
+            --color-input-border: #d0d7de;
+            --color-shadow: rgba(31,35,40,0.04);
+            --color-shadow-medium: rgba(31,35,40,0.15);
+            --color-shadow-large: rgba(31,35,40,0.22);
         }
-        
-        /* GitHub-like header */
+
+        [data-color-mode="dark"] {
+            /* Dark theme variables */
+            --color-canvas-default: #0d1117;
+            --color-canvas-subtle: #161b22;
+            --color-canvas-inset: #161b22;
+            --color-border-default: #30363d;
+            --color-border-muted: #21262d;
+            --color-border-subtle: rgba(240,246,252,0.1);
+            --color-fg-default: #e6edf3;
+            --color-fg-muted: #7d8590;
+            --color-fg-subtle: #656d76;
+            --color-accent-fg: #2f81f7;
+            --color-accent-emphasis: #2f81f7;
+            --color-success-fg: #3fb950;
+            --color-success-emphasis: #238636;
+            --color-danger-fg: #f85149;
+            --color-danger-emphasis: #da3633;
+            --color-warning-fg: #d29922;
+            --color-warning-emphasis: #fb8500;
+            --color-header-bg: #161b22;
+            --color-header-text: #f0f6fc;
+            --color-btn-text: #c9d1d9;
+            --color-btn-bg: #21262d;
+            --color-btn-border: #30363d;
+            --color-btn-hover-bg: #30363d;
+            --color-btn-hover-border: #8b949e;
+            --color-btn-primary-text: #ffffff;
+            --color-btn-primary-bg: #238636;
+            --color-btn-primary-border: #238636;
+            --color-btn-primary-hover-bg: #2ea043;
+            --color-btn-danger-text: #ffffff;
+            --color-btn-danger-bg: #da3633;
+            --color-btn-danger-border: #da3633;
+            --color-btn-danger-hover-bg: #b62324;
+            --color-input-bg: #0d1117;
+            --color-input-border: #30363d;
+            --color-shadow: rgba(1,4,9,0.8);
+            --color-shadow-medium: rgba(1,4,9,0.8);
+            --color-shadow-large: rgba(1,4,9,0.8);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            font-size: 14px;
+            line-height: 1.5;
+            background-color: var(--color-canvas-default);
+            color: var(--color-fg-default);
+            margin: 0;
+            min-height: 100vh;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* GitHub Header */
         .github-header {
-            background-color: #24292f;
-            border-bottom: 1px solid #d0d7de;
-            padding: 16px 0;
+            background-color: var(--color-header-bg);
+            border-bottom: 1px solid var(--color-border-default);
             position: sticky;
             top: 0;
             z-index: 1000;
+            box-shadow: 0 1px 0 var(--color-border-default);
         }
-        
+
         .header-container {
             max-width: 1280px;
             margin: 0 auto;
-            padding: 0 24px;
+            padding: 16px 32px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            min-height: 64px;
         }
-        
+
         .header-logo {
             display: flex;
             align-items: center;
-            gap: 8px;
-            color: #f0f6fc;
+            gap: 12px;
+            color: var(--color-header-text);
             text-decoration: none;
             font-weight: 600;
-            font-size: 18px;
+            font-size: 20px;
+            transition: opacity 0.2s ease;
         }
-        
+
         .header-logo:hover {
-            color: #f0f6fc;
+            color: var(--color-header-text);
             text-decoration: none;
+            opacity: 0.8;
         }
-        
+
+        .header-logo i {
+            font-size: 24px;
+        }
+
         .header-nav {
             display: flex;
             align-items: center;
-            gap: 24px;
+            gap: 4px;
         }
-        
+
         .nav-item {
-            color: #f0f6fc;
+            color: var(--color-header-text);
             text-decoration: none;
             padding: 8px 16px;
             border-radius: 6px;
             font-weight: 500;
-            transition: background-color 0.2s;
+            font-size: 14px;
+            transition: all 0.2s ease;
             display: flex;
             align-items: center;
             gap: 8px;
+            white-space: nowrap;
         }
-        
+
         .nav-item:hover {
-            background-color: rgba(240, 246, 252, 0.1);
-            color: #f0f6fc;
+            background-color: rgba(240, 246, 252, 0.12);
+            color: var(--color-header-text);
             text-decoration: none;
         }
-        
+
         .nav-item.active {
-            background-color: #21262d;
-            color: #f0f6fc;
+            background-color: rgba(240, 246, 252, 0.16);
+            color: var(--color-header-text);
         }
-        
+
         .header-user {
             display: flex;
             align-items: center;
             gap: 16px;
-            color: #f0f6fc;
         }
-        
+
+        .theme-toggle {
+            background: none;
+            border: 1px solid rgba(240, 246, 252, 0.3);
+            color: var(--color-header-text);
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+        }
+
+        .theme-toggle:hover {
+            background-color: rgba(240, 246, 252, 0.12);
+            border-color: rgba(240, 246, 252, 0.5);
+        }
+
         .user-info {
             display: flex;
             align-items: center;
             gap: 8px;
             padding: 6px 12px;
-            background-color: #21262d;
+            background-color: rgba(240, 246, 252, 0.1);
             border-radius: 6px;
             font-size: 14px;
+            color: var(--color-header-text);
+            border: 1px solid rgba(240, 246, 252, 0.2);
         }
-        
+
         .btn-logout {
-            background-color: #da3633;
-            color: #f0f6fc;
-            border: 1px solid #da3633;
-            padding: 6px 16px;
+            background-color: var(--color-btn-danger-bg);
+            color: var(--color-btn-danger-text);
+            border: 1px solid var(--color-btn-danger-border);
+            padding: 8px 16px;
             border-radius: 6px;
             text-decoration: none;
             font-weight: 500;
-            transition: background-color 0.2s;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
-        
+
         .btn-logout:hover {
-            background-color: #b62324;
-            color: #f0f6fc;
+            background-color: var(--color-btn-danger-hover-bg);
+            color: var(--color-btn-danger-text);
             text-decoration: none;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px var(--color-shadow);
         }
-        
-        /* Main content */
+
+        /* Main Content */
         .main-container {
             max-width: 1280px;
             margin: 0 auto;
-            padding: 24px;
+            padding: 32px;
+            min-height: calc(100vh - 80px);
         }
-        
-        /* GitHub-like cards */
+
+        /* GitHub Cards */
         .github-card {
-            background-color: #ffffff;
-            border: 1px solid #d0d7de;
+            background-color: var(--color-canvas-default);
+            border: 1px solid var(--color-border-default);
             border-radius: 12px;
             padding: 24px;
             margin-bottom: 24px;
-            box-shadow: 0 1px 3px rgba(16, 22, 26, 0.1);
+            box-shadow: 0 1px 3px var(--color-shadow), 0 1px 2px var(--color-shadow);
+            transition: all 0.3s ease;
         }
-        
+
+        .github-card:hover {
+            border-color: var(--color-border-muted);
+            box-shadow: 0 8px 24px var(--color-shadow-medium);
+        }
+
         .github-card-header {
-            border-bottom: 1px solid #d0d7de;
-            padding-bottom: 16px;
+            border-bottom: 1px solid var(--color-border-muted);
+            padding-bottom: 20px;
             margin-bottom: 24px;
         }
-        
+
         .github-card-title {
             font-size: 20px;
             font-weight: 600;
-            color: #24292f;
+            color: var(--color-fg-default);
             margin: 0;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
         }
-        
-        /* GitHub-like buttons */
+
+        .github-card-title i {
+            color: var(--color-accent-fg);
+        }
+
+        /* Buttons */
         .btn-github {
-            background-color: #f6f8fa;
-            border: 1px solid #d0d7de;
-            color: #24292f;
-            padding: 6px 16px;
+            background-color: var(--color-btn-bg);
+            border: 1px solid var(--color-btn-border);
+            color: var(--color-btn-text);
+            padding: 8px 16px;
             border-radius: 6px;
             font-weight: 500;
             font-size: 14px;
@@ -170,70 +307,99 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
+            min-height: 32px;
+            position: relative;
+            overflow: hidden;
         }
-        
+
+        .btn-github::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-github:hover::before {
+            left: 100%;
+        }
+
         .btn-github:hover {
-            background-color: #f3f4f6;
-            border-color: #afb8c1;
-            color: #24292f;
+            background-color: var(--color-btn-hover-bg);
+            border-color: var(--color-btn-hover-border);
+            color: var(--color-btn-text);
             text-decoration: none;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px var(--color-shadow);
         }
-        
+
+        .btn-github:active {
+            transform: translateY(0);
+        }
+
         .btn-github-primary {
-            background-color: #2da44e;
-            border: 1px solid #2da44e;
-            color: #ffffff;
+            background-color: var(--color-btn-primary-bg);
+            border: 1px solid var(--color-btn-primary-border);
+            color: var(--color-btn-primary-text);
         }
-        
+
         .btn-github-primary:hover {
-            background-color: #2c974b;
-            border-color: #2c974b;
-            color: #ffffff;
+            background-color: var(--color-btn-primary-hover-bg);
+            border-color: var(--color-btn-primary-border);
+            color: var(--color-btn-primary-text);
         }
-        
+
         .btn-github-danger {
-            background-color: #da3633;
-            border: 1px solid #da3633;
-            color: #ffffff;
+            background-color: var(--color-btn-danger-bg);
+            border: 1px solid var(--color-btn-danger-border);
+            color: var(--color-btn-danger-text);
         }
-        
+
         .btn-github-danger:hover {
-            background-color: #b62324;
-            border-color: #b62324;
-            color: #ffffff;
+            background-color: var(--color-btn-danger-hover-bg);
+            border-color: var(--color-btn-danger-border);
+            color: var(--color-btn-danger-text);
         }
-        
-        /* Form elements */
+
+        /* Form Elements */
         .form-control-github {
-            background-color: #f6f8fa;
-            border: 1px solid #d0d7de;
+            background-color: var(--color-input-bg);
+            border: 1px solid var(--color-input-border);
             border-radius: 6px;
             padding: 8px 12px;
             font-size: 14px;
-            color: #24292f;
+            color: var(--color-fg-default);
             width: 100%;
-            box-sizing: border-box;
+            transition: all 0.2s ease;
+            min-height: 32px;
         }
-        
+
         .form-control-github:focus {
-            border-color: #0969da;
+            border-color: var(--color-accent-emphasis);
             outline: none;
             box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
         }
-        
+
+        [data-color-mode="dark"] .form-control-github:focus {
+            box-shadow: 0 0 0 3px rgba(47, 129, 247, 0.3);
+        }
+
         .form-group-github {
             margin-bottom: 16px;
         }
-        
+
         .form-label-github {
             display: block;
             font-weight: 600;
             font-size: 14px;
-            color: #24292f;
+            color: var(--color-fg-default);
             margin-bottom: 8px;
         }
-        
+
         /* Alerts */
         .alert-github {
             padding: 16px;
@@ -241,62 +407,92 @@
             border: 1px solid;
             margin-bottom: 16px;
             font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        
+
         .alert-success {
-            background-color: #dafbe1;
-            border-color: #2da44e;
-            color: #1a7f37;
+            background-color: rgba(45, 164, 78, 0.1);
+            border-color: var(--color-success-emphasis);
+            color: var(--color-success-fg);
         }
-        
+
         .alert-danger {
-            background-color: #ffebe9;
-            border-color: #da3633;
-            color: #cf222e;
+            background-color: rgba(218, 54, 51, 0.1);
+            border-color: var(--color-danger-emphasis);
+            color: var(--color-danger-fg);
         }
-        
+
         .alert-warning {
-            background-color: #fff8c5;
-            border-color: #d1242f;
-            color: #7d4e00;
+            background-color: rgba(251, 133, 0, 0.1);
+            border-color: var(--color-warning-emphasis);
+            color: var(--color-warning-fg);
         }
-        
+
         /* Tables */
         .table-github {
             width: 100%;
             border-collapse: collapse;
             margin: 16px 0;
+            background-color: var(--color-canvas-default);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--color-border-default);
         }
-        
+
         .table-github th,
         .table-github td {
-            padding: 12px;
+            padding: 12px 16px;
             text-align: left;
-            border-bottom: 1px solid #d0d7de;
+            border-bottom: 1px solid var(--color-border-muted);
         }
-        
+
         .table-github th {
-            background-color: #f6f8fa;
+            background-color: var(--color-canvas-subtle);
             font-weight: 600;
-            color: #24292f;
+            color: var(--color-fg-default);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        
+
         .table-github tr:hover {
-            background-color: #f6f8fa;
+            background-color: var(--color-canvas-subtle);
         }
-        
-        /* Responsive */
+
+        .table-github tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1012px) {
+            .header-container {
+                padding: 16px 24px;
+            }
+            
+            .main-container {
+                padding: 24px;
+            }
+        }
+
         @media (max-width: 768px) {
             .header-container {
-                padding: 0 16px;
+                padding: 16px;
                 flex-direction: column;
                 gap: 16px;
+                min-height: auto;
             }
             
             .header-nav {
-                gap: 16px;
+                gap: 8px;
                 flex-wrap: wrap;
                 justify-content: center;
+            }
+            
+            .nav-item {
+                padding: 6px 12px;
+                font-size: 13px;
             }
             
             .main-container {
@@ -306,35 +502,127 @@
             .github-card {
                 padding: 16px;
             }
+
+            .user-info span {
+                display: none;
+            }
         }
-        
-        /* Login page specific */
+
+        @media (max-width: 544px) {
+            .header-logo {
+                font-size: 18px;
+            }
+            
+            .header-logo i {
+                font-size: 20px;
+            }
+            
+            .nav-item {
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+            
+            .nav-item span {
+                display: none;
+            }
+        }
+
+        /* Login Page */
         .login-container {
             max-width: 400px;
             margin: 80px auto;
-            background: #ffffff;
-            border: 1px solid #d0d7de;
+            background: var(--color-canvas-default);
+            border: 1px solid var(--color-border-default);
             border-radius: 12px;
             padding: 32px;
-            box-shadow: 0 8px 24px rgba(16, 22, 26, 0.1);
+            box-shadow: 0 8px 24px var(--color-shadow-large);
         }
-        
+
         .login-header {
             text-align: center;
             margin-bottom: 32px;
         }
-        
+
         .login-title {
             font-size: 24px;
             font-weight: 600;
-            color: #24292f;
+            color: var(--color-fg-default);
             margin: 0 0 8px 0;
         }
-        
+
         .login-subtitle {
-            color: #656d76;
+            color: var(--color-fg-muted);
             font-size: 16px;
             margin: 0;
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .github-card {
+            animation: slideIn 0.3s ease;
+        }
+
+        /* Tab Navigation */
+        .tab-navigation {
+            border-bottom: 1px solid var(--color-border-default);
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        .tab-navigation nav {
+            display: flex;
+            gap: 0;
+            margin-bottom: -1px;
+            min-width: max-content;
+        }
+
+        .tab-button {
+            background: var(--color-canvas-default);
+            border: 1px solid var(--color-border-default);
+            border-bottom: 1px solid var(--color-border-default);
+            padding: 12px 16px;
+            border-radius: 6px 6px 0 0;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--color-fg-muted);
+            cursor: pointer;
+            margin-right: 4px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .tab-button:hover {
+            background: var(--color-canvas-subtle);
+            color: var(--color-fg-default);
+        }
+
+        .tab-button.active {
+            background: var(--color-canvas-default);
+            border-bottom: 1px solid var(--color-canvas-default);
+            color: var(--color-fg-default);
+            position: relative;
+            z-index: 1;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
         }
     </style>
     
@@ -346,36 +634,39 @@
         <div class="header-container">
             <a href="/dashboard" class="header-logo">
                 <i class="fas fa-robot"></i>
-                GBot Web
+                <span>GBot Web</span>
             </a>
             <nav class="header-nav">
                 <a href="/dashboard" class="nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
                     <i class="fas fa-chart-bar"></i>
-                    Dashboard
+                    <span>Dashboard</span>
                 </a>
                 {% if role == 'admin' %}
                 <a href="/users" class="nav-item {% if request.endpoint == 'users' %}active{% endif %}">
                     <i class="fas fa-users"></i>
-                    Users
+                    <span>Users</span>
                 </a>
                 <a href="/whitelist" class="nav-item {% if request.endpoint == 'whitelist' %}active{% endif %}">
                     <i class="fas fa-shield-alt"></i>
-                    IP Whitelist
+                    <span>IP Whitelist</span>
                 </a>
                 <a href="/settings" class="nav-item {% if request.endpoint == 'settings' %}active{% endif %}">
                     <i class="fas fa-cog"></i>
-                    Settings
+                    <span>Settings</span>
                 </a>
                 {% endif %}
             </nav>
             <div class="header-user">
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                    <i class="fas fa-adjust"></i>
+                </button>
                 <div class="user-info">
                     <i class="fas fa-user"></i>
                     <span>{{ user }} ({{ role }})</span>
                 </div>
                 <a href="{{ url_for('logout') }}" class="btn-logout">
                     <i class="fas fa-sign-out-alt"></i>
-                    Logout
+                    <span>Logout</span>
                 </a>
             </div>
         </div>
@@ -396,6 +687,49 @@
     <div class="main-container">
         {% block content %}{% endblock %}
     </div>
+    
+    <!-- Theme Toggle Script -->
+    <script>
+        // Theme management
+        function getPreferredTheme() {
+            const stored = localStorage.getItem('theme');
+            if (stored) return stored;
+            
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-color-mode', theme);
+            localStorage.setItem('theme', theme);
+            
+            // Update theme toggle icon
+            const icon = document.querySelector('.theme-toggle i');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+        }
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-color-mode');
+            const next = current === 'dark' ? 'light' : 'dark';
+            setTheme(next);
+        }
+
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            setTheme(getPreferredTheme());
+            
+            // Listen for system theme changes
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+                if (!localStorage.getItem('theme')) {
+                    setTheme(e.matches ? 'dark' : 'light');
+                }
+            });
+        });
+
+        // Make toggleTheme globally available
+        window.toggleTheme = toggleTheme;
+    </script>
     
     {% block scripts %}{% endblock %}
 </body>
