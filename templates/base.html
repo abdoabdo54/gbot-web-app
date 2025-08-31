@@ -1064,8 +1064,8 @@
         .tab-content {
             display: none !important;
             background-color: var(--color-canvas-default);
-            padding: 24px 0;
-            min-height: 400px;
+            padding: 8px 0;
+            min-height: auto;
         }
 
         .tab-content.active {
@@ -1142,8 +1142,8 @@
 
         /* Force Tab 4 specific styling */
         #tab4 {
-            min-height: 600px !important;
-            padding: 24px 0 !important;
+            min-height: auto !important;
+            padding: 0 !important;
         }
 
         /* Clean Tab 4 styling - FORCE DISPLAY */
@@ -1151,7 +1151,15 @@
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
-            min-height: 600px !important;
+            min-height: auto !important;
+            padding-top: 0 !important;
+            margin-top: 0 !important;
+        }
+
+        /* Remove empty space at top of Tab 4 */
+        #tab4.active > *:first-child {
+            margin-top: 0 !important;
+            padding-top: 16px !important;
         }
 
         /* NUCLEAR Tab 4 fix - Override everything */
