@@ -611,38 +611,38 @@
 </div>
 
 <!-- Tab 4: SMTP & CSV Generation -->
-<div id="tab4" class="tab-content">
+<div id="tab4" class="tab-content" style="padding: 0 !important; margin: 0 !important; height: auto !important;">
     <!-- SMTP Credential Tester -->
-    <div class="github-card">
-        <div class="github-card-header">
-            <h3 class="github-card-title">
+    <div class="github-card" style="margin-top: 0 !important; padding: 12px !important; margin-bottom: 12px !important;">
+        <div class="github-card-header" style="padding-bottom: 8px !important; margin-bottom: 12px !important;">
+            <h3 class="github-card-title" style="font-size: 16px !important; margin: 0 !important;">
                 <i class="fas fa-envelope"></i>
                 SMTP Credential Tester
             </h3>
         </div>
         
-        <div class="form-group-github" style="margin-bottom: 12px;">
-            <label for="smtp-credentials" class="form-label-github">
+        <div class="form-group-github" style="margin-bottom: 8px !important;">
+            <label for="smtp-credentials" class="form-label-github" style="margin-bottom: 4px !important;">
                 <i class="fas fa-key"></i> SMTP Credentials (email:password, one per line)
             </label>
-            <textarea id="smtp-credentials" class="form-control-github" rows="3" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456&#10;user3@yahoo.com:secretpass789"></textarea>
+            <textarea id="smtp-credentials" class="form-control-github" rows="2" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456" style="margin-bottom: 0 !important;"></textarea>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div class="form-group-github">
-                <label for="smtp-recipient" class="form-label-github">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px !important;">
+            <div class="form-group-github" style="margin-bottom: 0 !important;">
+                <label for="smtp-recipient" class="form-label-github" style="margin-bottom: 2px !important;">
                     <i class="fas fa-envelope"></i> Recipient Email
                 </label>
                 <input type="email" id="smtp-recipient" class="form-control-github" placeholder="test@domain.com">
             </div>
-            <div class="form-group-github">
-                <label for="smtp-server" class="form-label-github">
+            <div class="form-group-github" style="margin-bottom: 0 !important;">
+                <label for="smtp-server" class="form-label-github" style="margin-bottom: 2px !important;">
                     <i class="fas fa-server"></i> SMTP Server
                 </label>
                 <input type="text" id="smtp-server" class="form-control-github" value="smtp.gmail.com" placeholder="SMTP Server">
             </div>
-            <div class="form-group-github">
-                <label for="smtp-port" class="form-label-github">
+            <div class="form-group-github" style="margin-bottom: 0 !important;">
+                <label for="smtp-port" class="form-label-github" style="margin-bottom: 2px !important;">
                     <i class="fas fa-plug"></i> Port
                 </label>
                 <input type="number" id="smtp-port" class="form-control-github" value="587" placeholder="Port">
@@ -787,25 +787,36 @@ function showTab(tabId) {
             console.log('SHOWING TAB 4 - SMTP & CSV Gen');
             console.log('Tab 4 HTML length:', selectedTab.innerHTML.length);
             
-            // FORCE Tab 4 to start at top - NUCLEAR approach
-            selectedTab.style.paddingTop = '0px';
-            selectedTab.style.marginTop = '0px';
-            selectedTab.style.position = 'relative';
-            selectedTab.style.top = '0px';
+            // NUCLEAR APPROACH - FORCE EVERYTHING
+            selectedTab.style.cssText = 'display: block !important; padding: 0 !important; margin: 0 !important; height: auto !important; position: relative !important; top: 0 !important;';
+            
+            // Force EVERY element to be compact
+            const allElements = selectedTab.querySelectorAll('*');
+            allElements.forEach(element => {
+                if (element.classList.contains('github-card')) {
+                    element.style.cssText += 'margin-top: 0 !important; padding: 12px !important; margin-bottom: 8px !important;';
+                }
+                if (element.classList.contains('github-card-header')) {
+                    element.style.cssText += 'padding-bottom: 4px !important; margin-bottom: 8px !important;';
+                }
+                if (element.classList.contains('form-group-github')) {
+                    element.style.cssText += 'margin-bottom: 4px !important;';
+                }
+                if (element.tagName === 'TEXTAREA') {
+                    element.rows = 2;
+                }
+            });
             
             // Force first child to start at absolute top
             const firstChild = selectedTab.firstElementChild;
             if (firstChild) {
-                firstChild.style.marginTop = '0px';
-                firstChild.style.paddingTop = '8px'; // Minimal spacing for compact look
-                firstChild.style.position = 'relative';
-                firstChild.style.top = '0px';
+                firstChild.style.cssText += 'margin-top: 0 !important; padding-top: 0 !important;';
                 console.log('First child forced to top:', firstChild.tagName);
             }
             
-            // Scroll to top of the tab content immediately
-            selectedTab.scrollIntoView({ behavior: 'instant', block: 'start' });
-            window.scrollTo(0, selectedTab.offsetTop - 100);
+            // Remove any transform or positioning that might cause offset
+            selectedTab.style.transform = 'none';
+            selectedTab.parentElement.scrollTop = 0;
             
             console.log('Tab 4 forced to start at top');
         }
