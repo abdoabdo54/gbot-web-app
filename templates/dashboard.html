@@ -785,19 +785,46 @@ function showTab(tabId) {
         // Special handling for tab4
         if (tabId === 'tab4') {
             console.log('Special handling for tab4');
+            
+            // Immediate forced display
+            selectedTab.style.display = 'block';
+            selectedTab.style.visibility = 'visible';
+            selectedTab.style.opacity = '1';
+            selectedTab.style.height = 'auto';
+            selectedTab.style.maxHeight = 'none';
+            selectedTab.style.overflow = 'visible';
+            selectedTab.style.position = 'relative';
+            selectedTab.style.zIndex = '1';
+            
+            // Force all children to be visible immediately
+            const allElements = selectedTab.querySelectorAll('*');
+            allElements.forEach(element => {
+                element.style.display = 'block';
+                element.style.visibility = 'visible';
+                element.style.opacity = '1';
+                
+                // Special handling for flex and grid containers
+                if (element.style.display && element.style.display.includes('grid')) {
+                    element.style.display = 'grid';
+                } else if (element.style.display && element.style.display.includes('flex')) {
+                    element.style.display = 'flex';
+                } else if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.tagName === 'SELECT') {
+                    element.style.display = 'block';
+                } else if (element.tagName === 'BUTTON') {
+                    element.style.display = 'inline-block';
+                } else if (element.tagName === 'LABEL') {
+                    element.style.display = 'block';
+                }
+            });
+            
+            console.log('Tab4 children forced visible immediately:', allElements.length);
+            
+            // Additional timeout for double-checking
             setTimeout(() => {
                 selectedTab.style.display = 'block';
-                selectedTab.style.visibility = 'visible';
-                selectedTab.style.opacity = '1';
-                
-                // Force all children to be visible
-                const children = selectedTab.querySelectorAll('*');
-                children.forEach(child => {
-                    child.style.visibility = 'visible';
-                    child.style.opacity = '1';
-                });
-                console.log('Tab4 children forced visible:', children.length);
-            }, 100);
+                selectedTab.innerHTML = selectedTab.innerHTML; // Force re-render
+                console.log('Tab4 re-rendered');
+            }, 50);
         }
     } else {
         console.error('Tab not found:', tabId);
@@ -836,7 +863,42 @@ document.addEventListener('DOMContentLoaded', function() {
         tab4.style.display = 'none';
         tab4.style.visibility = 'visible';
         tab4.style.opacity = '1';
+        
+        // Remove any potential conflicting CSS
+        tab4.style.height = 'auto';
+        tab4.style.maxHeight = 'none';
+        tab4.style.overflow = 'visible';
+        tab4.classList.remove('hidden');
+        
         console.log('Tab 4 initialized');
+        console.log('Tab 4 HTML length:', tab4.innerHTML.length);
+        
+        // Add a test button to Tab 4 for debugging
+        setTimeout(() => {
+            if (tab4.innerHTML.trim() === '' || tab4.innerHTML.length < 100) {
+                console.error('Tab 4 appears to be empty, forcing content...');
+                tab4.innerHTML = `
+                    <div class="github-card" style="margin: 20px 0;">
+                        <div class="github-card-header">
+                            <h3 class="github-card-title">
+                                <i class="fas fa-envelope"></i>
+                                SMTP & CSV Generation (Debug Mode)
+                            </h3>
+                        </div>
+                        <div style="padding: 20px;">
+                            <p>Tab 4 content was forced to display. This means there was a CSS or JavaScript conflict.</p>
+                            <div class="form-group-github">
+                                <label class="form-label-github">Test Input:</label>
+                                <input type="text" class="form-control-github" placeholder="This should be visible" />
+                            </div>
+                            <button class="btn-github btn-github-primary" onclick="alert('Tab 4 is working!')">
+                                Test Button
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }, 1000);
     }
 });
 
