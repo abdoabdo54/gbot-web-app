@@ -654,76 +654,69 @@
     </div>
 </div>
 
-<!-- Tab 4: SMTP Testing -->
-<div id="tab4" class="tab-content">
-    
-    <!-- SMTP Credential Tester -->
-    <div class="github-card">
-        <div class="github-card-header">
-            <h3 class="github-card-title">
-                <i class="fas fa-envelope"></i>
-                SMTP Credential Tester
-            </h3>
-        </div>
+<!-- Tab 4: SMTP Testing - ULTRA COMPACT -->
+<div id="tab4" class="tab-content" style="padding: 0 !important; margin: 0 !important;">
+
+    <!-- SMTP Credential Tester - COMPACT -->
+    <div style="background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 8px; padding: 16px; margin: 0 0 16px 0;">
+        <h4 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: var(--color-fg-default);">
+            <i class="fas fa-envelope"></i> SMTP Credential Tester
+        </h4>
         
-        <!-- SMTP Credentials Input -->
-        <div class="form-group-github">
-            <label for="smtp-credentials" class="form-label-github">
+        <!-- Credentials Input - COMPACT -->
+        <div style="margin-bottom: 12px;">
+            <label style="display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: var(--color-fg-default);">
                 <i class="fas fa-key"></i> SMTP Credentials (email:password, one per line)
             </label>
-            <textarea id="smtp-credentials" class="form-control-github" rows="4" 
-                placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456&#10;user3@yahoo.com:secretpass789"></textarea>
+            <textarea id="smtp-credentials" rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--color-input-border); border-radius: 6px; background: var(--color-input-bg); color: var(--color-fg-default); font-family: monospace; font-size: 13px; resize: vertical;" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456"></textarea>
         </div>
         
-        <!-- SMTP Settings -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-            <div class="form-group-github">
-                <label for="smtp-recipient" class="form-label-github">
+        <!-- SMTP Settings - COMPACT GRID -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+                <label style="display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: var(--color-fg-default);">
                     <i class="fas fa-envelope"></i> Recipient Email
                 </label>
-                <input type="email" id="smtp-recipient" class="form-control-github" placeholder="test@domain.com">
+                <input type="email" id="smtp-recipient" placeholder="test@domain.com" style="width: 100%; padding: 8px; border: 1px solid var(--color-input-border); border-radius: 6px; background: var(--color-input-bg); color: var(--color-fg-default);">
             </div>
-            <div class="form-group-github">
-                <label for="smtp-server" class="form-label-github">
+            <div>
+                <label style="display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: var(--color-fg-default);">
                     <i class="fas fa-server"></i> SMTP Server
                 </label>
-                <input type="text" id="smtp-server" class="form-control-github" value="smtp.gmail.com" placeholder="smtp.gmail.com">
+                <input type="text" id="smtp-server" value="smtp.gmail.com" style="width: 100%; padding: 8px; border: 1px solid var(--color-input-border); border-radius: 6px; background: var(--color-input-bg); color: var(--color-fg-default);">
             </div>
-            <div class="form-group-github">
-                <label for="smtp-port" class="form-label-github">
+            <div>
+                <label style="display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: var(--color-fg-default);">
                     <i class="fas fa-plug"></i> Port
                 </label>
-                <input type="number" id="smtp-port" class="form-control-github" value="587" placeholder="587">
+                <input type="number" id="smtp-port" value="587" style="width: 100%; padding: 8px; border: 1px solid var(--color-input-border); border-radius: 6px; background: var(--color-input-bg); color: var(--color-fg-default);">
             </div>
         </div>
         
-        <!-- Action Buttons -->
-        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
-            <button onclick="testSMTPCredentials()" class="btn-github btn-github-primary">
+        <!-- Action Buttons - COMPACT -->
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button onclick="testSMTPCredentials()" style="padding: 8px 16px; background: var(--color-btn-primary-bg); border: 1px solid var(--color-btn-primary-border); color: var(--color-btn-primary-text); border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;">
                 <i class="fas fa-paper-plane"></i> Send Test Emails
             </button>
-            <button onclick="interruptSMTPTesting()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
-                <i class="fas fa-stop"></i> Interrupt Sending
+            <button onclick="interruptSMTPTesting()" style="padding: 8px 16px; background: var(--color-warning-emphasis); border: 1px solid var(--color-warning-emphasis); color: #ffffff; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;">
+                <i class="fas fa-stop"></i> Interrupt
             </button>
-            <button onclick="clearSMTPResults()" class="btn-github">
-                <i class="fas fa-broom"></i> Clear Log / Reset Files
+            <button onclick="clearSMTPResults()" style="padding: 8px 16px; background: var(--color-btn-bg); border: 1px solid var(--color-btn-border); color: var(--color-btn-text); border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;">
+                <i class="fas fa-broom"></i> Clear Log
             </button>
         </div>
     </div>
 
-    <!-- SMTP Test Results -->
-    <div class="github-card">
-        <div class="github-card-header">
-            <h3 class="github-card-title">
-                <i class="fas fa-chart-bar"></i>
-                SMTP Test Results
-            </h3>
-        </div>
+    <!-- SMTP Test Results - COMPACT -->
+    <div style="background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 8px; padding: 16px; margin: 0;">
+        <h4 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: var(--color-fg-default);">
+            <i class="fas fa-chart-bar"></i> SMTP Test Results
+        </h4>
         
-        <div id="smtp-results-log" class="data-display" style="font-family: monospace; font-size: 13px; min-height: 200px;">
-            <div class="status-info">
-                <p><strong><i class="fas fa-envelope"></i> SMTP Testing Results</strong></p>
-                <p>Test results will appear here...</p>
+        <div id="smtp-results-log" style="background: var(--color-canvas-subtle); border: 1px solid var(--color-border-muted); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 12px; color: var(--color-fg-default); min-height: 150px; max-height: 300px; overflow-y: auto;">
+            <div style="color: var(--color-fg-muted); text-align: center;">
+                <p style="margin: 0;"><strong><i class="fas fa-envelope"></i> SMTP Testing Results</strong></p>
+                <p style="margin: 8px 0 0 0;">Test results will appear here...</p>
             </div>
         </div>
     </div>
@@ -792,7 +785,18 @@ function showTab(tabId) {
         selectedTab.style.height = 'auto';
         selectedTab.style.overflow = 'visible';
         
-
+        // FORCE Tab 4 to start at top with NO empty space
+        if (tabId === 'tab4') {
+            selectedTab.style.cssText = 'display: block !important; padding: 0 !important; margin: 0 !important; padding-top: 0 !important; margin-top: 0 !important;';
+            
+            // Force first child to have no top margin
+            const firstChild = selectedTab.firstElementChild;
+            if (firstChild) {
+                firstChild.style.marginTop = '0';
+            }
+            
+            console.log('Tab 4 forced to start at top with no empty space');
+        }
         
         console.log(`Successfully showing tab: ${tabId}`);
     } else {

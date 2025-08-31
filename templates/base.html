@@ -1069,6 +1069,61 @@
             min-height: auto;
         }
 
+        /* FORCE TAB 4 TO BE COMPACT */
+        #tab4 {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        #tab4 .github-card {
+            padding: 12px !important;
+            margin-bottom: 12px !important;
+            margin-top: 0 !important;
+        }
+
+        #tab4 .github-card-header {
+            padding-bottom: 8px !important;
+            margin-bottom: 12px !important;
+        }
+
+        #tab4 .form-group-github {
+            margin-bottom: 8px !important;
+        }
+
+        #tab4 textarea {
+            min-height: 80px !important;
+            height: 80px !important;
+        }
+
+        #tab4 .data-display {
+            min-height: 120px !important;
+            padding: 8px !important;
+        }
+
+        /* RESPONSIVE DESIGN FOR TAB 4 */
+        @media (max-width: 768px) {
+            #tab4 div[style*="grid-template-columns"] {
+                grid-template-columns: 1fr !important;
+                gap: 8px !important;
+            }
+            
+            #tab4 div[style*="flex"] {
+                flex-direction: column !important;
+                gap: 8px !important;
+            }
+            
+            #tab4 button {
+                width: 100% !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #tab4 > div {
+                padding: 12px !important;
+                margin-bottom: 12px !important;
+            }
+        }
+
         .tab-content.active {
             display: block !important;
         }
