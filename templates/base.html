@@ -1146,11 +1146,25 @@
             padding: 24px 0 !important;
         }
 
-        /* Clean Tab 4 styling */
+        /* Clean Tab 4 styling - FORCE DISPLAY */
         #tab4.active {
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
+            min-height: 600px !important;
+        }
+
+        /* NUCLEAR Tab 4 fix - Override everything */
+        #tab4.active * {
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        #tab4.active .github-card {
+            display: block !important;
+            background-color: var(--color-canvas-default) !important;
+            border: 1px solid var(--color-border-default) !important;
+            margin-bottom: 24px !important;
         }
 
         /* Dashboard sections */

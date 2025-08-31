@@ -783,8 +783,23 @@ function showTab(tabId) {
         selectedTab.style.height = 'auto';
         selectedTab.style.overflow = 'visible';
         
-        // Simple handling for all tabs including tab4
-        console.log(`Showing tab: ${tabId}`);
+        // Special debug for tab4
+        if (tabId === 'tab4') {
+            console.log('SHOWING TAB 4 - SMTP & CSV Gen');
+            console.log('Tab 4 HTML length:', selectedTab.innerHTML.length);
+            console.log('Tab 4 first 100 chars:', selectedTab.innerHTML.substring(0, 100));
+            
+            // Force all child elements to be visible
+            const children = selectedTab.querySelectorAll('*');
+            console.log('Tab 4 child elements found:', children.length);
+            children.forEach((child, index) => {
+                if (index < 5) { // Log first 5 for debugging
+                    console.log(`Child ${index}:`, child.tagName, child.className);
+                }
+            });
+        }
+        
+        console.log(`Successfully showing tab: ${tabId}`);
     } else {
         console.error('Tab not found:', tabId);
     }
@@ -816,24 +831,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ensure tab1 is visible by default
     showTab('tab1');
     
-    // Force Tab 4 to be properly initialized
+    // Initialize Tab 4 properly without hiding it
     const tab4 = document.getElementById('tab4');
     if (tab4) {
-        tab4.style.display = 'none';
-        tab4.style.visibility = 'visible';
-        tab4.style.opacity = '1';
-        
         // Remove any potential conflicting CSS
         tab4.style.height = 'auto';
         tab4.style.maxHeight = 'none';
         tab4.style.overflow = 'visible';
         tab4.classList.remove('hidden');
         
-        console.log('Tab 4 initialized');
-        console.log('Tab 4 HTML length:', tab4.innerHTML.length);
-        
-        console.log('Tab 4 content length check:', tab4.innerHTML.length);
+        console.log('Tab 4 initialized with content length:', tab4.innerHTML.length);
+        console.log('Tab 4 current classes:', tab4.className);
+        console.log('Tab 4 current display:', window.getComputedStyle(tab4).display);
     }
+
+    // Add a debug function to force tab4
+    window.debugTab4 = function() {
+        const tab4 = document.getElementById('tab4');
+        if (tab4) {
+            tab4.classList.add('active');
+            tab4.style.display = 'block !important';
+            tab4.style.visibility = 'visible !important';
+            tab4.style.opacity = '1 !important';
+            console.log('FORCED Tab 4 to be visible');
+            return tab4;
+        }
+        return null;
+    };
+
+    // Force Tab 4 to be testable
+    setTimeout(() => {
+        console.log('Testing Tab 4 after timeout...');
+        window.debugTab4();
+    }, 2000);
 });
 
 async function loadTokenStatusWithLive() {
