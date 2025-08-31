@@ -388,12 +388,7 @@
             color: var(--color-fg-default) !important;
         }
 
-        /* Exception for elements that should keep their specific colors */
-        [data-color-mode="dark"] .btn-github-primary[style],
-        [data-color-mode="dark"] .btn-github-danger[style],
-        [data-color-mode="dark"] .btn-github-success[style] {
-            /* Don't override button colors */
-        }
+        /* Button colors are preserved through specific selectors below */
 
         /* Fix specific GitHub card styles in templates */
         [data-color-mode="dark"] .github-card[style*="background"] {
@@ -995,14 +990,6 @@
             opacity: 1 !important;
         }
 
-        #tab4.active {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            height: auto !important;
-            overflow: visible !important;
-        }
-
         /* Force all tab content to be visible when active */
         .tab-content.active {
             display: block !important;
@@ -1012,82 +999,7 @@
             z-index: 1 !important;
         }
 
-        /* Ensure tab4 children are visible */
-        #tab4 .github-card,
-        #tab4 .form-group-github,
-        #tab4 .btn-github,
-        #tab4 input,
-        #tab4 textarea,
-        #tab4 label,
-        #tab4 h3,
-        #tab4 h4,
-        #tab4 div {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-
-        #tab4 .github-card-header {
-            display: block !important;
-        }
-
-        #tab4 .github-card-title {
-            display: flex !important;
-            align-items: center !important;
-        }
-
-        #tab4 [style*="display: grid"] {
-            display: grid !important;
-        }
-
-        #tab4 [style*="display: flex"] {
-            display: flex !important;
-        }
-
-        /* Force Tab 4 specific styling */
-        #tab4 {
-            min-height: 600px !important;
-            padding: 24px 0 !important;
-        }
-
-        /* Ultra-aggressive Tab 4 fix */
-        #tab4.active {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            position: relative !important;
-            height: auto !important;
-            overflow: visible !important;
-            background-color: var(--color-canvas-default) !important;
-        }
-
-        /* Force all Tab 4 elements to be visible */
-        #tab4 * {
-            visibility: visible !important;
-            opacity: 1 !important;
-            display: inherit !important;
-        }
-
-        #tab4 .github-card {
-            display: block !important;
-            background-color: var(--color-canvas-default) !important;
-            border: 1px solid var(--color-border-default) !important;
-        }
-
-        #tab4 .form-group-github {
-            display: block !important;
-            margin-bottom: 16px !important;
-        }
-
-        #tab4 .form-control-github {
-            display: block !important;
-            width: 100% !important;
-            background-color: var(--color-input-bg) !important;
-            border: 1px solid var(--color-input-border) !important;
-            color: var(--color-fg-default) !important;
-        }
-
-        /* Remove debugging styles for production */
+        /* Clean 3-tab layout - no special overrides needed */
 
         /* Dashboard sections */
         .section {
