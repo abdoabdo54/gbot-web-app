@@ -621,14 +621,14 @@
             </h3>
         </div>
         
-        <div class="form-group-github" style="margin-bottom: 20px;">
+        <div class="form-group-github" style="margin-bottom: 12px;">
             <label for="smtp-credentials" class="form-label-github">
                 <i class="fas fa-key"></i> SMTP Credentials (email:password, one per line)
             </label>
-            <textarea id="smtp-credentials" class="form-control-github" rows="5" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456&#10;user3@yahoo.com:secretpass789"></textarea>
+            <textarea id="smtp-credentials" class="form-control-github" rows="3" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456&#10;user3@yahoo.com:secretpass789"></textarea>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group-github">
                 <label for="smtp-recipient" class="form-label-github">
                     <i class="fas fa-envelope"></i> Recipient Email
@@ -649,7 +649,7 @@
             </div>
         </div>
         
-        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
             <button onclick="testSMTPCredentials()" class="btn-github btn-github-primary">
                 <i class="fas fa-paper-plane"></i> Send Test Emails
             </button>
@@ -797,7 +797,7 @@ function showTab(tabId) {
             const firstChild = selectedTab.firstElementChild;
             if (firstChild) {
                 firstChild.style.marginTop = '0px';
-                firstChild.style.paddingTop = '24px'; // Just enough for visual spacing
+                firstChild.style.paddingTop = '8px'; // Minimal spacing for compact look
                 firstChild.style.position = 'relative';
                 firstChild.style.top = '0px';
                 console.log('First child forced to top:', firstChild.tagName);
