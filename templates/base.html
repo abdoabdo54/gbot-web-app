@@ -1109,35 +1109,35 @@
             z-index: 1 !important;
         }
 
-        /* Ensure tab4 children are visible */
-        #tab4 .github-card,
-        #tab4 .form-group-github,
-        #tab4 .btn-github,
-        #tab4 input,
-        #tab4 textarea,
-        #tab4 label,
-        #tab4 h3,
-        #tab4 h4,
-        #tab4 div {
+        /* Ensure tab4 children are visible ONLY when active */
+        #tab4.active .github-card,
+        #tab4.active .form-group-github,
+        #tab4.active .btn-github,
+        #tab4.active input,
+        #tab4.active textarea,
+        #tab4.active label,
+        #tab4.active h3,
+        #tab4.active h4,
+        #tab4.active div {
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
         }
 
-        #tab4 .github-card-header {
+        #tab4.active .github-card-header {
             display: block !important;
         }
 
-        #tab4 .github-card-title {
+        #tab4.active .github-card-title {
             display: flex !important;
             align-items: center !important;
         }
 
-        #tab4 [style*="display: grid"] {
+        #tab4.active [style*="display: grid"] {
             display: grid !important;
         }
 
-        #tab4 [style*="display: flex"] {
+        #tab4.active [style*="display: flex"] {
             display: flex !important;
         }
 
@@ -1168,40 +1168,34 @@
             top: 0 !important;
         }
 
-        /* NUCLEAR SMTP content compact override */
-        #tab4 .github-card,
+        /* NUCLEAR SMTP content compact override - ONLY when active */
         #tab4.active .github-card {
             padding: 8px !important;
             margin-bottom: 8px !important;
             margin-top: 0 !important;
         }
 
-        #tab4 .github-card-header,
         #tab4.active .github-card-header {
             padding-bottom: 4px !important;
             margin-bottom: 8px !important;
             padding: 0 !important;
         }
 
-        #tab4 .form-group-github,
         #tab4.active .form-group-github {
             margin-bottom: 4px !important;
             margin-top: 0 !important;
         }
 
-        #tab4 .github-card-title,
         #tab4.active .github-card-title {
             font-size: 16px !important;
             margin-bottom: 0 !important;
             margin-top: 0 !important;
         }
 
-        #tab4 label,
         #tab4.active label {
             margin-bottom: 2px !important;
         }
 
-        #tab4 textarea,
         #tab4.active textarea {
             margin-bottom: 4px !important;
             min-height: 60px !important;
