@@ -1910,6 +1910,141 @@
             margin: 16px 0;
             text-align: center;
         }
+
+        /* Account Status and Icons */
+        .account-item-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .account-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+
+        .account-name i {
+            color: var(--color-accent-fg);
+        }
+
+        .account-status {
+            display: flex;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 12px;
+            background-color: var(--color-canvas-subtle);
+            border: 1px solid var(--color-border-default);
+        }
+
+        .status-indicator.authenticated {
+            background-color: var(--color-success-subtle);
+            border-color: var(--color-success-muted);
+            color: var(--color-success-fg);
+        }
+
+        .status-indicator.authenticated i {
+            color: var(--color-success-fg) !important;
+        }
+
+        .status-indicator.error {
+            background-color: var(--color-danger-subtle);
+            border-color: var(--color-danger-muted);
+            color: var(--color-danger-fg);
+        }
+
+        .status-indicator.error i {
+            color: var(--color-danger-fg) !important;
+        }
+
+        .status-indicator.ready {
+            background-color: var(--color-accent-subtle);
+            border-color: var(--color-accent-muted);
+            color: var(--color-accent-fg);
+        }
+
+        .status-indicator.ready i {
+            color: var(--color-accent-fg) !important;
+        }
+
+        /* Modal Enhancements */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background-color: var(--color-canvas-default);
+            border: 1px solid var(--color-border-default);
+            border-radius: 12px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--color-border-default);
+            background-color: var(--color-canvas-subtle);
+            border-radius: 12px 12px 0 0;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--color-border-default);
+            background-color: var(--color-canvas-subtle);
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            border-radius: 0 0 12px 12px;
+        }
     </style>
     
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">

@@ -77,7 +77,18 @@
             <div id="account-list-area" class="account-list">
                 {% for account in accounts %}
                 <div class="account-item" data-account-name="{{ account.account_name }}" data-account-id="{{ account.id }}" onclick="selectAccountFromList(this.dataset.accountName, this.dataset.accountId)">
-                    {{ account.account_name }}
+                    <div class="account-item-content">
+                        <div class="account-name">
+                            <i class="fas fa-user-circle"></i>
+                            {{ account.account_name }}
+                        </div>
+                        <div class="account-status">
+                            <span class="status-indicator" id="status-{{ account.id }}">
+                                <i class="fas fa-question-circle" style="color: var(--color-fg-muted);"></i>
+                                <span>Unknown</span>
+                            </span>
+                        </div>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -96,7 +107,7 @@
         <span id="account-stats">Loading account statistics...</span>
     </div>
     <div id="auth-status" class="status-box">
-        <p>No account authenticated</p>
+        <p><i class="fas fa-info-circle"></i> No account authenticated</p>
     </div>
 </div>
 
@@ -967,6 +978,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ensure tab1 is visible by default
     showTab('tab1');
     
+    // Update account statistics on load
+    updateAccountStats();
+    
+    // Initialize account status indicators
+    initializeAccountStatus();
+    
     // Load account statistics
     updateAccountStats();
 });
@@ -1009,6 +1026,17 @@ function authenticateAccount() {
             updateAuthStatus(`✅ Authenticated: ${selectedAccount}`, 'success');
             currentAccount = selectedAccount;
             isAuthenticated = true;
+            
+            // Update account status in the list
+            const accountItem = document.querySelector(`[data-account-name="${selectedAccount}"]`);
+            if (accountItem) {
+                const accountId = accountItem.dataset.accountId;
+                updateAccountStatus(accountId, 'authenticated');
+            }
+        } else if (data.status === 'oauth_required' && data.auth_url) {
+            // Show OAuth modal for authorization
+            showOAuthModal(data.auth_url);
+            updateAuthStatus(`🔐 OAuth authorization required for: ${selectedAccount}`, 'warning');
         } else {
             updateAuthStatus(`❌ Authentication failed: ${data.message}`, 'error');
         }
@@ -1020,8 +1048,49 @@ function authenticateAccount() {
 
 function updateAuthStatus(message, type) {
     const authStatus = document.getElementById('auth-status');
+    const icons = {
+        'success': 'fas fa-check-circle',
+        'error': 'fas fa-exclamation-triangle',
+        'warning': 'fas fa-exclamation-circle',
+        'info': 'fas fa-info-circle'
+    };
+    
     if (authStatus) {
-        authStatus.innerHTML = `<p class="status-${type}">${message}</p>`;
+        authStatus.className = `status-box status-${type}`;
+        authStatus.innerHTML = `<p><i class="${icons[type] || icons.info}"></i> ${message}</p>`;
+    }
+}
+
+function updateAccountStatus(accountId, status, statusText) {
+    const statusElement = document.getElementById(`status-${accountId}`);
+    if (statusElement) {
+        // Remove all status classes
+        statusElement.classList.remove('authenticated', 'error', 'ready');
+        
+        // Add appropriate class and update content
+        if (status === 'authenticated') {
+            statusElement.classList.add('authenticated');
+            statusElement.innerHTML = '<i class="fas fa-check-circle"></i><span>Authenticated</span>';
+        } else if (status === 'error') {
+            statusElement.classList.add('error');
+            statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Error</span>';
+        } else if (status === 'ready') {
+            statusElement.classList.add('ready');
+            statusElement.innerHTML = '<i class="fas fa-key"></i><span>Ready</span>';
+        } else {
+            statusElement.innerHTML = '<i class="fas fa-question-circle"></i><span>Unknown</span>';
+        }
+    }
+}
+
+function showOAuthModal(authUrl) {
+    const modal = document.getElementById('oauthModal');
+    const urlDiv = document.getElementById('oauthUrl');
+    
+    if (modal && urlDiv) {
+        urlDiv.textContent = authUrl;
+        modal.style.display = 'flex';
+        console.log('OAuth modal shown with URL:', authUrl);
     }
 }
 
@@ -1199,6 +1268,13 @@ function authenticateFromList() {
             updateAuthStatus(`✅ Authenticated: ${selectedAccountFromList}`, 'success');
             currentAccount = selectedAccountFromList;
             isAuthenticated = true;
+            
+            // Update account status in the list
+            updateAccountStatus(selectedAccountId, 'authenticated');
+        } else if (data.status === 'oauth_required' && data.auth_url) {
+            // Show OAuth modal for authorization
+            showOAuthModal(data.auth_url);
+            updateAuthStatus(`🔐 OAuth authorization required for: ${selectedAccountFromList}`, 'warning');
         } else {
             updateAuthStatus(`❌ Authentication failed: ${data.message}`, 'error');
         }
@@ -1441,6 +1517,28 @@ function clearSuspendedUsers() {
             <p><small>This will show all users with suspended status, including their names, emails, and admin privileges.</small></p>
         </div>
     `;
+}
+
+function initializeAccountStatus() {
+    // Check status for all accounts on page load
+    fetch('/api/get_account_statuses', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success' && data.accounts) {
+            data.accounts.forEach(account => {
+                updateAccountStatus(account.id, account.auth_status);
+            });
+        }
+    })
+    .catch(error => {
+        console.log('Could not load account statuses:', error.message);
+        // This is not critical, so we just log it
+    });
 }
 
 console.log('Dashboard JavaScript loaded successfully');

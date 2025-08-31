@@ -1,4 +1,44 @@
 // ========================================
+// ACCOUNT MANAGEMENT FUNCTIONS (ADDITIONAL)
+// ========================================
+
+function addFromServerJSON() {
+    console.log('Adding accounts from server JSON...');
+    
+    fetch('/api/add_from_server_json', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        
+        // Check if response is actually JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Server returned non-JSON response');
+        }
+        
+        return response.json();
+    })
+    .then(data => {
+        console.log('Parsed data:', data);
+        if (data.status === 'success') {
+            alert(`Successfully added ${data.count} accounts from server`);
+            location.reload();
+        } else {
+            alert(`Failed to add accounts: ${data.message}`);
+        }
+    })
+    .catch(error => {
+        console.error('Full error:', error);
+        alert(`Error: ${error.message}`);
+    });
+}
+
+// ========================================
 // USER CREATION & DOMAIN FUNCTIONS (TAB 2)
 // ========================================
 
