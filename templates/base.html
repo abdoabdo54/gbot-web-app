@@ -1168,24 +1168,43 @@
             top: 0 !important;
         }
 
-        /* Make SMTP content more compact */
-        #tab4 .github-card {
-            padding: 16px !important;
-            margin-bottom: 16px !important;
+        /* NUCLEAR SMTP content compact override */
+        #tab4 .github-card,
+        #tab4.active .github-card {
+            padding: 8px !important;
+            margin-bottom: 8px !important;
+            margin-top: 0 !important;
         }
 
-        #tab4 .github-card-header {
-            padding-bottom: 12px !important;
-            margin-bottom: 16px !important;
+        #tab4 .github-card-header,
+        #tab4.active .github-card-header {
+            padding-bottom: 4px !important;
+            margin-bottom: 8px !important;
+            padding: 0 !important;
         }
 
-        #tab4 .form-group-github {
-            margin-bottom: 12px !important;
+        #tab4 .form-group-github,
+        #tab4.active .form-group-github {
+            margin-bottom: 4px !important;
+            margin-top: 0 !important;
         }
 
-        #tab4 .github-card-title {
-            font-size: 18px !important;
+        #tab4 .github-card-title,
+        #tab4.active .github-card-title {
+            font-size: 16px !important;
             margin-bottom: 0 !important;
+            margin-top: 0 !important;
+        }
+
+        #tab4 label,
+        #tab4.active label {
+            margin-bottom: 2px !important;
+        }
+
+        #tab4 textarea,
+        #tab4.active textarea {
+            margin-bottom: 4px !important;
+            min-height: 60px !important;
         }
 
         /* NUCLEAR Tab 4 fix - Override everything */
@@ -1195,16 +1214,11 @@
             margin-top: 0 !important;
         }
 
-        #tab4.active .github-card:first-child {
-            margin-top: 0 !important;
-            padding-top: 24px !important;
-        }
-
+        /* Additional Tab 4 overrides */
         #tab4.active .github-card {
             display: block !important;
             background-color: var(--color-canvas-default) !important;
             border: 1px solid var(--color-border-default) !important;
-            margin-bottom: 24px !important;
         }
 
         /* Dashboard sections */

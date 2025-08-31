@@ -790,20 +790,30 @@ function showTab(tabId) {
             // NUCLEAR APPROACH - FORCE EVERYTHING
             selectedTab.style.cssText = 'display: block !important; padding: 0 !important; margin: 0 !important; height: auto !important; position: relative !important; top: 0 !important;';
             
-            // Force EVERY element to be compact
+            // Force EVERY element to be compact - NUCLEAR override
             const allElements = selectedTab.querySelectorAll('*');
             allElements.forEach(element => {
                 if (element.classList.contains('github-card')) {
-                    element.style.cssText += 'margin-top: 0 !important; padding: 12px !important; margin-bottom: 8px !important;';
+                    element.style.cssText = 'margin: 0 !important; padding: 8px !important; margin-bottom: 4px !important; display: block !important; background-color: var(--color-canvas-default) !important; border: 1px solid var(--color-border-default) !important; border-radius: 12px !important;';
                 }
                 if (element.classList.contains('github-card-header')) {
-                    element.style.cssText += 'padding-bottom: 4px !important; margin-bottom: 8px !important;';
+                    element.style.cssText = 'padding: 0 !important; margin: 0 !important; margin-bottom: 4px !important; border-bottom: 1px solid var(--color-border-muted) !important; padding-bottom: 4px !important;';
+                }
+                if (element.classList.contains('github-card-title')) {
+                    element.style.cssText = 'font-size: 16px !important; margin: 0 !important; font-weight: 600 !important; color: var(--color-fg-default) !important;';
                 }
                 if (element.classList.contains('form-group-github')) {
-                    element.style.cssText += 'margin-bottom: 4px !important;';
+                    element.style.cssText = 'margin: 0 !important; margin-bottom: 4px !important;';
+                }
+                if (element.tagName === 'LABEL') {
+                    element.style.cssText += 'margin-bottom: 2px !important; display: block !important;';
                 }
                 if (element.tagName === 'TEXTAREA') {
                     element.rows = 2;
+                    element.style.cssText += 'margin-bottom: 4px !important; min-height: 50px !important;';
+                }
+                if (element.tagName === 'INPUT') {
+                    element.style.cssText += 'margin-bottom: 2px !important;';
                 }
             });
             
