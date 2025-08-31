@@ -18,7 +18,7 @@
             <i class="fas fa-exchange-alt"></i>
             <span>Bulk Domain Change</span>
         </button>
-        <button class="tab-button" onclick="showTab('tab4-renamed-test')">
+        <button class="tab-button" onclick="showTab('tab4')">
             <i class="fas fa-envelope"></i>
             <span>SMTP & CSV Gen</span>
         </button>
@@ -352,7 +352,26 @@
         </div>
     </div>
 
-
+    <!-- Create Users from CSV File -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-file-csv"></i>
+                Create Users from CSV File
+            </h3>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end;">
+            <div class="form-group-github">
+                <label for="csv-file-input" class="form-label-github">
+                    <i class="fas fa-file-upload"></i> Select CSV File
+                </label>
+                <input type="file" id="csv-file-input" class="form-control-github" accept=".csv">
+            </div>
+            <button onclick="createUsersFromCSV()" class="btn-github btn-github-primary">
+                <i class="fas fa-upload"></i> Create Users from CSV
+            </button>
+        </div>
+    </div>
 
     <!-- Create Random Users -->
     <div class="github-card">
@@ -456,14 +475,93 @@
 <!-- Tab 3: Bulk Domain Change -->
 <div id="tab3" class="tab-content">
     
+    <!-- Workflow 1: Change Domain using CSV File -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-file-csv"></i>
+                Workflow 1: Change Domain using CSV File
+            </h3>
+        </div>
+        
+        <!-- Step 1.1: Download Current Users to CSV -->
+        <div style="margin-bottom: 32px;">
+            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-download" style="color: var(--color-accent-fg);"></i>
+                Step 1.1: Download Current Users to CSV
+            </h4>
+            <div style="margin-bottom: 16px;">
+                <button onclick="downloadAllUsersCSV()" class="btn-github btn-github-primary">
+                    <i class="fas fa-download"></i> Download All Users
+                </button>
+                </div>
+            <div style="background-color: rgba(9, 105, 218, 0.1); border: 1px solid var(--color-accent-emphasis); border-radius: 6px; padding: 12px; color: var(--color-accent-fg); font-size: 14px;">
+                <i class="fas fa-info-circle"></i>
+                CSV will be saved to: <strong id="csv-save-path">Downloads folder</strong>
+            </div>
+        </div>
+        
+        <!-- Step 1.2: Select New Domain and Apply to Downloaded CSV -->
+        <div style="margin-bottom: 32px;">
+            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-globe" style="color: var(--color-accent-fg);"></i>
+                Step 1.2: Select New Domain and Apply to Downloaded CSV
+            </h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+                <button onclick="retrieveAvailableDomains()" class="btn-github">
+                    <i class="fas fa-search"></i> Retrieve Available Domains
+                </button>
+                <button onclick="getDomainUsageStats()" class="btn-github" style="background-color: var(--color-success-emphasis); border-color: var(--color-success-emphasis); color: #ffffff;">
+                    <i class="fas fa-chart-bar"></i> Domain Usage Stats
+                </button>
+                <button onclick="clearOldDomainData()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+                    <i class="fas fa-trash"></i> Clear Old Data
+                </button>
+                <button onclick="applySelectedDomainToCSV()" class="btn-github btn-github-primary">
+                    <i class="fas fa-check"></i> Apply Selected Domain to CSV
+                </button>
+                <button onclick="debugDomainUsers()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: #ffffff;">
+                    <i class="fas fa-bug"></i> Debug Domain Users
+                </button>
+                </div>
+                
+            <div id="available-domains" class="data-display">
+                <div class="status-info">
+                    <p><strong><i class="fas fa-globe"></i> Domain Selection</strong></p>
+                    <p>Click 'Retrieve Available Domains' to view available domains</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Step 1.3: Process Domain Changes from Modified CSV -->
+        <div>
+            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-cogs" style="color: var(--color-accent-fg);"></i>
+                Step 1.3: Process Domain Changes from Modified CSV
+            </h4>
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; margin-bottom: 16px;">
+                <div class="form-group-github">
+                    <label for="csv-file-path" class="form-label-github">
+                        <i class="fas fa-file-csv"></i> CSV File Path
+                    </label>
+                    <input type="text" id="csv-file-path" class="form-control-github" placeholder="CSV file path will appear here after download/apply, or browse manually..." readonly>
+                </div>
+                <button onclick="browseCSVFile()" class="btn-github">
+                    <i class="fas fa-folder-open"></i> Browse Manually...
+                </button>
+                </div>
+            <button onclick="processDomainChangesFromCSV()" class="btn-github btn-github-primary">
+                <i class="fas fa-cogs"></i> Process Domain Changes from CSV
+            </button>
+        </div>
+    </div>
 
-
-    <!-- Workflow 1: Change Domain for All Users (Excludes Admin) -->
+    <!-- Workflow 2: Change Domain for All Users (Non-CSV, Excludes Admin) -->
     <div class="github-card">
         <div class="github-card-header">
             <h3 class="github-card-title">
                 <i class="fas fa-exchange-alt"></i>
-                Workflow 1: Change Domain for All Users (Excludes Admin)
+                Workflow 2: Change Domain for All Users (Non-CSV, Excludes Admin)
             </h3>
         </div>
         
@@ -512,83 +610,137 @@
 </div>
 </div>
 
-<!-- Tab 4: SMTP & CSV Generation - RENAMED TO TEST -->
-<div id="tab4-renamed-test" class="tab-content">
-
-<!-- SMTP Credential Tester -->
-<div class="github-card">
-    <div class="github-card-header">
-        <h3 class="github-card-title">
-            <i class="fas fa-envelope"></i>
-            SMTP Credential Tester
-        </h3>
-    </div>
-    
-    <div class="form-group-github">
-        <label for="smtp-credentials" class="form-label-github">
-            <i class="fas fa-key"></i> SMTP Credentials (email:password, one per line)
-        </label>
-        <textarea id="smtp-credentials" rows="3" class="form-control-github" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456" style="font-family: monospace; font-size: 12px;"></textarea>
-    </div>
-    
-    <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; margin-bottom: 20px;">
-        <div class="form-group-github">
-            <label for="smtp-recipient" class="form-label-github">
-                <i class="fas fa-envelope"></i> Recipient Email
-            </label>
-            <input type="email" id="smtp-recipient" class="form-control-github" placeholder="test@domain.com">
-        </div>
-        <div class="form-group-github">
-            <label for="smtp-server" class="form-label-github">
-                <i class="fas fa-server"></i> SMTP Server
-            </label>
-            <input type="text" id="smtp-server" class="form-control-github" value="smtp.gmail.com" placeholder="smtp.gmail.com">
-        </div>
-        <div class="form-group-github">
-            <label for="smtp-port" class="form-label-github">
-                <i class="fas fa-plug"></i> Port
-            </label>
-            <input type="number" id="smtp-port" class="form-control-github" value="587" placeholder="587" style="width: 80px;">
-        </div>
-    </div>
-        
-    <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
-        <button onclick="testSMTPCredentials()" class="btn-github btn-github-primary">
-            <i class="fas fa-paper-plane"></i> Send Test Emails
-        </button>
-        <button onclick="interruptSMTPTesting()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
-            <i class="fas fa-stop"></i> Interrupt Sending
-        </button>
-        <button onclick="clearSMTPResults()" class="btn-github">
-            <i class="fas fa-broom"></i> Clear Log / Reset Files
-        </button>
-    </div>
-    
-    <div id="smtp-results-log" class="data-display" style="min-height: 120px; font-family: monospace; font-size: 12px;">
-        <div class="status-info">
-            <p><strong><i class="fas fa-envelope"></i> SMTP Testing Results</strong></p>
-            <p>Test results will appear here...</p>
-        </div>
-    </div>
-</div>
-        
-
-    </div>
-
-    <!-- CSV SECTION TEMPORARILY REMOVED FOR DEBUGGING -->
+<!-- Tab 4: SMTP & CSV Generation -->
+<div id="tab4" class="tab-content">
+    <!-- SMTP Credential Tester -->
     <div class="github-card">
         <div class="github-card-header">
             <h3 class="github-card-title">
-                <i class="fas fa-bug"></i>
-                DEBUG: CSV Section Removed
+                <i class="fas fa-envelope"></i>
+                SMTP Credential Tester
             </h3>
         </div>
-        <p style="color: red; font-weight: bold;">
-            🚨 CSV GENERATION SECTION TEMPORARILY REMOVED FOR DEBUGGING 🚨<br>
-            If you still see "Generate Sample CSV for User Creation" elsewhere, 
-            it means there are duplicate sections in the code.
-        </p>
+        
+        <div class="form-group-github" style="margin-bottom: 12px;">
+            <label for="smtp-credentials" class="form-label-github">
+                <i class="fas fa-key"></i> SMTP Credentials (email:password, one per line)
+            </label>
+            <textarea id="smtp-credentials" class="form-control-github" rows="3" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456&#10;user3@yahoo.com:secretpass789"></textarea>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div class="form-group-github">
+                <label for="smtp-recipient" class="form-label-github">
+                    <i class="fas fa-envelope"></i> Recipient Email
+                </label>
+                <input type="email" id="smtp-recipient" class="form-control-github" placeholder="test@domain.com">
+            </div>
+            <div class="form-group-github">
+                <label for="smtp-server" class="form-label-github">
+                    <i class="fas fa-server"></i> SMTP Server
+                </label>
+                <input type="text" id="smtp-server" class="form-control-github" value="smtp.gmail.com" placeholder="SMTP Server">
+            </div>
+            <div class="form-group-github">
+                <label for="smtp-port" class="form-label-github">
+                    <i class="fas fa-plug"></i> Port
+                </label>
+                <input type="number" id="smtp-port" class="form-control-github" value="587" placeholder="Port">
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <button onclick="testSMTPCredentials()" class="btn-github btn-github-primary">
+                <i class="fas fa-paper-plane"></i> Send Test Emails
+            </button>
+            <button onclick="interruptSMTPTesting()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+                <i class="fas fa-stop"></i> Interrupt Sending
+            </button>
+            <button onclick="clearSMTPResults()" class="btn-github">
+                <i class="fas fa-broom"></i> Clear Log / Reset Files
+            </button>
+        </div>
+        
+        <div>
+            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-chart-bar" style="color: var(--color-accent-fg);"></i>
+                SMTP Test Results
+            </h4>
+            <div id="smtp-results-log" class="data-display" style="font-family: monospace; font-size: 13px;">
+                <div class="status-info">
+                    <p><strong><i class="fas fa-envelope"></i> SMTP Testing Results</strong></p>
+                    <p>Test results will appear here...</p>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <!-- Generate Sample CSV for User Creation -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-file-csv"></i>
+                Generate Sample CSV for User Creation
+            </h3>
+            </div>
+            
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="csv-num-users" class="form-label-github">
+                    <i class="fas fa-hashtag"></i> Number of Users
+                </label>
+                <input type="number" id="csv-num-users" class="form-control-github" min="1" max="1000" placeholder="e.g., 50">
+            </div>
+            <div class="form-group-github">
+                <label for="csv-domain" class="form-label-github">
+                    <i class="fas fa-globe"></i> Domain
+                </label>
+                <input type="text" id="csv-domain" class="form-control-github" placeholder="yourdomain.com">
+            </div>
+            <div class="form-group-github">
+                <label for="csv-password" class="form-label-github">
+                    <i class="fas fa-lock"></i> Default Password
+                </label>
+                <input type="text" id="csv-password" class="form-control-github" placeholder="Default password for all users">
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <button onclick="generateUserCSV()" class="btn-github btn-github-primary">
+                <i class="fas fa-download"></i> Generate CSV File
+            </button>
+            <button onclick="previewCSV()" class="btn-github">
+                <i class="fas fa-eye"></i> Preview CSV
+            </button>
+        </div>
+        
+        <div id="csv-download-area" class="data-display"></div>
+        
+        <div id="csv-preview-area" class="csv-preview"></div>
+    </div>
+
+    <!-- COMMENTED OUT - Email Template Generator 
+    <div class="section">
+        <h3>📧 Email Template Generator</h3>
+        
+        <div class="template-form">
+            <div class="form-row">
+                <input type="text" id="email-subject" placeholder="Email Subject">
+            </div>
+            
+            <textarea id="email-body" rows="8" placeholder="Email body template...&#10;&#10;Use placeholders:&#10;{email} - User's email&#10;{password} - User's password&#10;{first_name} - User's first name&#10;{last_name} - User's last name"></textarea>
+            
+            <div class="button-row">
+                <button onclick="generateEmailTemplate()">📧 Generate Template</button>
+                <button onclick="testEmailTemplate()">🧪 Test Template</button>
+            </div>
+        </div>
+        
+        <div id="email-template-preview" class="template-preview"></div>
+    </div>
+    -->
+
+</div>
 </div>
 
 <script>
@@ -599,11 +751,11 @@ let selectedAccountId = null;
 let smtpTesting = false;
 let selectedDomain = null;
 
-// SIMPLE Tab switching functionality - NO OVERRIDES
+// Tab switching functionality
 function showTab(tabId) {
     console.log('Switching to tab:', tabId);
     
-    // Hide all tab contents - SIMPLE
+    // Hide all tab contents
     const tabs = document.querySelectorAll('.tab-content');
     tabs.forEach(tab => {
         tab.classList.remove('active');
@@ -614,42 +766,95 @@ function showTab(tabId) {
     const buttons = document.querySelectorAll('.tab-button');
     buttons.forEach(button => {
         button.classList.remove('active');
+        button.style.background = 'var(--color-canvas-subtle)';
+        button.style.borderBottom = '1px solid var(--color-border-default)';
+        button.style.color = 'var(--color-fg-muted)';
     });
     
-    // Show selected tab - SIMPLE
+    // Show selected tab
     const selectedTab = document.getElementById(tabId);
     if (selectedTab) {
+        console.log('Found tab element:', selectedTab);
         selectedTab.classList.add('active');
         selectedTab.style.display = 'block';
-
-        // Auto-refresh domain data when domains tab is shown
-        if (tabId === 'tab3' && isAuthenticated) {
-            setTimeout(() => {
-                retrieveAvailableDomains();
-            }, 500);
+        selectedTab.style.visibility = 'visible';
+        selectedTab.style.opacity = '1';
+        selectedTab.style.height = 'auto';
+        selectedTab.style.overflow = 'visible';
+        
+        // Special debug for tab4
+        if (tabId === 'tab4') {
+            console.log('SHOWING TAB 4 - SMTP & CSV Gen');
+            console.log('Tab 4 HTML length:', selectedTab.innerHTML.length);
+            
+            // FORCE Tab 4 to start at top - NUCLEAR approach
+            selectedTab.style.paddingTop = '0px';
+            selectedTab.style.marginTop = '0px';
+            selectedTab.style.position = 'relative';
+            selectedTab.style.top = '0px';
+            
+            // Force first child to start at absolute top
+            const firstChild = selectedTab.firstElementChild;
+            if (firstChild) {
+                firstChild.style.marginTop = '0px';
+                firstChild.style.paddingTop = '8px'; // Minimal spacing for compact look
+                firstChild.style.position = 'relative';
+                firstChild.style.top = '0px';
+                console.log('First child forced to top:', firstChild.tagName);
+            }
+            
+            // Scroll to top of the tab content immediately
+            selectedTab.scrollIntoView({ behavior: 'instant', block: 'start' });
+            window.scrollTo(0, selectedTab.offsetTop - 100);
+            
+            console.log('Tab 4 forced to start at top');
         }
         
-        // Special handling for renamed tab4
-        if (tabId === 'tab4-renamed-test') {
-            console.log('🔥 SHOWING RENAMED TAB 4 - This should be the ONLY place CSV appears!');
-        }
+        console.log(`Successfully showing tab: ${tabId}`);
+    } else {
+        console.error('Tab not found:', tabId);
     }
     
     // Add active class to clicked button  
     const clickedButton = event ? event.target.closest('.tab-button') : document.querySelector(`[onclick="showTab('${tabId}')"]`);
     if (clickedButton) {
         clickedButton.classList.add('active');
+        clickedButton.style.background = 'var(--color-canvas-default)';
+        clickedButton.style.borderBottom = '3px solid var(--color-accent-emphasis)';
+        clickedButton.style.color = 'var(--color-fg-default)';
+        clickedButton.style.fontWeight = '600';
     }
 }
-
-
 
 // Initialize tabs on page load
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing tabs...');
     
-    // SIMPLE: Just show tab1 by default
+    // Check if all tabs exist
+    for (let i = 1; i <= 4; i++) {
+        const tab = document.getElementById(`tab${i}`);
+        console.log(`Tab ${i} exists:`, !!tab);
+        if (tab) {
+            console.log(`Tab ${i} content length:`, tab.innerHTML.length);
+        }
+    }
+    
+    // Ensure tab1 is visible by default
     showTab('tab1');
+    
+    // Initialize Tab 4 properly without hiding it
+    const tab4 = document.getElementById('tab4');
+    if (tab4) {
+        // Remove any potential conflicting CSS
+        tab4.style.height = 'auto';
+        tab4.style.maxHeight = 'none';
+        tab4.style.overflow = 'visible';
+        tab4.classList.remove('hidden');
+        
+        console.log('Tab 4 initialized with content length:', tab4.innerHTML.length);
+        console.log('Tab 4 current classes:', tab4.className);
+        console.log('Tab 4 current display:', window.getComputedStyle(tab4).display);
+    }
 
     // Add a debug function to force tab4
     window.debugTab4 = function() {
@@ -974,7 +1179,31 @@ async function checkCurrentAuthenticationStatus() {
 }
 
 
-
+// Tab switching function
+function showTab(tabId) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Remove active class from all buttons
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab
+    document.getElementById(tabId).classList.add('active');
+    
+    // Mark button as active
+    event.target.classList.add('active');
+    
+    // Auto-refresh domain data when domains tab is shown
+    if (tabId === 'tab3' && isAuthenticated) {
+        setTimeout(() => {
+            retrieveAvailableDomains();
+        }, 500);
+    }
+}
 
 // Results log functions
 function logResult(message) {

@@ -9,12 +9,12 @@
             <i class="fas fa-shield-alt"></i>
             IP Whitelist Management
         </h1>
-        <p style="color: var(--color-fg-muted); margin: 8px 0 0 0; font-size: 14px;">
+        <p style="color: #656d76; margin: 8px 0 0 0; font-size: 14px;">
             Manage access control for your application
         </p>
         {% if session.get('emergency_access') %}
-        <div style="margin-top: 16px; padding: 12px; background: var(--color-warning-subtle); border: 1px solid var(--color-warning-emphasis); border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
-            <span style="color: var(--color-warning-fg); font-weight: 500;">
+        <div style="margin-top: 16px; padding: 12px; background: #fff8c5; border: 1px solid #d1242f; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
+            <span style="color: #7d4e00; font-weight: 500;">
                 <i class="fas fa-exclamation-triangle"></i>
                 Emergency Access Mode Active
             </span>
@@ -27,14 +27,14 @@
     </div>
 
     <!-- Emergency Access Section -->
-    <div class="github-card" style="background: var(--color-warning-subtle); border-color: var(--color-warning-emphasis);">
-        <div class="github-card-header" style="background: var(--color-warning-emphasis); color: white; margin: -24px -24px 24px -24px; padding: 16px 24px; border-radius: 12px 12px 0 0;">
+    <div class="github-card" style="background: #fff8c5; border-color: #d1242f;">
+        <div class="github-card-header" style="background: #fb8500; color: white; margin: -24px -24px 24px -24px; padding: 16px 24px; border-radius: 12px 12px 0 0;">
             <h3 class="github-card-title" style="color: white; margin: 0;">
                 <i class="fas fa-exclamation-triangle"></i>
                 Emergency Access
             </h3>
         </div>
-        <p style="text-align: center; color: var(--color-warning-fg); font-size: 16px; margin-bottom: 24px;">
+        <p style="text-align: center; color: #7d4e00; font-size: 16px; margin-bottom: 24px;">
             If you're locked out due to IP restrictions, use this emergency access method
         </p>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
@@ -49,7 +49,7 @@
                         <i class="fas fa-search"></i> Detect
                     </button>
                 </div>
-                <small style="color: var(--color-fg-muted); font-size: 12px;">
+                <small style="color: #656d76; font-size: 12px;">
                     <i class="fas fa-info-circle"></i> Automatically detected or enter manually
                 </small>
             </div>
@@ -59,7 +59,7 @@
                 </label>
                 <input type="text" class="form-control-github" id="emergency_key" 
                        placeholder="Enter WHITELIST_TOKEN or SECRET_KEY">
-                <small style="color: var(--color-fg-muted); font-size: 12px;">
+                <small style="color: #656d76; font-size: 12px;">
                     <i class="fas fa-info-circle"></i> Use key from your environment configuration
                 </small>
             </div>
@@ -90,7 +90,7 @@
                     </label>
                     <input type="text" class="form-control-github" id="ip_address" name="ip_address" 
                            placeholder="e.g., 192.168.1.100" required>
-                    <small style="color: var(--color-fg-muted); font-size: 12px;">
+                    <small style="color: #656d76; font-size: 12px;">
                         <i class="fas fa-info-circle"></i> Enter the IP address you want to whitelist
                     </small>
                         </div>
@@ -116,7 +116,7 @@
                 </div>
             </div>
             
-            <div id="ip-loading" style="display: none; text-align: center; padding: 40px; color: var(--color-fg-muted);">
+            <div id="ip-loading" style="display: none; text-align: center; padding: 40px; color: #656d76;">
                 <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 16px;"></i>
                 <p>Loading IP list...</p>
             </div>
@@ -136,13 +136,13 @@
                             <tr>
                                 <td>
                                     <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span style="background: var(--color-success-emphasis); color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px;">
+                                        <span style="background: #2da44e; color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px;">
                                             <i class="fas fa-check"></i>
                                         </span>
-                                        <code style="background: var(--color-canvas-subtle); padding: 4px 8px; border-radius: 4px; font-family: 'Courier New', monospace;">{{ ip }}</code>
+                                        <code style="background: #f6f8fa; padding: 4px 8px; border-radius: 4px; font-family: 'Courier New', monospace;">{{ ip }}</code>
                                     </div>
                                 </td>
-                                <td style="color: var(--color-fg-muted);">
+                                <td style="color: #656d76;">
                                     <small>Recently added</small>
                                 </td>
                                 <td>
@@ -156,10 +156,10 @@
                         </tbody>
                     </table>
                 {% else %}
-                    <div style="text-align: center; padding: 40px; color: var(--color-fg-muted);">
-                        <i class="fas fa-shield-alt" style="font-size: 48px; margin-bottom: 16px; color: var(--color-border-muted);"></i>
-                        <h4 style="color: var(--color-fg-muted); margin-bottom: 8px;">No IPs Whitelisted</h4>
-                        <p style="color: var(--color-fg-muted);">Start by adding your first IP address to the whitelist.</p>
+                    <div style="text-align: center; padding: 40px; color: #656d76;">
+                        <i class="fas fa-shield-alt" style="font-size: 48px; margin-bottom: 16px; color: #d0d7de;"></i>
+                        <h4 style="color: #656d76; margin-bottom: 8px;">No IPs Whitelisted</h4>
+                        <p style="color: #656d76;">Start by adding your first IP address to the whitelist.</p>
                     </div>
                 {% endif %}
                 </div>
@@ -173,8 +173,8 @@
 <!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true" style="z-index: 9999;">
     <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content" style="border: 1px solid var(--color-border-default); border-radius: 12px;">
-            <div class="modal-header" style="background: var(--color-danger-emphasis); color: white; border-radius: 12px 12px 0 0; border-bottom: none; padding: 20px;">
+        <div class="modal-content" style="border: 1px solid #d0d7de; border-radius: 12px;">
+            <div class="modal-header" style="background: #da3633; color: white; border-radius: 12px 12px 0 0; border-bottom: none; padding: 20px;">
                 <h5 class="modal-title w-100" id="deleteModalLabel" style="text-align: center; margin: 0; font-weight: 600;">
                     <i class="fas fa-exclamation-triangle"></i>
                     Confirm Deletion
@@ -183,17 +183,17 @@
             </div>
             <div class="modal-body" style="text-align: center; padding: 32px;">
                 <div style="margin-bottom: 24px;">
-                    <i class="fas fa-trash" style="font-size: 48px; color: var(--color-danger-emphasis);"></i>
+                    <i class="fas fa-trash" style="font-size: 48px; color: #da3633;"></i>
                 </div>
                 <p style="font-size: 16px; margin-bottom: 16px;">
-                    Are you sure you want to remove <strong id="delete-ip-address" style="color: var(--color-danger-emphasis);"></strong> from the whitelist?
+                    Are you sure you want to remove <strong id="delete-ip-address" style="color: #da3633;"></strong> from the whitelist?
                 </p>
-                <p style="color: var(--color-fg-muted); margin: 0;">
+                <p style="color: #656d76; margin: 0;">
                     <i class="fas fa-info-circle"></i>
                     This action cannot be undone.
                 </p>
                 </div>
-            <div class="modal-footer" style="justify-content: center; gap: 16px; padding: 20px; border-top: 1px solid var(--color-border-default);">
+            <div class="modal-footer" style="justify-content: center; gap: 16px; padding: 20px; border-top: 1px solid #d0d7de;">
                 <button type="button" class="btn-github" id="cancelDeleteBtn" style="padding: 8px 24px;">
                     Cancel
                 </button>
@@ -448,17 +448,17 @@
                         type === 'error' ? 'alert-danger' : 
                         type === 'warning' ? 'alert-warning' : 'alert-info';
         
-        var bgColor = type === 'success' ? 'var(--color-success-subtle)' :
-                     type === 'error' ? 'var(--color-danger-subtle)' :
-                     type === 'warning' ? 'var(--color-warning-subtle)' : 'var(--color-accent-subtle)';
-
-        var borderColor = type === 'success' ? 'var(--color-success-emphasis)' :
-                         type === 'error' ? 'var(--color-danger-emphasis)' :
-                         type === 'warning' ? 'var(--color-warning-emphasis)' : 'var(--color-accent-emphasis)';
-
-        var textColor = type === 'success' ? 'var(--color-success-fg)' :
-                       type === 'error' ? 'var(--color-danger-fg)' :
-                       type === 'warning' ? 'var(--color-warning-fg)' : 'var(--color-accent-fg)';
+        var bgColor = type === 'success' ? '#dafbe1' : 
+                     type === 'error' ? '#ffebe9' : 
+                     type === 'warning' ? '#fff8c5' : '#dbeafe';
+        
+        var borderColor = type === 'success' ? '#2da44e' : 
+                         type === 'error' ? '#da3633' : 
+                         type === 'warning' ? '#d1242f' : '#0969da';
+        
+        var textColor = type === 'success' ? '#1a7f37' : 
+                       type === 'error' ? '#cf222e' : 
+                       type === 'warning' ? '#7d4e00' : '#0969da';
         
         var icon = type === 'success' ? 'fas fa-check-circle' : 
                   type === 'error' ? 'fas fa-exclamation-circle' : 
