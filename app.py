@@ -2100,5 +2100,123 @@ def add_from_server_json():
         app.logger.error(f"Error adding from server JSON: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/test-smtp', methods=['POST'])
+@login_required
+def test_smtp():
+    """Test SMTP credentials by attempting to send test emails"""
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'})
+
+        credentials_str = data.get('credentials', '').strip()
+        recipient_email = data.get('recipient_email', '').strip()
+        smtp_server = data.get('smtp_server', 'smtp.gmail.com').strip()
+        smtp_port = int(data.get('smtp_port', 587))
+
+        if not credentials_str:
+            return jsonify({'success': False, 'error': 'No SMTP credentials provided'})
+
+        if not recipient_email:
+            return jsonify({'success': False, 'error': 'No recipient email provided'})
+
+        # Parse credentials (format: email:password, one per line)
+        credentials_list = []
+        for line in credentials_str.split('\n'):
+            line = line.strip()
+            if ':' in line:
+                email, password = line.split(':', 1)
+                credentials_list.append({
+                    'email': email.strip(),
+                    'password': password.strip()
+                })
+
+        if not credentials_list:
+            return jsonify({'success': False, 'error': 'No valid credentials found. Format: email:password'})
+
+        results = []
+
+        # Test each credential
+        for cred in credentials_list:
+            try:
+                app.logger.info(f"Testing SMTP for {cred['email']} on {smtp_server}:{smtp_port}")
+
+                # Create SMTP connection
+                server = smtplib.SMTP(smtp_server, smtp_port, timeout=30)
+                server.set_debuglevel(0)  # Disable debug output
+
+                # Start TLS
+                server.starttls()
+
+                # Login
+                server.login(cred['email'], cred['password'])
+
+                # Send test email
+                msg = MIMEMultipart()
+                msg['From'] = cred['email']
+                msg['To'] = recipient_email
+                msg['Subject'] = 'SMTP Test Email - GBot'
+
+                body = f"""This is a test email sent from GBot SMTP tester.
+
+Test Details:
+- From: {cred['email']}
+- To: {recipient_email}
+- Server: {smtp_server}:{smtp_port}
+- Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+If you received this email, the SMTP credentials are working correctly!"""
+
+                msg.attach(MIMEText(body, 'plain'))
+
+                # Send email
+                server.send_message(msg)
+                server.quit()
+
+                results.append({
+                    'email': cred['email'],
+                    'status': 'success',
+                    'message': 'Email sent successfully'
+                })
+
+                app.logger.info(f"SMTP test successful for {cred['email']}")
+
+            except smtplib.SMTPAuthenticationError as e:
+                results.append({
+                    'email': cred['email'],
+                    'status': 'failed',
+                    'error': f'Authentication failed: {str(e)}'
+                })
+                app.logger.warning(f"SMTP auth failed for {cred['email']}: {e}")
+
+            except smtplib.SMTPConnectError as e:
+                results.append({
+                    'email': cred['email'],
+                    'status': 'failed',
+                    'error': f'Connection failed: {str(e)}'
+                })
+                app.logger.warning(f"SMTP connection failed for {cred['email']}: {e}")
+
+            except Exception as e:
+                results.append({
+                    'email': cred['email'],
+                    'status': 'failed',
+                    'error': f'Test failed: {str(e)}'
+                })
+                app.logger.error(f"SMTP test error for {cred['email']}: {e}")
+
+        return jsonify({
+            'success': True,
+            'results': results,
+            'total_tested': len(results),
+            'successful': len([r for r in results if r['status'] == 'success']),
+            'failed': len([r for r in results if r['status'] == 'failed'])
+        })
+
+    except Exception as e:
+        app.logger.error(f"SMTP testing error: {e}")
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
+
 if __name__ == '__main__':
     app.run(debug=True)
