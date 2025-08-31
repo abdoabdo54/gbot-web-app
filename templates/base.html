@@ -1109,129 +1109,32 @@
             z-index: 1 !important;
         }
 
-        /* Ensure tab4 children are visible ONLY when active */
-        #tab4.active .github-card,
-        #tab4.active .form-group-github,
-        #tab4.active .btn-github,
-        #tab4.active input,
-        #tab4.active textarea,
-        #tab4.active label,
-        #tab4.active h3,
-        #tab4.active h4,
-        #tab4.active div {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-
-        #tab4.active .github-card-header {
-            display: block !important;
-        }
-
-        #tab4.active .github-card-title {
-            display: flex !important;
-            align-items: center !important;
-        }
-
-        #tab4.active [style*="display: grid"] {
-            display: grid !important;
-        }
-
-        #tab4.active [style*="display: flex"] {
-            display: flex !important;
-        }
-
-        /* Force Tab 4 specific styling */
+        /* FORCE TAB 4 TO BE COMPLETELY HIDDEN BY DEFAULT */
         #tab4 {
-            min-height: auto !important;
-            padding: 0 !important;
-        }
-
-        /* NUCLEAR OVERRIDE: Hide Tab 4 content when NOT active */
-        #tab4:not(.active) {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
             position: absolute !important;
-            left: -9999px !important;
-            top: -9999px !important;
+            left: -10000px !important;
+            top: -10000px !important;
             width: 0 !important;
             height: 0 !important;
             overflow: hidden !important;
+            z-index: -1000 !important;
         }
 
-        #tab4:not(.active) * {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-        }
-
-        /* NUCLEAR Tab 4 styling - REMOVE ALL SPACE */
+        /* ONLY show Tab 4 when it has active class */
         #tab4.active {
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
-            min-height: auto !important;
-            padding: 0 !important;
-            margin: 0 !important;
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
+            width: auto !important;
             height: auto !important;
-            position: relative !important;
-            top: 0 !important;
-        }
-
-        /* FORCE first element to start at top - COMPACT */
-        #tab4.active > *:first-child {
-            margin-top: 0 !important;
-            padding-top: 8px !important;
-            position: relative !important;
-            top: 0 !important;
-        }
-
-        /* NUCLEAR SMTP content compact override - ONLY when active */
-        #tab4.active .github-card {
-            padding: 8px !important;
-            margin-bottom: 8px !important;
-            margin-top: 0 !important;
-        }
-
-        #tab4.active .github-card-header {
-            padding-bottom: 4px !important;
-            margin-bottom: 8px !important;
-            padding: 0 !important;
-        }
-
-        #tab4.active .form-group-github {
-            margin-bottom: 4px !important;
-            margin-top: 0 !important;
-        }
-
-        #tab4.active .github-card-title {
-            font-size: 16px !important;
-            margin-bottom: 0 !important;
-            margin-top: 0 !important;
-        }
-
-        #tab4.active label {
-            margin-bottom: 2px !important;
-        }
-
-        #tab4.active textarea {
-            margin-bottom: 4px !important;
-            min-height: 60px !important;
-        }
-
-        /* NUCLEAR Tab 4 fix - Override everything */
-        #tab4.active * {
-            visibility: visible !important;
-            opacity: 1 !important;
-            margin-top: 0 !important;
-        }
-
-        /* Additional Tab 4 overrides */
-        #tab4.active .github-card {
-            display: block !important;
-            background-color: var(--color-canvas-default) !important;
-            border: 1px solid var(--color-border-default) !important;
+            overflow: visible !important;
+            z-index: 1 !important;
         }
 
         /* Dashboard sections */

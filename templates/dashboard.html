@@ -628,69 +628,28 @@ let selectedAccountId = null;
 let smtpTesting = false;
 let selectedDomain = null;
 
-// Tab switching functionality
+// SIMPLE Tab switching functionality - NO OVERRIDES
 function showTab(tabId) {
     console.log('Switching to tab:', tabId);
     
-    // NUCLEAR: Force hide ALL Tab 4 content first
-    const tab4 = document.getElementById('tab4');
-    if (tab4) {
-        tab4.style.display = 'none';
-        tab4.style.visibility = 'hidden';
-        tab4.style.opacity = '0';
-        tab4.style.position = 'absolute';
-        tab4.style.left = '-9999px';
-        tab4.style.top = '-9999px';
-        tab4.classList.remove('active');
-    }
-    
-    // Hide all tab contents
+    // Hide all tab contents - SIMPLE
     const tabs = document.querySelectorAll('.tab-content');
     tabs.forEach(tab => {
         tab.classList.remove('active');
         tab.style.display = 'none';
-        // FORCE hide any CSV content
-        const csvElements = tab.querySelectorAll('[id*="csv"], [class*="csv"]');
-        csvElements.forEach(el => {
-            el.style.display = 'none';
-            el.style.visibility = 'hidden';
-        });
     });
     
     // Remove active class from all tab buttons
     const buttons = document.querySelectorAll('.tab-button');
     buttons.forEach(button => {
         button.classList.remove('active');
-        button.style.background = 'var(--color-canvas-subtle)';
-        button.style.borderBottom = '1px solid var(--color-border-default)';
-        button.style.color = 'var(--color-fg-muted)';
     });
     
-    // Show selected tab
+    // Show selected tab - SIMPLE
     const selectedTab = document.getElementById(tabId);
     if (selectedTab) {
-        console.log('Found tab element:', selectedTab);
         selectedTab.classList.add('active');
         selectedTab.style.display = 'block';
-        selectedTab.style.visibility = 'visible';
-        selectedTab.style.opacity = '1';
-        selectedTab.style.height = 'auto';
-        selectedTab.style.overflow = 'visible';
-        
-        // Special handling for tab4 - ONLY show when explicitly requested
-        if (tabId === 'tab4') {
-            console.log('SHOWING TAB 4 - SMTP & CSV Gen - COMPACT VERSION');
-            selectedTab.style.position = 'relative';
-            selectedTab.style.left = 'auto';
-            selectedTab.style.top = 'auto';
-            selectedTab.style.width = 'auto';
-            // Show CSV elements ONLY in Tab 4
-            const csvElements = selectedTab.querySelectorAll('[id*="csv"], [class*="csv"]');
-            csvElements.forEach(el => {
-                el.style.display = '';
-                el.style.visibility = 'visible';
-            });
-        }
 
         // Auto-refresh domain data when domains tab is shown
         if (tabId === 'tab3' && isAuthenticated) {
@@ -698,113 +657,23 @@ function showTab(tabId) {
                 retrieveAvailableDomains();
             }, 500);
         }
-
-        console.log(`Successfully showing tab: ${tabId}`);
-    } else {
-        console.error('Tab not found:', tabId);
     }
     
     // Add active class to clicked button  
     const clickedButton = event ? event.target.closest('.tab-button') : document.querySelector(`[onclick="showTab('${tabId}')"]`);
     if (clickedButton) {
         clickedButton.classList.add('active');
-        clickedButton.style.background = 'var(--color-canvas-default)';
-        clickedButton.style.borderBottom = '3px solid var(--color-accent-emphasis)';
-        clickedButton.style.color = 'var(--color-fg-default)';
-        clickedButton.style.fontWeight = '600';
     }
 }
 
-// NUCLEAR cleanup function
-function forceCleanCSVContent() {
-    console.log('🧹 FORCE CLEANING CSV CONTENT FROM ALL TABS EXCEPT TAB 4');
-    
-    // Get all tabs except tab4
-    for (let i = 1; i <= 3; i++) {
-        const tab = document.getElementById(`tab${i}`);
-        if (tab) {
-            // Find and DESTROY any CSV-related content
-            const csvElements = tab.querySelectorAll('[id*="csv"], [class*="csv"], [onclick*="csv"], [onclick*="CSV"]');
-            csvElements.forEach(el => {
-                console.log(`💥 REMOVING CSV element from Tab ${i}:`, el);
-                el.style.display = 'none !important';
-                el.style.visibility = 'hidden !important';
-                el.style.opacity = '0 !important';
-                el.style.position = 'absolute !important';
-                el.style.left = '-9999px !important';
-                el.style.top = '-9999px !important';
-                el.style.width = '0 !important';
-                el.style.height = '0 !important';
-                // Alternative: completely remove
-                // el.remove();
-            });
-            
-            // Also check for any text content mentioning CSV
-            const textNodes = [];
-            const walker = document.createTreeWalker(tab, NodeFilter.SHOW_TEXT);
-            let node;
-            while (node = walker.nextNode()) {
-                if (node.textContent.includes('CSV') || node.textContent.includes('Generate Sample')) {
-                    textNodes.push(node);
-                }
-            }
-            textNodes.forEach(textNode => {
-                console.log(`🗑️ Found CSV text in Tab ${i}, hiding parent:`, textNode.textContent);
-                if (textNode.parentElement) {
-                    textNode.parentElement.style.display = 'none';
-                }
-            });
-        }
-    }
-    
-    // Force hide Tab 4 completely
-    const tab4 = document.getElementById('tab4');
-    if (tab4) {
-        tab4.style.display = 'none';
-        tab4.style.visibility = 'hidden';
-        tab4.style.opacity = '0';
-        tab4.style.position = 'absolute';
-        tab4.style.left = '-9999px';
-        tab4.style.top = '-9999px';
-        tab4.classList.remove('active');
-    }
-}
+
 
 // Initialize tabs on page load
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing tabs...');
     
-    // FIRST: Nuclear cleanup
-    forceCleanCSVContent();
-    
-    // Run cleanup every 2 seconds to ensure CSV content stays hidden
-    setInterval(forceCleanCSVContent, 2000);
-    
-    // Check if all tabs exist
-    for (let i = 1; i <= 4; i++) {
-        const tab = document.getElementById(`tab${i}`);
-        console.log(`Tab ${i} exists:`, !!tab);
-        if (tab) {
-            console.log(`Tab ${i} content length:`, tab.innerHTML.length);
-        }
-    }
-    
-    // Ensure tab1 is visible by default
+    // SIMPLE: Just show tab1 by default
     showTab('tab1');
-    
-    // Initialize Tab 4 properly without hiding it
-    const tab4 = document.getElementById('tab4');
-    if (tab4) {
-        // Remove any potential conflicting CSS
-        tab4.style.height = 'auto';
-        tab4.style.maxHeight = 'none';
-        tab4.style.overflow = 'visible';
-        tab4.classList.remove('hidden');
-        
-        console.log('Tab 4 initialized with content length:', tab4.innerHTML.length);
-        console.log('Tab 4 current classes:', tab4.className);
-        console.log('Tab 4 current display:', window.getComputedStyle(tab4).display);
-    }
 
     // Add a debug function to force tab4
     window.debugTab4 = function() {
