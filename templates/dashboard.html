@@ -18,6 +18,10 @@
             <i class="fas fa-exchange-alt"></i>
             <span>Bulk Domain Change</span>
         </button>
+        <button class="tab-button" onclick="showTab('tab4')">
+            <i class="fas fa-envelope"></i>
+            <span>SMTP Testing</span>
+        </button>
     </nav>
 </div>
 
@@ -647,10 +651,83 @@
             </div>
         </div>
     </div>
-</div>
+    </div>
 </div>
 
+<!-- Tab 4: SMTP Testing -->
+<div id="tab4" class="tab-content">
+    
+    <!-- SMTP Credential Tester -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-envelope"></i>
+                SMTP Credential Tester
+            </h3>
+        </div>
+        
+        <!-- SMTP Credentials Input -->
+        <div class="form-group-github">
+            <label for="smtp-credentials" class="form-label-github">
+                <i class="fas fa-key"></i> SMTP Credentials (email:password, one per line)
+            </label>
+            <textarea id="smtp-credentials" class="form-control-github" rows="4" 
+                placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456&#10;user3@yahoo.com:secretpass789"></textarea>
+        </div>
+        
+        <!-- SMTP Settings -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="smtp-recipient" class="form-label-github">
+                    <i class="fas fa-envelope"></i> Recipient Email
+                </label>
+                <input type="email" id="smtp-recipient" class="form-control-github" placeholder="test@domain.com">
+            </div>
+            <div class="form-group-github">
+                <label for="smtp-server" class="form-label-github">
+                    <i class="fas fa-server"></i> SMTP Server
+                </label>
+                <input type="text" id="smtp-server" class="form-control-github" value="smtp.gmail.com" placeholder="smtp.gmail.com">
+            </div>
+            <div class="form-group-github">
+                <label for="smtp-port" class="form-label-github">
+                    <i class="fas fa-plug"></i> Port
+                </label>
+                <input type="number" id="smtp-port" class="form-control-github" value="587" placeholder="587">
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <button onclick="testSMTPCredentials()" class="btn-github btn-github-primary">
+                <i class="fas fa-paper-plane"></i> Send Test Emails
+            </button>
+            <button onclick="interruptSMTPTesting()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+                <i class="fas fa-stop"></i> Interrupt Sending
+            </button>
+            <button onclick="clearSMTPResults()" class="btn-github">
+                <i class="fas fa-broom"></i> Clear Log / Reset Files
+            </button>
+        </div>
+    </div>
 
+    <!-- SMTP Test Results -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-chart-bar"></i>
+                SMTP Test Results
+            </h3>
+        </div>
+        
+        <div id="smtp-results-log" class="data-display" style="font-family: monospace; font-size: 13px; min-height: 200px;">
+            <div class="status-info">
+                <p><strong><i class="fas fa-envelope"></i> SMTP Testing Results</strong></p>
+                <p>Test results will appear here...</p>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- COMMENTED OUT - Email Template Generator 
     <div class="section">
@@ -738,7 +815,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing tabs...');
     
     // Check if all tabs exist
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= 4; i++) {
         const tab = document.getElementById(`tab${i}`);
         console.log(`Tab ${i} exists:`, !!tab);
         if (tab) {
@@ -3088,7 +3165,10 @@ function clearBulkDomainLog() {
     document.getElementById('bulk-domain-results').innerHTML = '<p class="placeholder-text">Processing results will appear here...</p>';
 }
 
-// CSV Functions
+// Global SMTP Testing Variable
+let smtpTesting = false;
+
+// SMTP Functions
 
 function generateUserCSV() {
     const numUsers = document.getElementById('csv-num-users').value;
@@ -3178,7 +3258,111 @@ function previewCSV() {
     });
 }
 
+// SMTP Testing Functions
 
+function testSMTPCredentials() {
+    const credentials = document.getElementById('smtp-credentials').value.trim();
+    const recipient = document.getElementById('smtp-recipient').value.trim();
+    const server = document.getElementById('smtp-server').value.trim();
+    const port = document.getElementById('smtp-port').value;
+    
+    if (!credentials) {
+        alert('Please enter SMTP credentials');
+        return;
+    }
+    
+    if (!recipient || !recipient.includes('@')) {
+        alert('Please enter a valid recipient email');
+        return;
+    }
+    
+    smtpTesting = true;
+    clearSMTPResults();
+    logSMTPResult('🚀 Starting SMTP credential testing...');
+    logSMTPResult(`📧 Recipient: ${recipient}`);
+    logSMTPResult(`🖥️ Server: ${server}:${port}`);
+    logSMTPResult('─'.repeat(50));
+    
+    fetch('/api/test-smtp', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            credentials: credentials,
+            recipient_email: recipient,
+            smtp_server: server,
+            smtp_port: parseInt(port)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        smtpTesting = false;
+        
+        if (data.success && data.results) {
+            logSMTPResult(`📊 Testing completed for ${data.results.length} credentials:`);
+            logSMTPResult('─'.repeat(50));
+            
+            let successCount = 0;
+            let failCount = 0;
+            
+            data.results.forEach(result => {
+                if (result.status === 'success') {
+                    logSMTPResult(`✅ ${result.email}: ${result.message || 'Success'}`);
+                    successCount++;
+                } else {
+                    logSMTPResult(`❌ ${result.email}: ${result.error}`);
+                    failCount++;
+                }
+            });
+            
+            logSMTPResult('─'.repeat(50));
+            logSMTPResult(`📈 Summary: ${successCount} successful, ${failCount} failed`);
+        } else {
+            logSMTPResult(`❌ SMTP testing failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        smtpTesting = false;
+        logSMTPResult(`❌ Network error: ${error}`);
+    });
+}
+
+function interruptSMTPTesting() {
+    if (smtpTesting) {
+        smtpTesting = false;
+        logSMTPResult('⏹️ SMTP testing interrupted by user');
+        alert('SMTP testing interrupted');
+    } else {
+        alert('No SMTP testing in progress');
+    }
+}
+
+function clearSMTPResults() {
+    const log = document.getElementById('smtp-results-log');
+    log.innerHTML = `
+        <div class="status-info">
+            <p><strong><i class="fas fa-envelope"></i> SMTP Testing Results</strong></p>
+            <p>Test results will appear here...</p>
+        </div>
+    `;
+}
+
+function logSMTPResult(message) {
+    const log = document.getElementById('smtp-results-log');
+    const timestamp = new Date().toLocaleTimeString();
+    
+    // Clear placeholder content if it exists
+    if (log.querySelector('.status-info')) {
+        log.innerHTML = '';
+    }
+    
+    // Add the new message
+    const messageDiv = document.createElement('div');
+    messageDiv.textContent = `[${timestamp}] ${message}`;
+    log.appendChild(messageDiv);
+    
+    // Auto-scroll to bottom
+    log.scrollTop = log.scrollHeight;
+}
 
 /*
 
