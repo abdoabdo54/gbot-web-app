@@ -18,10 +18,6 @@
             <i class="fas fa-exchange-alt"></i>
             <span>Bulk Domain Change</span>
         </button>
-        <button class="tab-button" onclick="showTab('tab4')">
-            <i class="fas fa-envelope"></i>
-            <span>SMTP & CSV Gen</span>
-        </button>
     </nav>
 </div>
 
@@ -654,69 +650,7 @@
 </div>
 </div>
 
-<!-- Tab 4: SMTP & CSV Generation - COMPACT REBUILD -->
-<div id="tab4" class="tab-content">
 
-<!-- Compact SMTP Section -->
-<div style="background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 8px; padding: 12px; margin: 0 0 12px 0;">
-    <h4 style="margin: 0 0 8px 0; font-size: 16px; color: var(--color-fg-default);">
-        <i class="fas fa-envelope"></i> SMTP Credential Tester
-    </h4>
-    
-    <div style="margin-bottom: 8px;">
-        <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
-            <i class="fas fa-key"></i> SMTP Credentials (email:password, one per line)
-        </label>
-        <textarea id="smtp-credentials" rows="2" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); resize: vertical; font-family: monospace; font-size: 12px;" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456"></textarea>
-    </div>
-    
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
-        <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
-                <i class="fas fa-envelope"></i> Recipient Email
-            </label>
-            <input type="email" id="smtp-recipient" placeholder="test@domain.com" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default);">
-        </div>
-        <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
-                <i class="fas fa-server"></i> SMTP Server
-            </label>
-            <input type="text" id="smtp-server" value="smtp.gmail.com" placeholder="SMTP Server" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default);">
-        </div>
-        <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
-                <i class="fas fa-plug"></i> Port
-            </label>
-            <input type="number" id="smtp-port" value="587" placeholder="Port" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default);">
-        </div>
-    </div>
-        
-    <div style="display: flex; gap: 6px; margin-bottom: 8px;">
-        <button onclick="testSMTPCredentials()" style="padding: 6px 12px; background: var(--color-btn-primary-bg); border: 1px solid var(--color-btn-primary-border); color: var(--color-btn-primary-text); border-radius: 4px; font-size: 13px; cursor: pointer;">
-            <i class="fas fa-paper-plane"></i> Send Test Emails
-        </button>
-        <button onclick="interruptSMTPTesting()" style="padding: 6px 12px; background: var(--color-warning-emphasis); border: 1px solid var(--color-warning-emphasis); color: #ffffff; border-radius: 4px; font-size: 13px; cursor: pointer;">
-            <i class="fas fa-stop"></i> Interrupt Sending
-        </button>
-        <button onclick="clearSMTPResults()" style="padding: 6px 12px; background: var(--color-btn-bg); border: 1px solid var(--color-btn-border); color: var(--color-btn-text); border-radius: 4px; font-size: 13px; cursor: pointer;">
-            <i class="fas fa-broom"></i> Clear Log / Reset Files
-        </button>
-    </div>
-</div>
-        
-<!-- Compact SMTP Results -->
-<div style="background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 8px; padding: 12px; margin: 0 0 12px 0;">
-    <h4 style="margin: 0 0 8px 0; font-size: 16px; color: var(--color-fg-default);">
-        <i class="fas fa-chart-bar"></i> SMTP Test Results
-    </h4>
-    <div id="smtp-results-log" style="background: var(--color-canvas-subtle); border: 1px solid var(--color-border-muted); border-radius: 4px; padding: 8px; font-family: monospace; font-size: 12px; color: var(--color-fg-default); min-height: 80px;">
-        <div style="color: var(--color-fg-muted);">
-            <p style="margin: 0;"><strong><i class="fas fa-envelope"></i> SMTP Testing Results</strong></p>
-            <p style="margin: 4px 0 0 0;">Test results will appear here...</p>
-        </div>
-    </div>
-</div>
-</div>
 
 <!-- COMMENTED OUT - Email Template Generator 
     <div class="section">
@@ -747,7 +681,7 @@ let currentAccount = null;
 let isAuthenticated = false;
 let selectedAccountFromList = null;
 let selectedAccountId = null;
-let smtpTesting = false;
+
 let selectedDomain = null;
 
 // Tab switching functionality
@@ -781,10 +715,7 @@ function showTab(tabId) {
         selectedTab.style.height = 'auto';
         selectedTab.style.overflow = 'visible';
         
-        // Simple handling for tab4
-        if (tabId === 'tab4') {
-            console.log('SHOWING TAB 4 - SMTP & CSV Gen - COMPACT VERSION');
-        }
+
         
         console.log(`Successfully showing tab: ${tabId}`);
     } else {
@@ -807,7 +738,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing tabs...');
     
     // Check if all tabs exist
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 3; i++) {
         const tab = document.getElementById(`tab${i}`);
         console.log(`Tab ${i} exists:`, !!tab);
         if (tab) {
@@ -818,39 +749,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ensure tab1 is visible by default
     showTab('tab1');
     
-    // Initialize Tab 4 properly without hiding it
-    const tab4 = document.getElementById('tab4');
-    if (tab4) {
-        // Remove any potential conflicting CSS
-        tab4.style.height = 'auto';
-        tab4.style.maxHeight = 'none';
-        tab4.style.overflow = 'visible';
-        tab4.classList.remove('hidden');
-        
-        console.log('Tab 4 initialized with content length:', tab4.innerHTML.length);
-        console.log('Tab 4 current classes:', tab4.className);
-        console.log('Tab 4 current display:', window.getComputedStyle(tab4).display);
-    }
 
-    // Add a debug function to force tab4
-    window.debugTab4 = function() {
-        const tab4 = document.getElementById('tab4');
-        if (tab4) {
-            tab4.classList.add('active');
-            tab4.style.display = 'block !important';
-            tab4.style.visibility = 'visible !important';
-            tab4.style.opacity = '1 !important';
-            console.log('FORCED Tab 4 to be visible');
-            return tab4;
-        }
-        return null;
-    };
-
-    // Force Tab 4 to be testable
-    setTimeout(() => {
-        console.log('Testing Tab 4 after timeout...');
-        window.debugTab4();
-    }, 2000);
 });
 
 async function loadTokenStatusWithLive() {
@@ -3189,94 +3088,7 @@ function clearBulkDomainLog() {
     document.getElementById('bulk-domain-results').innerHTML = '<p class="placeholder-text">Processing results will appear here...</p>';
 }
 
-// Tab 4 Functions - SMTP & CSV
-
-function testSMTPCredentials() {
-    const credentials = document.getElementById('smtp-credentials').value.trim();
-    const recipient = document.getElementById('smtp-recipient').value.trim();
-    const server = document.getElementById('smtp-server').value.trim();
-    const port = document.getElementById('smtp-port').value;
-    
-    if (!credentials) {
-        alert('Please enter SMTP credentials');
-        return;
-    }
-    
-    if (!recipient || !recipient.includes('@')) {
-        alert('Please enter a valid recipient email');
-        return;
-    }
-    
-    smtpTesting = true;
-    clearSMTPResults();
-    logSMTPResult('🚀 Starting SMTP credential testing...');
-    logSMTPResult(`📧 Recipient: ${recipient}`);
-    logSMTPResult(`🖥️ Server: ${server}:${port}`);
-    logSMTPResult('─'.repeat(50));
-    
-    fetch('/api/test-smtp', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            credentials: credentials,
-            recipient_email: recipient,
-            smtp_server: server,
-            smtp_port: parseInt(port)
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        smtpTesting = false;
-        
-        if (data.success && data.results) {
-            logSMTPResult(`📊 Testing completed for ${data.results.length} credentials:`);
-            logSMTPResult('─'.repeat(50));
-            
-            let successCount = 0;
-            let failCount = 0;
-            
-            data.results.forEach(result => {
-                if (result.status === 'success') {
-                    logSMTPResult(`✅ ${result.email}: ${result.message || 'Success'}`);
-                    successCount++;
-                } else {
-                    logSMTPResult(`❌ ${result.email}: ${result.error}`);
-                    failCount++;
-                }
-            });
-            
-            logSMTPResult('─'.repeat(50));
-            logSMTPResult(`📈 Summary: ${successCount} successful, ${failCount} failed`);
-        } else {
-            logSMTPResult(`❌ SMTP testing failed: ${data.error}`);
-        }
-    })
-    .catch(error => {
-        smtpTesting = false;
-        logSMTPResult(`❌ Network error: ${error}`);
-    });
-}
-
-function interruptSMTPTesting() {
-    if (smtpTesting) {
-        smtpTesting = false;
-        logSMTPResult('⏹️ SMTP testing interrupted by user');
-        alert('SMTP testing interrupted');
-    } else {
-        alert('No SMTP testing in progress');
-    }
-}
-
-function clearSMTPResults() {
-    document.getElementById('smtp-results-log').textContent = '';
-}
-
-function logSMTPResult(message) {
-    const log = document.getElementById('smtp-results-log');
-    const timestamp = new Date().toLocaleTimeString();
-    log.textContent += `[${timestamp}] ${message}\n`;
-    log.scrollTop = log.scrollHeight;
-}
+// CSV Functions
 
 function generateUserCSV() {
     const numUsers = document.getElementById('csv-num-users').value;
