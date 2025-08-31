@@ -392,7 +392,8 @@
         [data-color-mode="dark"] .btn-github-primary[style],
         [data-color-mode="dark"] .btn-github-danger[style],
         [data-color-mode="dark"] .btn-github-success[style] {
-            /* Don't override button colors */
+            /* Preserve inline styles for colored buttons */
+            color: inherit !important;
         }
 
         /* Fix specific GitHub card styles in templates */
@@ -1204,6 +1205,94 @@
             background-color: var(--color-canvas-default) !important;
             border: 1px solid var(--color-border-default) !important;
             margin-bottom: 24px !important;
+        }
+
+        /* Tab 5 - Advanced SMTP Tester Styling */
+        #tab5 {
+            min-height: auto !important;
+            padding: 8px 0 !important;
+        }
+
+        #tab5.active {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            min-height: auto !important;
+            padding: 8px 0 !important;
+            margin: 0 !important;
+            height: auto !important;
+            position: relative !important;
+            top: 0 !important;
+        }
+
+        #tab5.active > *:first-child {
+            margin-top: 0 !important;
+            padding-top: 8px !important;
+            position: relative !important;
+            top: 0 !important;
+        }
+
+        /* Tab 5 content styling */
+        #tab5 .github-card {
+            padding: 16px !important;
+            margin-bottom: 16px !important;
+        }
+
+        #tab5 .github-card-header {
+            padding-bottom: 12px !important;
+            margin-bottom: 16px !important;
+        }
+
+        #tab5 .form-group-github {
+            margin-bottom: 12px !important;
+        }
+
+        #tab5 .github-card-title {
+            font-size: 18px !important;
+            margin-bottom: 0 !important;
+        }
+
+        /* Log filter buttons styling */
+        .log-filter-btn {
+            transition: all 0.2s ease;
+        }
+
+        .log-filter-btn.active {
+            background-color: var(--color-accent-emphasis) !important;
+            border-color: var(--color-accent-emphasis) !important;
+            color: #ffffff !important;
+        }
+
+        /* SMTP test log styling */
+        #smtp-test-log .log-entry {
+            padding: 4px 8px;
+            margin-bottom: 2px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        #smtp-test-log .log-success {
+            background-color: var(--color-success-subtle);
+            border-left: 3px solid var(--color-success-emphasis);
+            color: var(--color-success-fg);
+        }
+
+        #smtp-test-log .log-error {
+            background-color: var(--color-danger-subtle);
+            border-left: 3px solid var(--color-danger-emphasis);
+            color: var(--color-danger-fg);
+        }
+
+        #smtp-test-log .log-warning {
+            background-color: var(--color-warning-subtle);
+            border-left: 3px solid var(--color-warning-emphasis);
+            color: var(--color-warning-fg);
+        }
+
+        #smtp-test-log .log-info {
+            background-color: var(--color-accent-subtle);
+            border-left: 3px solid var(--color-accent-emphasis);
+            color: var(--color-accent-fg);
         }
 
         /* Dashboard sections */

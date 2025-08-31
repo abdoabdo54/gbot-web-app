@@ -22,6 +22,10 @@
             <i class="fas fa-envelope"></i>
             <span>SMTP & CSV Gen</span>
         </button>
+        <button class="tab-button" onclick="showTab('tab5')">
+            <i class="fas fa-mail-bulk"></i>
+            <span>SMTP Tester</span>
+        </button>
     </nav>
 </div>
 
@@ -81,7 +85,7 @@
             
             <div id="account-list-area" class="account-list">
                 {% for account in accounts %}
-                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name }}', {{ account.id }})" data-account-id="{{ account.id }}">
+                <div class="account-item" data-account-name="{{ account.account_name }}" data-account-id="{{ account.id }}" onclick="selectAccountFromList(this.dataset.accountName, this.dataset.accountId)">
                     {{ account.account_name }}
                 </div>
                 {% endfor %}
@@ -741,6 +745,348 @@
     -->
 
 </div>
+
+<!-- Tab 5: Advanced SMTP Account Tester -->
+<div id="tab5" class="tab-content">
+    <!-- SMTP Provider Configuration -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-server"></i>
+                SMTP Provider Configuration
+            </h3>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div class="form-group-github">
+                <label for="smtp-provider-select" class="form-label-github">
+                    <i class="fas fa-network-wired"></i> SMTP Provider
+                </label>
+                <select id="smtp-provider-select" class="form-control-github" onchange="updateSMTPSettings()">
+                    <option value="gmail" selected>Gmail (smtp.gmail.com:587)</option>
+                    <option value="outlook">Outlook/Hotmail (smtp-mail.outlook.com:587)</option>
+                    <option value="yahoo">Yahoo (smtp.mail.yahoo.com:587)</option>
+                    <option value="icloud">iCloud (smtp.mail.me.com:587)</option>
+                    <option value="zoho">Zoho (smtp.zoho.com:587)</option>
+                    <option value="protonmail">ProtonMail (smtp.protonmail.com:587)</option>
+                    <option value="custom">Custom SMTP Server</option>
+                </select>
+            </div>
+            <div class="form-group-github">
+                <label for="smtp-security-mode" class="form-label-github">
+                    <i class="fas fa-shield-alt"></i> Security Mode
+                </label>
+                <select id="smtp-security-mode" class="form-control-github">
+                    <option value="tls" selected>STARTTLS (Recommended)</option>
+                    <option value="ssl">SSL/TLS</option>
+                    <option value="none">None (Not Recommended)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div class="form-group-github">
+                <label for="smtp-server-advanced" class="form-label-github">
+                    <i class="fas fa-server"></i> SMTP Server
+                </label>
+                <input type="text" id="smtp-server-advanced" class="form-control-github" value="smtp.gmail.com" placeholder="SMTP Server Address">
+            </div>
+            <div class="form-group-github">
+                <label for="smtp-port-advanced" class="form-label-github">
+                    <i class="fas fa-plug"></i> Port
+                </label>
+                <input type="number" id="smtp-port-advanced" class="form-control-github" value="587" placeholder="Port">
+            </div>
+            <div class="form-group-github">
+                <label for="smtp-timeout" class="form-label-github">
+                    <i class="fas fa-clock"></i> Timeout (sec)
+                </label>
+                <input type="number" id="smtp-timeout" class="form-control-github" value="30" min="5" max="120">
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Credentials Management -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-key"></i>
+                SMTP Account Credentials
+            </h3>
+        </div>
+        
+        <div class="form-group-github" style="margin-bottom: 16px;">
+            <label for="smtp-accounts-list" class="form-label-github">
+                <i class="fas fa-list"></i> SMTP Accounts (email:password or email:app_password, one per line)
+            </label>
+            <textarea id="smtp-accounts-list" class="form-control-github" rows="4" 
+                placeholder="user1@gmail.com:app_password_here&#10;user2@outlook.com:regular_password&#10;user3@yahoo.com:app_specific_password&#10;&#10;For Gmail: Use App Passwords (not regular password)&#10;For Outlook: Use regular password or App Password&#10;For Yahoo: Use App Password if 2FA enabled"></textarea>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <button onclick="validateAccountFormat()" class="btn-github">
+                <i class="fas fa-check-circle"></i> Validate Format
+            </button>
+            <button onclick="saveAccountsToLocal()" class="btn-github">
+                <i class="fas fa-save"></i> Save to Browser
+            </button>
+            <button onclick="loadAccountsFromLocal()" class="btn-github">
+                <i class="fas fa-upload"></i> Load Saved
+            </button>
+            <button onclick="clearSavedAccounts()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+                <i class="fas fa-trash"></i> Clear Saved
+            </button>
+        </div>
+        
+        <div id="account-validation-results" class="data-display" style="min-height: 60px; font-size: 13px;">
+            <div class="status-info">
+                <p><strong><i class="fas fa-info-circle"></i> Account Validation</strong></p>
+                <p>Enter accounts above and click 'Validate Format' to check syntax</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recipient Management -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-address-book"></i>
+                Recipient Management
+            </h3>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div class="form-group-github">
+                <label for="test-recipients" class="form-label-github">
+                    <i class="fas fa-envelope-open"></i> Test Recipients (one per line)
+                </label>
+                <textarea id="test-recipients" class="form-control-github" rows="3" 
+                    placeholder="test1@example.com&#10;test2@example.com&#10;admin@yourdomain.com"></textarea>
+            </div>
+            <div class="form-group-github">
+                <label class="form-label-github">
+                    <i class="fas fa-list-ul"></i> Saved Recipients
+                </label>
+                <select id="saved-recipients-select" class="form-control-github" size="4" multiple>
+                    <!-- Saved recipients will appear here -->
+                </select>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <button onclick="addCurrentRecipients()" class="btn-github btn-github-primary">
+                <i class="fas fa-plus"></i> Add to Saved
+            </button>
+            <button onclick="loadSelectedRecipients()" class="btn-github">
+                <i class="fas fa-arrow-left"></i> Load Selected
+            </button>
+            <button onclick="clearRecipients()" class="btn-github">
+                <i class="fas fa-eraser"></i> Clear Current
+            </button>
+            <button onclick="deleteSelectedSaved()" class="btn-github" style="background-color: var(--color-danger-emphasis); border-color: var(--color-danger-emphasis); color: #ffffff;">
+                <i class="fas fa-trash"></i> Delete Selected
+            </button>
+        </div>
+    </div>
+
+    <!-- Email Content Configuration -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-envelope-square"></i>
+                Test Email Configuration
+            </h3>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div class="form-group-github">
+                <label for="test-email-subject" class="form-label-github">
+                    <i class="fas fa-tag"></i> Email Subject
+                </label>
+                <input type="text" id="test-email-subject" class="form-control-github" 
+                    value="SMTP Test Email - {timestamp}" placeholder="Test email subject">
+            </div>
+            <div class="form-group-github">
+                <label for="test-email-priority" class="form-label-github">
+                    <i class="fas fa-exclamation-triangle"></i> Priority
+                </label>
+                <select id="test-email-priority" class="form-control-github">
+                    <option value="normal" selected>Normal</option>
+                    <option value="high">High</option>
+                    <option value="low">Low</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-group-github" style="margin-bottom: 16px;">
+            <label for="test-email-body" class="form-label-github">
+                <i class="fas fa-align-left"></i> Email Body Template
+            </label>
+            <textarea id="test-email-body" class="form-control-github" rows="5" 
+                placeholder="This is a test email sent at {timestamp}&#10;&#10;SMTP Server: {server}:{port}&#10;From Account: {sender}&#10;Security: {security}&#10;&#10;If you received this email, the SMTP configuration is working correctly.&#10;&#10;Test ID: {test_id}">This is a test email sent at {timestamp}
+
+SMTP Server: {server}:{port}
+From Account: {sender}
+Security: {security}
+
+If you received this email, the SMTP configuration is working correctly.
+
+Test ID: {test_id}</textarea>
+        </div>
+    </div>
+
+    <!-- Testing Controls & Advanced Options -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-play-circle"></i>
+                Testing Controls & Advanced Options
+            </h3>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div class="form-group-github">
+                <label for="test-mode" class="form-label-github">
+                    <i class="fas fa-cogs"></i> Test Mode
+                </label>
+                <select id="test-mode" class="form-control-github">
+                    <option value="connection_only">Connection Test Only</option>
+                    <option value="send_emails" selected>Full Email Send Test</option>
+                    <option value="batch_test">Batch Account Test</option>
+                </select>
+            </div>
+            <div class="form-group-github">
+                <label for="test-delay" class="form-label-github">
+                    <i class="fas fa-hourglass-half"></i> Delay Between Tests (ms)
+                </label>
+                <input type="number" id="test-delay" class="form-control-github" value="1000" min="0" max="10000">
+            </div>
+            <div class="form-group-github">
+                <label for="max-concurrent" class="form-label-github">
+                    <i class="fas fa-layer-group"></i> Max Concurrent
+                </label>
+                <input type="number" id="max-concurrent" class="form-control-github" value="3" min="1" max="10">
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <button onclick="startAdvancedSMTPTest()" class="btn-github btn-github-primary" style="font-weight: 600;">
+                <i class="fas fa-rocket"></i> Start SMTP Test
+            </button>
+            <button onclick="stopSMTPTest()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+                <i class="fas fa-stop"></i> Stop Testing
+            </button>
+            <button onclick="testSingleAccount()" class="btn-github">
+                <i class="fas fa-user-check"></i> Test Single Account
+            </button>
+            <button onclick="exportTestResults()" class="btn-github">
+                <i class="fas fa-download"></i> Export Results
+            </button>
+            <button onclick="clearAllTestData()" class="btn-github" style="background-color: var(--color-danger-emphasis); border-color: var(--color-danger-emphasis); color: #ffffff;">
+                <i class="fas fa-broom"></i> Clear All Data
+            </button>
+        </div>
+    </div>
+
+    <!-- Real-time Test Status -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-chart-line"></i>
+                Real-time Test Status
+            </h3>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div style="text-align: center; padding: 12px; background-color: var(--color-canvas-subtle); border-radius: 6px;">
+                <div style="font-size: 24px; font-weight: bold; color: var(--color-accent-fg);" id="total-accounts-count">0</div>
+                <div style="font-size: 12px; color: var(--color-fg-muted);">Total Accounts</div>
+            </div>
+            <div style="text-align: center; padding: 12px; background-color: var(--color-success-subtle); border-radius: 6px;">
+                <div style="font-size: 24px; font-weight: bold; color: var(--color-success-fg);" id="successful-tests-count">0</div>
+                <div style="font-size: 12px; color: var(--color-fg-muted);">Successful</div>
+            </div>
+            <div style="text-align: center; padding: 12px; background-color: var(--color-danger-subtle); border-radius: 6px;">
+                <div style="font-size: 24px; font-weight: bold; color: var(--color-danger-fg);" id="failed-tests-count">0</div>
+                <div style="font-size: 12px; color: var(--color-fg-muted);">Failed</div>
+            </div>
+            <div style="text-align: center; padding: 12px; background-color: var(--color-warning-subtle); border-radius: 6px;">
+                <div style="font-size: 24px; font-weight: bold; color: var(--color-warning-fg);" id="testing-progress">0%</div>
+                <div style="font-size: 12px; color: var(--color-fg-muted);">Progress</div>
+            </div>
+        </div>
+        
+        <div id="current-test-status" style="padding: 12px; background-color: var(--color-canvas-subtle); border-radius: 6px; font-family: monospace; font-size: 13px; margin-bottom: 16px; min-height: 40px;">
+            <strong>Status:</strong> Ready to start testing...
+        </div>
+    </div>
+
+    <!-- Comprehensive Error & Success Log -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-list-alt"></i>
+                Comprehensive Test Results & Error Log
+            </h3>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <button onclick="filterLogByType('all')" class="btn-github btn-github-primary log-filter-btn" data-filter="all">
+                <i class="fas fa-list"></i> All
+            </button>
+            <button onclick="filterLogByType('success')" class="btn-github log-filter-btn" data-filter="success">
+                <i class="fas fa-check-circle"></i> Success
+            </button>
+            <button onclick="filterLogByType('error')" class="btn-github log-filter-btn" data-filter="error">
+                <i class="fas fa-exclamation-triangle"></i> Errors
+            </button>
+            <button onclick="filterLogByType('warning')" class="btn-github log-filter-btn" data-filter="warning">
+                <i class="fas fa-exclamation-circle"></i> Warnings
+            </button>
+            <button onclick="filterLogByType('info')" class="btn-github log-filter-btn" data-filter="info">
+                <i class="fas fa-info-circle"></i> Info
+            </button>
+            <button onclick="clearTestLog()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+                <i class="fas fa-eraser"></i> Clear Log
+            </button>
+            <label class="form-label-github" style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                <input type="checkbox" id="auto-scroll-log" checked> Auto-scroll
+            </label>
+        </div>
+        
+        <div id="smtp-test-log" class="data-display" 
+            style="font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; background-color: var(--color-canvas-default); border: 1px solid var(--color-border-default);">
+            <div class="status-info">
+                <p><strong><i class="fas fa-terminal"></i> SMTP Test Log</strong></p>
+                <p>Detailed test results and error messages will appear here...</p>
+                <p><em>Tip: Use the filter buttons above to view specific types of messages</em></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Results Summary -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-chart-bar"></i>
+                Test Results Summary
+            </h3>
+        </div>
+        
+        <div id="test-results-summary" class="data-display" style="min-height: 150px;">
+            <div class="status-info">
+                <p><strong><i class="fas fa-clipboard-list"></i> Test Summary</strong></p>
+                <p>After running tests, a detailed summary will appear here with:</p>
+                <ul style="margin: 8px 0; padding-left: 20px;">
+                    <li>Working SMTP accounts</li>
+                    <li>Failed accounts with error details</li>
+                    <li>Performance metrics</li>
+                    <li>Provider-specific recommendations</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
 </div>
 
 <script>
@@ -749,6 +1095,657 @@ let isAuthenticated = false;
 let selectedAccountFromList = null;
 let selectedAccountId = null;
 let smtpTesting = false;
+
+// Advanced SMTP Testing Variables
+let smtpTestResults = [];
+let currentLogFilter = 'all';
+let testCounter = 0;
+let testStartTime = null;
+
+// SMTP Provider configurations
+const smtpProviders = {
+    gmail: { 
+        server: 'smtp.gmail.com', 
+        port: 587, 
+        security: 'tls',
+        instructions: 'Use App Passwords for Gmail accounts with 2FA enabled'
+    },
+    outlook: { 
+        server: 'smtp-mail.outlook.com', 
+        port: 587, 
+        security: 'tls',
+        instructions: 'Use regular password or App Password for Outlook/Hotmail'
+    },
+    yahoo: { 
+        server: 'smtp.mail.yahoo.com', 
+        port: 587, 
+        security: 'tls',
+        instructions: 'Use App Password if 2FA is enabled on Yahoo'
+    },
+    icloud: { 
+        server: 'smtp.mail.me.com', 
+        port: 587, 
+        security: 'tls',
+        instructions: 'Use App-specific password for iCloud accounts'
+    },
+    zoho: { 
+        server: 'smtp.zoho.com', 
+        port: 587, 
+        security: 'tls',
+        instructions: 'Use regular password or App Password for Zoho'
+    },
+    protonmail: { 
+        server: 'smtp.protonmail.com', 
+        port: 587, 
+        security: 'tls',
+        instructions: 'Requires ProtonMail Bridge for SMTP access'
+    }
+};
+
+// Update SMTP settings based on provider selection
+function updateSMTPSettings() {
+    const provider = document.getElementById('smtp-provider-select').value;
+    const serverInput = document.getElementById('smtp-server-advanced');
+    const portInput = document.getElementById('smtp-port-advanced');
+    const securitySelect = document.getElementById('smtp-security-mode');
+    
+    if (provider !== 'custom' && smtpProviders[provider]) {
+        const config = smtpProviders[provider];
+        serverInput.value = config.server;
+        portInput.value = config.port;
+        securitySelect.value = config.security;
+        
+        // Show provider-specific instructions
+        logMessage('info', `Selected ${provider.toUpperCase()}: ${config.instructions}`);
+    } else if (provider === 'custom') {
+        logMessage('info', 'Custom SMTP server selected. Please configure manually.');
+    }
+}
+
+// Validate account format
+function validateAccountFormat() {
+    const accountsText = document.getElementById('smtp-accounts-list').value;
+    const resultDiv = document.getElementById('account-validation-results');
+    
+    if (!accountsText.trim()) {
+        resultDiv.innerHTML = `
+            <div class="status-error">
+                <p><strong><i class="fas fa-exclamation-triangle"></i> No Accounts Entered</strong></p>
+                <p>Please enter SMTP accounts in the format: email:password</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const lines = accountsText.split('\n').filter(line => line.trim());
+    const validAccounts = [];
+    const invalidAccounts = [];
+    
+    lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        
+        const parts = trimmed.split(':');
+        if (parts.length >= 2) {
+            const email = parts[0].trim();
+            const password = parts.slice(1).join(':').trim(); // Handle passwords with colons
+            
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (emailRegex.test(email) && password.length > 0) {
+                validAccounts.push({ email, password, line: index + 1 });
+            } else {
+                invalidAccounts.push({ line: index + 1, content: trimmed, issue: 'Invalid email format or empty password' });
+            }
+        } else {
+            invalidAccounts.push({ line: index + 1, content: trimmed, issue: 'Missing colon separator' });
+        }
+    });
+    
+    let html = `<div style="font-size: 13px;">`;
+    
+    if (validAccounts.length > 0) {
+        html += `
+            <div style="background-color: var(--color-success-subtle); padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                <strong><i class="fas fa-check-circle"></i> Valid Accounts (${validAccounts.length})</strong>
+                <ul style="margin: 4px 0; padding-left: 20px;">
+        `;
+        validAccounts.forEach(acc => {
+            html += `<li>Line ${acc.line}: ${acc.email}</li>`;
+        });
+        html += `</ul></div>`;
+    }
+    
+    if (invalidAccounts.length > 0) {
+        html += `
+            <div style="background-color: var(--color-danger-subtle); padding: 8px; border-radius: 4px;">
+                <strong><i class="fas fa-exclamation-triangle"></i> Invalid Accounts (${invalidAccounts.length})</strong>
+                <ul style="margin: 4px 0; padding-left: 20px;">
+        `;
+        invalidAccounts.forEach(acc => {
+            html += `<li>Line ${acc.line}: ${acc.issue} - "${acc.content}"</li>`;
+        });
+        html += `</ul></div>`;
+    }
+    
+    html += `</div>`;
+    resultDiv.innerHTML = html;
+    
+    // Update counters
+    document.getElementById('total-accounts-count').textContent = validAccounts.length;
+    
+    logMessage('info', `Account validation complete: ${validAccounts.length} valid, ${invalidAccounts.length} invalid`);
+}
+
+// Save accounts to local storage
+function saveAccountsToLocal() {
+    const accountsText = document.getElementById('smtp-accounts-list').value;
+    if (!accountsText.trim()) {
+        logMessage('warning', 'No accounts to save');
+        return;
+    }
+    
+    localStorage.setItem('smtp_accounts', accountsText);
+    logMessage('success', 'SMTP accounts saved to browser storage');
+}
+
+// Load accounts from local storage
+function loadAccountsFromLocal() {
+    const savedAccounts = localStorage.getItem('smtp_accounts');
+    if (savedAccounts) {
+        document.getElementById('smtp-accounts-list').value = savedAccounts;
+        logMessage('success', 'SMTP accounts loaded from browser storage');
+        validateAccountFormat(); // Auto-validate after loading
+    } else {
+        logMessage('warning', 'No saved accounts found in browser storage');
+    }
+}
+
+// Clear saved accounts
+function clearSavedAccounts() {
+    if (confirm('Are you sure you want to clear all saved SMTP accounts?')) {
+        localStorage.removeItem('smtp_accounts');
+        logMessage('info', 'Saved SMTP accounts cleared from browser storage');
+    }
+}
+
+// Recipient management functions
+function addCurrentRecipients() {
+    const recipients = document.getElementById('test-recipients').value
+        .split('\n')
+        .map(r => r.trim())
+        .filter(r => r && r.includes('@'));
+    
+    if (recipients.length === 0) {
+        logMessage('warning', 'No valid recipients to save');
+        return;
+    }
+    
+    let savedRecipients = JSON.parse(localStorage.getItem('saved_recipients') || '[]');
+    
+    recipients.forEach(recipient => {
+        if (!savedRecipients.includes(recipient)) {
+            savedRecipients.push(recipient);
+        }
+    });
+    
+    localStorage.setItem('saved_recipients', JSON.stringify(savedRecipients));
+    updateSavedRecipientsSelect();
+    logMessage('success', `Added ${recipients.length} recipients to saved list`);
+}
+
+function loadSelectedRecipients() {
+    const select = document.getElementById('saved-recipients-select');
+    const selected = Array.from(select.selectedOptions).map(option => option.value);
+    
+    if (selected.length === 0) {
+        logMessage('warning', 'No recipients selected to load');
+        return;
+    }
+    
+    document.getElementById('test-recipients').value = selected.join('\n');
+    logMessage('success', `Loaded ${selected.length} recipients`);
+}
+
+function clearRecipients() {
+    document.getElementById('test-recipients').value = '';
+    logMessage('info', 'Current recipients cleared');
+}
+
+function deleteSelectedSaved() {
+    const select = document.getElementById('saved-recipients-select');
+    const selected = Array.from(select.selectedOptions).map(option => option.value);
+    
+    if (selected.length === 0) {
+        logMessage('warning', 'No recipients selected to delete');
+        return;
+    }
+    
+    if (confirm(`Delete ${selected.length} saved recipients?`)) {
+        let savedRecipients = JSON.parse(localStorage.getItem('saved_recipients') || '[]');
+        savedRecipients = savedRecipients.filter(r => !selected.includes(r));
+        localStorage.setItem('saved_recipients', JSON.stringify(savedRecipients));
+        updateSavedRecipientsSelect();
+        logMessage('success', `Deleted ${selected.length} saved recipients`);
+    }
+}
+
+function updateSavedRecipientsSelect() {
+    const select = document.getElementById('saved-recipients-select');
+    const savedRecipients = JSON.parse(localStorage.getItem('saved_recipients') || '[]');
+    
+    select.innerHTML = '';
+    savedRecipients.forEach(recipient => {
+        const option = document.createElement('option');
+        option.value = recipient;
+        option.textContent = recipient;
+        select.appendChild(option);
+    });
+}
+
+// Logging functions
+function logMessage(type, message, details = null) {
+    const timestamp = new Date().toLocaleTimeString();
+    const logDiv = document.getElementById('smtp-test-log');
+    const testId = ++testCounter;
+    
+    let iconClass, bgClass;
+    switch (type) {
+        case 'success':
+            iconClass = 'fas fa-check-circle';
+            bgClass = 'log-success';
+            break;
+        case 'error':
+            iconClass = 'fas fa-exclamation-triangle';
+            bgClass = 'log-error';
+            break;
+        case 'warning':
+            iconClass = 'fas fa-exclamation-circle';
+            bgClass = 'log-warning';
+            break;
+        default:
+            iconClass = 'fas fa-info-circle';
+            bgClass = 'log-info';
+    }
+    
+    const logEntry = document.createElement('div');
+    logEntry.className = `log-entry ${bgClass}`;
+    logEntry.setAttribute('data-type', type);
+    logEntry.innerHTML = `
+        <span style="color: var(--color-fg-muted); font-size: 11px;">[${timestamp}]</span>
+        <i class="${iconClass}" style="margin: 0 4px;"></i>
+        <strong>${type.toUpperCase()}:</strong> ${message}
+        ${details ? `<div style="margin-left: 20px; font-size: 11px; margin-top: 2px;">${details}</div>` : ''}
+    `;
+    
+    // Remove placeholder content if this is the first real log entry
+    if (logDiv.querySelector('.status-info')) {
+        logDiv.innerHTML = '';
+    }
+    
+    logDiv.appendChild(logEntry);
+    
+    // Auto-scroll if enabled
+    if (document.getElementById('auto-scroll-log').checked) {
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+    
+    // Update status display
+    updateCurrentStatus(message);
+    
+    // Apply current filter
+    filterLogByType(currentLogFilter);
+}
+
+function updateCurrentStatus(message) {
+    const statusDiv = document.getElementById('current-test-status');
+    const timestamp = new Date().toLocaleTimeString();
+    statusDiv.innerHTML = `<strong>Status [${timestamp}]:</strong> ${message}`;
+}
+
+function filterLogByType(type) {
+    currentLogFilter = type;
+    const logEntries = document.querySelectorAll('#smtp-test-log .log-entry');
+    
+    // Update filter button states
+    document.querySelectorAll('.log-filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-filter') === type) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Show/hide log entries
+    logEntries.forEach(entry => {
+        if (type === 'all' || entry.getAttribute('data-type') === type) {
+            entry.style.display = 'block';
+        } else {
+            entry.style.display = 'none';
+        }
+    });
+}
+
+function clearTestLog() {
+    const logDiv = document.getElementById('smtp-test-log');
+    logDiv.innerHTML = `
+        <div class="status-info">
+            <p><strong><i class="fas fa-terminal"></i> SMTP Test Log</strong></p>
+            <p>Detailed test results and error messages will appear here...</p>
+            <p><em>Tip: Use the filter buttons above to view specific types of messages</em></p>
+        </div>
+    `;
+    
+    // Reset counters
+    document.getElementById('successful-tests-count').textContent = '0';
+    document.getElementById('failed-tests-count').textContent = '0';
+    document.getElementById('testing-progress').textContent = '0%';
+    
+    smtpTestResults = [];
+    testCounter = 0;
+    
+    logMessage('info', 'Test log cleared');
+}
+
+// Main SMTP testing functions
+function startAdvancedSMTPTest() {
+    if (smtpTesting) {
+        logMessage('warning', 'SMTP testing already in progress');
+        return;
+    }
+    
+    // Validate inputs
+    const accountsText = document.getElementById('smtp-accounts-list').value;
+    const recipientsText = document.getElementById('test-recipients').value;
+    
+    if (!accountsText.trim()) {
+        logMessage('error', 'No SMTP accounts provided');
+        return;
+    }
+    
+    if (!recipientsText.trim()) {
+        logMessage('error', 'No test recipients provided');
+        return;
+    }
+    
+    smtpTesting = true;
+    testStartTime = Date.now();
+    
+    // Parse accounts and recipients
+    const accounts = parseAccounts(accountsText);
+    const recipients = parseRecipients(recipientsText);
+    
+    if (accounts.length === 0) {
+        logMessage('error', 'No valid SMTP accounts found');
+        smtpTesting = false;
+        return;
+    }
+    
+    if (recipients.length === 0) {
+        logMessage('error', 'No valid recipients found');
+        smtpTesting = false;
+        return;
+    }
+    
+    logMessage('info', `Starting SMTP test with ${accounts.length} accounts and ${recipients.length} recipients`);
+    
+    // Reset counters
+    document.getElementById('total-accounts-count').textContent = accounts.length;
+    document.getElementById('successful-tests-count').textContent = '0';
+    document.getElementById('failed-tests-count').textContent = '0';
+    document.getElementById('testing-progress').textContent = '0%';
+    
+    // Start testing process
+    performSMTPTests(accounts, recipients);
+}
+
+function parseAccounts(accountsText) {
+    const lines = accountsText.split('\n').filter(line => line.trim());
+    const accounts = [];
+    
+    lines.forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        
+        const parts = trimmed.split(':');
+        if (parts.length >= 2) {
+            const email = parts[0].trim();
+            const password = parts.slice(1).join(':').trim();
+            
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (emailRegex.test(email) && password.length > 0) {
+                accounts.push({ email, password });
+            }
+        }
+    });
+    
+    return accounts;
+}
+
+function parseRecipients(recipientsText) {
+    return recipientsText.split('\n')
+        .map(r => r.trim())
+        .filter(r => r && r.includes('@'));
+}
+
+async function performSMTPTests(accounts, recipients) {
+    const testMode = document.getElementById('test-mode').value;
+    const delay = parseInt(document.getElementById('test-delay').value) || 1000;
+    const maxConcurrent = parseInt(document.getElementById('max-concurrent').value) || 3;
+    
+    const emailSubject = document.getElementById('test-email-subject').value || 'SMTP Test Email';
+    const emailBody = document.getElementById('test-email-body').value || 'This is a test email.';
+    const emailPriority = document.getElementById('test-email-priority').value || 'normal';
+    
+    let completedTests = 0;
+    let successfulTests = 0;
+    let failedTests = 0;
+    
+    for (let i = 0; i < accounts.length && smtpTesting; i += maxConcurrent) {
+        const batch = accounts.slice(i, i + maxConcurrent);
+        const promises = batch.map(account => testSingleSMTPAccount(account, recipients, testMode, emailSubject, emailBody, emailPriority));
+        
+        try {
+            const results = await Promise.allSettled(promises);
+            
+            results.forEach((result, index) => {
+                completedTests++;
+                const account = batch[index];
+                
+                if (result.status === 'fulfilled' && result.value.success) {
+                    successfulTests++;
+                    logMessage('success', `Account ${account.email} test completed successfully`, result.value.details);
+                } else {
+                    failedTests++;
+                    const error = result.status === 'rejected' ? result.reason : result.value.error;
+                    logMessage('error', `Account ${account.email} test failed`, error);
+                }
+                
+                // Update progress
+                const progress = Math.round((completedTests / accounts.length) * 100);
+                document.getElementById('testing-progress').textContent = `${progress}%`;
+                document.getElementById('successful-tests-count').textContent = successfulTests;
+                document.getElementById('failed-tests-count').textContent = failedTests;
+            });
+            
+        } catch (error) {
+            logMessage('error', `Batch processing error: ${error.message}`);
+        }
+        
+        // Delay between batches
+        if (i + maxConcurrent < accounts.length && smtpTesting) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+    
+    if (smtpTesting) {
+        const duration = ((Date.now() - testStartTime) / 1000).toFixed(1);
+        logMessage('success', `SMTP testing completed in ${duration}s. Success: ${successfulTests}, Failed: ${failedTests}`);
+        generateTestSummary(accounts, successfulTests, failedTests);
+    }
+    
+    smtpTesting = false;
+}
+
+async function testSingleSMTPAccount(account, recipients, testMode, subject, body, priority) {
+    const server = document.getElementById('smtp-server-advanced').value;
+    const port = document.getElementById('smtp-port-advanced').value;
+    const security = document.getElementById('smtp-security-mode').value;
+    const timeout = document.getElementById('smtp-timeout').value;
+    
+    // Prepare email content with template variables
+    const timestamp = new Date().toLocaleString();
+    const testId = Date.now().toString(36);
+    
+    const processedSubject = subject
+        .replace('{timestamp}', timestamp)
+        .replace('{test_id}', testId)
+        .replace('{sender}', account.email);
+    
+    const processedBody = body
+        .replace('{timestamp}', timestamp)
+        .replace('{server}', server)
+        .replace('{port}', port)
+        .replace('{sender}', account.email)
+        .replace('{security}', security)
+        .replace('{test_id}', testId);
+    
+    try {
+        const response = await fetch('/api/test-smtp-advanced', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: account.email,
+                password: account.password,
+                recipients: recipients,
+                server: server,
+                port: parseInt(port),
+                security: security,
+                timeout: parseInt(timeout),
+                test_mode: testMode,
+                email_data: {
+                    subject: processedSubject,
+                    body: processedBody,
+                    priority: priority
+                }
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            return {
+                success: true,
+                details: result.message || 'Test completed successfully'
+            };
+        } else {
+            return {
+                success: false,
+                error: result.error || 'Unknown error occurred'
+            };
+        }
+        
+    } catch (error) {
+        return {
+            success: false,
+            error: `Network error: ${error.message}`
+        };
+    }
+}
+
+function stopSMTPTest() {
+    if (smtpTesting) {
+        smtpTesting = false;
+        logMessage('warning', 'SMTP testing stopped by user');
+        updateCurrentStatus('Testing stopped by user');
+    } else {
+        logMessage('info', 'No SMTP testing currently in progress');
+    }
+}
+
+function testSingleAccount() {
+    // Implementation for testing a single account
+    logMessage('info', 'Single account test feature - coming soon');
+}
+
+function exportTestResults() {
+    // Implementation for exporting test results
+    logMessage('info', 'Export test results feature - coming soon');
+}
+
+function clearAllTestData() {
+    if (confirm('Clear all test data including logs and saved settings?')) {
+        clearTestLog();
+        document.getElementById('smtp-accounts-list').value = '';
+        document.getElementById('test-recipients').value = '';
+        document.getElementById('account-validation-results').innerHTML = `
+            <div class="status-info">
+                <p><strong><i class="fas fa-info-circle"></i> Account Validation</strong></p>
+                <p>Enter accounts above and click 'Validate Format' to check syntax</p>
+            </div>
+        `;
+        logMessage('info', 'All test data cleared');
+    }
+}
+
+function generateTestSummary(accounts, successful, failed) {
+    const summaryDiv = document.getElementById('test-results-summary');
+    const total = successful + failed;
+    const successRate = total > 0 ? ((successful / total) * 100).toFixed(1) : 0;
+    
+    const html = `
+        <div style="padding: 16px;">
+            <h4 style="margin: 0 0 12px 0; color: var(--color-fg-default);">
+                <i class="fas fa-chart-pie"></i> Test Results Summary
+            </h4>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                <div style="text-align: center; padding: 8px; background-color: var(--color-canvas-subtle); border-radius: 4px;">
+                    <div style="font-size: 20px; font-weight: bold; color: var(--color-accent-fg);">${total}</div>
+                    <div style="font-size: 12px;">Total Tested</div>
+                </div>
+                <div style="text-align: center; padding: 8px; background-color: var(--color-success-subtle); border-radius: 4px;">
+                    <div style="font-size: 20px; font-weight: bold; color: var(--color-success-fg);">${successful}</div>
+                    <div style="font-size: 12px;">Successful</div>
+                </div>
+                <div style="text-align: center; padding: 8px; background-color: var(--color-danger-subtle); border-radius: 4px;">
+                    <div style="font-size: 20px; font-weight: bold; color: var(--color-danger-fg);">${failed}</div>
+                    <div style="font-size: 12px;">Failed</div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+                <strong>Success Rate: ${successRate}%</strong>
+                <div style="background-color: var(--color-canvas-subtle); height: 8px; border-radius: 4px; margin-top: 4px;">
+                    <div style="background-color: var(--color-success-emphasis); height: 100%; width: ${successRate}%; border-radius: 4px;"></div>
+                </div>
+            </div>
+            
+            <div style="font-size: 13px; line-height: 1.4;">
+                <p><strong>Recommendations:</strong></p>
+                <ul style="margin: 4px 0; padding-left: 20px;">
+                    ${successful > 0 ? '<li style="color: var(--color-success-fg);">✓ Working accounts can be used for email campaigns</li>' : ''}
+                    ${failed > 0 ? '<li style="color: var(--color-danger-fg);">✗ Check failed accounts for credential issues</li>' : ''}
+                    <li>Save working account configurations for future use</li>
+                    <li>Test periodically as provider settings may change</li>
+                </ul>
+            </div>
+        </div>
+    `;
+    
+    summaryDiv.innerHTML = html;
+}
+
+// Initialize the advanced SMTP tester when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Load saved recipients on page load
+    updateSavedRecipientsSelect();
+    
+    // Set Gmail as default
+    updateSMTPSettings();
+    
+    console.log('Advanced SMTP Tester initialized');
+});
 let selectedDomain = null;
 
 // Tab switching functionality
@@ -782,33 +1779,60 @@ function showTab(tabId) {
         selectedTab.style.height = 'auto';
         selectedTab.style.overflow = 'visible';
         
-        // Special debug for tab4
-        if (tabId === 'tab4') {
-            console.log('SHOWING TAB 4 - SMTP & CSV Gen');
-            console.log('Tab 4 HTML length:', selectedTab.innerHTML.length);
-            
-            // FORCE Tab 4 to start at top - NUCLEAR approach
-            selectedTab.style.paddingTop = '0px';
-            selectedTab.style.marginTop = '0px';
-            selectedTab.style.position = 'relative';
-            selectedTab.style.top = '0px';
-            
-            // Force first child to start at absolute top
-            const firstChild = selectedTab.firstElementChild;
-            if (firstChild) {
-                firstChild.style.marginTop = '0px';
-                firstChild.style.paddingTop = '8px'; // Minimal spacing for compact look
-                firstChild.style.position = 'relative';
-                firstChild.style.top = '0px';
-                console.log('First child forced to top:', firstChild.tagName);
-            }
-            
-            // Scroll to top of the tab content immediately
-            selectedTab.scrollIntoView({ behavior: 'instant', block: 'start' });
-            window.scrollTo(0, selectedTab.offsetTop - 100);
-            
-            console.log('Tab 4 forced to start at top');
-        }
+                 // Special debug for tab4
+         if (tabId === 'tab4') {
+             console.log('SHOWING TAB 4 - SMTP & CSV Gen');
+             console.log('Tab 4 HTML length:', selectedTab.innerHTML.length);
+             
+             // FORCE Tab 4 to start at top - NUCLEAR approach
+             selectedTab.style.paddingTop = '0px';
+             selectedTab.style.marginTop = '0px';
+             selectedTab.style.position = 'relative';
+             selectedTab.style.top = '0px';
+             
+             // Force first child to start at absolute top
+             const firstChild = selectedTab.firstElementChild;
+             if (firstChild) {
+                 firstChild.style.marginTop = '0px';
+                 firstChild.style.paddingTop = '8px'; // Minimal spacing for compact look
+                 firstChild.style.position = 'relative';
+                 firstChild.style.top = '0px';
+                 console.log('First child forced to top:', firstChild.tagName);
+             }
+             
+             // Scroll to top of the tab content immediately
+             selectedTab.scrollIntoView({ behavior: 'instant', block: 'start' });
+             window.scrollTo(0, selectedTab.offsetTop - 100);
+             
+             console.log('Tab 4 forced to start at top');
+         }
+         
+         // Special handling for tab5 - Advanced SMTP Tester
+         if (tabId === 'tab5') {
+             console.log('SHOWING TAB 5 - Advanced SMTP Tester');
+             
+             // FORCE Tab 5 to start at top with compact spacing
+             selectedTab.style.paddingTop = '0px';
+             selectedTab.style.marginTop = '0px';
+             selectedTab.style.position = 'relative';
+             selectedTab.style.top = '0px';
+             
+             // Force first child to start at absolute top
+             const firstChild = selectedTab.firstElementChild;
+             if (firstChild) {
+                 firstChild.style.marginTop = '0px';
+                 firstChild.style.paddingTop = '8px'; // Compact spacing
+                 firstChild.style.position = 'relative';
+                 firstChild.style.top = '0px';
+                 console.log('Tab 5 first child forced to top:', firstChild.tagName);
+             }
+             
+             // Scroll to top of the tab content immediately
+             selectedTab.scrollIntoView({ behavior: 'instant', block: 'start' });
+             window.scrollTo(0, selectedTab.offsetTop - 100);
+             
+             console.log('Tab 5 advanced SMTP tester initialized');
+         }
         
         console.log(`Successfully showing tab: ${tabId}`);
     } else {
@@ -830,14 +1854,14 @@ function showTab(tabId) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing tabs...');
     
-    // Check if all tabs exist
-    for (let i = 1; i <= 4; i++) {
-        const tab = document.getElementById(`tab${i}`);
-        console.log(`Tab ${i} exists:`, !!tab);
-        if (tab) {
-            console.log(`Tab ${i} content length:`, tab.innerHTML.length);
-        }
-    }
+         // Check if all tabs exist
+     for (let i = 1; i <= 5; i++) {
+         const tab = document.getElementById(`tab${i}`);
+         console.log(`Tab ${i} exists:`, !!tab);
+         if (tab) {
+             console.log(`Tab ${i} content length:`, tab.innerHTML.length);
+         }
+     }
     
     // Ensure tab1 is visible by default
     showTab('tab1');
