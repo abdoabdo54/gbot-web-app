@@ -470,6 +470,50 @@
         </div>
         <div id="results-log" class="data-display" style="font-family: monospace; font-size: 13px;"></div>
     </div>
+
+    <!-- Generate Sample CSV for User Creation -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-file-csv"></i>
+                Generate Sample CSV for User Creation
+            </h3>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="csv-num-users" class="form-label-github">
+                    <i class="fas fa-hashtag"></i> Number of Users
+                </label>
+                <input type="number" id="csv-num-users" class="form-control-github" min="1" max="1000" placeholder="e.g., 50">
+            </div>
+            <div class="form-group-github">
+                <label for="csv-domain" class="form-label-github">
+                    <i class="fas fa-globe"></i> Domain
+                </label>
+                <input type="text" id="csv-domain" class="form-control-github" placeholder="yourdomain.com">
+            </div>
+            <div class="form-group-github">
+                <label for="csv-password" class="form-label-github">
+                    <i class="fas fa-lock"></i> Default Password
+                </label>
+                <input type="text" id="csv-password" class="form-control-github" placeholder="Default password for all users">
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <button onclick="generateUserCSV()" class="btn-github btn-github-primary">
+                <i class="fas fa-download"></i> Generate CSV File
+            </button>
+            <button onclick="previewCSV()" class="btn-github">
+                <i class="fas fa-eye"></i> Preview CSV
+            </button>
+        </div>
+        
+        <div id="csv-download-area" class="data-display"></div>
+        
+        <div id="csv-preview-area" class="csv-preview"></div>
+    </div>
 </div>
 
 <!-- Tab 3: Bulk Domain Change -->
@@ -672,52 +716,9 @@
         </div>
     </div>
 </div>
-    </div>
-
-    <!-- Generate Sample CSV for User Creation -->
-<!-- Compact CSV Generator -->
-<div style="background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 8px; padding: 12px; margin: 0 0 12px 0;">
-    <h4 style="margin: 0 0 8px 0; font-size: 16px; color: var(--color-fg-default);">
-        <i class="fas fa-file-csv"></i> Generate Sample CSV for User Creation
-    </h4>
-    
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
-        <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
-                <i class="fas fa-hashtag"></i> Number of Users
-            </label>
-            <input type="number" id="csv-num-users" min="1" max="1000" placeholder="e.g., 50" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default);">
-        </div>
-        <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
-                <i class="fas fa-globe"></i> Domain
-            </label>
-            <input type="text" id="csv-domain" placeholder="yourdomain.com" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default);">
-        </div>
-        <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
-                <i class="fas fa-lock"></i> Default Password
-            </label>
-            <input type="text" id="csv-password" placeholder="Default password for all users" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default);">
-        </div>
-    </div>
-        
-    <div style="display: flex; gap: 6px; margin-bottom: 8px;">
-        <button onclick="generateUserCSV()" style="padding: 6px 12px; background: var(--color-btn-primary-bg); border: 1px solid var(--color-btn-primary-border); color: var(--color-btn-primary-text); border-radius: 4px; font-size: 13px; cursor: pointer;">
-            <i class="fas fa-download"></i> Generate CSV File
-        </button>
-        <button onclick="previewCSV()" style="padding: 6px 12px; background: var(--color-btn-bg); border: 1px solid var(--color-btn-border); color: var(--color-btn-text); border-radius: 4px; font-size: 13px; cursor: pointer;">
-            <i class="fas fa-eye"></i> Preview CSV
-        </button>
-    </div>
 </div>
-        
-<!-- CSV Results Area -->
-<div id="csv-download-area" style="background: var(--color-canvas-subtle); border: 1px solid var(--color-border-muted); border-radius: 4px; padding: 8px; margin: 0 0 8px 0; min-height: 60px; font-family: monospace; font-size: 12px; color: var(--color-fg-default);"></div>
 
-<div id="csv-preview-area" style="background: var(--color-canvas-subtle); border: 1px solid var(--color-border-muted); border-radius: 4px; padding: 8px; margin: 0; min-height: 60px; font-family: monospace; font-size: 12px; color: var(--color-fg-default);"></div>
-
-    <!-- COMMENTED OUT - Email Template Generator 
+<!-- COMMENTED OUT - Email Template Generator 
     <div class="section">
         <h3>📧 Email Template Generator</h3>
         
