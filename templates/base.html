@@ -400,6 +400,102 @@
             background-color: var(--color-canvas-default) !important;
         }
 
+        /* NUCLEAR DARK MODE FIX - Override EVERYTHING */
+        [data-color-mode="dark"] * {
+            background-color: var(--color-canvas-default) !important;
+            color: var(--color-fg-default) !important;
+            border-color: var(--color-border-default) !important;
+        }
+
+        /* Reset only the elements that need specific styling */
+        [data-color-mode="dark"] input,
+        [data-color-mode="dark"] select,
+        [data-color-mode="dark"] textarea {
+            background-color: var(--color-input-bg) !important;
+            border-color: var(--color-input-border) !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        [data-color-mode="dark"] .btn-github-primary,
+        [data-color-mode="dark"] .btn-primary {
+            background-color: var(--color-btn-primary-bg) !important;
+            border-color: var(--color-btn-primary-border) !important;
+            color: var(--color-btn-primary-text) !important;
+        }
+
+        [data-color-mode="dark"] .btn-github-danger,
+        [data-color-mode="dark"] .btn-danger {
+            background-color: var(--color-btn-danger-bg) !important;
+            border-color: var(--color-btn-danger-border) !important;
+            color: var(--color-btn-danger-text) !important;
+        }
+
+        [data-color-mode="dark"] .btn-github,
+        [data-color-mode="dark"] button {
+            background-color: var(--color-btn-bg) !important;
+            border-color: var(--color-btn-border) !important;
+            color: var(--color-btn-text) !important;
+        }
+
+        [data-color-mode="dark"] .github-card {
+            background-color: var(--color-canvas-default) !important;
+            border-color: var(--color-border-default) !important;
+        }
+
+        [data-color-mode="dark"] .data-display,
+        [data-color-mode="dark"] .status-box,
+        [data-color-mode="dark"] .count-display {
+            background-color: var(--color-canvas-subtle) !important;
+            border-color: var(--color-border-default) !important;
+        }
+
+        /* Force header to stay dark */
+        [data-color-mode="dark"] .github-header {
+            background-color: var(--color-header-bg) !important;
+        }
+
+        [data-color-mode="dark"] .github-header * {
+            color: var(--color-header-text) !important;
+        }
+
+        /* Override any remaining white backgrounds */
+        [data-color-mode="dark"] div,
+        [data-color-mode="dark"] span,
+        [data-color-mode="dark"] p,
+        [data-color-mode="dark"] section,
+        [data-color-mode="dark"] article,
+        [data-color-mode="dark"] main {
+            background-color: var(--color-canvas-default) !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        /* Ensure icons and badges are visible */
+        [data-color-mode="dark"] i,
+        [data-color-mode="dark"] .fa,
+        [data-color-mode="dark"] .fas,
+        [data-color-mode="dark"] .far,
+        [data-color-mode="dark"] .fab {
+            color: var(--color-fg-default) !important;
+        }
+
+        [data-color-mode="dark"] .badge {
+            color: #ffffff !important;
+        }
+
+        /* Tables in dark mode */
+        [data-color-mode="dark"] table,
+        [data-color-mode="dark"] .table-github,
+        [data-color-mode="dark"] td,
+        [data-color-mode="dark"] th {
+            background-color: var(--color-canvas-default) !important;
+            border-color: var(--color-border-default) !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        [data-color-mode="dark"] .table-github th {
+            background-color: var(--color-canvas-subtle) !important;
+        }
+
         * {
             box-sizing: border-box;
         }
@@ -1050,44 +1146,12 @@
             padding: 24px 0 !important;
         }
 
-        /* Ultra-aggressive Tab 4 fix */
+        /* Clean Tab 4 styling */
         #tab4.active {
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
-            position: relative !important;
-            height: auto !important;
-            overflow: visible !important;
-            background-color: var(--color-canvas-default) !important;
         }
-
-        /* Force all Tab 4 elements to be visible */
-        #tab4 * {
-            visibility: visible !important;
-            opacity: 1 !important;
-            display: inherit !important;
-        }
-
-        #tab4 .github-card {
-            display: block !important;
-            background-color: var(--color-canvas-default) !important;
-            border: 1px solid var(--color-border-default) !important;
-        }
-
-        #tab4 .form-group-github {
-            display: block !important;
-            margin-bottom: 16px !important;
-        }
-
-        #tab4 .form-control-github {
-            display: block !important;
-            width: 100% !important;
-            background-color: var(--color-input-bg) !important;
-            border: 1px solid var(--color-input-border) !important;
-            color: var(--color-fg-default) !important;
-        }
-
-        /* Remove debugging styles for production */
 
         /* Dashboard sections */
         .section {
