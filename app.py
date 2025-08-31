@@ -2219,4 +2219,9 @@ If you received this email, the SMTP credentials are working correctly!"""
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
 
 if __name__ == '__main__':
+    print("=== Starting Flask App ===")
+    print("Available routes:")
+    for rule in app.url_map.iter_rules():
+        print(f"  {rule.endpoint}: {rule.rule} {rule.methods}")
+    print("=== App Routes Listed ===")
     app.run(debug=True)
