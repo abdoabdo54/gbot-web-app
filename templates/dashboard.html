@@ -15,14 +15,21 @@
             <span>User Create/Delete/Domain</span>
         </button>
         <button class="tab-button" onclick="showTab('tab3')">
-            <i class="fas fa-mail-bulk"></i>
-            <span>SMTP Tester</span>
+            <i class="fas fa-exchange-alt"></i>
+            <span>Bulk Domain Change</span>
+        </button>
+        <button class="tab-button" onclick="showTab('tab3b')">
+            <i class="fas fa-exchange-alt"></i>
+            <span>Bulk Domain Change</span>
         </button>
         <button class="tab-button" onclick="showTab('tab4')">
             <i class="fas fa-envelope"></i>
             <span>SMTP & CSV Gen</span>
         </button>
-
+        <button class="tab-button" onclick="showTab('tab5')">
+            <i class="fas fa-mail-bulk"></i>
+            <span>SMTP Tester</span>
+        </button>
     </nav>
 </div>
 
@@ -473,8 +480,146 @@
     </div>
 </div>
 
-<!-- Tab 3: Advanced SMTP Account Tester -->
+<!-- Tab 3: Bulk Domain Change -->
 <div id="tab3" class="tab-content">
+    
+    <!-- Workflow 1: Change Domain using CSV File -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-file-csv"></i>
+                Workflow 1: Change Domain using CSV File
+            </h3>
+        </div>
+        
+        <!-- Step 1.1: Download Current Users to CSV -->
+        <div style="margin-bottom: 32px;">
+            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-download" style="color: var(--color-accent-fg);"></i>
+                Step 1.1: Download Current Users to CSV
+            </h4>
+            <div style="margin-bottom: 16px;">
+                <button onclick="downloadAllUsersCSV()" class="btn-github btn-github-primary">
+                    <i class="fas fa-download"></i> Download All Users
+                </button>
+                </div>
+            <div style="background-color: rgba(9, 105, 218, 0.1); border: 1px solid var(--color-accent-emphasis); border-radius: 6px; padding: 12px; color: var(--color-accent-fg); font-size: 14px;">
+                <i class="fas fa-info-circle"></i>
+                CSV will be saved to: <strong id="csv-save-path">Downloads folder</strong>
+            </div>
+        </div>
+        
+        <!-- Step 1.2: Select New Domain and Apply to Downloaded CSV -->
+        <div style="margin-bottom: 32px;">
+            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-globe" style="color: var(--color-accent-fg);"></i>
+                Step 1.2: Select New Domain and Apply to Downloaded CSV
+            </h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+                <button onclick="retrieveAvailableDomains()" class="btn-github">
+                    <i class="fas fa-search"></i> Retrieve Available Domains
+                </button>
+                <button onclick="getDomainUsageStats()" class="btn-github" style="background-color: var(--color-success-emphasis); border-color: var(--color-success-emphasis); color: #ffffff;">
+                    <i class="fas fa-chart-bar"></i> Domain Usage Stats
+                </button>
+                <button onclick="clearOldDomainData()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+                    <i class="fas fa-trash"></i> Clear Old Data
+                </button>
+                <button onclick="applySelectedDomainToCSV()" class="btn-github btn-github-primary">
+                    <i class="fas fa-check"></i> Apply Selected Domain to CSV
+                </button>
+                <button onclick="debugDomainUsers()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: #ffffff;">
+                    <i class="fas fa-bug"></i> Debug Domain Users
+                </button>
+                </div>
+                
+            <div id="available-domains" class="data-display">
+                <div class="status-info">
+                    <p><strong><i class="fas fa-globe"></i> Domain Selection</strong></p>
+                    <p>Click 'Retrieve Available Domains' to view available domains</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Step 1.3: Process Domain Changes from Modified CSV -->
+        <div>
+            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-cogs" style="color: var(--color-accent-fg);"></i>
+                Step 1.3: Process Domain Changes from Modified CSV
+            </h4>
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; margin-bottom: 16px;">
+                <div class="form-group-github">
+                    <label for="csv-file-path" class="form-label-github">
+                        <i class="fas fa-file-csv"></i> CSV File Path
+                    </label>
+                    <input type="text" id="csv-file-path" class="form-control-github" placeholder="CSV file path will appear here after download/apply, or browse manually..." readonly>
+                </div>
+                <button onclick="browseCSVFile()" class="btn-github">
+                    <i class="fas fa-folder-open"></i> Browse Manually...
+                </button>
+                </div>
+            <button onclick="processDomainChangesFromCSV()" class="btn-github btn-github-primary">
+                <i class="fas fa-cogs"></i> Process Domain Changes from CSV
+            </button>
+        </div>
+    </div>
+
+    <!-- Workflow 2: Change Domain for All Users (Non-CSV, Excludes Admin) -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-exchange-alt"></i>
+                Workflow 2: Change Domain for All Users (Non-CSV, Excludes Admin)
+            </h3>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="current-domain-suffix" class="form-label-github">
+                    <i class="fas fa-globe"></i> Current Domain Suffix
+                </label>
+                <input type="text" id="current-domain-suffix" class="form-control-github" placeholder="old-domain.com">
+            </div>
+            <div class="form-group-github">
+                <label for="new-domain-suffix" class="form-label-github">
+                    <i class="fas fa-globe"></i> New Domain Suffix
+                </label>
+                <input type="text" id="new-domain-suffix" class="form-control-github" placeholder="new-domain.com">
+            </div>
+            </div>
+        
+        <button onclick="changeDomainForAllUsers()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+            <i class="fas fa-exchange-alt"></i> Change Domain for ALL Matching Users (Non-Admin)
+        </button>
+    </div>
+
+    <!-- Results Log (Covers Both Workflows) -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-file-alt"></i>
+                Results Log (Covers Both Workflows)
+            </h3>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <button onclick="clearBulkDomainLog()" class="btn-github">
+                <i class="fas fa-broom"></i> Clear Log
+            </button>
+        </div>
+        
+        <div id="bulk-domain-results" class="data-display" style="font-family: monospace; font-size: 13px;">
+            <div class="status-info">
+                <p><strong><i class="fas fa-file-alt"></i> Processing Results</strong></p>
+                <p>Processing results will appear here...</p>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Tab 3b: Bulk Domain Change (Second Tab with SMTP Content) -->
+<div id="tab3b" class="tab-content">
     <!-- SMTP Provider Configuration -->
     <div class="github-card">
         <div class="github-card-header">
@@ -486,10 +631,10 @@
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div class="form-group-github">
-                <label for="smtp-provider-select-tab3" class="form-label-github">
+                <label for="smtp-provider-select-tab3b" class="form-label-github">
                     <i class="fas fa-network-wired"></i> SMTP Provider
                 </label>
-                <select id="smtp-provider-select-tab3" class="form-control-github" onchange="updateSMTPSettingsTab3()">
+                <select id="smtp-provider-select-tab3b" class="form-control-github" onchange="updateSMTPSettingsTab3b()">
                     <option value="gmail" selected>Gmail (smtp.gmail.com:587)</option>
                     <option value="outlook">Outlook/Hotmail (smtp-mail.outlook.com:587)</option>
                     <option value="yahoo">Yahoo (smtp.mail.yahoo.com:587)</option>
@@ -500,10 +645,10 @@
                 </select>
             </div>
             <div class="form-group-github">
-                <label for="smtp-security-mode-tab3" class="form-label-github">
+                <label for="smtp-security-mode-tab3b" class="form-label-github">
                     <i class="fas fa-shield-alt"></i> Security Mode
                 </label>
-                <select id="smtp-security-mode-tab3" class="form-control-github">
+                <select id="smtp-security-mode-tab3b" class="form-control-github">
                     <option value="tls" selected>STARTTLS (Recommended)</option>
                     <option value="ssl">SSL/TLS</option>
                     <option value="none">None (Not Recommended)</option>
@@ -513,22 +658,22 @@
         
         <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div class="form-group-github">
-                <label for="smtp-server-advanced-tab3" class="form-label-github">
+                <label for="smtp-server-advanced-tab3b" class="form-label-github">
                     <i class="fas fa-server"></i> SMTP Server
                 </label>
-                <input type="text" id="smtp-server-advanced-tab3" class="form-control-github" value="smtp.gmail.com" placeholder="SMTP Server Address">
+                <input type="text" id="smtp-server-advanced-tab3b" class="form-control-github" value="smtp.gmail.com" placeholder="SMTP Server Address">
             </div>
             <div class="form-group-github">
-                <label for="smtp-port-advanced-tab3" class="form-label-github">
+                <label for="smtp-port-advanced-tab3b" class="form-label-github">
                     <i class="fas fa-plug"></i> Port
                 </label>
-                <input type="number" id="smtp-port-advanced-tab3" class="form-control-github" value="587" placeholder="Port">
+                <input type="number" id="smtp-port-advanced-tab3b" class="form-control-github" value="587" placeholder="Port">
             </div>
             <div class="form-group-github">
-                <label for="smtp-timeout-tab3" class="form-label-github">
+                <label for="smtp-timeout-tab3b" class="form-label-github">
                     <i class="fas fa-clock"></i> Timeout (sec)
                 </label>
-                <input type="number" id="smtp-timeout-tab3" class="form-control-github" value="30" min="5" max="120">
+                <input type="number" id="smtp-timeout-tab3b" class="form-control-github" value="30" min="5" max="120">
             </div>
         </div>
     </div>
@@ -543,29 +688,29 @@
         </div>
         
         <div class="form-group-github" style="margin-bottom: 16px;">
-            <label for="smtp-accounts-list-tab3" class="form-label-github">
+            <label for="smtp-accounts-list-tab3b" class="form-label-github">
                 <i class="fas fa-list"></i> SMTP Accounts (email:password or email:app_password, one per line)
             </label>
-            <textarea id="smtp-accounts-list-tab3" class="form-control-github" rows="4" 
+            <textarea id="smtp-accounts-list-tab3b" class="form-control-github" rows="4" 
                 placeholder="user1@gmail.com:app_password_here&#10;user2@outlook.com:regular_password&#10;user3@yahoo.com:app_specific_password&#10;&#10;For Gmail: Use App Passwords (not regular password)&#10;For Outlook: Use regular password or App Password&#10;For Yahoo: Use App Password if 2FA enabled"></textarea>
         </div>
         
         <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-            <button onclick="validateAccountFormatTab3()" class="btn-github">
+            <button onclick="validateAccountFormatTab3b()" class="btn-github">
                 <i class="fas fa-check-circle"></i> Validate Format
             </button>
-            <button onclick="saveAccountsToLocalTab3()" class="btn-github">
+            <button onclick="saveAccountsToLocalTab3b()" class="btn-github">
                 <i class="fas fa-save"></i> Save to Browser
             </button>
-            <button onclick="loadAccountsFromLocalTab3()" class="btn-github">
+            <button onclick="loadAccountsFromLocalTab3b()" class="btn-github">
                 <i class="fas fa-upload"></i> Load Saved
             </button>
-            <button onclick="clearSavedAccountsTab3()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+            <button onclick="clearSavedAccountsTab3b()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
                 <i class="fas fa-trash"></i> Clear Saved
             </button>
         </div>
         
-        <div id="account-validation-results-tab3" class="data-display" style="min-height: 60px; font-size: 13px;">
+        <div id="account-validation-results-tab3b" class="data-display" style="min-height: 60px; font-size: 13px;">
             <div class="status-info">
                 <p><strong><i class="fas fa-info-circle"></i> Account Validation</strong></p>
                 <p>Enter accounts above and click 'Validate Format' to check syntax</p>
@@ -584,33 +729,33 @@
         
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div class="form-group-github">
-                <label for="test-recipients-tab3" class="form-label-github">
+                <label for="test-recipients-tab3b" class="form-label-github">
                     <i class="fas fa-envelope-open"></i> Test Recipients (one per line)
                 </label>
-                <textarea id="test-recipients-tab3" class="form-control-github" rows="3" 
+                <textarea id="test-recipients-tab3b" class="form-control-github" rows="3" 
                     placeholder="test1@example.com&#10;test2@example.com&#10;admin@yourdomain.com"></textarea>
             </div>
             <div class="form-group-github">
                 <label class="form-label-github">
                     <i class="fas fa-list-ul"></i> Saved Recipients
                 </label>
-                <select id="saved-recipients-select-tab3" class="form-control-github" size="4" multiple>
+                <select id="saved-recipients-select-tab3b" class="form-control-github" size="4" multiple>
                     <!-- Saved recipients will appear here -->
                 </select>
             </div>
         </div>
         
         <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-            <button onclick="addCurrentRecipientsTab3()" class="btn-github btn-github-primary">
+            <button onclick="addCurrentRecipientsTab3b()" class="btn-github btn-github-primary">
                 <i class="fas fa-plus"></i> Add to Saved
             </button>
-            <button onclick="loadSelectedRecipientsTab3()" class="btn-github">
+            <button onclick="loadSelectedRecipientsTab3b()" class="btn-github">
                 <i class="fas fa-arrow-left"></i> Load Selected
             </button>
-            <button onclick="clearRecipientsTab3()" class="btn-github">
+            <button onclick="clearRecipientsTab3b()" class="btn-github">
                 <i class="fas fa-eraser"></i> Clear Current
             </button>
-            <button onclick="deleteSelectedSavedTab3()" class="btn-github" style="background-color: var(--color-danger-emphasis); border-color: var(--color-danger-emphasis); color: #ffffff;">
+            <button onclick="deleteSelectedSavedTab3b()" class="btn-github" style="background-color: var(--color-danger-emphasis); border-color: var(--color-danger-emphasis); color: #ffffff;">
                 <i class="fas fa-trash"></i> Delete Selected
             </button>
         </div>
@@ -627,17 +772,17 @@
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div class="form-group-github">
-                <label for="test-email-subject-tab3" class="form-label-github">
+                <label for="test-email-subject-tab3b" class="form-label-github">
                     <i class="fas fa-tag"></i> Email Subject
                 </label>
-                <input type="text" id="test-email-subject-tab3" class="form-control-github" 
+                <input type="text" id="test-email-subject-tab3b" class="form-control-github" 
                     value="SMTP Test Email - {timestamp}" placeholder="Test email subject">
             </div>
             <div class="form-group-github">
-                <label for="test-email-priority-tab3" class="form-label-github">
+                <label for="test-email-priority-tab3b" class="form-label-github">
                     <i class="fas fa-exclamation-triangle"></i> Priority
                 </label>
-                <select id="test-email-priority-tab3" class="form-control-github">
+                <select id="test-email-priority-tab3b" class="form-control-github">
                     <option value="normal" selected>Normal</option>
                     <option value="high">High</option>
                     <option value="low">Low</option>
@@ -646,10 +791,10 @@
         </div>
         
         <div class="form-group-github" style="margin-bottom: 16px;">
-            <label for="test-email-body-tab3" class="form-label-github">
+            <label for="test-email-body-tab3b" class="form-label-github">
                 <i class="fas fa-align-left"></i> Email Body Template
             </label>
-            <textarea id="test-email-body-tab3" class="form-control-github" rows="5" 
+            <textarea id="test-email-body-tab3b" class="form-control-github" rows="5" 
                 placeholder="This is a test email sent at {timestamp}&#10;&#10;SMTP Server: {server}:{port}&#10;From Account: {sender}&#10;Security: {security}&#10;&#10;If you received this email, the SMTP configuration is working correctly.&#10;&#10;Test ID: {test_id}">This is a test email sent at {timestamp}
 
 SMTP Server: {server}:{port}
@@ -673,43 +818,43 @@ Test ID: {test_id}</textarea>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div class="form-group-github">
-                <label for="test-mode-tab3" class="form-label-github">
+                <label for="test-mode-tab3b" class="form-label-github">
                     <i class="fas fa-cogs"></i> Test Mode
                 </label>
-                <select id="test-mode-tab3" class="form-control-github">
+                <select id="test-mode-tab3b" class="form-control-github">
                     <option value="connection_only">Connection Test Only</option>
                     <option value="send_emails" selected>Full Email Send Test</option>
                     <option value="batch_test">Batch Account Test</option>
                 </select>
             </div>
             <div class="form-group-github">
-                <label for="test-delay-tab3" class="form-label-github">
+                <label for="test-delay-tab3b" class="form-label-github">
                     <i class="fas fa-hourglass-half"></i> Delay Between Tests (ms)
                 </label>
-                <input type="number" id="test-delay-tab3" class="form-control-github" value="1000" min="0" max="10000">
+                <input type="number" id="test-delay-tab3b" class="form-control-github" value="1000" min="0" max="10000">
             </div>
             <div class="form-group-github">
-                <label for="max-concurrent-tab3" class="form-label-github">
+                <label for="max-concurrent-tab3b" class="form-label-github">
                     <i class="fas fa-layer-group"></i> Max Concurrent
                 </label>
-                <input type="number" id="max-concurrent-tab3" class="form-control-github" value="3" min="1" max="10">
+                <input type="number" id="max-concurrent-tab3b" class="form-control-github" value="3" min="1" max="10">
             </div>
         </div>
         
         <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-            <button onclick="startAdvancedSMTPTestTab3()" class="btn-github btn-github-primary" style="font-weight: 600;">
+            <button onclick="startAdvancedSMTPTestTab3b()" class="btn-github btn-github-primary" style="font-weight: 600;">
                 <i class="fas fa-rocket"></i> Start SMTP Test
             </button>
-            <button onclick="stopSMTPTestTab3()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+            <button onclick="stopSMTPTestTab3b()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
                 <i class="fas fa-stop"></i> Stop Testing
             </button>
-            <button onclick="testSingleAccountTab3()" class="btn-github">
+            <button onclick="testSingleAccountTab3b()" class="btn-github">
                 <i class="fas fa-user-check"></i> Test Single Account
             </button>
-            <button onclick="exportTestResultsTab3()" class="btn-github">
+            <button onclick="exportTestResultsTab3b()" class="btn-github">
                 <i class="fas fa-download"></i> Export Results
             </button>
-            <button onclick="clearAllTestDataTab3()" class="btn-github" style="background-color: var(--color-danger-emphasis); border-color: var(--color-danger-emphasis); color: #ffffff;">
+            <button onclick="clearAllTestDataTab3b()" class="btn-github" style="background-color: var(--color-danger-emphasis); border-color: var(--color-danger-emphasis); color: #ffffff;">
                 <i class="fas fa-broom"></i> Clear All Data
             </button>
         </div>
@@ -726,24 +871,24 @@ Test ID: {test_id}</textarea>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div style="text-align: center; padding: 12px; background-color: var(--color-canvas-subtle); border-radius: 6px;">
-                <div style="font-size: 24px; font-weight: bold; color: var(--color-accent-fg);" id="total-accounts-count-tab3">0</div>
+                <div style="font-size: 24px; font-weight: bold; color: var(--color-accent-fg);" id="total-accounts-count-tab3b">0</div>
                 <div style="font-size: 12px; color: var(--color-fg-muted);">Total Accounts</div>
             </div>
             <div style="text-align: center; padding: 12px; background-color: var(--color-success-subtle); border-radius: 6px;">
-                <div style="font-size: 24px; font-weight: bold; color: var(--color-success-fg);" id="successful-tests-count-tab3">0</div>
+                <div style="font-size: 24px; font-weight: bold; color: var(--color-success-fg);" id="successful-tests-count-tab3b">0</div>
                 <div style="font-size: 12px; color: var(--color-fg-muted);">Successful</div>
             </div>
             <div style="text-align: center; padding: 12px; background-color: var(--color-danger-subtle); border-radius: 6px;">
-                <div style="font-size: 24px; font-weight: bold; color: var(--color-danger-fg);" id="failed-tests-count-tab3">0</div>
+                <div style="font-size: 24px; font-weight: bold; color: var(--color-danger-fg);" id="failed-tests-count-tab3b">0</div>
                 <div style="font-size: 12px; color: var(--color-fg-muted);">Failed</div>
             </div>
             <div style="text-align: center; padding: 12px; background-color: var(--color-warning-subtle); border-radius: 6px;">
-                <div style="font-size: 24px; font-weight: bold; color: var(--color-warning-fg);" id="testing-progress-tab3">0%</div>
+                <div style="font-size: 24px; font-weight: bold; color: var(--color-warning-fg);" id="testing-progress-tab3b">0%</div>
                 <div style="font-size: 12px; color: var(--color-fg-muted);">Progress</div>
             </div>
         </div>
         
-        <div id="current-test-status-tab3" style="padding: 12px; background-color: var(--color-canvas-subtle); border-radius: 6px; font-family: monospace; font-size: 13px; margin-bottom: 16px; min-height: 40px;">
+        <div id="current-test-status-tab3b" style="padding: 12px; background-color: var(--color-canvas-subtle); border-radius: 6px; font-family: monospace; font-size: 13px; margin-bottom: 16px; min-height: 40px;">
             <strong>Status:</strong> Ready to start testing...
         </div>
     </div>
@@ -758,30 +903,30 @@ Test ID: {test_id}</textarea>
         </div>
         
         <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-            <button onclick="filterLogByTypeTab3('all')" class="btn-github btn-github-primary log-filter-btn-tab3" data-filter="all">
+            <button onclick="filterLogByTypeTab3b('all')" class="btn-github btn-github-primary log-filter-btn-tab3b" data-filter="all">
                 <i class="fas fa-list"></i> All
             </button>
-            <button onclick="filterLogByTypeTab3('success')" class="btn-github log-filter-btn-tab3" data-filter="success">
+            <button onclick="filterLogByTypeTab3b('success')" class="btn-github log-filter-btn-tab3b" data-filter="success">
                 <i class="fas fa-check-circle"></i> Success
             </button>
-            <button onclick="filterLogByTypeTab3('error')" class="btn-github log-filter-btn-tab3" data-filter="error">
+            <button onclick="filterLogByTypeTab3b('error')" class="btn-github log-filter-btn-tab3b" data-filter="error">
                 <i class="fas fa-exclamation-triangle"></i> Errors
             </button>
-            <button onclick="filterLogByTypeTab3('warning')" class="btn-github log-filter-btn-tab3" data-filter="warning">
+            <button onclick="filterLogByTypeTab3b('warning')" class="btn-github log-filter-btn-tab3b" data-filter="warning">
                 <i class="fas fa-exclamation-circle"></i> Warnings
             </button>
-            <button onclick="filterLogByTypeTab3('info')" class="btn-github log-filter-btn-tab3" data-filter="info">
+            <button onclick="filterLogByTypeTab3b('info')" class="btn-github log-filter-btn-tab3b" data-filter="info">
                 <i class="fas fa-info-circle"></i> Info
             </button>
-            <button onclick="clearTestLogTab3()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+            <button onclick="clearTestLogTab3b()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
                 <i class="fas fa-eraser"></i> Clear Log
             </button>
             <label class="form-label-github" style="display: flex; align-items: center; gap: 8px; margin: 0;">
-                <input type="checkbox" id="auto-scroll-log-tab3" checked> Auto-scroll
+                <input type="checkbox" id="auto-scroll-log-tab3b" checked> Auto-scroll
             </label>
         </div>
         
-        <div id="smtp-test-log-tab3" class="data-display" 
+        <div id="smtp-test-log-tab3b" class="data-display" 
             style="font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; background-color: var(--color-canvas-default); border: 1px solid var(--color-border-default);">
             <div class="status-info">
                 <p><strong><i class="fas fa-terminal"></i> SMTP Test Log</strong></p>
@@ -800,7 +945,7 @@ Test ID: {test_id}</textarea>
             </h3>
         </div>
         
-        <div id="test-results-summary-tab3" class="data-display" style="min-height: 150px;">
+        <div id="test-results-summary-tab3b" class="data-display" style="min-height: 150px;">
             <div class="status-info">
                 <p><strong><i class="fas fa-clipboard-list"></i> Test Summary</strong></p>
                 <p>After running tests, a detailed summary will appear here with:</p>
@@ -813,7 +958,6 @@ Test ID: {test_id}</textarea>
             </div>
         </div>
     </div>
-</div>
 </div>
 
 <!-- Tab 4: SMTP & CSV Generation -->
@@ -1942,28 +2086,28 @@ function generateTestSummary(accounts, successful, failed) {
 document.addEventListener('DOMContentLoaded', function() {
     // Load saved recipients on page load
     updateSavedRecipientsSelect();
-    updateSavedRecipientsSelectTab3();
+    updateSavedRecipientsSelectTab3b();
     
     // Set Gmail as default
     updateSMTPSettings();
-    updateSMTPSettingsTab3();
+    updateSMTPSettingsTab3b();
     
     console.log('Advanced SMTP Tester initialized');
 });
 
-// Tab 3 SMTP Testing Functions (Duplicated and Adapted)
-let smtpTestingTab3 = false;
-let smtpTestResultsTab3 = [];
-let currentLogFilterTab3 = 'all';
-let testCounterTab3 = 0;
-let testStartTimeTab3 = null;
+// Tab 3b SMTP Testing Functions (Duplicated and Adapted for Tab 3b)
+let smtpTestingTab3b = false;
+let smtpTestResultsTab3b = [];
+let currentLogFilterTab3b = 'all';
+let testCounterTab3b = 0;
+let testStartTimeTab3b = null;
 
-// Update SMTP settings based on provider selection for Tab 3
-function updateSMTPSettingsTab3() {
-    const provider = document.getElementById('smtp-provider-select-tab3').value;
-    const serverInput = document.getElementById('smtp-server-advanced-tab3');
-    const portInput = document.getElementById('smtp-port-advanced-tab3');
-    const securitySelect = document.getElementById('smtp-security-mode-tab3');
+// Update SMTP settings based on provider selection for Tab 3b
+function updateSMTPSettingsTab3b() {
+    const provider = document.getElementById('smtp-provider-select-tab3b').value;
+    const serverInput = document.getElementById('smtp-server-advanced-tab3b');
+    const portInput = document.getElementById('smtp-port-advanced-tab3b');
+    const securitySelect = document.getElementById('smtp-security-mode-tab3b');
     
     if (provider !== 'custom' && smtpProviders[provider]) {
         const config = smtpProviders[provider];
@@ -1972,16 +2116,16 @@ function updateSMTPSettingsTab3() {
         securitySelect.value = config.security;
         
         // Show provider-specific instructions
-        logMessageTab3('info', `Selected ${provider.toUpperCase()}: ${config.instructions}`);
+        logMessageTab3b('info', `Selected ${provider.toUpperCase()}: ${config.instructions}`);
     } else if (provider === 'custom') {
-        logMessageTab3('info', 'Custom SMTP server selected. Please configure manually.');
+        logMessageTab3b('info', 'Custom SMTP server selected. Please configure manually.');
     }
 }
 
-// Validate account format for Tab 3
-function validateAccountFormatTab3() {
-    const accountsText = document.getElementById('smtp-accounts-list-tab3').value;
-    const resultDiv = document.getElementById('account-validation-results-tab3');
+// Validate account format for Tab 3b
+function validateAccountFormatTab3b() {
+    const accountsText = document.getElementById('smtp-accounts-list-tab3b').value;
+    const resultDiv = document.getElementById('account-validation-results-tab3b');
     
     if (!accountsText.trim()) {
         resultDiv.innerHTML = `
@@ -2047,56 +2191,56 @@ function validateAccountFormatTab3() {
     resultDiv.innerHTML = html;
     
     // Update counters
-    document.getElementById('total-accounts-count-tab3').textContent = validAccounts.length;
+    document.getElementById('total-accounts-count-tab3b').textContent = validAccounts.length;
     
-    logMessageTab3('info', `Account validation complete: ${validAccounts.length} valid, ${invalidAccounts.length} invalid`);
+    logMessageTab3b('info', `Account validation complete: ${validAccounts.length} valid, ${invalidAccounts.length} invalid`);
 }
 
-// Save accounts to local storage for Tab 3
-function saveAccountsToLocalTab3() {
-    const accountsText = document.getElementById('smtp-accounts-list-tab3').value;
+// Save accounts to local storage for Tab 3b
+function saveAccountsToLocalTab3b() {
+    const accountsText = document.getElementById('smtp-accounts-list-tab3b').value;
     if (!accountsText.trim()) {
-        logMessageTab3('warning', 'No accounts to save');
+        logMessageTab3b('warning', 'No accounts to save');
         return;
     }
     
-    localStorage.setItem('smtp_accounts_tab3', accountsText);
-    logMessageTab3('success', 'SMTP accounts saved to browser storage');
+    localStorage.setItem('smtp_accounts_tab3b', accountsText);
+    logMessageTab3b('success', 'SMTP accounts saved to browser storage');
 }
 
-// Load accounts from local storage for Tab 3
-function loadAccountsFromLocalTab3() {
-    const savedAccounts = localStorage.getItem('smtp_accounts_tab3');
+// Load accounts from local storage for Tab 3b
+function loadAccountsFromLocalTab3b() {
+    const savedAccounts = localStorage.getItem('smtp_accounts_tab3b');
     if (savedAccounts) {
-        document.getElementById('smtp-accounts-list-tab3').value = savedAccounts;
-        logMessageTab3('success', 'SMTP accounts loaded from browser storage');
-        validateAccountFormatTab3();
+        document.getElementById('smtp-accounts-list-tab3b').value = savedAccounts;
+        logMessageTab3b('success', 'SMTP accounts loaded from browser storage');
+        validateAccountFormatTab3b();
     } else {
-        logMessageTab3('warning', 'No saved accounts found in browser storage');
+        logMessageTab3b('warning', 'No saved accounts found in browser storage');
     }
 }
 
-// Clear saved accounts for Tab 3
-function clearSavedAccountsTab3() {
+// Clear saved accounts for Tab 3b
+function clearSavedAccountsTab3b() {
     if (confirm('Are you sure you want to clear all saved SMTP accounts?')) {
-        localStorage.removeItem('smtp_accounts_tab3');
-        logMessageTab3('info', 'Saved SMTP accounts cleared from browser storage');
+        localStorage.removeItem('smtp_accounts_tab3b');
+        logMessageTab3b('info', 'Saved SMTP accounts cleared from browser storage');
     }
 }
 
-// Recipient management functions for Tab 3
-function addCurrentRecipientsTab3() {
-    const recipients = document.getElementById('test-recipients-tab3').value
+// Recipient management functions for Tab 3b
+function addCurrentRecipientsTab3b() {
+    const recipients = document.getElementById('test-recipients-tab3b').value
         .split('\n')
         .map(r => r.trim())
         .filter(r => r && r.includes('@'));
     
     if (recipients.length === 0) {
-        logMessageTab3('warning', 'No valid recipients to save');
+        logMessageTab3b('warning', 'No valid recipients to save');
         return;
     }
     
-    let savedRecipients = JSON.parse(localStorage.getItem('saved_recipients_tab3') || '[]');
+    let savedRecipients = JSON.parse(localStorage.getItem('saved_recipients_tab3b') || '[]');
     
     recipients.forEach(recipient => {
         if (!savedRecipients.includes(recipient)) {
@@ -2104,50 +2248,50 @@ function addCurrentRecipientsTab3() {
         }
     });
     
-    localStorage.setItem('saved_recipients_tab3', JSON.stringify(savedRecipients));
-    updateSavedRecipientsSelectTab3();
-    logMessageTab3('success', `Added ${recipients.length} recipients to saved list`);
+    localStorage.setItem('saved_recipients_tab3b', JSON.stringify(savedRecipients));
+    updateSavedRecipientsSelectTab3b();
+    logMessageTab3b('success', `Added ${recipients.length} recipients to saved list`);
 }
 
-function loadSelectedRecipientsTab3() {
-    const select = document.getElementById('saved-recipients-select-tab3');
+function loadSelectedRecipientsTab3b() {
+    const select = document.getElementById('saved-recipients-select-tab3b');
     const selected = Array.from(select.selectedOptions).map(option => option.value);
     
     if (selected.length === 0) {
-        logMessageTab3('warning', 'No recipients selected to load');
+        logMessageTab3b('warning', 'No recipients selected to load');
         return;
     }
     
-    document.getElementById('test-recipients-tab3').value = selected.join('\n');
-    logMessageTab3('success', `Loaded ${selected.length} recipients`);
+    document.getElementById('test-recipients-tab3b').value = selected.join('\n');
+    logMessageTab3b('success', `Loaded ${selected.length} recipients`);
 }
 
-function clearRecipientsTab3() {
-    document.getElementById('test-recipients-tab3').value = '';
-    logMessageTab3('info', 'Current recipients cleared');
+function clearRecipientsTab3b() {
+    document.getElementById('test-recipients-tab3b').value = '';
+    logMessageTab3b('info', 'Current recipients cleared');
 }
 
-function deleteSelectedSavedTab3() {
-    const select = document.getElementById('saved-recipients-select-tab3');
+function deleteSelectedSavedTab3b() {
+    const select = document.getElementById('saved-recipients-select-tab3b');
     const selected = Array.from(select.selectedOptions).map(option => option.value);
     
     if (selected.length === 0) {
-        logMessageTab3('warning', 'No recipients selected to delete');
+        logMessageTab3b('warning', 'No recipients selected to delete');
         return;
     }
     
     if (confirm(`Delete ${selected.length} saved recipients?`)) {
-        let savedRecipients = JSON.parse(localStorage.getItem('saved_recipients_tab3') || '[]');
+        let savedRecipients = JSON.parse(localStorage.getItem('saved_recipients_tab3b') || '[]');
         savedRecipients = savedRecipients.filter(r => !selected.includes(r));
-        localStorage.setItem('saved_recipients_tab3', JSON.stringify(savedRecipients));
-        updateSavedRecipientsSelectTab3();
-        logMessageTab3('success', `Deleted ${selected.length} saved recipients`);
+        localStorage.setItem('saved_recipients_tab3b', JSON.stringify(savedRecipients));
+        updateSavedRecipientsSelectTab3b();
+        logMessageTab3b('success', `Deleted ${selected.length} saved recipients`);
     }
 }
 
-function updateSavedRecipientsSelectTab3() {
-    const select = document.getElementById('saved-recipients-select-tab3');
-    const savedRecipients = JSON.parse(localStorage.getItem('saved_recipients_tab3') || '[]');
+function updateSavedRecipientsSelectTab3b() {
+    const select = document.getElementById('saved-recipients-select-tab3b');
+    const savedRecipients = JSON.parse(localStorage.getItem('saved_recipients_tab3b') || '[]');
     
     select.innerHTML = '';
     savedRecipients.forEach(recipient => {
@@ -2158,11 +2302,11 @@ function updateSavedRecipientsSelectTab3() {
     });
 }
 
-// Logging functions for Tab 3
-function logMessageTab3(type, message, details = null) {
+// Logging functions for Tab 3b
+function logMessageTab3b(type, message, details = null) {
     const timestamp = new Date().toLocaleTimeString();
-    const logDiv = document.getElementById('smtp-test-log-tab3');
-    const testId = ++testCounterTab3;
+    const logDiv = document.getElementById('smtp-test-log-tab3b');
+    const testId = ++testCounterTab3b;
     
     let iconClass, bgClass;
     switch (type) {
@@ -2201,29 +2345,29 @@ function logMessageTab3(type, message, details = null) {
     logDiv.appendChild(logEntry);
     
     // Auto-scroll if enabled
-    if (document.getElementById('auto-scroll-log-tab3').checked) {
+    if (document.getElementById('auto-scroll-log-tab3b').checked) {
         logDiv.scrollTop = logDiv.scrollHeight;
     }
     
     // Update status display
-    updateCurrentStatusTab3(message);
+    updateCurrentStatusTab3b(message);
     
     // Apply current filter
-    filterLogByTypeTab3(currentLogFilterTab3);
+    filterLogByTypeTab3b(currentLogFilterTab3b);
 }
 
-function updateCurrentStatusTab3(message) {
-    const statusDiv = document.getElementById('current-test-status-tab3');
+function updateCurrentStatusTab3b(message) {
+    const statusDiv = document.getElementById('current-test-status-tab3b');
     const timestamp = new Date().toLocaleTimeString();
     statusDiv.innerHTML = `<strong>Status [${timestamp}]:</strong> ${message}`;
 }
 
-function filterLogByTypeTab3(type) {
-    currentLogFilterTab3 = type;
-    const logEntries = document.querySelectorAll('#smtp-test-log-tab3 .log-entry');
+function filterLogByTypeTab3b(type) {
+    currentLogFilterTab3b = type;
+    const logEntries = document.querySelectorAll('#smtp-test-log-tab3b .log-entry');
     
     // Update filter button states
-    document.querySelectorAll('.log-filter-btn-tab3').forEach(btn => {
+    document.querySelectorAll('.log-filter-btn-tab3b').forEach(btn => {
         btn.classList.remove('active');
         if (btn.getAttribute('data-filter') === type) {
             btn.classList.add('active');
@@ -2240,8 +2384,8 @@ function filterLogByTypeTab3(type) {
     });
 }
 
-function clearTestLogTab3() {
-    const logDiv = document.getElementById('smtp-test-log-tab3');
+function clearTestLogTab3b() {
+    const logDiv = document.getElementById('smtp-test-log-tab3b');
     logDiv.innerHTML = `
         <div class="status-info">
             <p><strong><i class="fas fa-terminal"></i> SMTP Test Log</strong></p>
@@ -2251,69 +2395,69 @@ function clearTestLogTab3() {
     `;
     
     // Reset counters
-    document.getElementById('successful-tests-count-tab3').textContent = '0';
-    document.getElementById('failed-tests-count-tab3').textContent = '0';
-    document.getElementById('testing-progress-tab3').textContent = '0%';
+    document.getElementById('successful-tests-count-tab3b').textContent = '0';
+    document.getElementById('failed-tests-count-tab3b').textContent = '0';
+    document.getElementById('testing-progress-tab3b').textContent = '0%';
     
-    smtpTestResultsTab3 = [];
-    testCounterTab3 = 0;
+    smtpTestResultsTab3b = [];
+    testCounterTab3b = 0;
     
-    logMessageTab3('info', 'Test log cleared');
+    logMessageTab3b('info', 'Test log cleared');
 }
 
-// Main SMTP testing functions for Tab 3
-function startAdvancedSMTPTestTab3() {
-    if (smtpTestingTab3) {
-        logMessageTab3('warning', 'SMTP testing already in progress');
+// Main SMTP testing functions for Tab 3b
+function startAdvancedSMTPTestTab3b() {
+    if (smtpTestingTab3b) {
+        logMessageTab3b('warning', 'SMTP testing already in progress');
         return;
     }
     
     // Validate inputs
-    const accountsText = document.getElementById('smtp-accounts-list-tab3').value;
-    const recipientsText = document.getElementById('test-recipients-tab3').value;
+    const accountsText = document.getElementById('smtp-accounts-list-tab3b').value;
+    const recipientsText = document.getElementById('test-recipients-tab3b').value;
     
     if (!accountsText.trim()) {
-        logMessageTab3('error', 'No SMTP accounts provided');
+        logMessageTab3b('error', 'No SMTP accounts provided');
         return;
     }
     
     if (!recipientsText.trim()) {
-        logMessageTab3('error', 'No test recipients provided');
+        logMessageTab3b('error', 'No test recipients provided');
         return;
     }
     
-    smtpTestingTab3 = true;
-    testStartTimeTab3 = Date.now();
+    smtpTestingTab3b = true;
+    testStartTimeTab3b = Date.now();
     
     // Parse accounts and recipients
-    const accounts = parseAccountsTab3(accountsText);
-    const recipients = parseRecipientsTab3(recipientsText);
+    const accounts = parseAccountsTab3b(accountsText);
+    const recipients = parseRecipientsTab3b(recipientsText);
     
     if (accounts.length === 0) {
-        logMessageTab3('error', 'No valid SMTP accounts found');
-        smtpTestingTab3 = false;
+        logMessageTab3b('error', 'No valid SMTP accounts found');
+        smtpTestingTab3b = false;
         return;
     }
     
     if (recipients.length === 0) {
-        logMessageTab3('error', 'No valid recipients found');
-        smtpTestingTab3 = false;
+        logMessageTab3b('error', 'No valid recipients found');
+        smtpTestingTab3b = false;
         return;
     }
     
-    logMessageTab3('info', `Starting SMTP test with ${accounts.length} accounts and ${recipients.length} recipients`);
+    logMessageTab3b('info', `Starting SMTP test with ${accounts.length} accounts and ${recipients.length} recipients`);
     
     // Reset counters
-    document.getElementById('total-accounts-count-tab3').textContent = accounts.length;
-    document.getElementById('successful-tests-count-tab3').textContent = '0';
-    document.getElementById('failed-tests-count-tab3').textContent = '0';
-    document.getElementById('testing-progress-tab3').textContent = '0%';
+    document.getElementById('total-accounts-count-tab3b').textContent = accounts.length;
+    document.getElementById('successful-tests-count-tab3b').textContent = '0';
+    document.getElementById('failed-tests-count-tab3b').textContent = '0';
+    document.getElementById('testing-progress-tab3b').textContent = '0%';
     
     // Start testing process
-    performSMTPTestsTab3(accounts, recipients);
+    performSMTPTestsTab3b(accounts, recipients);
 }
 
-function parseAccountsTab3(accountsText) {
+function parseAccountsTab3b(accountsText) {
     const lines = accountsText.split('\n').filter(line => line.trim());
     const accounts = [];
     
@@ -2336,28 +2480,28 @@ function parseAccountsTab3(accountsText) {
     return accounts;
 }
 
-function parseRecipientsTab3(recipientsText) {
+function parseRecipientsTab3b(recipientsText) {
     return recipientsText.split('\n')
         .map(r => r.trim())
         .filter(r => r && r.includes('@'));
 }
 
-async function performSMTPTestsTab3(accounts, recipients) {
-    const testMode = document.getElementById('test-mode-tab3').value;
-    const delay = parseInt(document.getElementById('test-delay-tab3').value) || 1000;
-    const maxConcurrent = parseInt(document.getElementById('max-concurrent-tab3').value) || 3;
+async function performSMTPTestsTab3b(accounts, recipients) {
+    const testMode = document.getElementById('test-mode-tab3b').value;
+    const delay = parseInt(document.getElementById('test-delay-tab3b').value) || 1000;
+    const maxConcurrent = parseInt(document.getElementById('max-concurrent-tab3b').value) || 3;
     
-    const emailSubject = document.getElementById('test-email-subject-tab3').value || 'SMTP Test Email';
-    const emailBody = document.getElementById('test-email-body-tab3').value || 'This is a test email.';
-    const emailPriority = document.getElementById('test-email-priority-tab3').value || 'normal';
+    const emailSubject = document.getElementById('test-email-subject-tab3b').value || 'SMTP Test Email';
+    const emailBody = document.getElementById('test-email-body-tab3b').value || 'This is a test email.';
+    const emailPriority = document.getElementById('test-email-priority-tab3b').value || 'normal';
     
     let completedTests = 0;
     let successfulTests = 0;
     let failedTests = 0;
     
-    for (let i = 0; i < accounts.length && smtpTestingTab3; i += maxConcurrent) {
+    for (let i = 0; i < accounts.length && smtpTestingTab3b; i += maxConcurrent) {
         const batch = accounts.slice(i, i + maxConcurrent);
-        const promises = batch.map(account => testSingleSMTPAccountTab3(account, recipients, testMode, emailSubject, emailBody, emailPriority));
+        const promises = batch.map(account => testSingleSMTPAccountTab3b(account, recipients, testMode, emailSubject, emailBody, emailPriority));
         
         try {
             const results = await Promise.allSettled(promises);
@@ -2368,44 +2512,44 @@ async function performSMTPTestsTab3(accounts, recipients) {
                 
                 if (result.status === 'fulfilled' && result.value.success) {
                     successfulTests++;
-                    logMessageTab3('success', `Account ${account.email} test completed successfully`, result.value.details);
+                    logMessageTab3b('success', `Account ${account.email} test completed successfully`, result.value.details);
                 } else {
                     failedTests++;
                     const error = result.status === 'rejected' ? result.reason : result.value.error;
-                    logMessageTab3('error', `Account ${account.email} test failed`, error);
+                    logMessageTab3b('error', `Account ${account.email} test failed`, error);
                 }
                 
                 // Update progress
                 const progress = Math.round((completedTests / accounts.length) * 100);
-                document.getElementById('testing-progress-tab3').textContent = `${progress}%`;
-                document.getElementById('successful-tests-count-tab3').textContent = successfulTests;
-                document.getElementById('failed-tests-count-tab3').textContent = failedTests;
+                document.getElementById('testing-progress-tab3b').textContent = `${progress}%`;
+                document.getElementById('successful-tests-count-tab3b').textContent = successfulTests;
+                document.getElementById('failed-tests-count-tab3b').textContent = failedTests;
             });
             
         } catch (error) {
-            logMessageTab3('error', `Batch processing error: ${error.message}`);
+            logMessageTab3b('error', `Batch processing error: ${error.message}`);
         }
         
         // Delay between batches
-        if (i + maxConcurrent < accounts.length && smtpTestingTab3) {
+        if (i + maxConcurrent < accounts.length && smtpTestingTab3b) {
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
     
-    if (smtpTestingTab3) {
-        const duration = ((Date.now() - testStartTimeTab3) / 1000).toFixed(1);
-        logMessageTab3('success', `SMTP testing completed in ${duration}s. Success: ${successfulTests}, Failed: ${failedTests}`);
-        generateTestSummaryTab3(accounts, successfulTests, failedTests);
+    if (smtpTestingTab3b) {
+        const duration = ((Date.now() - testStartTimeTab3b) / 1000).toFixed(1);
+        logMessageTab3b('success', `SMTP testing completed in ${duration}s. Success: ${successfulTests}, Failed: ${failedTests}`);
+        generateTestSummaryTab3b(accounts, successfulTests, failedTests);
     }
     
-    smtpTestingTab3 = false;
+    smtpTestingTab3b = false;
 }
 
-async function testSingleSMTPAccountTab3(account, recipients, testMode, subject, body, priority) {
-    const server = document.getElementById('smtp-server-advanced-tab3').value;
-    const port = document.getElementById('smtp-port-advanced-tab3').value;
-    const security = document.getElementById('smtp-security-mode-tab3').value;
-    const timeout = document.getElementById('smtp-timeout-tab3').value;
+async function testSingleSMTPAccountTab3b(account, recipients, testMode, subject, body, priority) {
+    const server = document.getElementById('smtp-server-advanced-tab3b').value;
+    const port = document.getElementById('smtp-port-advanced-tab3b').value;
+    const security = document.getElementById('smtp-security-mode-tab3b').value;
+    const timeout = document.getElementById('smtp-timeout-tab3b').value;
     
     // Prepare email content with template variables
     const timestamp = new Date().toLocaleString();
@@ -2469,41 +2613,41 @@ async function testSingleSMTPAccountTab3(account, recipients, testMode, subject,
     }
 }
 
-function stopSMTPTestTab3() {
-    if (smtpTestingTab3) {
-        smtpTestingTab3 = false;
-        logMessageTab3('warning', 'SMTP testing stopped by user');
-        updateCurrentStatusTab3('Testing stopped by user');
+function stopSMTPTestTab3b() {
+    if (smtpTestingTab3b) {
+        smtpTestingTab3b = false;
+        logMessageTab3b('warning', 'SMTP testing stopped by user');
+        updateCurrentStatusTab3b('Testing stopped by user');
     } else {
-        logMessageTab3('info', 'No SMTP testing currently in progress');
+        logMessageTab3b('info', 'No SMTP testing currently in progress');
     }
 }
 
-function testSingleAccountTab3() {
-    logMessageTab3('info', 'Single account test feature - coming soon');
+function testSingleAccountTab3b() {
+    logMessageTab3b('info', 'Single account test feature - coming soon');
 }
 
-function exportTestResultsTab3() {
-    logMessageTab3('info', 'Export test results feature - coming soon');
+function exportTestResultsTab3b() {
+    logMessageTab3b('info', 'Export test results feature - coming soon');
 }
 
-function clearAllTestDataTab3() {
+function clearAllTestDataTab3b() {
     if (confirm('Clear all test data including logs and saved settings?')) {
-        clearTestLogTab3();
-        document.getElementById('smtp-accounts-list-tab3').value = '';
-        document.getElementById('test-recipients-tab3').value = '';
-        document.getElementById('account-validation-results-tab3').innerHTML = `
+        clearTestLogTab3b();
+        document.getElementById('smtp-accounts-list-tab3b').value = '';
+        document.getElementById('test-recipients-tab3b').value = '';
+        document.getElementById('account-validation-results-tab3b').innerHTML = `
             <div class="status-info">
                 <p><strong><i class="fas fa-info-circle"></i> Account Validation</strong></p>
                 <p>Enter accounts above and click 'Validate Format' to check syntax</p>
             </div>
         `;
-        logMessageTab3('info', 'All test data cleared');
+        logMessageTab3b('info', 'All test data cleared');
     }
 }
 
-function generateTestSummaryTab3(accounts, successful, failed) {
-    const summaryDiv = document.getElementById('test-results-summary-tab3');
+function generateTestSummaryTab3b(accounts, successful, failed) {
+    const summaryDiv = document.getElementById('test-results-summary-tab3b');
     const total = successful + failed;
     const successRate = total > 0 ? ((successful / total) * 100).toFixed(1) : 0;
     
@@ -2549,6 +2693,7 @@ function generateTestSummaryTab3(accounts, successful, failed) {
     
     summaryDiv.innerHTML = html;
 }
+
 let selectedDomain = null;
 
 // Tab switching functionality
@@ -2608,6 +2753,33 @@ function showTab(tabId) {
              window.scrollTo(0, selectedTab.offsetTop - 100);
              
              console.log('Tab 4 forced to start at top');
+         }
+         
+         // Special handling for tab3b - Bulk Domain Change (SMTP Content)
+         if (tabId === 'tab3b') {
+             console.log('SHOWING TAB 3B - Bulk Domain Change (SMTP Content)');
+             
+             // FORCE Tab 3b to start at top with compact spacing
+             selectedTab.style.paddingTop = '0px';
+             selectedTab.style.marginTop = '0px';
+             selectedTab.style.position = 'relative';
+             selectedTab.style.top = '0px';
+             
+             // Force first child to start at absolute top
+             const firstChild = selectedTab.firstElementChild;
+             if (firstChild) {
+                 firstChild.style.marginTop = '0px';
+                 firstChild.style.paddingTop = '8px'; // Compact spacing
+                 firstChild.style.position = 'relative';
+                 firstChild.style.top = '0px';
+                 console.log('Tab 3b first child forced to top:', firstChild.tagName);
+             }
+             
+             // Scroll to top of the tab content immediately
+             selectedTab.scrollIntoView({ behavior: 'instant', block: 'start' });
+             window.scrollTo(0, selectedTab.offsetTop - 100);
+             
+             console.log('Tab 3b SMTP tester initialized');
          }
          
          // Special handling for tab5 - Advanced SMTP Tester
@@ -3024,32 +3196,12 @@ function showTab(tabId) {
     // Mark button as active
     event.target.classList.add('active');
     
-             // Special handling for tab3 - Advanced SMTP Tester
-         if (tabId === 'tab3') {
-             console.log('SHOWING TAB 3 - Advanced SMTP Tester');
-             
-             // FORCE Tab 3 to start at top with compact spacing
-             selectedTab.style.paddingTop = '0px';
-             selectedTab.style.marginTop = '0px';
-             selectedTab.style.position = 'relative';
-             selectedTab.style.top = '0px';
-             
-             // Force first child to start at absolute top
-             const firstChild = selectedTab.firstElementChild;
-             if (firstChild) {
-                 firstChild.style.marginTop = '0px';
-                 firstChild.style.paddingTop = '8px'; // Compact spacing
-                 firstChild.style.position = 'relative';
-                 firstChild.style.top = '0px';
-                 console.log('Tab 3 first child forced to top:', firstChild.tagName);
-             }
-             
-             // Scroll to top of the tab content immediately
-             selectedTab.scrollIntoView({ behavior: 'instant', block: 'start' });
-             window.scrollTo(0, selectedTab.offsetTop - 100);
-             
-             console.log('Tab 3 advanced SMTP tester initialized');
-         }
+    // Auto-refresh domain data when domains tab is shown
+    if (tabId === 'tab3' && isAuthenticated) {
+        setTimeout(() => {
+            retrieveAvailableDomains();
+        }, 500);
+    }
 }
 
 // Results log functions
