@@ -352,26 +352,7 @@
         </div>
     </div>
 
-    <!-- Create Users from CSV File -->
-    <div class="github-card">
-        <div class="github-card-header">
-            <h3 class="github-card-title">
-                <i class="fas fa-file-csv"></i>
-                Create Users from CSV File
-            </h3>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end;">
-            <div class="form-group-github">
-                <label for="csv-file-input" class="form-label-github">
-                    <i class="fas fa-file-upload"></i> Select CSV File
-                </label>
-                <input type="file" id="csv-file-input" class="form-control-github" accept=".csv">
-            </div>
-            <button onclick="createUsersFromCSV()" class="btn-github btn-github-primary">
-                <i class="fas fa-upload"></i> Create Users from CSV
-            </button>
-        </div>
-    </div>
+
 
     <!-- Create Random Users -->
     <div class="github-card">
@@ -475,93 +456,14 @@
 <!-- Tab 3: Bulk Domain Change -->
 <div id="tab3" class="tab-content">
     
-    <!-- Workflow 1: Change Domain using CSV File -->
-    <div class="github-card">
-        <div class="github-card-header">
-            <h3 class="github-card-title">
-                <i class="fas fa-file-csv"></i>
-                Workflow 1: Change Domain using CSV File
-            </h3>
-        </div>
-        
-        <!-- Step 1.1: Download Current Users to CSV -->
-        <div style="margin-bottom: 32px;">
-            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-download" style="color: var(--color-accent-fg);"></i>
-                Step 1.1: Download Current Users to CSV
-            </h4>
-            <div style="margin-bottom: 16px;">
-                <button onclick="downloadAllUsersCSV()" class="btn-github btn-github-primary">
-                    <i class="fas fa-download"></i> Download All Users
-                </button>
-                </div>
-            <div style="background-color: rgba(9, 105, 218, 0.1); border: 1px solid var(--color-accent-emphasis); border-radius: 6px; padding: 12px; color: var(--color-accent-fg); font-size: 14px;">
-                <i class="fas fa-info-circle"></i>
-                CSV will be saved to: <strong id="csv-save-path">Downloads folder</strong>
-            </div>
-        </div>
-        
-        <!-- Step 1.2: Select New Domain and Apply to Downloaded CSV -->
-        <div style="margin-bottom: 32px;">
-            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-globe" style="color: var(--color-accent-fg);"></i>
-                Step 1.2: Select New Domain and Apply to Downloaded CSV
-            </h4>
-            <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
-                <button onclick="retrieveAvailableDomains()" class="btn-github">
-                    <i class="fas fa-search"></i> Retrieve Available Domains
-                </button>
-                <button onclick="getDomainUsageStats()" class="btn-github" style="background-color: var(--color-success-emphasis); border-color: var(--color-success-emphasis); color: #ffffff;">
-                    <i class="fas fa-chart-bar"></i> Domain Usage Stats
-                </button>
-                <button onclick="clearOldDomainData()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
-                    <i class="fas fa-trash"></i> Clear Old Data
-                </button>
-                <button onclick="applySelectedDomainToCSV()" class="btn-github btn-github-primary">
-                    <i class="fas fa-check"></i> Apply Selected Domain to CSV
-                </button>
-                <button onclick="debugDomainUsers()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: #ffffff;">
-                    <i class="fas fa-bug"></i> Debug Domain Users
-                </button>
-                </div>
-                
-            <div id="available-domains" class="data-display">
-                <div class="status-info">
-                    <p><strong><i class="fas fa-globe"></i> Domain Selection</strong></p>
-                    <p>Click 'Retrieve Available Domains' to view available domains</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Step 1.3: Process Domain Changes from Modified CSV -->
-        <div>
-            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-cogs" style="color: var(--color-accent-fg);"></i>
-                Step 1.3: Process Domain Changes from Modified CSV
-            </h4>
-            <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; margin-bottom: 16px;">
-                <div class="form-group-github">
-                    <label for="csv-file-path" class="form-label-github">
-                        <i class="fas fa-file-csv"></i> CSV File Path
-                    </label>
-                    <input type="text" id="csv-file-path" class="form-control-github" placeholder="CSV file path will appear here after download/apply, or browse manually..." readonly>
-                </div>
-                <button onclick="browseCSVFile()" class="btn-github">
-                    <i class="fas fa-folder-open"></i> Browse Manually...
-                </button>
-                </div>
-            <button onclick="processDomainChangesFromCSV()" class="btn-github btn-github-primary">
-                <i class="fas fa-cogs"></i> Process Domain Changes from CSV
-            </button>
-        </div>
-    </div>
 
-    <!-- Workflow 2: Change Domain for All Users (Non-CSV, Excludes Admin) -->
+
+    <!-- Workflow 1: Change Domain for All Users (Excludes Admin) -->
     <div class="github-card">
         <div class="github-card-header">
             <h3 class="github-card-title">
                 <i class="fas fa-exchange-alt"></i>
-                Workflow 2: Change Domain for All Users (Non-CSV, Excludes Admin)
+                Workflow 1: Change Domain for All Users (Excludes Admin)
             </h3>
         </div>
         
@@ -626,26 +528,26 @@
         <textarea id="smtp-credentials" rows="2" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); resize: vertical; font-family: monospace; font-size: 12px;" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456"></textarea>
         </div>
     
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr 80px; gap: 6px; margin-bottom: 8px;">
         <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
+            <label style="display: block; margin-bottom: 2px; font-size: 12px; color: var(--color-fg-muted); font-weight: 500;">
                 <i class="fas fa-envelope"></i> Recipient Email
             </label>
-            <input type="email" id="smtp-recipient" placeholder="test@domain.com" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default);">
+            <input type="email" id="smtp-recipient" placeholder="test@domain.com" style="width: 100%; padding: 4px 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); font-size: 12px;">
         </div>
         <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
+            <label style="display: block; margin-bottom: 2px; font-size: 12px; color: var(--color-fg-muted); font-weight: 500;">
                 <i class="fas fa-server"></i> SMTP Server
             </label>
-            <input type="text" id="smtp-server" value="smtp.gmail.com" placeholder="SMTP Server" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default);">
+            <input type="text" id="smtp-server" value="smtp.gmail.com" placeholder="smtp.gmail.com" style="width: 100%; padding: 4px 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); font-size: 12px;">
         </div>
         <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
+            <label style="display: block; margin-bottom: 2px; font-size: 12px; color: var(--color-fg-muted); font-weight: 500;">
                 <i class="fas fa-plug"></i> Port
             </label>
-            <input type="number" id="smtp-port" value="587" placeholder="Port" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default);">
-            </div>
+            <input type="number" id="smtp-port" value="587" placeholder="587" style="width: 100%; padding: 4px 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); font-size: 12px;">
         </div>
+    </div>
         
     <div style="display: flex; gap: 6px; margin-bottom: 8px;">
         <button onclick="testSMTPCredentials()" style="padding: 6px 12px; background: var(--color-btn-primary-bg); border: 1px solid var(--color-btn-primary-border); color: var(--color-btn-primary-text); border-radius: 4px; font-size: 13px; cursor: pointer;">
@@ -681,26 +583,26 @@
         <i class="fas fa-file-csv"></i> Generate Sample CSV for User Creation
     </h4>
     
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+    <div style="display: grid; grid-template-columns: 80px 1fr auto; gap: 6px; margin-bottom: 8px;">
         <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
-                <i class="fas fa-hashtag"></i> Number of Users
+            <label style="display: block; margin-bottom: 2px; font-size: 12px; color: var(--color-fg-muted); font-weight: 500;">
+                <i class="fas fa-hashtag"></i> Count
             </label>
-            <input type="number" id="csv-num-users" min="1" max="1000" placeholder="e.g., 50" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default);">
+            <input type="number" id="csv-num-users" min="1" max="1000" placeholder="50" style="width: 100%; padding: 4px 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); font-size: 12px;">
         </div>
         <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
+            <label style="display: block; margin-bottom: 2px; font-size: 12px; color: var(--color-fg-muted); font-weight: 500;">
                 <i class="fas fa-globe"></i> Domain
             </label>
-            <input type="text" id="csv-domain" placeholder="yourdomain.com" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default);">
+            <input type="text" id="csv-domain" placeholder="yourdomain.com" style="width: 100%; padding: 4px 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); font-size: 12px;">
         </div>
         <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
-                <i class="fas fa-lock"></i> Default Password
+            <label style="display: block; margin-bottom: 2px; font-size: 12px; color: var(--color-fg-muted); font-weight: 500;">
+                <i class="fas fa-lock"></i> Password
             </label>
-            <input type="text" id="csv-password" placeholder="Default password for all users" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default);">
+            <input type="text" id="csv-password" placeholder="Default123" style="width: 100%; padding: 4px 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); font-size: 12px;">
         </div>
-            </div>
+    </div>
             
     <div style="display: flex; gap: 6px; margin-bottom: 8px;">
         <button onclick="generateUserCSV()" style="padding: 6px 12px; background: var(--color-btn-primary-bg); border: 1px solid var(--color-btn-primary-border); color: var(--color-btn-primary-text); border-radius: 4px; font-size: 13px; cursor: pointer;">

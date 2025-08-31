@@ -10,7 +10,7 @@ import sys
 # Set development environment variables
 os.environ['SECRET_KEY'] = 'dev-secret-key-for-testing-123456789'
 os.environ['WHITELIST_TOKEN'] = 'dev-whitelist-token-123456789'
-os.environ['DATABASE_URL'] = 'sqlite:///instance/test.db'
+os.environ['DATABASE_URL'] = 'sqlite:///test.db'
 os.environ['DEBUG'] = 'True'
 os.environ['FLASK_ENV'] = 'development'
 os.environ['LOG_LEVEL'] = 'DEBUG'
