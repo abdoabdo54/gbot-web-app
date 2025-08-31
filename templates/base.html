@@ -392,227 +392,12 @@
         [data-color-mode="dark"] .btn-github-primary[style],
         [data-color-mode="dark"] .btn-github-danger[style],
         [data-color-mode="dark"] .btn-github-success[style] {
-            /* Preserve inline styles for colored buttons */
-            color: inherit !important;
+            /* Don't override button colors */
         }
 
         /* Fix specific GitHub card styles in templates */
         [data-color-mode="dark"] .github-card[style*="background"] {
             background-color: var(--color-canvas-default) !important;
-        }
-
-        /* NUCLEAR DARK MODE FIX - Override EVERYTHING */
-        [data-color-mode="dark"] *:not(.btn-github-primary):not(.btn-primary):not(.btn-github-danger):not(.btn-danger):not(.btn-github):not(button):not(input):not(select):not(textarea) {
-            background-color: var(--color-canvas-default) !important;
-            color: var(--color-fg-default) !important;
-            border-color: var(--color-border-default) !important;
-        }
-
-        /* Force dark mode on ALL page elements - Users page fix */
-        [data-color-mode="dark"] body,
-        [data-color-mode="dark"] html,
-        [data-color-mode="dark"] .main-container,
-        [data-color-mode="dark"] .container,
-        [data-color-mode="dark"] .container-fluid,
-        [data-color-mode="dark"] .row,
-        [data-color-mode="dark"] .col,
-        [data-color-mode="dark"] .col-*,
-        [data-color-mode="dark"] .card,
-        [data-color-mode="dark"] .card-body,
-        [data-color-mode="dark"] .card-header,
-        [data-color-mode="dark"] .card-footer,
-        [data-color-mode="dark"] .list-group,
-        [data-color-mode="dark"] .list-group-item,
-        [data-color-mode="dark"] .page-content,
-        [data-color-mode="dark"] .content-wrapper,
-        [data-color-mode="dark"] .main-content {
-            background-color: var(--color-canvas-default) !important;
-            color: var(--color-fg-default) !important;
-        }
-
-        /* Force dark mode on all text elements */
-        [data-color-mode="dark"] h1,
-        [data-color-mode="dark"] h2,
-        [data-color-mode="dark"] h3,
-        [data-color-mode="dark"] h4,
-        [data-color-mode="dark"] h5,
-        [data-color-mode="dark"] h6,
-        [data-color-mode="dark"] p,
-        [data-color-mode="dark"] span,
-        [data-color-mode="dark"] div,
-        [data-color-mode="dark"] label,
-        [data-color-mode="dark"] td,
-        [data-color-mode="dark"] th,
-        [data-color-mode="dark"] li,
-        [data-color-mode="dark"] a:not(.btn):not(.nav-item) {
-            color: var(--color-fg-default) !important;
-        }
-
-        /* Force dark mode on specific page sections */
-        [data-color-mode="dark"] .section,
-        [data-color-mode="dark"] .user-section,
-        [data-color-mode="dark"] .whitelist-section,
-        [data-color-mode="dark"] .management-section,
-        [data-color-mode="dark"] .settings-section {
-            background-color: var(--color-canvas-default) !important;
-            color: var(--color-fg-default) !important;
-        }
-
-        /* ULTIMATE DARK MODE - Override all possible white backgrounds */
-        [data-color-mode="dark"] .text-bg-light,
-        [data-color-mode="dark"] .bg-light,
-        [data-color-mode="dark"] .bg-white,
-        [data-color-mode="dark"] .table-light,
-        [data-color-mode="dark"] .list-group-item-light,
-        [data-color-mode="dark"] .alert-light,
-        [data-color-mode="dark"] .border-light,
-        [data-color-mode="dark"] .text-light {
-            background-color: var(--color-canvas-default) !important;
-            color: var(--color-fg-default) !important;
-            border-color: var(--color-border-default) !important;
-        }
-
-        /* Force all Bootstrap components to dark mode */
-        [data-color-mode="dark"] .table,
-        [data-color-mode="dark"] .table-striped > tbody > tr:nth-of-type(odd) > td,
-        [data-color-mode="dark"] .table-striped > tbody > tr:nth-of-type(odd) > th {
-            background-color: var(--color-canvas-default) !important;
-            color: var(--color-fg-default) !important;
-        }
-
-        [data-color-mode="dark"] .table-striped > tbody > tr:nth-of-type(even) > td,
-        [data-color-mode="dark"] .table-striped > tbody > tr:nth-of-type(even) > th {
-            background-color: var(--color-canvas-subtle) !important;
-            color: var(--color-fg-default) !important;
-        }
-
-        [data-color-mode="dark"] .table-hover > tbody > tr:hover > td,
-        [data-color-mode="dark"] .table-hover > tbody > tr:hover > th {
-            background-color: var(--color-canvas-subtle) !important;
-            color: var(--color-fg-default) !important;
-        }
-
-        /* Force all form elements to dark mode */
-        [data-color-mode="dark"] .form-control:focus,
-        [data-color-mode="dark"] .form-select:focus,
-        [data-color-mode="dark"] input:focus,
-        [data-color-mode="dark"] select:focus,
-        [data-color-mode="dark"] textarea:focus {
-            background-color: var(--color-input-bg) !important;
-            border-color: var(--color-accent-emphasis) !important;
-            color: var(--color-fg-default) !important;
-            box-shadow: 0 0 0 3px rgba(47, 129, 247, 0.3) !important;
-        }
-
-        /* Ensure all possible text elements are themed */
-        [data-color-mode="dark"] .text-muted,
-        [data-color-mode="dark"] .text-secondary,
-        [data-color-mode="dark"] .small,
-        [data-color-mode="dark"] small,
-        [data-color-mode="dark"] .form-text {
-            color: var(--color-fg-muted) !important;
-        }
-
-        /* Override all possible white backgrounds with !important */
-        [data-color-mode="dark"] *[class*="bg-white"],
-        [data-color-mode="dark"] *[class*="bg-light"],
-        [data-color-mode="dark"] *[style*="background-color: white"],
-        [data-color-mode="dark"] *[style*="background-color: #fff"],
-        [data-color-mode="dark"] *[style*="background-color: #ffffff"],
-        [data-color-mode="dark"] *[style*="background: white"],
-        [data-color-mode="dark"] *[style*="background: #fff"],
-        [data-color-mode="dark"] *[style*="background: #ffffff"] {
-            background-color: var(--color-canvas-default) !important;
-            color: var(--color-fg-default) !important;
-        }
-
-        /* Reset only the elements that need specific styling */
-        [data-color-mode="dark"] input,
-        [data-color-mode="dark"] select,
-        [data-color-mode="dark"] textarea {
-            background-color: var(--color-input-bg) !important;
-            border-color: var(--color-input-border) !important;
-            color: var(--color-fg-default) !important;
-        }
-
-        [data-color-mode="dark"] .btn-github-primary,
-        [data-color-mode="dark"] .btn-primary {
-            background-color: var(--color-btn-primary-bg) !important;
-            border-color: var(--color-btn-primary-border) !important;
-            color: var(--color-btn-primary-text) !important;
-        }
-
-        [data-color-mode="dark"] .btn-github-danger,
-        [data-color-mode="dark"] .btn-danger {
-            background-color: var(--color-btn-danger-bg) !important;
-            border-color: var(--color-btn-danger-border) !important;
-            color: var(--color-btn-danger-text) !important;
-        }
-
-        [data-color-mode="dark"] .btn-github,
-        [data-color-mode="dark"] button {
-            background-color: var(--color-btn-bg) !important;
-            border-color: var(--color-btn-border) !important;
-            color: var(--color-btn-text) !important;
-        }
-
-        [data-color-mode="dark"] .github-card {
-            background-color: var(--color-canvas-default) !important;
-            border-color: var(--color-border-default) !important;
-        }
-
-        [data-color-mode="dark"] .data-display,
-        [data-color-mode="dark"] .status-box,
-        [data-color-mode="dark"] .count-display {
-            background-color: var(--color-canvas-subtle) !important;
-            border-color: var(--color-border-default) !important;
-        }
-
-        /* Force header to stay dark */
-        [data-color-mode="dark"] .github-header {
-            background-color: var(--color-header-bg) !important;
-        }
-
-        [data-color-mode="dark"] .github-header * {
-            color: var(--color-header-text) !important;
-        }
-
-        /* Override any remaining white backgrounds */
-        [data-color-mode="dark"] div,
-        [data-color-mode="dark"] span,
-        [data-color-mode="dark"] p,
-        [data-color-mode="dark"] section,
-        [data-color-mode="dark"] article,
-        [data-color-mode="dark"] main {
-            background-color: var(--color-canvas-default) !important;
-            color: var(--color-fg-default) !important;
-        }
-
-        /* Ensure icons and badges are visible */
-        [data-color-mode="dark"] i,
-        [data-color-mode="dark"] .fa,
-        [data-color-mode="dark"] .fas,
-        [data-color-mode="dark"] .far,
-        [data-color-mode="dark"] .fab {
-            color: var(--color-fg-default) !important;
-        }
-
-        [data-color-mode="dark"] .badge {
-            color: #ffffff !important;
-        }
-
-        /* Tables in dark mode */
-        [data-color-mode="dark"] table,
-        [data-color-mode="dark"] .table-github,
-        [data-color-mode="dark"] td,
-        [data-color-mode="dark"] th {
-            background-color: var(--color-canvas-default) !important;
-            border-color: var(--color-border-default) !important;
-            color: var(--color-fg-default) !important;
-        }
-
-        [data-color-mode="dark"] .table-github th {
-            background-color: var(--color-canvas-subtle) !important;
         }
 
         * {
@@ -1137,7 +922,7 @@
         /* Tab Navigation */
         .tab-navigation {
             border-bottom: 1px solid var(--color-border-default);
-            margin-bottom: 16px;
+            margin-bottom: 24px;
             overflow-x: auto;
             background-color: var(--color-canvas-default);
         }
@@ -1180,33 +965,15 @@
             font-weight: 600;
         }
 
-        /* CRITICAL TAB CONTENT FIX - REMOVE ALL EMPTY SPACE */
         .tab-content {
             display: none !important;
             background-color: var(--color-canvas-default);
-            padding: 0 !important;
-            margin: 0 !important;
-            min-height: auto !important;
-            height: auto !important;
-            overflow: visible !important;
+            padding: 24px 0;
+            min-height: 400px;
         }
 
         .tab-content.active {
             display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            position: relative !important;
-            top: 0 !important;
-            padding-top: 0 !important;
-            margin-top: 0 !important;
-        }
-
-        /* Force all tab content to start immediately */
-        .tab-content.active > *:first-child {
-            margin-top: 0 !important;
-            padding-top: 8px !important;
-            position: relative !important;
-            top: 0 !important;
         }
 
         /* Ensure tab content is visible */
@@ -1228,6 +995,14 @@
             opacity: 1 !important;
         }
 
+        #tab4.active {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            height: auto !important;
+            overflow: visible !important;
+        }
+
         /* Force all tab content to be visible when active */
         .tab-content.active {
             display: block !important;
@@ -1237,52 +1012,82 @@
             z-index: 1 !important;
         }
 
-
-
-
-
-        /* Log filter buttons styling */
-        .log-filter-btn {
-            transition: all 0.2s ease;
+        /* Ensure tab4 children are visible */
+        #tab4 .github-card,
+        #tab4 .form-group-github,
+        #tab4 .btn-github,
+        #tab4 input,
+        #tab4 textarea,
+        #tab4 label,
+        #tab4 h3,
+        #tab4 h4,
+        #tab4 div {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
 
-        .log-filter-btn.active {
-            background-color: var(--color-accent-emphasis) !important;
-            border-color: var(--color-accent-emphasis) !important;
-            color: #ffffff !important;
+        #tab4 .github-card-header {
+            display: block !important;
         }
 
-        /* SMTP test log styling */
-        #smtp-test-log .log-entry {
-            padding: 4px 8px;
-            margin-bottom: 2px;
-            border-radius: 3px;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        #tab4 .github-card-title {
+            display: flex !important;
+            align-items: center !important;
         }
 
-        #smtp-test-log .log-success {
-            background-color: var(--color-success-subtle);
-            border-left: 3px solid var(--color-success-emphasis);
-            color: var(--color-success-fg);
+        #tab4 [style*="display: grid"] {
+            display: grid !important;
         }
 
-        #smtp-test-log .log-error {
-            background-color: var(--color-danger-subtle);
-            border-left: 3px solid var(--color-danger-emphasis);
-            color: var(--color-danger-fg);
+        #tab4 [style*="display: flex"] {
+            display: flex !important;
         }
 
-        #smtp-test-log .log-warning {
-            background-color: var(--color-warning-subtle);
-            border-left: 3px solid var(--color-warning-emphasis);
-            color: var(--color-warning-fg);
+        /* Force Tab 4 specific styling */
+        #tab4 {
+            min-height: 600px !important;
+            padding: 24px 0 !important;
         }
 
-        #smtp-test-log .log-info {
-            background-color: var(--color-accent-subtle);
-            border-left: 3px solid var(--color-accent-emphasis);
-            color: var(--color-accent-fg);
+        /* Ultra-aggressive Tab 4 fix */
+        #tab4.active {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+            height: auto !important;
+            overflow: visible !important;
+            background-color: var(--color-canvas-default) !important;
         }
+
+        /* Force all Tab 4 elements to be visible */
+        #tab4 * {
+            visibility: visible !important;
+            opacity: 1 !important;
+            display: inherit !important;
+        }
+
+        #tab4 .github-card {
+            display: block !important;
+            background-color: var(--color-canvas-default) !important;
+            border: 1px solid var(--color-border-default) !important;
+        }
+
+        #tab4 .form-group-github {
+            display: block !important;
+            margin-bottom: 16px !important;
+        }
+
+        #tab4 .form-control-github {
+            display: block !important;
+            width: 100% !important;
+            background-color: var(--color-input-bg) !important;
+            border: 1px solid var(--color-input-border) !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        /* Remove debugging styles for production */
 
         /* Dashboard sections */
         .section {
@@ -1909,141 +1714,6 @@
             padding: 16px;
             margin: 16px 0;
             text-align: center;
-        }
-
-        /* Account Status and Icons */
-        .account-item-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-        }
-
-        .account-name {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 500;
-        }
-
-        .account-name i {
-            color: var(--color-accent-fg);
-        }
-
-        .account-status {
-            display: flex;
-            align-items: center;
-        }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 12px;
-            padding: 2px 6px;
-            border-radius: 12px;
-            background-color: var(--color-canvas-subtle);
-            border: 1px solid var(--color-border-default);
-        }
-
-        .status-indicator.authenticated {
-            background-color: var(--color-success-subtle);
-            border-color: var(--color-success-muted);
-            color: var(--color-success-fg);
-        }
-
-        .status-indicator.authenticated i {
-            color: var(--color-success-fg) !important;
-        }
-
-        .status-indicator.error {
-            background-color: var(--color-danger-subtle);
-            border-color: var(--color-danger-muted);
-            color: var(--color-danger-fg);
-        }
-
-        .status-indicator.error i {
-            color: var(--color-danger-fg) !important;
-        }
-
-        .status-indicator.ready {
-            background-color: var(--color-accent-subtle);
-            border-color: var(--color-accent-muted);
-            color: var(--color-accent-fg);
-        }
-
-        .status-indicator.ready i {
-            color: var(--color-accent-fg) !important;
-        }
-
-        /* Modal Enhancements */
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-            backdrop-filter: blur(4px);
-        }
-
-        .modal-content {
-            background-color: var(--color-canvas-default);
-            border: 1px solid var(--color-border-default);
-            border-radius: 12px;
-            max-width: 90vw;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.3);
-            animation: modalSlideIn 0.3s ease-out;
-        }
-
-        @keyframes modalSlideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-50px) scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        .modal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--color-border-default);
-            background-color: var(--color-canvas-subtle);
-            border-radius: 12px 12px 0 0;
-        }
-
-        .modal-title {
-            margin: 0;
-            font-size: 18px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .modal-body {
-            padding: 20px;
-        }
-
-        .modal-footer {
-            padding: 16px 20px;
-            border-top: 1px solid var(--color-border-default);
-            background-color: var(--color-canvas-subtle);
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            border-radius: 0 0 12px 12px;
         }
     </style>
     
