@@ -515,132 +515,109 @@
 <!-- Tab 4: SMTP & CSV Generation - COMPACT REBUILD -->
 <div id="tab4" class="tab-content">
 
-<!-- Compact SMTP Section -->
-<div style="background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 8px; padding: 12px; margin: 0 0 12px 0;">
-    <h4 style="margin: 0 0 8px 0; font-size: 16px; color: var(--color-fg-default);">
-        <i class="fas fa-envelope"></i> SMTP Credential Tester
-    </h4>
+<!-- SMTP Credential Tester -->
+<div class="github-card">
+    <div class="github-card-header">
+        <h3 class="github-card-title">
+            <i class="fas fa-envelope"></i>
+            SMTP Credential Tester
+        </h3>
+    </div>
     
-    <div style="margin-bottom: 8px;">
-        <label style="display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-fg-muted);">
+    <div class="form-group-github">
+        <label for="smtp-credentials" class="form-label-github">
             <i class="fas fa-key"></i> SMTP Credentials (email:password, one per line)
         </label>
-        <textarea id="smtp-credentials" rows="2" style="width: 100%; padding: 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); resize: vertical; font-family: monospace; font-size: 12px;" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456"></textarea>
-        </div>
+        <textarea id="smtp-credentials" rows="3" class="form-control-github" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456" style="font-family: monospace; font-size: 12px;"></textarea>
+    </div>
     
-    <div style="display: grid; grid-template-columns: 1fr 1fr 80px; gap: 6px; margin-bottom: 8px;">
-        <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 12px; color: var(--color-fg-muted); font-weight: 500;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; margin-bottom: 20px;">
+        <div class="form-group-github">
+            <label for="smtp-recipient" class="form-label-github">
                 <i class="fas fa-envelope"></i> Recipient Email
             </label>
-            <input type="email" id="smtp-recipient" placeholder="test@domain.com" style="width: 100%; padding: 4px 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); font-size: 12px;">
+            <input type="email" id="smtp-recipient" class="form-control-github" placeholder="test@domain.com">
         </div>
-        <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 12px; color: var(--color-fg-muted); font-weight: 500;">
+        <div class="form-group-github">
+            <label for="smtp-server" class="form-label-github">
                 <i class="fas fa-server"></i> SMTP Server
             </label>
-            <input type="text" id="smtp-server" value="smtp.gmail.com" placeholder="smtp.gmail.com" style="width: 100%; padding: 4px 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); font-size: 12px;">
+            <input type="text" id="smtp-server" class="form-control-github" value="smtp.gmail.com" placeholder="smtp.gmail.com">
         </div>
-        <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 12px; color: var(--color-fg-muted); font-weight: 500;">
+        <div class="form-group-github">
+            <label for="smtp-port" class="form-label-github">
                 <i class="fas fa-plug"></i> Port
             </label>
-            <input type="number" id="smtp-port" value="587" placeholder="587" style="width: 100%; padding: 4px 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); font-size: 12px;">
+            <input type="number" id="smtp-port" class="form-control-github" value="587" placeholder="587" style="width: 80px;">
         </div>
     </div>
         
-    <div style="display: flex; gap: 6px; margin-bottom: 8px;">
-        <button onclick="testSMTPCredentials()" style="padding: 6px 12px; background: var(--color-btn-primary-bg); border: 1px solid var(--color-btn-primary-border); color: var(--color-btn-primary-text); border-radius: 4px; font-size: 13px; cursor: pointer;">
+    <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
+        <button onclick="testSMTPCredentials()" class="btn-github btn-github-primary">
             <i class="fas fa-paper-plane"></i> Send Test Emails
         </button>
-        <button onclick="interruptSMTPTesting()" style="padding: 6px 12px; background: var(--color-warning-emphasis); border: 1px solid var(--color-warning-emphasis); color: #ffffff; border-radius: 4px; font-size: 13px; cursor: pointer;">
+        <button onclick="interruptSMTPTesting()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
             <i class="fas fa-stop"></i> Interrupt Sending
         </button>
-        <button onclick="clearSMTPResults()" style="padding: 6px 12px; background: var(--color-btn-bg); border: 1px solid var(--color-btn-border); color: var(--color-btn-text); border-radius: 4px; font-size: 13px; cursor: pointer;">
+        <button onclick="clearSMTPResults()" class="btn-github">
             <i class="fas fa-broom"></i> Clear Log / Reset Files
         </button>
     </div>
-        </div>
-        
-<!-- Compact SMTP Results -->
-<div style="background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 8px; padding: 12px; margin: 0 0 12px 0;">
-    <h4 style="margin: 0 0 8px 0; font-size: 16px; color: var(--color-fg-default);">
-        <i class="fas fa-chart-bar"></i> SMTP Test Results
-    </h4>
-    <div id="smtp-results-log" style="background: var(--color-canvas-subtle); border: 1px solid var(--color-border-muted); border-radius: 4px; padding: 8px; font-family: monospace; font-size: 12px; color: var(--color-fg-default); min-height: 80px;">
-        <div style="color: var(--color-fg-muted);">
-            <p style="margin: 0;"><strong><i class="fas fa-envelope"></i> SMTP Testing Results</strong></p>
-            <p style="margin: 4px 0 0 0;">Test results will appear here...</p>
+    
+    <div id="smtp-results-log" class="data-display" style="min-height: 120px; font-family: monospace; font-size: 12px;">
+        <div class="status-info">
+            <p><strong><i class="fas fa-envelope"></i> SMTP Testing Results</strong></p>
+            <p>Test results will appear here...</p>
         </div>
     </div>
-        </div>
+</div>
+        
+
     </div>
 
     <!-- Generate Sample CSV for User Creation -->
-<!-- Compact CSV Generator -->
-<div style="background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 8px; padding: 12px; margin: 0 0 12px 0;">
-    <h4 style="margin: 0 0 8px 0; font-size: 16px; color: var(--color-fg-default);">
-        <i class="fas fa-file-csv"></i> Generate Sample CSV for User Creation
-    </h4>
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-file-csv"></i>
+                Generate Sample CSV for User Creation
+            </h3>
+        </div>
     
-    <div style="display: grid; grid-template-columns: 80px 1fr auto; gap: 6px; margin-bottom: 8px;">
-        <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 12px; color: var(--color-fg-muted); font-weight: 500;">
-                <i class="fas fa-hashtag"></i> Count
-            </label>
-            <input type="number" id="csv-num-users" min="1" max="1000" placeholder="50" style="width: 100%; padding: 4px 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); font-size: 12px;">
+        <div style="display: grid; grid-template-columns: auto 1fr auto; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="csv-num-users" class="form-label-github">
+                    <i class="fas fa-hashtag"></i> Count
+                </label>
+                <input type="number" id="csv-num-users" class="form-control-github" min="1" max="1000" placeholder="50" style="width: 80px;">
+            </div>
+            <div class="form-group-github">
+                <label for="csv-domain" class="form-label-github">
+                    <i class="fas fa-globe"></i> Domain
+                </label>
+                <input type="text" id="csv-domain" class="form-control-github" placeholder="yourdomain.com">
+            </div>
+            <div class="form-group-github">
+                <label for="csv-password" class="form-label-github">
+                    <i class="fas fa-lock"></i> Password
+                </label>
+                <input type="text" id="csv-password" class="form-control-github" placeholder="Default123" style="width: 120px;">
+            </div>
         </div>
-        <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 12px; color: var(--color-fg-muted); font-weight: 500;">
-                <i class="fas fa-globe"></i> Domain
-            </label>
-            <input type="text" id="csv-domain" placeholder="yourdomain.com" style="width: 100%; padding: 4px 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); font-size: 12px;">
+            
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
+            <button onclick="generateUserCSV()" class="btn-github btn-github-primary">
+                <i class="fas fa-download"></i> Generate CSV File
+            </button>
+            <button onclick="previewCSV()" class="btn-github">
+                <i class="fas fa-eye"></i> Preview CSV
+            </button>
         </div>
-        <div>
-            <label style="display: block; margin-bottom: 2px; font-size: 12px; color: var(--color-fg-muted); font-weight: 500;">
-                <i class="fas fa-lock"></i> Password
-            </label>
-            <input type="text" id="csv-password" placeholder="Default123" style="width: 100%; padding: 4px 6px; border: 1px solid var(--color-input-border); border-radius: 4px; background: var(--color-input-bg); color: var(--color-fg-default); font-size: 12px;">
-        </div>
+        
+        <div id="csv-download-area" class="data-display" style="margin-bottom: 16px; min-height: 60px; font-family: monospace; font-size: 12px;"></div>
+        
+        <div id="csv-preview-area" class="data-display" style="min-height: 60px; font-family: monospace; font-size: 12px;"></div>
     </div>
-            
-    <div style="display: flex; gap: 6px; margin-bottom: 8px;">
-        <button onclick="generateUserCSV()" style="padding: 6px 12px; background: var(--color-btn-primary-bg); border: 1px solid var(--color-btn-primary-border); color: var(--color-btn-primary-text); border-radius: 4px; font-size: 13px; cursor: pointer;">
-            <i class="fas fa-download"></i> Generate CSV File
-        </button>
-        <button onclick="previewCSV()" style="padding: 6px 12px; background: var(--color-btn-bg); border: 1px solid var(--color-btn-border); color: var(--color-btn-text); border-radius: 4px; font-size: 13px; cursor: pointer;">
-            <i class="fas fa-eye"></i> Preview CSV
-        </button>
-            </div>
-        </div>
-        
-<!-- CSV Results Area -->
-<div id="csv-download-area" style="background: var(--color-canvas-subtle); border: 1px solid var(--color-border-muted); border-radius: 4px; padding: 8px; margin: 0 0 8px 0; min-height: 60px; font-family: monospace; font-size: 12px; color: var(--color-fg-default);"></div>
-        
-<div id="csv-preview-area" style="background: var(--color-canvas-subtle); border: 1px solid var(--color-border-muted); border-radius: 4px; padding: 8px; margin: 0; min-height: 60px; font-family: monospace; font-size: 12px; color: var(--color-fg-default);"></div>
-
-    <!-- COMMENTED OUT - Email Template Generator 
-    <div class="section">
-        <h3>📧 Email Template Generator</h3>
-        
-        <div class="template-form">
-            <div class="form-row">
-                <input type="text" id="email-subject" placeholder="Email Subject">
-            </div>
-            
-            <textarea id="email-body" rows="8" placeholder="Email body template...&#10;&#10;Use placeholders:&#10;{email} - User's email&#10;{password} - User's password&#10;{first_name} - User's first name&#10;{last_name} - User's last name"></textarea>
-            
-            <div class="button-row">
-                <button onclick="generateEmailTemplate()">📧 Generate Template</button>
-                <button onclick="testEmailTemplate()">🧪 Test Template</button>
-            </div>
-        </div>
-        
-        <div id="email-template-preview" class="template-preview"></div>
-    </div>
-    -->
-
-</div>
 </div>
 
 <script>
