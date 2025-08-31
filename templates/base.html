@@ -1147,6 +1147,25 @@
             padding: 0 !important;
         }
 
+        /* NUCLEAR OVERRIDE: Hide Tab 4 content when NOT active */
+        #tab4:not(.active) {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            position: absolute !important;
+            left: -9999px !important;
+            top: -9999px !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+        }
+
+        #tab4:not(.active) * {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+        }
+
         /* NUCLEAR Tab 4 styling - REMOVE ALL SPACE */
         #tab4.active {
             display: block !important;
