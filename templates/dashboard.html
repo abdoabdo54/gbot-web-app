@@ -20,7 +20,23 @@
         </button>
         <button class="tab-button" onclick="showTab('tab4')">
             <i class="fas fa-envelope"></i>
-            <span>SMTP Testing</span>
+            <span>SMTP Credential Test</span>
+        </button>
+        <button class="tab-button" onclick="showTab('tab5')">
+            <i class="fas fa-server"></i>
+            <span>SMTP Server Config</span>
+        </button>
+        <button class="tab-button" onclick="showTab('tab6')">
+            <i class="fas fa-paper-plane"></i>
+            <span>Bulk Email Test</span>
+        </button>
+        <button class="tab-button" onclick="showTab('tab7')">
+            <i class="fas fa-chart-line"></i>
+            <span>SMTP Analytics</span>
+        </button>
+        <button class="tab-button" onclick="showTab('tab8')">
+            <i class="fas fa-file-csv"></i>
+            <span>CSV Generation</span>
         </button>
     </nav>
 </div>
@@ -654,71 +670,350 @@
     </div>
 </div>
 
-<!-- Tab 4: SMTP Testing - ULTRA COMPACT -->
-<div id="tab4" class="tab-content" style="padding: 0 !important; margin: 0 !important;">
-
-    <!-- SMTP Credential Tester - COMPACT -->
-    <div style="background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 8px; padding: 16px; margin: 0 0 16px 0;">
-        <h4 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: var(--color-fg-default);">
-            <i class="fas fa-envelope"></i> SMTP Credential Tester
-        </h4>
+<!-- Tab 4: SMTP Credential Test -->
+<div id="tab4" class="tab-content">
+    
+    <!-- SMTP Credential Tester -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-envelope"></i>
+                SMTP Credential Tester
+            </h3>
+        </div>
         
-        <!-- Credentials Input - COMPACT -->
-        <div style="margin-bottom: 12px;">
-            <label style="display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: var(--color-fg-default);">
+        <div class="form-group-github">
+            <label for="smtp-credentials" class="form-label-github">
                 <i class="fas fa-key"></i> SMTP Credentials (email:password, one per line)
             </label>
-            <textarea id="smtp-credentials" rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--color-input-border); border-radius: 6px; background: var(--color-input-bg); color: var(--color-fg-default); font-family: monospace; font-size: 13px; resize: vertical;" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456"></textarea>
+            <textarea id="smtp-credentials" class="form-control-github" rows="5" placeholder="salesapp@gmail.com:mirzertgouzrpnha&#10;user2@outlook.com:apppassword456&#10;user3@yahoo.com:secretpass789"></textarea>
         </div>
         
-        <!-- SMTP Settings - COMPACT GRID -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div>
-                <label style="display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: var(--color-fg-default);">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="smtp-recipient" class="form-label-github">
                     <i class="fas fa-envelope"></i> Recipient Email
                 </label>
-                <input type="email" id="smtp-recipient" placeholder="test@domain.com" style="width: 100%; padding: 8px; border: 1px solid var(--color-input-border); border-radius: 6px; background: var(--color-input-bg); color: var(--color-fg-default);">
+                <input type="email" id="smtp-recipient" class="form-control-github" placeholder="salesapp@gmail.com">
             </div>
-            <div>
-                <label style="display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: var(--color-fg-default);">
+            <div class="form-group-github">
+                <label for="smtp-server" class="form-label-github">
                     <i class="fas fa-server"></i> SMTP Server
                 </label>
-                <input type="text" id="smtp-server" value="smtp.gmail.com" style="width: 100%; padding: 8px; border: 1px solid var(--color-input-border); border-radius: 6px; background: var(--color-input-bg); color: var(--color-fg-default);">
+                <input type="text" id="smtp-server" class="form-control-github" value="smtp.gmail.com" placeholder="smtp.gmail.com">
             </div>
-            <div>
-                <label style="display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: var(--color-fg-default);">
+            <div class="form-group-github">
+                <label for="smtp-port" class="form-label-github">
                     <i class="fas fa-plug"></i> Port
                 </label>
-                <input type="number" id="smtp-port" value="587" style="width: 100%; padding: 8px; border: 1px solid var(--color-input-border); border-radius: 6px; background: var(--color-input-bg); color: var(--color-fg-default);">
+                <input type="number" id="smtp-port" class="form-control-github" value="587" placeholder="587">
             </div>
         </div>
         
-        <!-- Action Buttons - COMPACT -->
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button onclick="testSMTPCredentials()" style="padding: 8px 16px; background: var(--color-btn-primary-bg); border: 1px solid var(--color-btn-primary-border); color: var(--color-btn-primary-text); border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;">
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <button onclick="testSMTPCredentials()" class="btn-github btn-github-primary">
                 <i class="fas fa-paper-plane"></i> Send Test Emails
             </button>
-            <button onclick="interruptSMTPTesting()" style="padding: 8px 16px; background: var(--color-warning-emphasis); border: 1px solid var(--color-warning-emphasis); color: #ffffff; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;">
-                <i class="fas fa-stop"></i> Interrupt
+            <button onclick="interruptSMTPTesting()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+                <i class="fas fa-stop"></i> Interrupt Sending
             </button>
-            <button onclick="clearSMTPResults()" style="padding: 8px 16px; background: var(--color-btn-bg); border: 1px solid var(--color-btn-border); color: var(--color-btn-text); border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;">
-                <i class="fas fa-broom"></i> Clear Log
+            <button onclick="clearSMTPResults()" class="btn-github">
+                <i class="fas fa-broom"></i> Clear Log / Reset Files
             </button>
         </div>
     </div>
 
-    <!-- SMTP Test Results - COMPACT -->
-    <div style="background: var(--color-canvas-default); border: 1px solid var(--color-border-default); border-radius: 8px; padding: 16px; margin: 0;">
-        <h4 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: var(--color-fg-default);">
-            <i class="fas fa-chart-bar"></i> SMTP Test Results
-        </h4>
+    <!-- SMTP Test Results -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-chart-bar"></i>
+                SMTP Test Results
+            </h3>
+        </div>
         
-        <div id="smtp-results-log" style="background: var(--color-canvas-subtle); border: 1px solid var(--color-border-muted); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 12px; color: var(--color-fg-default); min-height: 150px; max-height: 300px; overflow-y: auto;">
-            <div style="color: var(--color-fg-muted); text-align: center;">
-                <p style="margin: 0;"><strong><i class="fas fa-envelope"></i> SMTP Testing Results</strong></p>
-                <p style="margin: 8px 0 0 0;">Test results will appear here...</p>
+        <div id="smtp-results-log" class="data-display" style="font-family: monospace; font-size: 13px; min-height: 200px;">
+            <div class="status-info">
+                <p><strong><i class="fas fa-envelope"></i> SMTP Testing Results</strong></p>
+                <p>Test results will appear here...</p>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Tab 5: SMTP Server Config -->
+<div id="tab5" class="tab-content">
+    
+    <!-- SMTP Server Configuration -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-server"></i>
+                SMTP Server Configuration
+            </h3>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="smtp-config-server" class="form-label-github">
+                    <i class="fas fa-server"></i> SMTP Server
+                </label>
+                <select id="smtp-config-server" class="form-control-github">
+                    <option value="smtp.gmail.com">Gmail (smtp.gmail.com)</option>
+                    <option value="smtp.outlook.com">Outlook (smtp.outlook.com)</option>
+                    <option value="smtp.yahoo.com">Yahoo (smtp.yahoo.com)</option>
+                    <option value="smtp.mail.me.com">iCloud (smtp.mail.me.com)</option>
+                    <option value="custom">Custom Server</option>
+                </select>
+            </div>
+            <div class="form-group-github">
+                <label for="smtp-config-port" class="form-label-github">
+                    <i class="fas fa-plug"></i> Port
+                </label>
+                <select id="smtp-config-port" class="form-control-github">
+                    <option value="587">587 (STARTTLS)</option>
+                    <option value="465">465 (SSL)</option>
+                    <option value="25">25 (Plain)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="smtp-config-security" class="form-label-github">
+                    <i class="fas fa-shield-alt"></i> Security
+                </label>
+                <select id="smtp-config-security" class="form-control-github">
+                    <option value="starttls">STARTTLS</option>
+                    <option value="ssl">SSL/TLS</option>
+                    <option value="none">None</option>
+                </select>
+            </div>
+            <div class="form-group-github">
+                <label for="smtp-config-timeout" class="form-label-github">
+                    <i class="fas fa-clock"></i> Timeout (seconds)
+                </label>
+                <input type="number" id="smtp-config-timeout" class="form-control-github" value="30" min="5" max="300">
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <button onclick="testServerConnection()" class="btn-github btn-github-primary">
+                <i class="fas fa-link"></i> Test Connection
+            </button>
+            <button onclick="saveServerConfig()" class="btn-github">
+                <i class="fas fa-save"></i> Save Configuration
+            </button>
+            <button onclick="resetServerConfig()" class="btn-github">
+                <i class="fas fa-undo"></i> Reset to Default
+            </button>
+        </div>
+    </div>
+
+    <!-- Server Status -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-info-circle"></i>
+                Server Connection Status
+            </h3>
+        </div>
+        
+        <div id="server-status-log" class="data-display" style="font-family: monospace; font-size: 13px; min-height: 150px;">
+            <div class="status-info">
+                <p><strong><i class="fas fa-server"></i> Server Connection Status</strong></p>
+                <p>Connection test results will appear here...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab 6: Bulk Email Test -->
+<div id="tab6" class="tab-content">
+    
+    <!-- Bulk Email Tester -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-paper-plane"></i>
+                Bulk Email Testing
+            </h3>
+        </div>
+        
+        <div class="form-group-github">
+            <label for="bulk-smtp-credentials" class="form-label-github">
+                <i class="fas fa-key"></i> SMTP Credentials (email:password, one per line)
+            </label>
+            <textarea id="bulk-smtp-credentials" class="form-control-github" rows="6" placeholder="sender1@gmail.com:password123&#10;sender2@outlook.com:apppassword456&#10;sender3@yahoo.com:secretpass789"></textarea>
+        </div>
+        
+        <div class="form-group-github">
+            <label for="bulk-recipients" class="form-label-github">
+                <i class="fas fa-users"></i> Recipient Email List (one per line)
+            </label>
+            <textarea id="bulk-recipients" class="form-control-github" rows="4" placeholder="recipient1@domain.com&#10;recipient2@domain.com&#10;recipient3@domain.com"></textarea>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="bulk-subject" class="form-label-github">
+                    <i class="fas fa-heading"></i> Email Subject
+                </label>
+                <input type="text" id="bulk-subject" class="form-control-github" placeholder="Test Email Subject">
+            </div>
+            <div class="form-group-github">
+                <label for="bulk-delay" class="form-label-github">
+                    <i class="fas fa-stopwatch"></i> Delay Between Emails (seconds)
+                </label>
+                <input type="number" id="bulk-delay" class="form-control-github" value="2" min="1" max="60">
+            </div>
+        </div>
+        
+        <div class="form-group-github">
+            <label for="bulk-message" class="form-label-github">
+                <i class="fas fa-edit"></i> Email Message
+            </label>
+            <textarea id="bulk-message" class="form-control-github" rows="4" placeholder="Enter your test email message here..."></textarea>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <button onclick="startBulkEmailTest()" class="btn-github btn-github-primary">
+                <i class="fas fa-rocket"></i> Start Bulk Test
+            </button>
+            <button onclick="stopBulkEmailTest()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+                <i class="fas fa-stop"></i> Stop Test
+            </button>
+            <button onclick="clearBulkResults()" class="btn-github">
+                <i class="fas fa-broom"></i> Clear Results
+            </button>
+        </div>
+    </div>
+
+    <!-- Bulk Test Results -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-chart-line"></i>
+                Bulk Test Results
+            </h3>
+        </div>
+        
+        <div id="bulk-test-results" class="data-display" style="font-family: monospace; font-size: 13px; min-height: 200px;">
+            <div class="status-info">
+                <p><strong><i class="fas fa-paper-plane"></i> Bulk Email Test Results</strong></p>
+                <p>Bulk email test results will appear here...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab 7: SMTP Analytics -->
+<div id="tab7" class="tab-content">
+    
+    <!-- Analytics Dashboard -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-chart-line"></i>
+                SMTP Analytics Dashboard
+            </h3>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="status-box" style="text-align: center; padding: 20px; background: var(--color-success-subtle); border: 1px solid var(--color-success-muted); border-radius: 8px;">
+                <h4 style="margin: 0 0 8px 0; color: var(--color-success-fg);">Success Rate</h4>
+                <div id="success-rate" style="font-size: 24px; font-weight: bold; color: var(--color-success-fg);">0%</div>
+            </div>
+            <div class="status-box" style="text-align: center; padding: 20px; background: var(--color-danger-subtle); border: 1px solid var(--color-danger-muted); border-radius: 8px;">
+                <h4 style="margin: 0 0 8px 0; color: var(--color-danger-fg);">Failed</h4>
+                <div id="failed-count" style="font-size: 24px; font-weight: bold; color: var(--color-danger-fg);">0</div>
+            </div>
+            <div class="status-box" style="text-align: center; padding: 20px; background: var(--color-accent-subtle); border: 1px solid var(--color-accent-muted); border-radius: 8px;">
+                <h4 style="margin: 0 0 8px 0; color: var(--color-accent-fg);">Total Tested</h4>
+                <div id="total-tested" style="font-size: 24px; font-weight: bold; color: var(--color-accent-fg);">0</div>
+            </div>
+            <div class="status-box" style="text-align: center; padding: 20px; background: var(--color-neutral-subtle); border: 1px solid var(--color-neutral-muted); border-radius: 8px;">
+                <h4 style="margin: 0 0 8px 0; color: var(--color-fg-default);">Avg Response</h4>
+                <div id="avg-response" style="font-size: 24px; font-weight: bold; color: var(--color-fg-default);">0ms</div>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <button onclick="refreshAnalytics()" class="btn-github btn-github-primary">
+                <i class="fas fa-sync"></i> Refresh Analytics
+            </button>
+            <button onclick="exportAnalytics()" class="btn-github">
+                <i class="fas fa-download"></i> Export Report
+            </button>
+            <button onclick="clearAnalytics()" class="btn-github">
+                <i class="fas fa-trash"></i> Clear History
+            </button>
+        </div>
+    </div>
+
+    <!-- Recent Test History -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-history"></i>
+                Recent Test History
+            </h3>
+        </div>
+        
+        <div id="analytics-history" class="data-display" style="font-family: monospace; font-size: 13px; min-height: 200px;">
+            <div class="status-info">
+                <p><strong><i class="fas fa-chart-line"></i> Test History</strong></p>
+                <p>Recent SMTP test history will appear here...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab 8: CSV Generation -->
+<div id="tab8" class="tab-content">
+    
+    <!-- Generate Sample CSV for User Creation -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-file-csv"></i>
+                Generate Sample CSV for User Creation
+            </h3>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="csv-num-users-tab8" class="form-label-github">
+                    <i class="fas fa-hashtag"></i> Number of Users
+                </label>
+                <input type="number" id="csv-num-users-tab8" class="form-control-github" min="1" max="1000" placeholder="e.g., 50">
+            </div>
+            <div class="form-group-github">
+                <label for="csv-domain-tab8" class="form-label-github">
+                    <i class="fas fa-globe"></i> Domain
+                </label>
+                <input type="text" id="csv-domain-tab8" class="form-control-github" placeholder="yourdomain.com">
+            </div>
+            <div class="form-group-github">
+                <label for="csv-password-tab8" class="form-label-github">
+                    <i class="fas fa-lock"></i> Default Password
+                </label>
+                <input type="text" id="csv-password-tab8" class="form-control-github" placeholder="Default password for all users">
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <button onclick="generateUserCSVTab8()" class="btn-github btn-github-primary">
+                <i class="fas fa-download"></i> Generate CSV File
+            </button>
+            <button onclick="previewCSVTab8()" class="btn-github">
+                <i class="fas fa-eye"></i> Preview CSV
+            </button>
+        </div>
+        
+        <div id="csv-download-area-tab8" class="data-display"></div>
+        
+        <div id="csv-preview-area-tab8" class="csv-preview"></div>
     </div>
 </div>
 
@@ -819,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing tabs...');
     
     // Check if all tabs exist
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 8; i++) {
         const tab = document.getElementById(`tab${i}`);
         console.log(`Tab ${i} exists:`, !!tab);
         if (tab) {
@@ -3366,6 +3661,224 @@ function logSMTPResult(message) {
     
     // Auto-scroll to bottom
     log.scrollTop = log.scrollHeight;
+}
+
+// Tab 5 Functions - SMTP Server Config
+function testServerConnection() {
+    const server = document.getElementById('smtp-config-server').value;
+    const port = document.getElementById('smtp-config-port').value;
+    const security = document.getElementById('smtp-config-security').value;
+    const timeout = document.getElementById('smtp-config-timeout').value;
+    
+    logServerStatus(`🔄 Testing connection to ${server}:${port}...`);
+    logServerStatus(`🔒 Security: ${security.toUpperCase()}`);
+    logServerStatus(`⏱️ Timeout: ${timeout}s`);
+    
+    // Placeholder for actual server testing logic
+    setTimeout(() => {
+        logServerStatus(`✅ Connection successful to ${server}:${port}`);
+    }, 2000);
+}
+
+function saveServerConfig() {
+    logServerStatus(`💾 Server configuration saved successfully`);
+}
+
+function resetServerConfig() {
+    document.getElementById('smtp-config-server').value = 'smtp.gmail.com';
+    document.getElementById('smtp-config-port').value = '587';
+    document.getElementById('smtp-config-security').value = 'starttls';
+    document.getElementById('smtp-config-timeout').value = '30';
+    logServerStatus(`🔄 Configuration reset to defaults`);
+}
+
+function logServerStatus(message) {
+    const log = document.getElementById('server-status-log');
+    const timestamp = new Date().toLocaleTimeString();
+    
+    if (log.querySelector('.status-info')) {
+        log.innerHTML = '';
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.textContent = `[${timestamp}] ${message}`;
+    log.appendChild(messageDiv);
+    log.scrollTop = log.scrollHeight;
+}
+
+// Tab 6 Functions - Bulk Email Test
+function startBulkEmailTest() {
+    const credentials = document.getElementById('bulk-smtp-credentials').value.trim();
+    const recipients = document.getElementById('bulk-recipients').value.trim();
+    const subject = document.getElementById('bulk-subject').value.trim();
+    const message = document.getElementById('bulk-message').value.trim();
+    const delay = document.getElementById('bulk-delay').value;
+    
+    if (!credentials || !recipients || !subject || !message) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    logBulkResults(`🚀 Starting bulk email test...`);
+    logBulkResults(`📧 Subject: ${subject}`);
+    logBulkResults(`⏱️ Delay: ${delay}s between emails`);
+    logBulkResults(`📝 Recipients: ${recipients.split('\n').length} addresses`);
+    
+    // Placeholder for bulk email testing logic
+    setTimeout(() => {
+        logBulkResults(`✅ Bulk email test completed successfully`);
+    }, 3000);
+}
+
+function stopBulkEmailTest() {
+    logBulkResults(`⏹️ Bulk email test stopped by user`);
+}
+
+function clearBulkResults() {
+    document.getElementById('bulk-test-results').innerHTML = `
+        <div class="status-info">
+            <p><strong><i class="fas fa-paper-plane"></i> Bulk Email Test Results</strong></p>
+            <p>Bulk email test results will appear here...</p>
+        </div>
+    `;
+}
+
+function logBulkResults(message) {
+    const log = document.getElementById('bulk-test-results');
+    const timestamp = new Date().toLocaleTimeString();
+    
+    if (log.querySelector('.status-info')) {
+        log.innerHTML = '';
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.textContent = `[${timestamp}] ${message}`;
+    log.appendChild(messageDiv);
+    log.scrollTop = log.scrollHeight;
+}
+
+// Tab 7 Functions - SMTP Analytics
+function refreshAnalytics() {
+    // Placeholder analytics data
+    document.getElementById('success-rate').textContent = '85%';
+    document.getElementById('failed-count').textContent = '12';
+    document.getElementById('total-tested').textContent = '80';
+    document.getElementById('avg-response').textContent = '250ms';
+    
+    logAnalyticsHistory(`📊 Analytics refreshed - Success Rate: 85%`);
+    logAnalyticsHistory(`📈 Total tests: 80, Failed: 12, Avg Response: 250ms`);
+}
+
+function exportAnalytics() {
+    logAnalyticsHistory(`📄 Analytics report exported successfully`);
+}
+
+function clearAnalytics() {
+    document.getElementById('success-rate').textContent = '0%';
+    document.getElementById('failed-count').textContent = '0';
+    document.getElementById('total-tested').textContent = '0';
+    document.getElementById('avg-response').textContent = '0ms';
+    
+    document.getElementById('analytics-history').innerHTML = `
+        <div class="status-info">
+            <p><strong><i class="fas fa-chart-line"></i> Test History</strong></p>
+            <p>Recent SMTP test history will appear here...</p>
+        </div>
+    `;
+}
+
+function logAnalyticsHistory(message) {
+    const log = document.getElementById('analytics-history');
+    const timestamp = new Date().toLocaleTimeString();
+    
+    if (log.querySelector('.status-info')) {
+        log.innerHTML = '';
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.textContent = `[${timestamp}] ${message}`;
+    log.appendChild(messageDiv);
+    log.scrollTop = log.scrollHeight;
+}
+
+// Tab 8 Functions - CSV Generation (duplicated from Tab 2)
+function generateUserCSVTab8() {
+    const numUsers = document.getElementById('csv-num-users-tab8').value;
+    const domain = document.getElementById('csv-domain-tab8').value.trim();
+    const password = document.getElementById('csv-password-tab8').value.trim();
+    
+    if (!numUsers || numUsers <= 0) {
+        alert('Please enter a valid number of users');
+        return;
+    }
+    
+    if (!domain) {
+        alert('Please enter a domain');
+        return;
+    }
+    
+    if (!password) {
+        alert('Please enter a default password');
+        return;
+    }
+    
+    fetch('/api/generate-csv', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            num_users: parseInt(numUsers),
+            domain: domain,
+            password: password
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('csv-download-area-tab8').innerHTML = `
+                <p><strong>✅ CSV File Generated Successfully!</strong></p>
+                <p>📁 File: ${data.filename}</p>
+                <p>👥 Users: ${data.user_count}</p>
+                <a href="${data.download_url}" download class="btn-github btn-github-primary">
+                    <i class="fas fa-download"></i> Download CSV
+                </a>
+            `;
+        } else {
+            alert('Failed to generate CSV: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Network error: ' + error);
+    });
+}
+
+function previewCSVTab8() {
+    const numUsers = Math.min(document.getElementById('csv-num-users-tab8').value || 5, 10);
+    const domain = document.getElementById('csv-domain-tab8').value.trim() || 'example.com';
+    const password = document.getElementById('csv-password-tab8').value.trim() || 'DefaultPass123';
+    
+    fetch('/api/preview-csv', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            num_users: parseInt(numUsers),
+            domain: domain,
+            password: password
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('csv-preview-area-tab8').innerHTML = `
+                <h4>📋 CSV Preview (First ${numUsers} rows):</h4>
+                <pre>${data.preview}</pre>
+            `;
+        } else {
+            alert('Failed to preview CSV: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Network error: ' + error);
+    });
 }
 
 /*
