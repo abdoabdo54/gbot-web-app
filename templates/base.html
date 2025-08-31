@@ -1146,26 +1146,37 @@
             padding: 0 !important;
         }
 
-        /* Clean Tab 4 styling - FORCE DISPLAY */
+        /* NUCLEAR Tab 4 styling - REMOVE ALL SPACE */
         #tab4.active {
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
             min-height: auto !important;
-            padding-top: 0 !important;
-            margin-top: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            height: auto !important;
+            position: relative !important;
+            top: 0 !important;
         }
 
-        /* Remove empty space at top of Tab 4 */
+        /* FORCE first element to start at top */
         #tab4.active > *:first-child {
             margin-top: 0 !important;
-            padding-top: 16px !important;
+            padding-top: 0 !important;
+            position: relative !important;
+            top: 0 !important;
         }
 
         /* NUCLEAR Tab 4 fix - Override everything */
         #tab4.active * {
             visibility: visible !important;
             opacity: 1 !important;
+            margin-top: 0 !important;
+        }
+
+        #tab4.active .github-card:first-child {
+            margin-top: 0 !important;
+            padding-top: 24px !important;
         }
 
         #tab4.active .github-card {

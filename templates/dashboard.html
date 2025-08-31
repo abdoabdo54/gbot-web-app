@@ -786,16 +786,28 @@ function showTab(tabId) {
         if (tabId === 'tab4') {
             console.log('SHOWING TAB 4 - SMTP & CSV Gen');
             console.log('Tab 4 HTML length:', selectedTab.innerHTML.length);
-            console.log('Tab 4 first 100 chars:', selectedTab.innerHTML.substring(0, 100));
             
-            // Force all child elements to be visible
-            const children = selectedTab.querySelectorAll('*');
-            console.log('Tab 4 child elements found:', children.length);
-            children.forEach((child, index) => {
-                if (index < 5) { // Log first 5 for debugging
-                    console.log(`Child ${index}:`, child.tagName, child.className);
-                }
-            });
+            // FORCE Tab 4 to start at top - NUCLEAR approach
+            selectedTab.style.paddingTop = '0px';
+            selectedTab.style.marginTop = '0px';
+            selectedTab.style.position = 'relative';
+            selectedTab.style.top = '0px';
+            
+            // Force first child to start at absolute top
+            const firstChild = selectedTab.firstElementChild;
+            if (firstChild) {
+                firstChild.style.marginTop = '0px';
+                firstChild.style.paddingTop = '24px'; // Just enough for visual spacing
+                firstChild.style.position = 'relative';
+                firstChild.style.top = '0px';
+                console.log('First child forced to top:', firstChild.tagName);
+            }
+            
+            // Scroll to top of the tab content immediately
+            selectedTab.scrollIntoView({ behavior: 'instant', block: 'start' });
+            window.scrollTo(0, selectedTab.offsetTop - 100);
+            
+            console.log('Tab 4 forced to start at top');
         }
         
         console.log(`Successfully showing tab: ${tabId}`);
