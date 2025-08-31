@@ -1748,7 +1748,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 let selectedDomain = null;
 
-// Tab switching functionality
+// Tab switching functionality - ZERO SPACE VERSION
 function showTab(tabId) {
     console.log('Switching to tab:', tabId);
     
@@ -1768,73 +1768,92 @@ function showTab(tabId) {
         button.style.color = 'var(--color-fg-muted)';
     });
     
-    // Show selected tab
+    // Show selected tab with ZERO space approach
     const selectedTab = document.getElementById(tabId);
     if (selectedTab) {
         console.log('Found tab element:', selectedTab);
+        
+        // AGGRESSIVE ZERO-SPACE APPROACH FOR ALL TABS
         selectedTab.classList.add('active');
         selectedTab.style.display = 'block';
         selectedTab.style.visibility = 'visible';
         selectedTab.style.opacity = '1';
         selectedTab.style.height = 'auto';
         selectedTab.style.overflow = 'visible';
+        selectedTab.style.padding = '0';
+        selectedTab.style.margin = '0';
+        selectedTab.style.paddingTop = '0px';
+        selectedTab.style.marginTop = '0px';
+        selectedTab.style.position = 'relative';
+        selectedTab.style.top = '0px';
+        selectedTab.style.transform = 'translateY(0)';
         
-                 // Special debug for tab4
-         if (tabId === 'tab4') {
-             console.log('SHOWING TAB 4 - SMTP & CSV Gen');
-             console.log('Tab 4 HTML length:', selectedTab.innerHTML.length);
-             
-             // FORCE Tab 4 to start at top - NUCLEAR approach
-             selectedTab.style.paddingTop = '0px';
-             selectedTab.style.marginTop = '0px';
-             selectedTab.style.position = 'relative';
-             selectedTab.style.top = '0px';
-             
-             // Force first child to start at absolute top
-             const firstChild = selectedTab.firstElementChild;
-             if (firstChild) {
-                 firstChild.style.marginTop = '0px';
-                 firstChild.style.paddingTop = '8px'; // Minimal spacing for compact look
-                 firstChild.style.position = 'relative';
-                 firstChild.style.top = '0px';
-                 console.log('First child forced to top:', firstChild.tagName);
-             }
-             
-             // Scroll to top of the tab content immediately
-             selectedTab.scrollIntoView({ behavior: 'instant', block: 'start' });
-             window.scrollTo(0, selectedTab.offsetTop - 100);
-             
-             console.log('Tab 4 forced to start at top');
-         }
-         
-         // Special handling for tab5 - Advanced SMTP Tester
-         if (tabId === 'tab5') {
-             console.log('SHOWING TAB 5 - Advanced SMTP Tester');
-             
-             // FORCE Tab 5 to start at top with compact spacing
-             selectedTab.style.paddingTop = '0px';
-             selectedTab.style.marginTop = '0px';
-             selectedTab.style.position = 'relative';
-             selectedTab.style.top = '0px';
-             
-             // Force first child to start at absolute top
-             const firstChild = selectedTab.firstElementChild;
-             if (firstChild) {
-                 firstChild.style.marginTop = '0px';
-                 firstChild.style.paddingTop = '8px'; // Compact spacing
-                 firstChild.style.position = 'relative';
-                 firstChild.style.top = '0px';
-                 console.log('Tab 5 first child forced to top:', firstChild.tagName);
-             }
-             
-             // Scroll to top of the tab content immediately
-             selectedTab.scrollIntoView({ behavior: 'instant', block: 'start' });
-             window.scrollTo(0, selectedTab.offsetTop - 100);
-             
-             console.log('Tab 5 advanced SMTP tester initialized');
-         }
+        // Force first child to absolute top with ZERO margin
+        const firstChild = selectedTab.firstElementChild;
+        if (firstChild) {
+            firstChild.style.marginTop = '0px';
+            firstChild.style.paddingTop = '8px';
+            firstChild.style.position = 'relative';
+            firstChild.style.top = '0px';
+            firstChild.style.transform = 'translateY(0)';
+            console.log('First child forced to absolute top:', firstChild.tagName);
+        }
         
-        console.log(`Successfully showing tab: ${tabId}`);
+        // Special handling for Tab 4 - SMTP & CSV Gen
+        if (tabId === 'tab4') {
+            console.log('SHOWING TAB 4 - SMTP & CSV Gen - ZERO SPACE MODE');
+            
+            // ULTIMATE Tab 4 zero-space fix
+            const allCards = selectedTab.querySelectorAll('.github-card');
+            allCards.forEach((card, index) => {
+                card.style.marginTop = '0px';
+                card.style.paddingTop = index === 0 ? '16px' : '0px';
+                card.style.display = 'block';
+                card.style.visibility = 'visible';
+                card.style.opacity = '1';
+                card.style.position = 'relative';
+                card.style.top = '0px';
+                card.style.transform = 'translateY(0)';
+            });
+            
+            // Force scroll to very top
+            setTimeout(() => {
+                const tabNavigation = document.querySelector('.tab-navigation');
+                if (tabNavigation) {
+                    tabNavigation.scrollIntoView({ behavior: 'instant', block: 'end' });
+                }
+                window.scrollTo(0, 0);
+            }, 10);
+            
+            console.log('Tab 4 ZERO SPACE mode activated');
+        }
+        
+        // Special handling for Tab 5 - Advanced SMTP Tester
+        if (tabId === 'tab5') {
+            console.log('SHOWING TAB 5 - Advanced SMTP Tester - ZERO SPACE MODE');
+            
+            const allCards = selectedTab.querySelectorAll('.github-card');
+            allCards.forEach((card, index) => {
+                card.style.marginTop = '0px';
+                card.style.paddingTop = index === 0 ? '8px' : '0px';
+                card.style.display = 'block';
+                card.style.visibility = 'visible';
+                card.style.opacity = '1';
+            });
+            
+            // Force scroll to very top
+            setTimeout(() => {
+                const tabNavigation = document.querySelector('.tab-navigation');
+                if (tabNavigation) {
+                    tabNavigation.scrollIntoView({ behavior: 'instant', block: 'end' });
+                }
+                window.scrollTo(0, 0);
+            }, 10);
+            
+            console.log('Tab 5 ZERO SPACE mode activated');
+        }
+        
+        console.log(`Successfully showing tab: ${tabId} with ZERO SPACE`);
     } else {
         console.error('Tab not found:', tabId);
     }

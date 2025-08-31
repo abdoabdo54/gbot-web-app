@@ -402,10 +402,128 @@
         }
 
         /* NUCLEAR DARK MODE FIX - Override EVERYTHING */
-        [data-color-mode="dark"] * {
+        [data-color-mode="dark"] *:not(.btn-github-primary):not(.btn-primary):not(.btn-github-danger):not(.btn-danger):not(.btn-github):not(button):not(input):not(select):not(textarea) {
             background-color: var(--color-canvas-default) !important;
             color: var(--color-fg-default) !important;
             border-color: var(--color-border-default) !important;
+        }
+
+        /* Force dark mode on ALL page elements - Users page fix */
+        [data-color-mode="dark"] body,
+        [data-color-mode="dark"] html,
+        [data-color-mode="dark"] .main-container,
+        [data-color-mode="dark"] .container,
+        [data-color-mode="dark"] .container-fluid,
+        [data-color-mode="dark"] .row,
+        [data-color-mode="dark"] .col,
+        [data-color-mode="dark"] .col-*,
+        [data-color-mode="dark"] .card,
+        [data-color-mode="dark"] .card-body,
+        [data-color-mode="dark"] .card-header,
+        [data-color-mode="dark"] .card-footer,
+        [data-color-mode="dark"] .list-group,
+        [data-color-mode="dark"] .list-group-item,
+        [data-color-mode="dark"] .page-content,
+        [data-color-mode="dark"] .content-wrapper,
+        [data-color-mode="dark"] .main-content {
+            background-color: var(--color-canvas-default) !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        /* Force dark mode on all text elements */
+        [data-color-mode="dark"] h1,
+        [data-color-mode="dark"] h2,
+        [data-color-mode="dark"] h3,
+        [data-color-mode="dark"] h4,
+        [data-color-mode="dark"] h5,
+        [data-color-mode="dark"] h6,
+        [data-color-mode="dark"] p,
+        [data-color-mode="dark"] span,
+        [data-color-mode="dark"] div,
+        [data-color-mode="dark"] label,
+        [data-color-mode="dark"] td,
+        [data-color-mode="dark"] th,
+        [data-color-mode="dark"] li,
+        [data-color-mode="dark"] a:not(.btn):not(.nav-item) {
+            color: var(--color-fg-default) !important;
+        }
+
+        /* Force dark mode on specific page sections */
+        [data-color-mode="dark"] .section,
+        [data-color-mode="dark"] .user-section,
+        [data-color-mode="dark"] .whitelist-section,
+        [data-color-mode="dark"] .management-section,
+        [data-color-mode="dark"] .settings-section {
+            background-color: var(--color-canvas-default) !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        /* ULTIMATE DARK MODE - Override all possible white backgrounds */
+        [data-color-mode="dark"] .text-bg-light,
+        [data-color-mode="dark"] .bg-light,
+        [data-color-mode="dark"] .bg-white,
+        [data-color-mode="dark"] .table-light,
+        [data-color-mode="dark"] .list-group-item-light,
+        [data-color-mode="dark"] .alert-light,
+        [data-color-mode="dark"] .border-light,
+        [data-color-mode="dark"] .text-light {
+            background-color: var(--color-canvas-default) !important;
+            color: var(--color-fg-default) !important;
+            border-color: var(--color-border-default) !important;
+        }
+
+        /* Force all Bootstrap components to dark mode */
+        [data-color-mode="dark"] .table,
+        [data-color-mode="dark"] .table-striped > tbody > tr:nth-of-type(odd) > td,
+        [data-color-mode="dark"] .table-striped > tbody > tr:nth-of-type(odd) > th {
+            background-color: var(--color-canvas-default) !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        [data-color-mode="dark"] .table-striped > tbody > tr:nth-of-type(even) > td,
+        [data-color-mode="dark"] .table-striped > tbody > tr:nth-of-type(even) > th {
+            background-color: var(--color-canvas-subtle) !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        [data-color-mode="dark"] .table-hover > tbody > tr:hover > td,
+        [data-color-mode="dark"] .table-hover > tbody > tr:hover > th {
+            background-color: var(--color-canvas-subtle) !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        /* Force all form elements to dark mode */
+        [data-color-mode="dark"] .form-control:focus,
+        [data-color-mode="dark"] .form-select:focus,
+        [data-color-mode="dark"] input:focus,
+        [data-color-mode="dark"] select:focus,
+        [data-color-mode="dark"] textarea:focus {
+            background-color: var(--color-input-bg) !important;
+            border-color: var(--color-accent-emphasis) !important;
+            color: var(--color-fg-default) !important;
+            box-shadow: 0 0 0 3px rgba(47, 129, 247, 0.3) !important;
+        }
+
+        /* Ensure all possible text elements are themed */
+        [data-color-mode="dark"] .text-muted,
+        [data-color-mode="dark"] .text-secondary,
+        [data-color-mode="dark"] .small,
+        [data-color-mode="dark"] small,
+        [data-color-mode="dark"] .form-text {
+            color: var(--color-fg-muted) !important;
+        }
+
+        /* Override all possible white backgrounds with !important */
+        [data-color-mode="dark"] *[class*="bg-white"],
+        [data-color-mode="dark"] *[class*="bg-light"],
+        [data-color-mode="dark"] *[style*="background-color: white"],
+        [data-color-mode="dark"] *[style*="background-color: #fff"],
+        [data-color-mode="dark"] *[style*="background-color: #ffffff"],
+        [data-color-mode="dark"] *[style*="background: white"],
+        [data-color-mode="dark"] *[style*="background: #fff"],
+        [data-color-mode="dark"] *[style*="background: #ffffff"] {
+            background-color: var(--color-canvas-default) !important;
+            color: var(--color-fg-default) !important;
         }
 
         /* Reset only the elements that need specific styling */
@@ -1019,7 +1137,7 @@
         /* Tab Navigation */
         .tab-navigation {
             border-bottom: 1px solid var(--color-border-default);
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             overflow-x: auto;
             background-color: var(--color-canvas-default);
         }
@@ -1062,15 +1180,33 @@
             font-weight: 600;
         }
 
+        /* CRITICAL TAB CONTENT FIX - REMOVE ALL EMPTY SPACE */
         .tab-content {
             display: none !important;
             background-color: var(--color-canvas-default);
-            padding: 8px 0;
-            min-height: auto;
+            padding: 0 !important;
+            margin: 0 !important;
+            min-height: auto !important;
+            height: auto !important;
+            overflow: visible !important;
         }
 
         .tab-content.active {
             display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+            top: 0 !important;
+            padding-top: 0 !important;
+            margin-top: 0 !important;
+        }
+
+        /* Force all tab content to start immediately */
+        .tab-content.active > *:first-child {
+            margin-top: 0 !important;
+            padding-top: 8px !important;
+            position: relative !important;
+            top: 0 !important;
         }
 
         /* Ensure tab content is visible */
@@ -1141,13 +1277,15 @@
             display: flex !important;
         }
 
-        /* Force Tab 4 specific styling */
+        /* ULTIMATE TAB 4 FIX - ELIMINATE ALL EMPTY SPACE */
         #tab4 {
             min-height: auto !important;
             padding: 0 !important;
+            margin: 0 !important;
+            height: auto !important;
+            overflow: visible !important;
         }
 
-        /* NUCLEAR Tab 4 styling - REMOVE ALL SPACE */
         #tab4.active {
             display: block !important;
             visibility: visible !important;
@@ -1158,53 +1296,58 @@
             height: auto !important;
             position: relative !important;
             top: 0 !important;
+            transform: translateY(0) !important;
         }
 
-        /* FORCE first element to start at top - COMPACT */
-        #tab4.active > *:first-child {
+        /* FORCE first card to stick to top with zero margin */
+        #tab4.active > .github-card:first-child {
             margin-top: 0 !important;
-            padding-top: 8px !important;
+            padding-top: 16px !important;
             position: relative !important;
             top: 0 !important;
+            transform: translateY(0) !important;
         }
 
-        /* Make SMTP content more compact */
+        /* Ensure all Tab 4 cards are compact and visible */
         #tab4 .github-card {
             padding: 16px !important;
             margin-bottom: 16px !important;
+            margin-top: 0 !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            background-color: var(--color-canvas-default) !important;
+            border: 1px solid var(--color-border-default) !important;
         }
 
         #tab4 .github-card-header {
             padding-bottom: 12px !important;
-            margin-bottom: 16px !important;
+            margin-bottom: 12px !important;
+            margin-top: 0 !important;
         }
 
         #tab4 .form-group-github {
             margin-bottom: 12px !important;
+            margin-top: 0 !important;
         }
 
         #tab4 .github-card-title {
             font-size: 18px !important;
             margin-bottom: 0 !important;
+            margin-top: 0 !important;
         }
 
-        /* NUCLEAR Tab 4 fix - Override everything */
+        /* Force ALL Tab 4 elements to be visible */
         #tab4.active * {
             visibility: visible !important;
             opacity: 1 !important;
-            margin-top: 0 !important;
         }
 
-        #tab4.active .github-card:first-child {
-            margin-top: 0 !important;
-            padding-top: 24px !important;
-        }
-
-        #tab4.active .github-card {
-            display: block !important;
-            background-color: var(--color-canvas-default) !important;
-            border: 1px solid var(--color-border-default) !important;
-            margin-bottom: 24px !important;
+        /* Remove any potential phantom space */
+        #tab4.active::before,
+        #tab4.active::after {
+            display: none !important;
+            content: none !important;
         }
 
         /* Tab 5 - Advanced SMTP Tester Styling */
