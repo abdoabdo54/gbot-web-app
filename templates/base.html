@@ -1069,61 +1069,6 @@
             min-height: auto;
         }
 
-        /* FORCE TAB 4 TO BE COMPACT */
-        #tab4 {
-            padding: 0 !important;
-            margin: 0 !important;
-        }
-
-        #tab4 .github-card {
-            padding: 12px !important;
-            margin-bottom: 12px !important;
-            margin-top: 0 !important;
-        }
-
-        #tab4 .github-card-header {
-            padding-bottom: 8px !important;
-            margin-bottom: 12px !important;
-        }
-
-        #tab4 .form-group-github {
-            margin-bottom: 8px !important;
-        }
-
-        #tab4 textarea {
-            min-height: 80px !important;
-            height: 80px !important;
-        }
-
-        #tab4 .data-display {
-            min-height: 120px !important;
-            padding: 8px !important;
-        }
-
-        /* RESPONSIVE DESIGN FOR TAB 4 */
-        @media (max-width: 768px) {
-            #tab4 div[style*="grid-template-columns"] {
-                grid-template-columns: 1fr !important;
-                gap: 8px !important;
-            }
-            
-            #tab4 div[style*="flex"] {
-                flex-direction: column !important;
-                gap: 8px !important;
-            }
-            
-            #tab4 button {
-                width: 100% !important;
-            }
-        }
-
-        @media (max-width: 480px) {
-            #tab4 > div {
-                padding: 12px !important;
-                margin-bottom: 12px !important;
-            }
-        }
-
         .tab-content.active {
             display: block !important;
         }
@@ -1147,7 +1092,13 @@
             opacity: 1 !important;
         }
 
-
+        #tab4.active {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            height: auto !important;
+            overflow: visible !important;
+        }
 
         /* Force all tab content to be visible when active */
         .tab-content.active {
@@ -1158,9 +1109,117 @@
             z-index: 1 !important;
         }
 
+        /* Ensure tab4 children are visible */
+        #tab4 .github-card,
+        #tab4 .form-group-github,
+        #tab4 .btn-github,
+        #tab4 input,
+        #tab4 textarea,
+        #tab4 label,
+        #tab4 h3,
+        #tab4 h4,
+        #tab4 div {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
 
+        #tab4 .github-card-header {
+            display: block !important;
+        }
 
+        #tab4 .github-card-title {
+            display: flex !important;
+            align-items: center !important;
+        }
 
+        #tab4 [style*="display: grid"] {
+            display: grid !important;
+        }
+
+        #tab4 [style*="display: flex"] {
+            display: flex !important;
+        }
+
+        /* Force Tab 4 specific styling */
+        #tab4 {
+            min-height: auto !important;
+            padding: 0 !important;
+        }
+
+        /* NUCLEAR Tab 4 styling - REMOVE ALL SPACE */
+        #tab4.active {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            min-height: auto !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            height: auto !important;
+            position: relative !important;
+            top: 0 !important;
+        }
+
+        /* FORCE first element to start at top - COMPACT */
+        #tab4.active > *:first-child {
+            margin-top: 0 !important;
+            padding-top: 8px !important;
+            position: relative !important;
+            top: 0 !important;
+        }
+
+        /* NUCLEAR SMTP content compact override */
+        #tab4 .github-card,
+        #tab4.active .github-card {
+            padding: 8px !important;
+            margin-bottom: 8px !important;
+            margin-top: 0 !important;
+        }
+
+        #tab4 .github-card-header,
+        #tab4.active .github-card-header {
+            padding-bottom: 4px !important;
+            margin-bottom: 8px !important;
+            padding: 0 !important;
+        }
+
+        #tab4 .form-group-github,
+        #tab4.active .form-group-github {
+            margin-bottom: 4px !important;
+            margin-top: 0 !important;
+        }
+
+        #tab4 .github-card-title,
+        #tab4.active .github-card-title {
+            font-size: 16px !important;
+            margin-bottom: 0 !important;
+            margin-top: 0 !important;
+        }
+
+        #tab4 label,
+        #tab4.active label {
+            margin-bottom: 2px !important;
+        }
+
+        #tab4 textarea,
+        #tab4.active textarea {
+            margin-bottom: 4px !important;
+            min-height: 60px !important;
+        }
+
+        /* NUCLEAR Tab 4 fix - Override everything */
+        #tab4.active * {
+            visibility: visible !important;
+            opacity: 1 !important;
+            margin-top: 0 !important;
+        }
+
+        /* Additional Tab 4 overrides */
+        #tab4.active .github-card {
+            display: block !important;
+            background-color: var(--color-canvas-default) !important;
+            border: 1px solid var(--color-border-default) !important;
+        }
 
         /* Dashboard sections */
         .section {
