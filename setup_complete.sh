@@ -257,6 +257,10 @@ setup_postgresql() {
         fi
     fi
     
+    # Wait for PostgreSQL to be fully ready
+    log "Waiting for PostgreSQL to be ready..."
+    sleep 5
+    
     # Configure PostgreSQL for production
     log "Configuring PostgreSQL for production..."
     sudo -u postgres psql -c "ALTER SYSTEM SET max_connections = '100';" 2>/dev/null || true
@@ -269,33 +273,40 @@ setup_postgresql() {
     
     # Restart PostgreSQL to apply changes
     $SUDO_CMD systemctl restart postgresql
+    sleep 3
     
     # Create database and user
     DB_NAME="gbot_db"
     DB_USER="gbot_user"
     DB_PASS=$(openssl rand -hex 12)
     
-    # Check if database already exists
-    if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
-        log "Database '$DB_NAME' already exists"
-    else
-        log "Creating database '$DB_NAME'..."
-        sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;"
-    fi
+    # Drop existing user and database to ensure clean setup
+    log "Ensuring clean database setup..."
+    sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
+    sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;" 2>/dev/null || true
     
-    # Check if user already exists
-    if sudo -u postgres psql -t -c "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
-        log "User '$DB_USER' already exists"
-    else
-        log "Creating user '$DB_USER'..."
-        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
-    fi
+    # Create database
+    log "Creating database '$DB_NAME'..."
+    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;"
+    
+    # Create user with new password
+    log "Creating user '$DB_USER'..."
+    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
     
     # Grant privileges
     sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
     sudo -u postgres psql -c "ALTER ROLE $DB_USER SET client_encoding TO 'utf8';"
     sudo -u postgres psql -c "ALTER ROLE $DB_USER SET default_transaction_isolation TO 'read committed';"
     sudo -u postgres psql -c "ALTER ROLE $DB_USER SET timezone TO 'UTC';"
+    
+    # Test the connection
+    log "Testing database connection..."
+    if PGPASSWORD="$DB_PASS" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" 2>/dev/null; then
+        log_success "Database connection test passed"
+    else
+        log_error "Database connection test failed"
+        exit 1
+    fi
     
     # Save database credentials
     echo "DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost/$DB_NAME" > "$SCRIPT_DIR/.db_credentials"
@@ -329,6 +340,32 @@ setup_python_environment() {
         log_error "requirements.txt not found"
         exit 1
     fi
+    
+    # Ensure gunicorn is installed (critical for production)
+    log "Ensuring gunicorn is installed..."
+    if ! pip show gunicorn >/dev/null 2>&1; then
+        log "Installing gunicorn..."
+        pip install gunicorn
+    fi
+    
+    # Verify critical packages
+    log "Verifying critical packages..."
+    if ! pip show flask >/dev/null 2>&1; then
+        log_error "Flask not installed"
+        exit 1
+    fi
+    
+    if ! pip show gunicorn >/dev/null 2>&1; then
+        log_error "Gunicorn not installed"
+        exit 1
+    fi
+    
+    if ! pip show psycopg2-binary >/dev/null 2>&1; then
+        log_error "psycopg2-binary not installed"
+        exit 1
+    fi
+    
+    log_success "Python environment setup completed"
     
     # Deactivate virtual environment
     deactivate
@@ -560,6 +597,16 @@ setup_systemd_service() {
         $SUDO_CMD cp "$SERVICE_FILE" "$SERVICE_FILE.backup"
     fi
     
+    # Ensure gunicorn is available
+    log "Verifying gunicorn installation..."
+    if [ ! -f "$SCRIPT_DIR/venv/bin/gunicorn" ]; then
+        log_error "Gunicorn not found in virtual environment"
+        log "Installing gunicorn..."
+        source "$SCRIPT_DIR/venv/bin/activate"
+        pip install gunicorn
+        deactivate
+    fi
+    
     # Create systemd service
     cat > /tmp/gbot_service << EOF
 [Unit]
@@ -588,8 +635,23 @@ EOF
     $SUDO_CMD cp /tmp/gbot_service "$SERVICE_FILE"
     rm /tmp/gbot_service
     
+    # Verify service file was created
+    if [ ! -f "$SERVICE_FILE" ]; then
+        log_error "Failed to create systemd service file"
+        exit 1
+    fi
+    
     # Reload systemd and enable service
     $SUDO_CMD systemctl daemon-reload
+    
+    # Verify the service file is valid
+    if $SUDO_CMD systemctl cat gbot >/dev/null 2>&1; then
+        log_success "Systemd service file is valid"
+    else
+        log_error "Systemd service file is invalid"
+        exit 1
+    fi
+    
     $SUDO_CMD systemctl enable gbot
     
     log_success "Systemd service created and enabled"
@@ -1595,23 +1657,35 @@ start_services() {
     $SUDO_CMD systemctl enable postgresql
     
     # Wait for PostgreSQL
-    sleep 3
+    sleep 5
+    
+    # Verify PostgreSQL is running
+    if ! $SUDO_CMD systemctl is-active --quiet postgresql; then
+        log_error "PostgreSQL failed to start"
+        $SUDO_CMD systemctl status postgresql --no-pager
+        exit 1
+    fi
     
     # Start GBot service first
     log "Starting GBot service..."
     $SUDO_CMD systemctl daemon-reload
-    $SUDO_CMD systemctl enable gbot
     
     # Stop service first if running
     $SUDO_CMD systemctl stop gbot 2>/dev/null || true
     sleep 2
+    
+    # Verify service file exists
+    if [ ! -f "/etc/systemd/system/gbot.service" ]; then
+        log_error "GBot service file not found. Recreating..."
+        setup_systemd_service
+    fi
     
     # Start service
     $SUDO_CMD systemctl start gbot
     
     # Wait for Gunicorn to create the socket
     log "Waiting for Gunicorn socket to be ready..."
-    sleep 8
+    sleep 10
     
     # Check if service is running
     if $SUDO_CMD systemctl is-active --quiet gbot; then
@@ -1623,7 +1697,24 @@ start_services() {
         echo ""
         echo "📋 Recent GBot logs:"
         $SUDO_CMD journalctl -u gbot -n 20 --no-pager
-        return 1
+        echo ""
+        echo "🔧 Attempting to fix service..."
+        
+        # Try to fix common issues
+        source "$SCRIPT_DIR/venv/bin/activate"
+        pip install gunicorn flask-sqlalchemy psycopg2-binary
+        deactivate
+        
+        # Restart service
+        $SUDO_CMD systemctl restart gbot
+        sleep 5
+        
+        if $SUDO_CMD systemctl is-active --quiet gbot; then
+            log_success "GBot service started after fix"
+        else
+            log_error "GBot service still failed to start"
+            exit 1
+        fi
     fi
     
     # Check if socket exists and has proper permissions
@@ -1872,6 +1963,91 @@ validate_installation() {
     fi
 }
 
+verify_installation() {
+    log "Verifying installation..."
+    
+    echo ""
+    echo -e "${GREEN}══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}                INSTALLATION VERIFICATION                   ${NC}"
+    echo -e "${GREEN}══════════════════════════════════════════════════════════════${NC}"
+    
+    # Check all services
+    echo -e "\n🔍 Service Status:"
+    SERVICES=("postgresql" "gbot" "nginx")
+    ALL_SERVICES_OK=true
+    
+    for service in "${SERVICES[@]}"; do
+        if systemctl is-active --quiet "$service"; then
+            echo -e "   ✅ $service: ${GREEN}RUNNING${NC}"
+        else
+            echo -e "   ❌ $service: ${RED}STOPPED${NC}"
+            ALL_SERVICES_OK=false
+        fi
+    done
+    
+    # Check socket file
+    echo -e "\n🔌 Socket File:"
+    if [ -S "$SCRIPT_DIR/gbot.sock" ]; then
+        echo -e "   ✅ Socket file exists: ${GREEN}$SCRIPT_DIR/gbot.sock${NC}"
+    else
+        echo -e "   ❌ Socket file missing: ${RED}$SCRIPT_DIR/gbot.sock${NC}"
+        ALL_SERVICES_OK=false
+    fi
+    
+    # Test database connection
+    echo -e "\n🗄️  Database Connection:"
+    if [ -f ".db_credentials" ]; then
+        source .db_credentials
+        if PGPASSWORD=$(echo "$DATABASE_URL" | sed 's/.*:\/\/.*:\([^@]*\)@.*/\1/') psql -h localhost -U gbot_user -d gbot_db -c "SELECT 1;" 2>/dev/null; then
+            echo -e "   ✅ Database connection: ${GREEN}SUCCESS${NC}"
+        else
+            echo -e "   ❌ Database connection: ${RED}FAILED${NC}"
+            ALL_SERVICES_OK=false
+        fi
+    else
+        echo -e "   ❌ Database credentials file missing"
+        ALL_SERVICES_OK=false
+    fi
+    
+    # Test HTTP connection
+    echo -e "\n🌐 HTTP Connection:"
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    if curl -s -m 10 "http://$SERVER_IP/health" 2>/dev/null; then
+        echo -e "   ✅ HTTP connection: ${GREEN}SUCCESS${NC}"
+        echo -e "   🌐 Application URL: ${BLUE}http://$SERVER_IP${NC}"
+    else
+        echo -e "   ❌ HTTP connection: ${RED}FAILED${NC}"
+        ALL_SERVICES_OK=false
+    fi
+    
+    # Check critical files
+    echo -e "\n📁 Critical Files:"
+    CRITICAL_FILES=("app.py" "requirements.txt" ".env" "venv/bin/python3" "venv/bin/gunicorn")
+    for file in "${CRITICAL_FILES[@]}"; do
+        if [ -f "$SCRIPT_DIR/$file" ] || [ -f "$SCRIPT_DIR/$file" ]; then
+            echo -e "   ✅ $file: ${GREEN}EXISTS${NC}"
+        else
+            echo -e "   ❌ $file: ${RED}MISSING${NC}"
+            ALL_SERVICES_OK=false
+        fi
+    done
+    
+    # Final result
+    echo -e "\n${GREEN}══════════════════════════════════════════════════════════════${NC}"
+    if [ "$ALL_SERVICES_OK" = true ]; then
+        echo -e "${GREEN}✅ INSTALLATION VERIFICATION PASSED${NC}"
+        echo -e "\n🎉 Your GBot Web Application is ready!"
+        echo -e "🌐 Access URL: ${BLUE}http://$SERVER_IP${NC}"
+        echo -e "🔐 Admin Login: ${BLUE}admin${NC} / ${BLUE}A9B3nX#Q8k\$mZ6vw${NC}"
+    else
+        echo -e "${RED}❌ INSTALLATION VERIFICATION FAILED${NC}"
+        echo -e "\n🔧 Run troubleshooting: ${BLUE}./setup_complete.sh --troubleshoot${NC}"
+        echo -e "🔧 Or fix all issues: ${BLUE}./setup_complete.sh --fix-all${NC}"
+    fi
+    echo -e "${GREEN}══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
 run_complete_installation() {
     log "Starting complete installation..."
     
@@ -1932,6 +2108,9 @@ run_complete_installation() {
     
     # Final connection test
     test_final_connection
+    
+    # Final installation verification
+    verify_installation
     
     log_success "Complete installation finished successfully!"
 }
