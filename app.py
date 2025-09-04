@@ -19,6 +19,7 @@ from email.mime.multipart import MIMEMultipart
 
 from core_logic import google_api
 from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope
+from chrome_automation import account_manager
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -2099,6 +2100,144 @@ def add_from_server_json():
     except Exception as e:
         app.logger.error(f"Error adding from server JSON: {e}")
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/retrieve-accounts', methods=['POST'])
+@login_required
+def api_retrieve_accounts():
+    """Retrieve accounts from remote server"""
+    try:
+        app.logger.info("Retrieving accounts from remote server")
+        
+        # Retrieve accounts from server
+        accounts = account_manager.retrieve_accounts_from_server()
+        
+        if not accounts:
+            return jsonify({
+                'success': False,
+                'error': 'No accounts found on server or server connection failed'
+            })
+        
+        # Store accounts in session for later use
+        session['retrieved_accounts'] = accounts
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully retrieved {len(accounts)} accounts from server',
+            'accounts': accounts,
+            'count': len(accounts)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error retrieving accounts: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to retrieve accounts: {str(e)}'
+        })
+
+@app.route('/api/chrome-login', methods=['POST'])
+@login_required
+def api_chrome_login():
+    """Perform Chrome automation login for selected account"""
+    try:
+        data = request.get_json()
+        oauth_url = data.get('oauth_url')
+        account_name = data.get('account_name')
+        
+        if not oauth_url or not account_name:
+            return jsonify({
+                'success': False,
+                'error': 'Missing required parameters: oauth_url and account_name'
+            })
+        
+        app.logger.info(f"Starting Chrome login for account: {account_name}")
+        
+        # Get retrieved accounts from session
+        retrieved_accounts = session.get('retrieved_accounts', [])
+        
+        # Find the account credentials
+        account_credentials = None
+        for account in retrieved_accounts:
+            if account['username'] == account_name:
+                account_credentials = account
+                break
+        
+        if not account_credentials:
+            return jsonify({
+                'success': False,
+                'error': f'Account credentials not found for: {account_name}'
+            })
+        
+        # Perform Chrome login
+        result = account_manager.login_with_chrome(
+            oauth_url=oauth_url,
+            username=account_credentials['username'],
+            password=account_credentials['password']
+        )
+        
+        if result['success']:
+            app.logger.info(f"Chrome login successful for {account_name}: {result['message']}")
+            return jsonify({
+                'success': True,
+                'message': result['message'],
+                'current_url': result.get('current_url'),
+                'requires_verification': result.get('requires_verification', False)
+            })
+        else:
+            app.logger.error(f"Chrome login failed for {account_name}: {result['error']}")
+            return jsonify({
+                'success': False,
+                'error': result['error']
+            })
+            
+    except Exception as e:
+        app.logger.error(f"Error in Chrome login: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Chrome login failed: {str(e)}'
+        })
+
+@app.route('/api/chrome-status', methods=['GET'])
+@login_required
+def api_chrome_status():
+    """Get current Chrome driver status and page information"""
+    try:
+        page_info = account_manager.get_current_page_info()
+        
+        if 'error' in page_info:
+            return jsonify({
+                'success': False,
+                'error': page_info['error']
+            })
+        
+        return jsonify({
+            'success': True,
+            'page_info': page_info
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error getting Chrome status: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to get Chrome status: {str(e)}'
+        })
+
+@app.route('/api/close-chrome', methods=['POST'])
+@login_required
+def api_close_chrome():
+    """Close Chrome driver instance"""
+    try:
+        account_manager.close_chrome_driver()
+        return jsonify({
+            'success': True,
+            'message': 'Chrome driver closed successfully'
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error closing Chrome: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to close Chrome: {str(e)}'
+        })
 
 if __name__ == '__main__':
     app.run(debug=True)
