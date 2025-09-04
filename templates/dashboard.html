@@ -57,9 +57,6 @@
         <button onclick="addFromServerJSON()" class="btn-github">
             <i class="fas fa-folder-open"></i> Add from Server JSON
         </button>
-        <button onclick="retrieveAccountsFromServer()" class="btn-github">
-            <i class="fas fa-download"></i> Retrieve Accounts
-        </button>
         {% endif %}
         {% if session.role == 'admin' %}
         <button onclick="forceTokenStatusCheck()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
@@ -167,28 +164,6 @@
             <div style="background-color: rgba(9, 105, 218, 0.1); border: 1px solid var(--color-accent-emphasis); border-radius: 6px; padding: 12px; color: var(--color-accent-fg); font-size: 14px;">
                 <i class="fas fa-lightbulb"></i>
                 <strong>Tip:</strong> You can copy this link to use in another browser or app for authorization.
-            </div>
-            
-            <!-- Chrome Automation Section -->
-            <div style="margin-top: 20px; padding: 16px; background-color: rgba(34, 134, 58, 0.1); border: 1px solid var(--color-success-emphasis); border-radius: 6px;">
-                <h4 style="margin: 0 0 12px 0; color: var(--color-success-fg);">
-                    <i class="fas fa-robot"></i> Chrome Automation
-                </h4>
-                <p style="margin: 0 0 12px 0; font-size: 14px;">
-                    <strong>Auto-login:</strong> Use Chrome automation to automatically log in with retrieved account credentials.
-                </p>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button onclick="performChromeLogin()" class="btn-github btn-github-primary" style="background-color: var(--color-success-emphasis); border-color: var(--color-success-emphasis);">
-                        <i class="fas fa-play"></i> Auto Login
-                    </button>
-                    <button onclick="checkChromeStatus()" class="btn-github">
-                        <i class="fas fa-info-circle"></i> Check Status
-                    </button>
-                    <button onclick="closeChromeDriver()" class="btn-github">
-                        <i class="fas fa-stop"></i> Close Chrome
-                    </button>
-                </div>
-                <div id="chromeStatus" style="margin-top: 12px; font-size: 12px; color: var(--color-fg-muted);"></div>
             </div>
         </div>
         <div class="modal-footer">
@@ -1379,25 +1354,7 @@ function copyOAuthUrl() {
 
 function openOAuthUrl() {
     if (window.currentOAuthUrl) {
-        // Open the URL in a new tab
         window.open(window.currentOAuthUrl, '_blank');
-        
-        // Check if we have retrieved accounts and offer Chrome automation
-        if (window.retrievedAccounts && window.retrievedAccounts.length > 0) {
-            const accountSelect = document.getElementById('account-select');
-            const selectedAccount = accountSelect.value;
-            
-            if (selectedAccount) {
-                const accountCredentials = window.retrievedAccounts.find(acc => acc.username === selectedAccount);
-                if (accountCredentials) {
-                    // Ask user if they want to use Chrome automation
-                    if (confirm('🤖 Chrome automation is available for this account.\n\nWould you like to automatically log in using Chrome?\n\nClick OK for Chrome automation or Cancel to open manually.')) {
-                        // Trigger Chrome automation
-                        performChromeLogin();
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -2261,186 +2218,6 @@ function debugSFTPFiles() {
     .catch(error => {
         alert('Network error: ' + error);
     });
-}
-
-// Account Retrieval and Chrome Automation Functions
-
-function retrieveAccountsFromServer() {
-    // Show loading state
-    const button = document.querySelector('[onclick="retrieveAccountsFromServer()"]');
-    const originalText = button.textContent;
-    button.textContent = '📥 Retrieving...';
-    button.disabled = true;
-    
-    fetch('/api/retrieve-accounts', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Store retrieved accounts globally
-            window.retrievedAccounts = data.accounts;
-            
-            let message = `✅ Successfully retrieved ${data.count} accounts from server!\n\n`;
-            message += 'Accounts available for Chrome automation:\n';
-            data.accounts.forEach((account, index) => {
-                message += `${index + 1}. ${account.username}\n`;
-            });
-            
-            alert(message);
-            
-            // Update UI to show accounts are available
-            updateChromeAutomationStatus(true, data.count);
-            
-        } else {
-            alert('❌ Error retrieving accounts: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Network error:', error);
-        alert('❌ Network error: ' + error.message);
-    })
-    .finally(() => {
-        // Restore button state
-        button.textContent = originalText;
-        button.disabled = false;
-    });
-}
-
-function performChromeLogin() {
-    if (!window.currentOAuthUrl) {
-        alert('❌ No OAuth URL available. Please generate an OAuth URL first.');
-        return;
-    }
-    
-    if (!window.retrievedAccounts || window.retrievedAccounts.length === 0) {
-        alert('❌ No accounts retrieved from server. Please click "Retrieve Accounts" first.');
-        return;
-    }
-    
-    // Get the currently selected account
-    const accountSelect = document.getElementById('account-select');
-    const selectedAccount = accountSelect.value;
-    
-    if (!selectedAccount) {
-        alert('❌ Please select an account first.');
-        return;
-    }
-    
-    // Check if we have credentials for this account
-    const accountCredentials = window.retrievedAccounts.find(acc => acc.username === selectedAccount);
-    if (!accountCredentials) {
-        alert(`❌ No credentials found for account: ${selectedAccount}\n\nAvailable accounts:\n${window.retrievedAccounts.map(acc => acc.username).join('\n')}`);
-        return;
-    }
-    
-    // Show loading state
-    const button = document.querySelector('[onclick="performChromeLogin()"]');
-    const originalText = button.textContent;
-    button.textContent = '🤖 Logging in...';
-    button.disabled = true;
-    
-    // Update status
-    updateChromeStatus('🤖 Starting Chrome automation...');
-    
-    fetch('/api/chrome-login', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            oauth_url: window.currentOAuthUrl,
-            account_name: selectedAccount
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            updateChromeStatus(`✅ ${data.message}\nCurrent URL: ${data.current_url}`);
-            
-            if (data.requires_verification) {
-                alert('⚠️ Login successful but additional verification may be required. Please check the Chrome browser.');
-            } else {
-                alert('✅ Chrome automation login completed successfully!');
-            }
-        } else {
-            updateChromeStatus(`❌ ${data.error}`);
-            alert('❌ Chrome login failed: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Chrome login error:', error);
-        updateChromeStatus(`❌ Network error: ${error.message}`);
-        alert('❌ Network error: ' + error.message);
-    })
-    .finally(() => {
-        // Restore button state
-        button.textContent = originalText;
-        button.disabled = false;
-    });
-}
-
-function checkChromeStatus() {
-    fetch('/api/chrome-status', {
-        method: 'GET',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const pageInfo = data.page_info;
-            updateChromeStatus(`📊 Current Page:\nTitle: ${pageInfo.title}\nURL: ${pageInfo.current_url}\nPage Size: ${pageInfo.page_source_length} chars`);
-        } else {
-            updateChromeStatus(`❌ ${data.error}`);
-        }
-    })
-    .catch(error => {
-        console.error('Status check error:', error);
-        updateChromeStatus(`❌ Network error: ${error.message}`);
-    });
-}
-
-function closeChromeDriver() {
-    fetch('/api/close-chrome', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            updateChromeStatus('🛑 Chrome driver closed successfully');
-            alert('✅ Chrome driver closed successfully');
-        } else {
-            updateChromeStatus(`❌ ${data.error}`);
-            alert('❌ Error closing Chrome: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Close Chrome error:', error);
-        updateChromeStatus(`❌ Network error: ${error.message}`);
-        alert('❌ Network error: ' + error.message);
-    });
-}
-
-function updateChromeStatus(message) {
-    const statusElement = document.getElementById('chromeStatus');
-    if (statusElement) {
-        statusElement.textContent = message;
-        statusElement.style.color = message.includes('✅') ? 'var(--color-success-fg)' : 
-                                   message.includes('❌') ? 'var(--color-danger-fg)' : 
-                                   message.includes('⚠️') ? 'var(--color-warning-fg)' : 
-                                   'var(--color-fg-muted)';
-    }
-}
-
-function updateChromeAutomationStatus(available, count) {
-    // Update the Chrome automation section to show accounts are available
-    const automationSection = document.querySelector('#oauthModal .modal-body > div:last-child');
-    if (automationSection && available) {
-        const statusDiv = automationSection.querySelector('p');
-        if (statusDiv) {
-            statusDiv.innerHTML = `<strong>Auto-login:</strong> ${count} accounts available for Chrome automation.`;
-        }
-    }
 }
 
 // Placeholder functions for buttons that need implementation

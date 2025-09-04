@@ -4,15 +4,15 @@ load_dotenv()
 import os
 
 # Web App Settings
-SECRET_KEY = os.environ.get('SECRET_KEY', 'fallback-secret-key-for-development')
-WHITELIST_TOKEN = os.environ.get('WHITELIST_TOKEN', 'fallback-whitelist-token-for-development')
+SECRET_KEY = os.environ.get('SECRET_KEY')
+WHITELIST_TOKEN = os.environ.get('WHITELIST_TOKEN')
 
 # IP Whitelist Configuration
 ENABLE_IP_WHITELIST = os.environ.get('ENABLE_IP_WHITELIST', 'True').lower() == 'true'  # Default to True for security
 ALLOW_ALL_IPS_IN_DEV = os.environ.get('ALLOW_ALL_IPS_IN_DEV', 'False').lower() == 'true'  # Default to False for security
 
 # Database Configuration
-SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///gbot.db')
+SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'postgresql://user:password@localhost/gbot_db')
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 # Production Settings
