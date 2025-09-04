@@ -783,16 +783,30 @@ EOF
 create_backup() {
     log "Creating backup..."
     
+    # Small delay to ensure file operations are complete
+    sleep 2
+    
     BACKUP_DIR="$SCRIPT_DIR/backups"
     BACKUP_NAME="gbot_backup_$(date +%Y%m%d_%H%M%S).tar.gz"
     
     mkdir -p "$BACKUP_DIR"
     
-    # Create backup excluding unnecessary files
-    tar --exclude='venv' --exclude='*.pyc' --exclude='__pycache__' --exclude='logs/*.log' \
-        -czf "$BACKUP_DIR/$BACKUP_NAME" -C "$SCRIPT_DIR" .
-    
-    log_success "Backup created: $BACKUP_DIR/$BACKUP_NAME"
+    # Create backup excluding unnecessary files and active log files
+    if tar --exclude='venv' --exclude='*.pyc' --exclude='__pycache__' --exclude='logs/*.log' \
+        --exclude='setup.log' --exclude='monitoring.log' --exclude='*.log' \
+        --exclude='gunicorn-access.log' --exclude='gunicorn-error.log' \
+        --exclude='backups' --exclude='.db_credentials' \
+        -czf "$BACKUP_DIR/$BACKUP_NAME" -C "$SCRIPT_DIR" . 2>/dev/null; then
+        log_success "Backup created: $BACKUP_DIR/$BACKUP_NAME"
+    else
+        log_warning "Backup creation had warnings (some files may have been modified during backup)"
+        if [ -f "$BACKUP_DIR/$BACKUP_NAME" ]; then
+            log_success "Backup file was created despite warnings: $BACKUP_DIR/$BACKUP_NAME"
+        else
+            log_error "Backup creation failed"
+            return 1
+        fi
+    fi
 }
 
 display_current_credentials() {
