@@ -892,12 +892,12 @@ def api_complete_oauth():
                 "token_uri": "https://oauth2.googleapis.com/token",
                 "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
                 "client_secret": creds_data['client_secret'],
-                "redirect_uris": ["https://ecochain.site/oauth-callback"]
+                "redirect_uris": ["https://g-worckspace.ecochain.site/oauth-callback"]
             }
         }
         
         flow = InstalledAppFlow.from_client_config(flow_config, app.config['SCOPES'])
-        flow.redirect_uri = "https://ecochain.site/oauth-callback"
+        flow.redirect_uri = "https://g-worckspace.ecochain.site/oauth-callback"
         
         flow.fetch_token(code=auth_code)
         credentials = flow.credentials
