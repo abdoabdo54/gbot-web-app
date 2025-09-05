@@ -2100,5 +2100,131 @@ def add_from_server_json():
         app.logger.error(f"Error adding from server JSON: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/test-smtp', methods=['POST'])
+@login_required
+def test_smtp_credentials():
+    """Test SMTP credentials by sending test emails"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        data = request.get_json()
+        credentials_text = data.get('credentials', '').strip()
+        recipient_email = data.get('recipient_email', '').strip()
+        smtp_server = data.get('smtp_server', 'smtp.gmail.com').strip()
+        smtp_port = int(data.get('smtp_port', 587))
+        
+        if not credentials_text:
+            return jsonify({'success': False, 'error': 'No credentials provided'})
+        
+        if not recipient_email or '@' not in recipient_email:
+            return jsonify({'success': False, 'error': 'Invalid recipient email'})
+        
+        # Parse credentials (email:password format, one per line)
+        credentials_lines = [line.strip() for line in credentials_text.split('\n') if line.strip()]
+        results = []
+        
+        for line in credentials_lines:
+            if ':' not in line:
+                results.append({
+                    'email': line,
+                    'status': 'error',
+                    'error': 'Invalid format - use email:password'
+                })
+                continue
+            
+            try:
+                email, password = line.split(':', 1)
+                email = email.strip()
+                password = password.strip()
+                
+                if not email or not password:
+                    results.append({
+                        'email': email or 'unknown',
+                        'status': 'error',
+                        'error': 'Empty email or password'
+                    })
+                    continue
+                
+                # Test SMTP connection and send email
+                import smtplib
+                from email.mime.text import MIMEText
+                from email.mime.multipart import MIMEMultipart
+                import socket
+                
+                # Create message
+                msg = MIMEMultipart()
+                msg['From'] = email
+                msg['To'] = recipient_email
+                msg['Subject'] = f"SMTP Test from {email}"
+                
+                body = f"""
+This is a test email sent from {email} using the GBot Web Application SMTP tester.
+
+Test Details:
+- Sender: {email}
+- SMTP Server: {smtp_server}:{smtp_port}
+- Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+If you received this email, the SMTP credentials are working correctly.
+"""
+                msg.attach(MIMEText(body, 'plain'))
+                
+                # Connect and send
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()  # Enable encryption
+                server.login(email, password)
+                server.send_message(msg)
+                server.quit()
+                
+                results.append({
+                    'email': email,
+                    'status': 'success',
+                    'message': f'Test email sent successfully to {recipient_email}'
+                })
+                
+            except smtplib.SMTPAuthenticationError as e:
+                results.append({
+                    'email': email,
+                    'status': 'error',
+                    'error': f'Authentication failed: {str(e)}'
+                })
+            except smtplib.SMTPException as e:
+                results.append({
+                    'email': email,
+                    'status': 'error',
+                    'error': f'SMTP error: {str(e)}'
+                })
+            except socket.gaierror as e:
+                results.append({
+                    'email': email,
+                    'status': 'error',
+                    'error': f'DNS/Network error: {str(e)}'
+                })
+            except Exception as e:
+                results.append({
+                    'email': email,
+                    'status': 'error',
+                    'error': f'Unexpected error: {str(e)}'
+                })
+        
+        # Return results
+        success_count = sum(1 for r in results if r['status'] == 'success')
+        total_count = len(results)
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'summary': {
+                'total': total_count,
+                'successful': success_count,
+                'failed': total_count - success_count
+            }
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error in SMTP testing: {e}")
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
+
 if __name__ == '__main__':
     app.run(debug=True)

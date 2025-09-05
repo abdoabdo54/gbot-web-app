@@ -3160,7 +3160,14 @@ function testSMTPCredentials() {
             smtp_port: parseInt(port)
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json().catch(err => {
+            throw new Error(`Invalid JSON response: ${err.message}`);
+        });
+    })
     .then(data => {
         smtpTesting = false;
         
@@ -3183,13 +3190,19 @@ function testSMTPCredentials() {
             
             logSMTPResult('─'.repeat(50));
             logSMTPResult(`📈 Summary: ${successCount} successful, ${failCount} failed`);
+            
+            // Show summary in browser notification if available
+            if (data.summary) {
+                logSMTPResult(`📊 Final Summary: ${data.summary.successful}/${data.summary.total} credentials working`);
+            }
         } else {
-            logSMTPResult(`❌ SMTP testing failed: ${data.error}`);
+            logSMTPResult(`❌ SMTP testing failed: ${data.error || 'Unknown error'}`);
         }
     })
     .catch(error => {
         smtpTesting = false;
-        logSMTPResult(`❌ Network error: ${error}`);
+        logSMTPResult(`❌ Error: ${error.message}`);
+        console.error('SMTP Test Error:', error);
     });
 }
 
