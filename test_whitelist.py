@@ -141,7 +141,7 @@ if __name__ == '__main__':
     test_config()
     
     # Test API endpoints (change this to your actual domain)
-    base_url = "https://g-worckspace.ecochain.site"
+    base_url = "https://g-workspace.ecochain.site"
     
     # Test emergency add IP with both keys
     ip_address = "102.101.242.72"  # Your current IP

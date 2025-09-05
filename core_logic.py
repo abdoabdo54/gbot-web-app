@@ -63,14 +63,14 @@ class WebGoogleAPI:
                 "token_uri": "https://oauth2.googleapis.com/token",
                 "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
                 "client_secret": creds_data['client_secret'],
-                "redirect_uris": ["https://g-worckspace.ecochain.site/oauth-callback"]
+                "redirect_uris": ["https://g-workspace.ecochain.site/oauth-callback"]
             }
         }
         flow = InstalledAppFlow.from_client_config(flow_config, scopes=[
             'https://www.googleapis.com/auth/admin.directory.user',
             'https://www.googleapis.com/auth/admin.directory.domain'
         ])
-        flow.redirect_uri = "https://g-worckspace.ecochain.site/oauth-callback"
+        flow.redirect_uri = "https://g-workspace.ecochain.site/oauth-callback"
         auth_url, state = flow.authorization_url(
             access_type='offline',
             prompt='consent',
