@@ -58,6 +58,33 @@ if not app.debug:
 
 with app.app_context():
     db.create_all()
+    
+    # Auto-migration: Add ever_used column if it doesn't exist
+    try:
+        from sqlalchemy import text
+        # Check if ever_used column exists
+        result = db.session.execute(text("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'used_domain' AND column_name = 'ever_used'
+        """)).fetchone()
+        
+        if not result:
+            logging.info("Adding missing 'ever_used' column to used_domain table...")
+            # Add the column
+            db.session.execute(text("ALTER TABLE used_domain ADD COLUMN ever_used BOOLEAN DEFAULT FALSE"))
+            # Update existing records
+            db.session.execute(text("UPDATE used_domain SET ever_used = TRUE WHERE user_count > 0"))
+            db.session.commit()
+            logging.info("✅ Successfully added 'ever_used' column!")
+        else:
+            logging.debug("Column 'ever_used' already exists")
+            
+    except Exception as e:
+        logging.warning(f"Could not auto-migrate ever_used column: {e}")
+        try:
+            db.session.rollback()
+        except:
+            pass
     if not User.query.filter_by(username='admin').first():
         admin_user = User(username='admin', password=generate_password_hash('A9B3nX#Q8k$mZ6vw', method='pbkdf2:sha256'), role='admin')
         db.session.add(admin_user)
