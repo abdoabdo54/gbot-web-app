@@ -3009,11 +3009,7 @@ function applySelectedDomainToCSV() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            fetch('/api/mark-domain-used', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({domain: selectedDomain})
-            });
+            // Domain status is automatically updated by the apply-domain-to-csv endpoint
             // Update CSV path to modified version
             document.getElementById('csv-file-path').value = data.modified_csv_path;
             logBulkDomain(`✅ Domain applied successfully. Modified CSV: ${data.modified_csv_path}`);

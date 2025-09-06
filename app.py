@@ -1514,14 +1514,87 @@ def api_change_domain_all_users():
                     'message': f'No users found with domain {current_domain}'
                 })
             
+            # Update domain status in database IMMEDIATELY (before processing users)
+            # This ensures domain status is saved even if the operation times out later
+            try:
+                from database import UsedDomain
+                
+                logging.info(f"Pre-updating domain status: {current_domain} → {new_domain}")
+                
+                # Mark old domain as used but with 0 current users
+                old_domain_record = UsedDomain.query.filter_by(domain_name=current_domain).first()
+                if old_domain_record:
+                    old_domain_record.user_count = 0
+                    try:
+                        old_domain_record.ever_used = True
+                    except:
+                        pass  # Column doesn't exist yet
+                    old_domain_record.updated_at = db.func.current_timestamp()
+                else:
+                    try:
+                        old_domain_record = UsedDomain(
+                            domain_name=current_domain,
+                            user_count=0,
+                            ever_used=True,
+                            is_verified=True
+                        )
+                    except:
+                        old_domain_record = UsedDomain(
+                            domain_name=current_domain,
+                            user_count=0,
+                            is_verified=True
+                        )
+                    db.session.add(old_domain_record)
+                
+                # Mark new domain as currently in use (with estimated user count)
+                new_domain_record = UsedDomain.query.filter_by(domain_name=new_domain).first()
+                estimated_users = len(users)
+                
+                if new_domain_record:
+                    new_domain_record.user_count = estimated_users
+                    try:
+                        new_domain_record.ever_used = True
+                    except:
+                        pass  # Column doesn't exist yet
+                    new_domain_record.updated_at = db.func.current_timestamp()
+                else:
+                    try:
+                        new_domain_record = UsedDomain(
+                            domain_name=new_domain,
+                            user_count=estimated_users,
+                            ever_used=True,
+                            is_verified=True
+                        )
+                    except:
+                        new_domain_record = UsedDomain(
+                            domain_name=new_domain,
+                            user_count=estimated_users,
+                            is_verified=True
+                        )
+                    db.session.add(new_domain_record)
+                
+                db.session.commit()
+                logging.info(f"✅ Domain status pre-updated: {current_domain} (USED) → {new_domain} (IN USE)")
+                
+            except Exception as db_error:
+                logging.error(f"❌ Failed to pre-update domain status: {db_error}")
+                try:
+                    db.session.rollback()
+                except:
+                    pass
+            
             successful = 0
             failed = 0
             skipped = 0
             results = []
             
             # Process users in smaller batches to avoid timeouts
-            batch_size = 10
+            batch_size = 5  # Reduced batch size for better performance
             total_users = len(users)
+            
+            # Add early response for large batches to prevent timeout
+            if total_users > 50:
+                logging.warning(f"Large batch detected ({total_users} users). Consider processing in smaller chunks.")
             
             for i, user in enumerate(users):
                 try:
@@ -1581,84 +1654,20 @@ def api_change_domain_all_users():
                     # Continue processing other users even if one fails
                     continue
             
-            # Update domain usage in database with new three-state system
+            # Update final user count in database (optional - domain status already saved)
             try:
                 from database import UsedDomain
-                
-                logging.info(f"Updating domain status in database: {current_domain} → {new_domain}, successful changes: {successful}")
-                
-                # Mark old domain as used but with 0 current users
-                old_domain_record = UsedDomain.query.filter_by(domain_name=current_domain).first()
-                if old_domain_record:
-                    old_domain_record.user_count = 0
-                    # Mark as ever used (if column exists)
-                    try:
-                        old_domain_record.ever_used = True
-                        logging.info(f"Updated old domain {current_domain}: 0 users, ever_used=True")
-                    except:
-                        logging.info(f"Updated old domain {current_domain}: 0 users (ever_used column not available)")
-                    old_domain_record.updated_at = db.func.current_timestamp()
-                else:
-                    # Create record for old domain
-                    try:
-                        old_domain_record = UsedDomain(
-                            domain_name=current_domain,
-                            user_count=0,
-                            ever_used=True,  # It was used
-                            is_verified=True
-                        )
-                        logging.info(f"Created old domain record {current_domain}: 0 users, ever_used=True")
-                    except:
-                        # Fallback if ever_used column doesn't exist
-                        old_domain_record = UsedDomain(
-                            domain_name=current_domain,
-                            user_count=0,
-                            is_verified=True
-                        )
-                        logging.info(f"Created old domain record {current_domain}: 0 users (ever_used column not available)")
-                    db.session.add(old_domain_record)
-                
-                # Mark new domain as currently in use
                 new_domain_record = UsedDomain.query.filter_by(domain_name=new_domain).first()
                 if new_domain_record:
                     new_domain_record.user_count = successful
-                    # Mark as ever used (if column exists)
-                    try:
-                        new_domain_record.ever_used = True
-                        logging.info(f"Updated new domain {new_domain}: {successful} users, ever_used=True")
-                    except:
-                        logging.info(f"Updated new domain {new_domain}: {successful} users (ever_used column not available)")
-                    new_domain_record.updated_at = db.func.current_timestamp()
-                else:
-                    try:
-                        new_domain_record = UsedDomain(
-                            domain_name=new_domain,
-                            user_count=successful,
-                            ever_used=True,  # It's being used now
-                            is_verified=True
-                        )
-                        logging.info(f"Created new domain record {new_domain}: {successful} users, ever_used=True")
-                    except:
-                        # Fallback if ever_used column doesn't exist
-                        new_domain_record = UsedDomain(
-                            domain_name=new_domain,
-                            user_count=successful,
-                            is_verified=True
-                        )
-                        logging.info(f"Created new domain record {new_domain}: {successful} users (ever_used column not available)")
-                    db.session.add(new_domain_record)
-                
-                db.session.commit()
-                logging.info(f"✅ Successfully updated domain status: {current_domain} (USED) → {new_domain} (IN USE)")
-                
+                    db.session.commit()
+                    logging.info(f"✅ Updated final user count: {new_domain} = {successful} users")
             except Exception as db_error:
-                logging.error(f"❌ Failed to update domain status in database: {db_error}")
+                logging.warning(f"Failed to update final user count: {db_error}")
                 try:
                     db.session.rollback()
-                    logging.info("Database session rolled back")
                 except:
                     pass
-                # Don't fail the entire operation for database update issues
             
             return jsonify({
                 'success': True,
@@ -1752,7 +1761,15 @@ def api_change_domain():
                     
                     # Add small delay to avoid API rate limits
                     import time
-                    time.sleep(0.1)
+                    time.sleep(0.05)  # Reduced delay for better performance
+                    
+                    # Commit database changes periodically to prevent long transactions
+                    if (i + 1) % 10 == 0:
+                        try:
+                            db.session.commit()
+                            logging.info(f"Processed {i + 1}/{total_users} users...")
+                        except:
+                            pass
                     
                 except Exception as user_error:
                     failed += 1
