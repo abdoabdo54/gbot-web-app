@@ -1178,42 +1178,84 @@ def api_retrieve_domains():
                     domain = email.split('@')[1]
                     domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
             
-            # Format domain data with actual user counts and usage status
+            # Format domain data with new three-state system
             formatted_domains = []
             for domain in domains:
                 domain_name = domain.get('domainName', '')
                 user_count = domain_user_counts.get(domain_name, 0)
-                is_used = user_count > 0
+                
+                # Get domain status from database
+                from database import UsedDomain
+                domain_record = UsedDomain.query.filter_by(domain_name=domain_name).first()
+                
+                # Check if ever_used column exists (for backward compatibility)
+                ever_used = False
+                if domain_record:
+                    try:
+                        ever_used = getattr(domain_record, 'ever_used', False)
+                    except:
+                        ever_used = False  # Column doesn't exist yet
+                
+                # Determine domain status
+                if user_count > 0:
+                    status = 'in_use'  # Purple - currently has users
+                    status_text = 'IN USE'
+                    status_color = 'purple'
+                elif domain_record and ever_used:
+                    status = 'used'  # Orange - previously used but no current users
+                    status_text = 'USED'
+                    status_color = 'orange'
+                else:
+                    status = 'available'  # Green - never been used
+                    status_text = 'AVAILABLE'
+                    status_color = 'green'
                 
                 domain_data = {
                     'domain_name': domain_name,
                     'verified': domain.get('verified', False),
                     'user_count': user_count,
-                    'is_used': is_used
+                    'status': status,
+                    'status_text': status_text,
+                    'status_color': status_color,
+                    'is_used': user_count > 0,  # For backward compatibility
+                    'ever_used': ever_used
                 }
                 formatted_domains.append(domain_data)
                 
-                # Sync domain usage data to database
+                # Sync domain data to database
                 try:
-                    from database import UsedDomain
-                    existing_domain = UsedDomain.query.filter_by(domain_name=domain_name).first()
-                    if existing_domain:
-                        existing_domain.user_count = user_count
-                        existing_domain.is_verified = domain.get('verified', False)
-                        existing_domain.updated_at = db.func.current_timestamp()
+                    if domain_record:
+                        domain_record.user_count = user_count
+                        domain_record.is_verified = domain.get('verified', False)
+                        # If domain currently has users, mark as ever_used (if column exists)
+                        if user_count > 0:
+                            try:
+                                domain_record.ever_used = True
+                            except:
+                                pass  # Column doesn't exist yet
+                        domain_record.updated_at = db.func.current_timestamp()
                     else:
-                        new_domain = UsedDomain(
-                            domain_name=domain_name,
-                            user_count=user_count,
-                            is_verified=domain.get('verified', False)
-                        )
+                        # Create new domain record
+                        try:
+                            new_domain = UsedDomain(
+                                domain_name=domain_name,
+                                user_count=user_count,
+                                is_verified=domain.get('verified', False),
+                                ever_used=(user_count > 0)  # Mark as ever_used if it has users now
+                            )
+                        except:
+                            # Fallback if ever_used column doesn't exist
+                            new_domain = UsedDomain(
+                                domain_name=domain_name,
+                                user_count=user_count,
+                                is_verified=domain.get('verified', False)
+                            )
                         db.session.add(new_domain)
                     
                     db.session.commit()
-                    logging.debug(f"Synced domain {domain_name} to database: {user_count} users, verified: {domain.get('verified', False)}")
+                    logging.debug(f"Synced domain {domain_name}: {user_count} users, status={status}")
                 except Exception as db_error:
                     logging.warning(f"Failed to sync domain {domain_name} to database: {db_error}")
-                    # Try to rollback the session
                     try:
                         db.session.rollback()
                     except:
@@ -1243,17 +1285,39 @@ def api_get_domain_usage_stats():
         # Sort domains by user count (descending) and then by name
         sorted_domains = sorted(domains, key=lambda x: (x.user_count, x.domain_name), reverse=True)
         
+        # Calculate stats with new three-state system (handle missing ever_used column)
+        in_use_domains = [d for d in domains if d.user_count > 0]
+        used_domains = []
+        available_domains = []
+        
+        for d in domains:
+            if d.user_count == 0:
+                try:
+                    ever_used = getattr(d, 'ever_used', False)
+                    if ever_used:
+                        used_domains.append(d)
+                    else:
+                        available_domains.append(d)
+                except:
+                    # Column doesn't exist, treat as available
+                    available_domains.append(d)
+        
         stats = {
             'total_domains': len(domains),
-            'used_domains': len([d for d in domains if d.user_count > 0]),
-            'available_domains': len([d for d in domains if d.user_count == 0]),
+            'in_use_domains': len(in_use_domains),
+            'used_domains': len(used_domains),
+            'available_domains': len(available_domains),
             'total_users': sum(d.user_count for d in domains),
             'domains': [
                 {
                     'domain_name': d.domain_name,
                     'user_count': d.user_count,
                     'is_verified': d.is_verified,
-                    'is_used': d.user_count > 0,
+                    'is_used': d.user_count > 0,  # For backward compatibility
+                    'ever_used': getattr(d, 'ever_used', False),
+                    'status': 'in_use' if d.user_count > 0 else ('used' if getattr(d, 'ever_used', False) else 'available'),
+                    'status_text': 'IN USE' if d.user_count > 0 else ('USED' if getattr(d, 'ever_used', False) else 'AVAILABLE'),
+                    'status_color': 'purple' if d.user_count > 0 else ('orange' if getattr(d, 'ever_used', False) else 'green'),
                     'last_updated': d.updated_at.isoformat() if d.updated_at else None
                 }
                 for d in sorted_domains
@@ -1490,48 +1554,78 @@ def api_change_domain_all_users():
                     # Continue processing other users even if one fails
                     continue
             
-            # Update domain usage in database
+            # Update domain usage in database with new three-state system
             try:
                 from database import UsedDomain
                 
-                logging.info(f"Updating domain usage in database: {current_domain} → {new_domain}, successful changes: {successful}")
+                logging.info(f"Updating domain status in database: {current_domain} → {new_domain}, successful changes: {successful}")
                 
-                # Mark old domain as having 0 users (or create if doesn't exist)
+                # Mark old domain as used but with 0 current users
                 old_domain_record = UsedDomain.query.filter_by(domain_name=current_domain).first()
                 if old_domain_record:
                     old_domain_record.user_count = 0
+                    # Mark as ever used (if column exists)
+                    try:
+                        old_domain_record.ever_used = True
+                        logging.info(f"Updated old domain {current_domain}: 0 users, ever_used=True")
+                    except:
+                        logging.info(f"Updated old domain {current_domain}: 0 users (ever_used column not available)")
                     old_domain_record.updated_at = db.func.current_timestamp()
-                    logging.info(f"Updated old domain {current_domain}: 0 users")
                 else:
-                    # Create record for old domain with 0 users
-                    old_domain_record = UsedDomain(
-                        domain_name=current_domain,
-                        user_count=0,
-                        is_verified=True
-                    )
+                    # Create record for old domain
+                    try:
+                        old_domain_record = UsedDomain(
+                            domain_name=current_domain,
+                            user_count=0,
+                            ever_used=True,  # It was used
+                            is_verified=True
+                        )
+                        logging.info(f"Created old domain record {current_domain}: 0 users, ever_used=True")
+                    except:
+                        # Fallback if ever_used column doesn't exist
+                        old_domain_record = UsedDomain(
+                            domain_name=current_domain,
+                            user_count=0,
+                            is_verified=True
+                        )
+                        logging.info(f"Created old domain record {current_domain}: 0 users (ever_used column not available)")
                     db.session.add(old_domain_record)
-                    logging.info(f"Created old domain record {current_domain}: 0 users")
                 
-                # Mark new domain as having users (or create if doesn't exist)
+                # Mark new domain as currently in use
                 new_domain_record = UsedDomain.query.filter_by(domain_name=new_domain).first()
                 if new_domain_record:
                     new_domain_record.user_count = successful
+                    # Mark as ever used (if column exists)
+                    try:
+                        new_domain_record.ever_used = True
+                        logging.info(f"Updated new domain {new_domain}: {successful} users, ever_used=True")
+                    except:
+                        logging.info(f"Updated new domain {new_domain}: {successful} users (ever_used column not available)")
                     new_domain_record.updated_at = db.func.current_timestamp()
-                    logging.info(f"Updated new domain {new_domain}: {successful} users")
                 else:
-                    new_domain_record = UsedDomain(
-                        domain_name=new_domain,
-                        user_count=successful,
-                        is_verified=True
-                    )
+                    try:
+                        new_domain_record = UsedDomain(
+                            domain_name=new_domain,
+                            user_count=successful,
+                            ever_used=True,  # It's being used now
+                            is_verified=True
+                        )
+                        logging.info(f"Created new domain record {new_domain}: {successful} users, ever_used=True")
+                    except:
+                        # Fallback if ever_used column doesn't exist
+                        new_domain_record = UsedDomain(
+                            domain_name=new_domain,
+                            user_count=successful,
+                            is_verified=True
+                        )
+                        logging.info(f"Created new domain record {new_domain}: {successful} users (ever_used column not available)")
                     db.session.add(new_domain_record)
-                    logging.info(f"Created new domain record {new_domain}: {successful} users")
                 
                 db.session.commit()
-                logging.info(f"✅ Successfully updated domain usage in database: {current_domain} (0) → {new_domain} ({successful})")
+                logging.info(f"✅ Successfully updated domain status: {current_domain} (USED) → {new_domain} (IN USE)")
                 
             except Exception as db_error:
-                logging.error(f"❌ Failed to update domain usage in database: {db_error}")
+                logging.error(f"❌ Failed to update domain status in database: {db_error}")
                 try:
                     db.session.rollback()
                     logging.info("Database session rolled back")

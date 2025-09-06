@@ -17,6 +17,7 @@ class UsedDomain(db.Model):
     domain_name = db.Column(db.String(255), unique=True, nullable=False)
     user_count = db.Column(db.Integer, default=0)
     is_verified = db.Column(db.Boolean, default=False)
+    ever_used = db.Column(db.Boolean, default=False)  # Track if domain was ever used
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 

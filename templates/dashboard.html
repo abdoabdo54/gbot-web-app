@@ -2686,17 +2686,26 @@ function getDomainUsageStats() {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.domains) {
-            // Display the domain data directly from the authenticated account
+            // Display the domain data with new three-state system
+            const inUseDomains = data.domains.filter(d => d.status === 'in_use').length;
+            const usedDomains = data.domains.filter(d => d.status === 'used').length;
+            const availableDomains = data.domains.filter(d => d.status === 'available').length;
+            
             displayDomainUsageStats({
                 total_domains: data.domains.length,
-                used_domains: data.domains.filter(d => d.is_used).length,
-                available_domains: data.domains.filter(d => !d.is_used).length,
+                in_use_domains: inUseDomains,
+                used_domains: usedDomains,
+                available_domains: availableDomains,
                 total_users: data.domains.reduce((sum, d) => sum + (d.user_count || 0), 0),
                 domains: data.domains.map(d => ({
                     domain_name: d.domain_name,
                     user_count: d.user_count || 0,
                     is_verified: d.verified || false,
                     is_used: d.is_used || false,
+                    status: d.status || 'available',
+                    status_text: d.status_text || 'AVAILABLE',
+                    status_color: d.status_color || 'green',
+                    ever_used: d.ever_used || false,
                     last_updated: new Date().toISOString()
                 }))
             });
@@ -2809,15 +2818,19 @@ function displayDomainUsageStats(stats) {
                     <div style="font-size: 12px; color: #666;">Total Domains</div>
                 </div>
                 <div style="text-align: center; padding: 10px; background: white; border-radius: 5px;">
-                    <div style="font-size: 24px; font-weight: bold; color: #4CAF50;">${stats.used_domains}</div>
-                    <div style="font-size: 12px; color: #666;">Used Domains</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #4CAF50;">${stats.available_domains || 0}</div>
+                    <div style="font-size: 12px; color: #666;">Available</div>
                 </div>
                 <div style="text-align: center; padding: 10px; background: white; border-radius: 5px;">
-                    <div style="font-size: 24px; font-weight: bold; color: #FF9800;">${stats.available_domains}</div>
-                    <div style="font-size: 12px; color: #666;">Available Domains</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #FF9800;">${stats.used_domains || 0}</div>
+                    <div style="font-size: 12px; color: #666;">Used</div>
                 </div>
                 <div style="text-align: center; padding: 10px; background: white; border-radius: 5px;">
-                    <div style="font-size: 24px; font-weight: bold; color: #9C27B0;">${stats.total_users}</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #9C27B0;">${stats.in_use_domains || 0}</div>
+                    <div style="font-size: 12px; color: #666;">In Use</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: white; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #666;">${stats.total_users}</div>
                     <div style="font-size: 12px; color: #666;">Total Users</div>
                 </div>
             </div>
@@ -2829,13 +2842,31 @@ function displayDomainUsageStats(stats) {
     } else {
         html += '<h4 style="margin: 20px 0 10px 0; color: #333;">Domain Details:</h4>';
         html += stats.domains.map(domain => {
-            const isUsed = domain.is_used;
-            const domainClass = isUsed ? 'domain-item used-domain' : 'domain-item';
-            const statusText = isUsed ? 'USED' : 'AVAILABLE';
-            const statusColor = isUsed ? 'red' : 'green';
+            // New three-state system
+            let statusColor, statusText, domainClass, domainNameColor;
+            
+            if (domain.status === 'in_use') {
+                // Purple - currently has users
+                statusColor = '#9C27B0';
+                statusText = 'IN USE';
+                domainClass = 'domain-item in-use-domain';
+                domainNameColor = '#9C27B0';
+            } else if (domain.status === 'used') {
+                // Orange - previously used but no current users
+                statusColor = '#FF9800';
+                statusText = 'USED';
+                domainClass = 'domain-item used-domain';
+                domainNameColor = '#FF9800';
+            } else {
+                // Green - never been used (available)
+                statusColor = '#4CAF50';
+                statusText = 'AVAILABLE';
+                domainClass = 'domain-item';
+                domainNameColor = 'black';
+            }
             
             return `<div class="${domainClass}">
-                <strong style="color: ${isUsed ? 'red' : 'black'};">${domain.domain_name}</strong>
+                <strong style="color: ${domainNameColor};">${domain.domain_name}</strong>
                 <span style="float: right; color: #666;">${domain.user_count} users</span>
                 <div style="margin-top: 5px;">
                     ${domain.is_verified ? '<span style="color: green;">✅ Verified</span>' : '<span style="color: red;">❌ Not Verified</span>'}
@@ -2857,10 +2888,11 @@ function displayAvailableDomains(domains) {
         return;
     }
     
-    // Add summary at the top
+    // Add summary at the top with new three-state system
     const totalDomains = domains.length;
-    const usedDomains = domains.filter(d => d.is_used).length;
-    const availableDomains = domains.filter(d => !d.is_used).length;
+    const availableDomains = domains.filter(d => d.status === 'available').length;
+    const usedDomains = domains.filter(d => d.status === 'used').length;
+    const inUseDomains = domains.filter(d => d.status === 'in_use').length;
     const totalUsers = domains.reduce((sum, d) => sum + d.user_count, 0);
     
     let html = `
@@ -2880,7 +2912,11 @@ function displayAvailableDomains(domains) {
                     <div style="font-size: 11px; color: #666;">Used</div>
                 </div>
                 <div style="text-align: center; padding: 8px; background: white; border-radius: 5px;">
-                    <div style="font-size: 20px; font-weight: bold; color: #9C27B0;">${totalUsers}</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #9C27B0;">${inUseDomains}</div>
+                    <div style="font-size: 11px; color: #666;">In Use</div>
+                </div>
+                <div style="text-align: center; padding: 8px; background: white; border-radius: 5px;">
+                    <div style="font-size: 20px; font-weight: bold; color: #666;">${totalUsers}</div>
                     <div style="font-size: 11px; color: #666;">Users</div>
                 </div>
             </div>
@@ -2889,14 +2925,34 @@ function displayAvailableDomains(domains) {
     `;
     
     html += domains.map(domain => {
-        const isUsed = domain.is_used || false;
-        const domainClass = isUsed ? 'domain-item used-domain' : 'domain-item';
-        const clickHandler = isUsed ? '' : `onclick="selectDomain('${domain.domain_name}')"`;
-        const statusText = isUsed ? 'USED' : 'AVAILABLE';
-        const statusColor = isUsed ? 'red' : 'green';
+        // New three-state system
+        let statusColor, statusText, domainClass, clickHandler, domainNameColor;
+        
+        if (domain.status === 'in_use') {
+            // Purple - currently has users
+            statusColor = '#9C27B0';  // Purple
+            statusText = 'IN USE';
+            domainClass = 'domain-item in-use-domain';
+            clickHandler = '';  // Not selectable
+            domainNameColor = '#9C27B0';
+        } else if (domain.status === 'used') {
+            // Orange - previously used but no current users
+            statusColor = '#FF9800';  // Orange
+            statusText = 'USED';
+            domainClass = 'domain-item used-domain';
+            clickHandler = '';  // Not selectable
+            domainNameColor = '#FF9800';
+        } else {
+            // Green - never been used (available)
+            statusColor = '#4CAF50';  // Green
+            statusText = 'AVAILABLE';
+            domainClass = 'domain-item';
+            clickHandler = `onclick="selectDomain('${domain.domain_name}')"`;
+            domainNameColor = 'black';
+        }
         
         return `<div class="${domainClass}" ${clickHandler}>
-            <strong style="color: ${isUsed ? 'red' : 'black'};">${domain.domain_name}</strong>
+            <strong style="color: ${domainNameColor};">${domain.domain_name}</strong>
             <span style="float: right; color: #666; font-weight: bold;">${domain.user_count} users</span>
             <div style="margin-top: 5px;">
                 ${domain.verified ? '<span style="color: green;">✅ Verified</span>' : '<span style="color: red;">❌ Not Verified</span>'}
