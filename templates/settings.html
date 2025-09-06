@@ -133,6 +133,55 @@
         </form>
     </div>
 
+    <!-- Bulk Account Upload Section -->
+    <div class="github-card" style="margin-bottom: 24px;">
+        <div class="github-card-header">
+            <h3 class="github-card-title" style="font-size: 18px;">
+                <i class="fas fa-upload"></i>
+                Bulk Account Upload
+            </h3>
+        </div>
+        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
+            Upload authenticated Google Workspace accounts in JSON format. The accounts will be automatically added to the system with their tokens.
+        </p>
+        
+        <div class="form-group-github">
+            <label for="bulk-json-upload" class="form-label-github">
+                <i class="fas fa-file-code"></i> Upload JSON File
+            </label>
+            <input type="file" class="form-control-github" id="bulk-json-upload" accept=".json" 
+                   style="padding: 12px; border: 2px dashed #d0d7de; background: #f6f8fa;">
+            <small style="color: #656d76; font-size: 12px;">
+                Select a JSON file containing authenticated Google accounts with tokens, refresh tokens, and credentials.
+            </small>
+        </div>
+        
+        <div id="json-preview" style="display: none; margin: 16px 0;">
+            <h6 style="font-weight: 600; margin-bottom: 8px; color: #24292f;">
+                <i class="fas fa-eye"></i> Preview
+            </h6>
+            <div id="json-preview-content" style="background: #f6f8fa; padding: 16px; border-radius: 6px; border: 1px solid #d0d7de; max-height: 200px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px;">
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 16px; justify-content: center; margin-top: 24px;">
+            <button type="button" id="validate-json-btn" class="btn-github" onclick="validateJsonFile()" disabled>
+                <i class="fas fa-check"></i> Validate JSON
+            </button>
+            <button type="button" id="upload-accounts-btn" class="btn-github btn-github-primary" onclick="uploadBulkAccounts()" disabled>
+                <i class="fas fa-upload"></i> Upload Accounts
+            </button>
+        </div>
+        
+        <div id="upload-results" style="display: none; margin-top: 24px;">
+            <h6 style="font-weight: 600; margin-bottom: 16px; color: #24292f;">
+                <i class="fas fa-list-check"></i> Upload Results
+            </h6>
+            <div id="upload-results-content" style="background: #f6f8fa; padding: 16px; border-radius: 6px; border: 1px solid #d0d7de;">
+            </div>
+        </div>
+    </div>
+
     <!-- Current Configuration Display -->
     <div class="github-card">
         <div class="github-card-header">
@@ -205,6 +254,11 @@ $(document).ready(function() {
     $('#server-config-form').submit(function(e) {
         e.preventDefault();
         saveServerConfiguration();
+    });
+    
+    // Handle file upload
+    $('#bulk-json-upload').change(function(e) {
+        handleJsonFileSelection(e);
     });
 });
 
@@ -483,6 +537,275 @@ function showStatus(message, type) {
             $('#status-messages .alert-github').fadeOut();
         }, 5000);
     }
+}
+
+// Global variables for bulk upload
+let selectedJsonFile = null;
+let parsedJsonData = null;
+
+function handleJsonFileSelection(event) {
+    const file = event.target.files[0];
+    if (!file) {
+        resetBulkUploadUI();
+        return;
+    }
+    
+    selectedJsonFile = file;
+    
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.json')) {
+        showStatus('❌ Please select a valid JSON file', 'error');
+        resetBulkUploadUI();
+        return;
+    }
+    
+    // Read and parse the file
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const jsonContent = e.target.result;
+            parsedJsonData = JSON.parse(jsonContent);
+            
+            // Show preview
+            showJsonPreview(jsonContent);
+            
+            // Enable validation button
+            $('#validate-json-btn').prop('disabled', false);
+            
+            showStatus('📄 JSON file loaded successfully', 'info');
+            
+        } catch (error) {
+            showStatus('❌ Invalid JSON format: ' + error.message, 'error');
+            resetBulkUploadUI();
+        }
+    };
+    
+    reader.onerror = function() {
+        showStatus('❌ Failed to read file', 'error');
+        resetBulkUploadUI();
+    };
+    
+    reader.readAsText(file);
+}
+
+function showJsonPreview(jsonContent) {
+    const preview = $('#json-preview');
+    const content = $('#json-preview-content');
+    
+    // Show first 500 characters of JSON with formatting
+    let previewText = jsonContent;
+    if (previewText.length > 500) {
+        previewText = previewText.substring(0, 500) + '...';
+    }
+    
+    // Basic syntax highlighting for JSON
+    previewText = previewText
+        .replace(/(".*?")/g, '<span style="color: #032f62;">$1</span>')
+        .replace(/(true|false|null)/g, '<span style="color: #005cc5;">$1</span>')
+        .replace(/(\d+)/g, '<span style="color: #005cc5;">$1</span>');
+    
+    content.html('<pre style="margin: 0; white-space: pre-wrap;">' + previewText + '</pre>');
+    preview.show();
+}
+
+function validateJsonFile() {
+    if (!parsedJsonData) {
+        showStatus('❌ No JSON data to validate', 'error');
+        return;
+    }
+    
+    try {
+        const accounts = Object.keys(parsedJsonData);
+        const validAccounts = [];
+        const invalidAccounts = [];
+        
+        // Validate each account structure
+        for (const email of accounts) {
+            const accountData = parsedJsonData[email];
+            
+            // Check required fields for authenticated accounts
+            const requiredFields = ['token', 'refresh_token', 'token_uri', 'client_id', 'client_secret', 'scopes'];
+            const missingFields = requiredFields.filter(field => !accountData[field]);
+            
+            if (missingFields.length === 0) {
+                // Validate email format
+                if (email.includes('@')) {
+                    validAccounts.push(email);
+                } else {
+                    invalidAccounts.push({email, error: 'Invalid email format'});
+                }
+            } else {
+                invalidAccounts.push({email, error: `Missing fields: ${missingFields.join(', ')}`});
+            }
+        }
+        
+        // Show validation results
+        let validationHtml = `
+            <div style="margin-bottom: 16px;">
+                <strong>Validation Results:</strong>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <h6 style="color: #2da44e; margin-bottom: 8px;">
+                        <i class="fas fa-check-circle"></i> Valid Accounts (${validAccounts.length})
+                    </h6>
+                    <div style="background: #dafbe1; padding: 8px; border-radius: 4px; border: 1px solid #2da44e; max-height: 150px; overflow-y: auto;">
+        `;
+        
+        if (validAccounts.length > 0) {
+            validAccounts.forEach(email => {
+                validationHtml += `<div style="font-size: 12px; margin-bottom: 4px;">✅ ${email}</div>`;
+            });
+        } else {
+            validationHtml += `<div style="color: #656d76; font-style: italic;">No valid accounts found</div>`;
+        }
+        
+        validationHtml += `
+                    </div>
+                </div>
+                <div>
+                    <h6 style="color: #da3633; margin-bottom: 8px;">
+                        <i class="fas fa-exclamation-circle"></i> Invalid Accounts (${invalidAccounts.length})
+                    </h6>
+                    <div style="background: #ffebe9; padding: 8px; border-radius: 4px; border: 1px solid #da3633; max-height: 150px; overflow-y: auto;">
+        `;
+        
+        if (invalidAccounts.length > 0) {
+            invalidAccounts.forEach(item => {
+                validationHtml += `<div style="font-size: 12px; margin-bottom: 4px;">❌ ${item.email}: ${item.error}</div>`;
+            });
+        } else {
+            validationHtml += `<div style="color: #656d76; font-style: italic;">No invalid accounts</div>`;
+        }
+        
+        validationHtml += `
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Show results
+        $('#upload-results-content').html(validationHtml);
+        $('#upload-results').show();
+        
+        // Enable upload button if there are valid accounts
+        if (validAccounts.length > 0) {
+            $('#upload-accounts-btn').prop('disabled', false);
+            showStatus(`✅ Validation complete: ${validAccounts.length} valid accounts found`, 'success');
+        } else {
+            $('#upload-accounts-btn').prop('disabled', true);
+            showStatus('❌ No valid accounts found in the JSON file', 'error');
+        }
+        
+    } catch (error) {
+        showStatus('❌ Validation error: ' + error.message, 'error');
+    }
+}
+
+function uploadBulkAccounts() {
+    if (!parsedJsonData) {
+        showStatus('❌ No JSON data to upload', 'error');
+        return;
+    }
+    
+    // Confirm upload
+    const accountCount = Object.keys(parsedJsonData).length;
+    if (!confirm(`Are you sure you want to upload ${accountCount} accounts? This will add them to the database with their authentication tokens.`)) {
+        return;
+    }
+    
+    // Disable upload button and show loading
+    $('#upload-accounts-btn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Uploading...');
+    
+    showStatus('🔄 Uploading accounts...', 'info');
+    
+    // Send to backend
+    fetch('/api/bulk-upload-authenticated-accounts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({accounts: parsedJsonData})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show detailed results
+            let resultsHtml = `
+                <div style="margin-bottom: 16px;">
+                    <strong>Upload Complete:</strong>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div>
+                        <h6 style="color: #2da44e; margin-bottom: 8px;">
+                            <i class="fas fa-check-circle"></i> Successfully Added (${data.added_count})
+                        </h6>
+                        <div style="background: #dafbe1; padding: 8px; border-radius: 4px; border: 1px solid #2da44e; max-height: 150px; overflow-y: auto;">
+            `;
+            
+            if (data.added_accounts && data.added_accounts.length > 0) {
+                data.added_accounts.forEach(email => {
+                    resultsHtml += `<div style="font-size: 12px; margin-bottom: 4px;">✅ ${email}</div>`;
+                });
+            } else {
+                resultsHtml += `<div style="color: #656d76; font-style: italic;">No accounts added</div>`;
+            }
+            
+            resultsHtml += `
+                        </div>
+                    </div>
+                    <div>
+                        <h6 style="color: #da3633; margin-bottom: 8px;">
+                            <i class="fas fa-exclamation-circle"></i> Failed (${data.failed_accounts ? data.failed_accounts.length : 0})
+                        </h6>
+                        <div style="background: #ffebe9; padding: 8px; border-radius: 4px; border: 1px solid #da3633; max-height: 150px; overflow-y: auto;">
+            `;
+            
+            if (data.failed_accounts && data.failed_accounts.length > 0) {
+                data.failed_accounts.forEach(item => {
+                    resultsHtml += `<div style="font-size: 12px; margin-bottom: 4px;">❌ ${item.email}: ${item.error}</div>`;
+                });
+            } else {
+                resultsHtml += `<div style="color: #656d76; font-style: italic;">No failed accounts</div>`;
+            }
+            
+            resultsHtml += `
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            $('#upload-results-content').html(resultsHtml);
+            $('#upload-results').show();
+            
+            showStatus(`✅ ${data.message}`, 'success');
+            
+            // Reset form after successful upload
+            setTimeout(() => {
+                resetBulkUploadUI();
+            }, 3000);
+            
+        } else {
+            showStatus('❌ Upload failed: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Upload error:', error);
+        showStatus('❌ Network error: ' + error.message, 'error');
+    })
+    .finally(() => {
+        // Re-enable upload button
+        $('#upload-accounts-btn').prop('disabled', false).html('<i class="fas fa-upload"></i> Upload Accounts');
+    });
+}
+
+function resetBulkUploadUI() {
+    selectedJsonFile = null;
+    parsedJsonData = null;
+    
+    $('#bulk-json-upload').val('');
+    $('#json-preview').hide();
+    $('#upload-results').hide();
+    $('#validate-json-btn').prop('disabled', true);
+    $('#upload-accounts-btn').prop('disabled', true);
 }
 </script>
 {% endblock %}

@@ -2226,5 +2226,123 @@ If you received this email, the SMTP credentials are working correctly.
         app.logger.error(f"Error in SMTP testing: {e}")
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
 
+@app.route('/api/bulk-upload-authenticated-accounts', methods=['POST'])
+@login_required
+def api_bulk_upload_authenticated_accounts():
+    """Bulk upload authenticated Google accounts with tokens from JSON"""
+    # Check if user is mailer role (not allowed to add accounts)
+    if session.get('role') == 'mailer':
+        return jsonify({'success': False, 'error': 'Mailer users cannot add accounts'})
+    
+    try:
+        data = request.get_json()
+        accounts_data = data.get('accounts', {})
+        
+        if not accounts_data:
+            return jsonify({'success': False, 'error': 'No accounts data provided'})
+        
+        added_accounts = []
+        failed_accounts = []
+        
+        for email, account_info in accounts_data.items():
+            try:
+                # Validate required fields for authenticated accounts
+                required_fields = ['token', 'refresh_token', 'token_uri', 'client_id', 'client_secret', 'scopes']
+                missing_fields = [field for field in required_fields if not account_info.get(field)]
+                
+                if missing_fields:
+                    failed_accounts.append({
+                        'email': email,
+                        'error': f'Missing required fields: {", ".join(missing_fields)}'
+                    })
+                    continue
+                
+                # Validate email format
+                if '@' not in email:
+                    failed_accounts.append({
+                        'email': email,
+                        'error': 'Invalid email format'
+                    })
+                    continue
+                
+                # Check if account already exists
+                existing_account = GoogleAccount.query.filter_by(account_name=email).first()
+                if existing_account:
+                    failed_accounts.append({
+                        'email': email,
+                        'error': 'Account already exists'
+                    })
+                    continue
+                
+                # Create new GoogleAccount
+                new_account = GoogleAccount(
+                    account_name=email,
+                    client_id=account_info['client_id'],
+                    client_secret=account_info['client_secret']
+                )
+                db.session.add(new_account)
+                db.session.flush()  # Flush to get the account ID
+                
+                # Create GoogleToken with authentication data
+                new_token = GoogleToken(
+                    account_id=new_account.id,
+                    token=account_info['token'],
+                    refresh_token=account_info['refresh_token'],
+                    token_uri=account_info['token_uri']
+                )
+                db.session.add(new_token)
+                
+                # Add scopes
+                scopes = account_info.get('scopes', [])
+                if isinstance(scopes, list):
+                    for scope_name in scopes:
+                        # Check if scope exists, create if not
+                        scope = Scope.query.filter_by(name=scope_name).first()
+                        if not scope:
+                            scope = Scope(name=scope_name)
+                            db.session.add(scope)
+                            db.session.flush()  # Flush to get scope ID
+                        
+                        # Associate scope with token
+                        new_token.scopes.append(scope)
+                
+                added_accounts.append(email)
+                logging.info(f"Successfully added authenticated account: {email}")
+                
+            except Exception as e:
+                logging.error(f"Error processing account {email}: {e}")
+                failed_accounts.append({
+                    'email': email,
+                    'error': f'Processing error: {str(e)}'
+                })
+                continue
+        
+        # Commit all changes
+        db.session.commit()
+        
+        # Prepare response
+        added_count = len(added_accounts)
+        failed_count = len(failed_accounts)
+        
+        if added_count > 0:
+            message = f"Successfully added {added_count} authenticated account(s)"
+            if failed_count > 0:
+                message += f", {failed_count} failed"
+        else:
+            message = f"No accounts were added. {failed_count} failed"
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'added_count': added_count,
+            'added_accounts': added_accounts,
+            'failed_accounts': failed_accounts
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Bulk upload error: {e}")
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
+
 if __name__ == '__main__':
     app.run(debug=True)
