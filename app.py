@@ -1537,6 +1537,140 @@ def api_change_domain_all_users():
         logging.error(f"Change domain all users error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/change-domain', methods=['POST'])
+@login_required
+def api_change_domain():
+    """Change domain for specific users"""
+    try:
+        # Check if user is authenticated
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
+        
+        # Get the current authenticated account
+        account_name = session.get('current_account_name')
+        
+        # First, try to authenticate using saved tokens if service is not available
+        if not google_api.service:
+            # Check if we have valid tokens for this account
+            if google_api.is_token_valid(account_name):
+                success = google_api.authenticate_with_tokens(account_name)
+                if not success:
+                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
+            else:
+                return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
+        
+        # Get request data
+        data = request.get_json()
+        old_domain = data.get('old_domain', '').strip()
+        new_domain = data.get('new_domain', '').strip()
+        user_emails = data.get('user_emails', [])
+        
+        if not old_domain or not new_domain:
+            return jsonify({'success': False, 'error': 'Both old and new domain are required'})
+        
+        if old_domain == new_domain:
+            return jsonify({'success': False, 'error': 'Old and new domain cannot be the same'})
+        
+        if not user_emails:
+            return jsonify({'success': False, 'error': 'No user emails provided'})
+        
+        results = []
+        successful = 0
+        failed = 0
+        
+        try:
+            for email in user_emails:
+                try:
+                    # Extract username from old email
+                    if '@' not in email:
+                        failed += 1
+                        results.append({
+                            'success': False,
+                            'email': email,
+                            'error': 'Invalid email format'
+                        })
+                        continue
+                    
+                    username = email.split('@')[0]
+                    new_email = f"{username}@{new_domain}"
+                    
+                    # Update user's primary email
+                    user_body = {
+                        'primaryEmail': new_email
+                    }
+                    
+                    google_api.service.users().update(userKey=email, body=user_body).execute()
+                    
+                    successful += 1
+                    results.append({
+                        'success': True,
+                        'old_email': email,
+                        'new_email': new_email
+                    })
+                    
+                    logging.info(f"✅ Changed domain for user: {email} → {new_email}")
+                    
+                    # Add small delay to avoid API rate limits
+                    import time
+                    time.sleep(0.1)
+                    
+                except Exception as user_error:
+                    failed += 1
+                    results.append({
+                        'success': False,
+                        'email': email,
+                        'error': str(user_error)
+                    })
+                    logging.error(f"❌ Failed to update user {email}: {user_error}")
+                    continue
+            
+            # Update domain usage in database
+            try:
+                from database import UsedDomain
+                
+                # Update old domain user count (decrease by successful changes)
+                old_domain_record = UsedDomain.query.filter_by(domain_name=old_domain).first()
+                if old_domain_record:
+                    old_domain_record.user_count = max(0, old_domain_record.user_count - successful)
+                    old_domain_record.updated_at = db.func.current_timestamp()
+                
+                # Update new domain user count (increase by successful changes)
+                new_domain_record = UsedDomain.query.filter_by(domain_name=new_domain).first()
+                if new_domain_record:
+                    new_domain_record.user_count += successful
+                    new_domain_record.updated_at = db.func.current_timestamp()
+                else:
+                    # Create new domain record
+                    new_domain_record = UsedDomain(
+                        domain_name=new_domain,
+                        user_count=successful,
+                        is_verified=True
+                    )
+                    db.session.add(new_domain_record)
+                
+                db.session.commit()
+                logging.info(f"Updated domain usage: {old_domain} (-{successful}) → {new_domain} (+{successful})")
+                
+            except Exception as db_error:
+                logging.warning(f"Failed to update domain usage in database: {db_error}")
+                # Don't fail the entire operation for database update issues
+            
+            return jsonify({
+                'success': True,
+                'message': f'Domain change completed. {successful} successful, {failed} failed.',
+                'successful': successful,
+                'failed': failed,
+                'results': results
+            })
+            
+        except Exception as api_error:
+            logging.error(f"Google API error during domain change: {api_error}")
+            return jsonify({'success': False, 'error': f'Failed to change domains: {str(api_error)}'})
+            
+    except Exception as e:
+        logging.error(f"Change domain error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/debug-domain-users', methods=['POST'])
 @login_required
 def api_debug_domain_users():
