@@ -1494,17 +1494,30 @@ def api_change_domain_all_users():
             try:
                 from database import UsedDomain
                 
-                # Mark old domain as having 0 users
+                logging.info(f"Updating domain usage in database: {current_domain} → {new_domain}, successful changes: {successful}")
+                
+                # Mark old domain as having 0 users (or create if doesn't exist)
                 old_domain_record = UsedDomain.query.filter_by(domain_name=current_domain).first()
                 if old_domain_record:
                     old_domain_record.user_count = 0
                     old_domain_record.updated_at = db.func.current_timestamp()
+                    logging.info(f"Updated old domain {current_domain}: 0 users")
+                else:
+                    # Create record for old domain with 0 users
+                    old_domain_record = UsedDomain(
+                        domain_name=current_domain,
+                        user_count=0,
+                        is_verified=True
+                    )
+                    db.session.add(old_domain_record)
+                    logging.info(f"Created old domain record {current_domain}: 0 users")
                 
-                # Mark new domain as having users
+                # Mark new domain as having users (or create if doesn't exist)
                 new_domain_record = UsedDomain.query.filter_by(domain_name=new_domain).first()
                 if new_domain_record:
                     new_domain_record.user_count = successful
                     new_domain_record.updated_at = db.func.current_timestamp()
+                    logging.info(f"Updated new domain {new_domain}: {successful} users")
                 else:
                     new_domain_record = UsedDomain(
                         domain_name=new_domain,
@@ -1512,12 +1525,18 @@ def api_change_domain_all_users():
                         is_verified=True
                     )
                     db.session.add(new_domain_record)
+                    logging.info(f"Created new domain record {new_domain}: {successful} users")
                 
                 db.session.commit()
-                logging.info(f"Updated domain usage: {current_domain} → {new_domain}, users: {successful}")
+                logging.info(f"✅ Successfully updated domain usage in database: {current_domain} (0) → {new_domain} ({successful})")
                 
             except Exception as db_error:
-                logging.warning(f"Failed to update domain usage in database: {db_error}")
+                logging.error(f"❌ Failed to update domain usage in database: {db_error}")
+                try:
+                    db.session.rollback()
+                    logging.info("Database session rolled back")
+                except:
+                    pass
                 # Don't fail the entire operation for database update issues
             
             return jsonify({
@@ -2359,6 +2378,92 @@ If you received this email, the SMTP credentials are working correctly.
     except Exception as e:
         app.logger.error(f"Error in SMTP testing: {e}")
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
+
+@app.route('/api/refresh-domain-status', methods=['POST'])
+@login_required
+def api_refresh_domain_status():
+    """Refresh domain status by syncing with current Google Workspace users"""
+    try:
+        # Check if user is authenticated
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
+        
+        # Get the current authenticated account
+        account_name = session.get('current_account_name')
+        
+        # First, try to authenticate using saved tokens if service is not available
+        if not google_api.service:
+            # Check if we have valid tokens for this account
+            if google_api.is_token_valid(account_name):
+                success = google_api.authenticate_with_tokens(account_name)
+                if not success:
+                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
+            else:
+                return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
+        
+        try:
+            # Get all users from Google Admin API
+            users_result = google_api.service.users().list(customer='my_customer', maxResults=500).execute()
+            all_users = users_result.get('users', [])
+            
+            # Count users per domain
+            domain_user_counts = {}
+            for user in all_users:
+                email = user.get('primaryEmail', '')
+                if '@' in email:
+                    domain = email.split('@')[1]
+                    domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+            
+            # Update database with real user counts
+            from database import UsedDomain
+            
+            updated_domains = []
+            for domain_name, user_count in domain_user_counts.items():
+                try:
+                    existing_domain = UsedDomain.query.filter_by(domain_name=domain_name).first()
+                    if existing_domain:
+                        old_count = existing_domain.user_count
+                        existing_domain.user_count = user_count
+                        existing_domain.updated_at = db.func.current_timestamp()
+                        updated_domains.append(f"{domain_name}: {old_count} → {user_count} users")
+                    else:
+                        new_domain = UsedDomain(
+                            domain_name=domain_name,
+                            user_count=user_count,
+                            is_verified=True
+                        )
+                        db.session.add(new_domain)
+                        updated_domains.append(f"{domain_name}: NEW → {user_count} users")
+                except Exception as e:
+                    logging.warning(f"Failed to update domain {domain_name}: {e}")
+                    continue
+            
+            # Also set domains with 0 users to 0 (domains that no longer have users)
+            all_domains = UsedDomain.query.all()
+            for domain_record in all_domains:
+                if domain_record.domain_name not in domain_user_counts:
+                    if domain_record.user_count > 0:
+                        old_count = domain_record.user_count
+                        domain_record.user_count = 0
+                        domain_record.updated_at = db.func.current_timestamp()
+                        updated_domains.append(f"{domain_record.domain_name}: {old_count} → 0 users")
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Domain status refreshed successfully. Updated {len(updated_domains)} domains.',
+                'updated_domains': updated_domains,
+                'total_users': len(all_users)
+            })
+            
+        except Exception as api_error:
+            logging.error(f"Google API error during domain status refresh: {api_error}")
+            return jsonify({'success': False, 'error': f'Failed to refresh domain status: {str(api_error)}'})
+            
+    except Exception as e:
+        logging.error(f"Refresh domain status error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/bulk-upload-authenticated-accounts', methods=['POST'])
 @login_required

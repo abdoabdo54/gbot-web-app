@@ -328,6 +328,9 @@
             <button onclick="getDomainInfo()" class="btn-github btn-github-primary">
                 <i class="fas fa-search"></i> Retrieve Domains
             </button>
+            <button onclick="refreshDomainStatus()" class="btn-github" style="margin-left: 8px;">
+                <i class="fas fa-sync-alt"></i> Refresh Status
+            </button>
         </div>
         <div id="domain-info-display" class="data-display">
             <div class="status-info">
@@ -3075,14 +3078,8 @@ function changeDomainForAllUsers() {
     })
     .then(data => {
         if (data.success) {
-            if (data.successful > 0) {
-                // Only mark domain as used if there were successful changes
-                fetch('/api/mark-domain-used', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({domain: newDomain})
-                });
-            }
+            // Domain usage is already updated by the bulk change endpoint
+            // No need for additional API call to mark-domain-used
             logBulkDomain(`✅ Bulk domain change completed!`);
             logBulkDomain(`📊 Results: ${data.successful} successful, ${data.failed} failed, ${data.skipped} skipped (admin users)`);
             
@@ -3123,6 +3120,41 @@ function logBulkDomain(message) {
 
 function clearBulkDomainLog() {
     document.getElementById('bulk-domain-results').innerHTML = '<p class="placeholder-text">Processing results will appear here...</p>';
+}
+
+function refreshDomainStatus() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+    button.disabled = true;
+    
+    fetch('/api/refresh-domain-status', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ Domain status refreshed successfully!\n\n${data.message}\n\nUpdated domains:\n${data.updated_domains.join('\n')}`);
+            // Refresh the domain display
+            getDomainInfo();
+        } else {
+            alert('❌ Failed to refresh domain status: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Refresh domain status error:', error);
+        alert('❌ Network error: ' + error.message);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
 }
 
 // Tab 4 Functions - SMTP & CSV
