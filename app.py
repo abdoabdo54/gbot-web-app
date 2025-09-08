@@ -2795,19 +2795,102 @@ def generate_csv():
         if not domain:
             return jsonify({'success': False, 'error': 'Domain is required'})
         
-        # Generate CSV content
-        csv_content = "first_name,last_name,email,password\n"
+        # Get admin name for filename
+        admin_name = session.get('username', 'admin')
         
+        # Generate CSV content with realistic names
+        csv_content = "First Name [Required],Last Name [Required],Email Address [Required],Password [Required],Password Hash Function [UPLOAD ONLY],Org Unit Path [Required],New Primary Email [UPLOAD ONLY],Recovery Email,Home Secondary Email,Work Secondary Email,Recovery Phone [MUST BE IN THE E.164 FORMAT],Work Phone,Home Phone,Mobile Phone,Work Address,Home Address,Employee ID,Employee Type,Employee Title,Manager Email,Department,Cost Center,Building ID,Floor Name,Floor Section,Change Password at Next Sign-In,New Status [UPLOAD ONLY],Advanced Protection Program enrollment\n"
+        
+        # Realistic names database
+        first_names = [
+            "James", "Mary", "John", "Patricia", "Robert", "Jennifer", "Michael", "Linda", "William", "Elizabeth",
+            "David", "Barbara", "Richard", "Susan", "Joseph", "Jessica", "Thomas", "Sarah", "Christopher", "Karen",
+            "Charles", "Nancy", "Daniel", "Lisa", "Matthew", "Betty", "Anthony", "Helen", "Mark", "Sandra",
+            "Donald", "Donna", "Steven", "Carol", "Paul", "Ruth", "Andrew", "Sharon", "Joshua", "Michelle",
+            "Kenneth", "Laura", "Kevin", "Sarah", "Brian", "Kimberly", "George", "Deborah", "Edward", "Dorothy",
+            "Ronald", "Lisa", "Timothy", "Nancy", "Jason", "Karen", "Jeffrey", "Betty", "Ryan", "Helen",
+            "Jacob", "Sandra", "Gary", "Donna", "Nicholas", "Carol", "Eric", "Ruth", "Jonathan", "Sharon",
+            "Stephen", "Michelle", "Larry", "Laura", "Justin", "Sarah", "Scott", "Kimberly", "Brandon", "Deborah",
+            "Benjamin", "Dorothy", "Samuel", "Amy", "Gregory", "Angela", "Alexander", "Ashley", "Patrick", "Brenda",
+            "Jack", "Emma", "Dennis", "Olivia", "Jerry", "Cynthia", "Tyler", "Marie", "Aaron", "Janet",
+            "Jose", "Catherine", "Henry", "Frances", "Adam", "Christine", "Douglas", "Samantha", "Nathan", "Debra",
+            "Peter", "Rachel", "Zachary", "Carolyn", "Kyle", "Janet", "Noah", "Virginia", "Alan", "Maria",
+            "Ethan", "Heather", "Jeremy", "Diane", "Mason", "Julie", "Christian", "Joyce", "Keith", "Victoria",
+            "Roger", "Kelly", "Terry", "Christina", "Sean", "Joan", "Gerald", "Evelyn", "Harold", "Judith",
+            "Carl", "Megan", "Arthur", "Cheryl", "Ryan", "Andrea", "Lawrence", "Hannah", "Jesse", "Jacqueline",
+            "Austin", "Martha", "Joe", "Gloria", "Albert", "Teresa", "Wayne", "Sara", "Louis", "Janice",
+            "Philip", "Julia", "Johnny", "Marie", "Bobby", "Madison", "Noah", "Grace", "Eugene", "Judy",
+            "Howard", "Theresa", "Arthur", "Beverly", "Juan", "Denise", "Roy", "Marilyn", "Ralph", "Amber",
+            "Eugene", "Danielle", "Louis", "Rose", "Philip", "Brittany", "Johnny", "Diana", "Bobby", "Abigail",
+            "Victor", "Jane", "Ralph", "Lori", "Eugene", "Beverly", "Arthur", "Denise", "Juan", "Marilyn",
+            "Roy", "Amber", "Ralph", "Danielle", "Eugene", "Rose", "Louis", "Brittany", "Philip", "Diana",
+            "Johnny", "Abigail", "Bobby", "Jane", "Victor", "Lori", "Ralph", "Beverly", "Eugene", "Denise"
+        ]
+        
+        last_names = [
+            "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
+            "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
+            "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
+            "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores",
+            "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera", "Campbell", "Mitchell", "Carter", "Roberts",
+            "Gomez", "Phillips", "Evans", "Turner", "Diaz", "Parker", "Cruz", "Edwards", "Collins", "Reyes",
+            "Stewart", "Morris", "Morales", "Murphy", "Cook", "Rogers", "Gutierrez", "Ortiz", "Morgan", "Cooper",
+            "Peterson", "Bailey", "Reed", "Kelly", "Howard", "Ramos", "Kim", "Cox", "Ward", "Richardson",
+            "Watson", "Brooks", "Chavez", "Wood", "James", "Bennett", "Gray", "Mendoza", "Ruiz", "Hughes",
+            "Price", "Alvarez", "Castillo", "Sanders", "Patel", "Myers", "Long", "Ross", "Foster", "Jimenez",
+            "Powell", "Jenkins", "Perry", "Russell", "Sullivan", "Bell", "Coleman", "Butler", "Henderson", "Barnes",
+            "Gonzales", "Fisher", "Vasquez", "Simmons", "Romero", "Jordan", "Patterson", "Alexander", "Hamilton", "Graham",
+            "Reynolds", "Griffin", "Wallace", "Moreno", "West", "Cole", "Hayes", "Bryant", "Herrera", "Gibson",
+            "Ellis", "Tran", "Medina", "Aguilar", "Stevens", "Murray", "Ford", "Castro", "Marshall", "Owens",
+            "Harrison", "Fernandez", "McDonald", "Woods", "Washington", "Kennedy", "Wells", "Vargas", "Henry", "Chen",
+            "Freeman", "Webb", "Tucker", "Guzman", "Burns", "Crawford", "Olson", "Simpson", "Porter", "Hunter",
+            "Gordon", "Mendez", "Silva", "Shaw", "Snyder", "Mason", "Dixon", "Munoz", "Hunt", "Hicks",
+            "Holmes", "Palmer", "Wagner", "Black", "Robertson", "Boyd", "Rose", "Stone", "Salazar", "Fox",
+            "Warren", "Mills", "Meyer", "Rice", "Schmidt", "Garza", "Daniels", "Ferguson", "Nichols", "Stephens",
+            "Soto", "Weaver", "Ryan", "Gardner", "Payne", "Grant", "Dunn", "Kelley", "Spencer", "Hawkins",
+            "Arnold", "Pierce", "Vazquez", "Hansen", "Peters", "Santos", "Hart", "Bradley", "Knight", "Elliott",
+            "Cunningham", "Duncan", "Armstrong", "Hudson", "Carroll", "Lane", "Riley", "Andrews", "Alvarado", "Ray",
+            "Delgado", "Berry", "Perkins", "Hoffman", "Johnston", "Matthews", "Pena", "Richards", "Contreras", "Willis",
+            "Carpenter", "Lawrence", "Sandoval", "Guerrero", "George", "Chapman", "Rios", "Estrada", "Ortega", "Watkins",
+            "Greene", "Nunez", "Wheeler", "Valdez", "Harper", "Burke", "Larson", "Santiago", "Maldonado", "Morrison",
+            "Franklin", "Carlson", "Austin", "Dominguez", "Carr", "Lawson", "Jacobs", "Obrien", "Lynch", "Singh",
+            "Vega", "Bishop", "Montgomery", "Oliver", "Jensen", "Harvey", "Williamson", "Gilbert", "Dean", "Sims",
+            "Espinoza", "Howell", "Li", "Wong", "Reid", "Hanson", "Le", "McCoy", "Garrett", "Burton",
+            "Fuller", "Wang", "Weber", "Welch", "Rojas", "Lucas", "Marquez", "Fields", "Park", "Yang",
+            "Little", "Banks", "Padilla", "Day", "Walsh", "Bowman", "Schultz", "Luna", "Fowler", "Mejia",
+            "Davidson", "Acosta", "Brewer", "May", "Holland", "Juarez", "Newman", "Pearson", "Curtis", "Cortez",
+            "Douglas", "Schneider", "Joseph", "Barrett", "Navarro", "Figueroa", "Keller", "Avila", "Wade", "Molina",
+            "Stanley", "Anderson", "Yates", "Butler", "Hoffman", "Johnston", "Matthews", "Pena", "Richards", "Contreras"
+        ]
+        
+        # Generate unique names
+        used_names = set()
         for i in range(1, num_users + 1):
-            first_name = f"User{i:03d}"
-            last_name = "Test"
-            email = f"user{i:03d}@{domain}"
-            csv_content += f"{first_name},{last_name},{email},{password}\n"
+            # Generate unique name combination
+            while True:
+                first_name = random.choice(first_names)
+                last_name = random.choice(last_names)
+                name_key = f"{first_name}_{last_name}"
+                if name_key not in used_names:
+                    used_names.add(name_key)
+                    break
+            
+            # Generate email with random number
+            email_number = random.randint(100, 999)
+            email = f"{first_name.lower()}.{last_name.lower()}{email_number}@{domain}"
+            
+            # Create CSV row matching the exact format from your example
+            csv_content += f"{first_name},{last_name},{email},{password},,/,{email},,,,,,,,,,,,,,,,,,,False,,False\n"
+        
+        # Generate filename with admin name and timestamp
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{admin_name}_{domain}_Generated_{num_users}_Users_{timestamp}.csv"
         
         return jsonify({
             'success': True,
             'csv_data': csv_content,
-            'filename': f"users_{domain}_{num_users}.csv"
+            'filename': filename
         })
         
     except Exception as e:
@@ -2830,14 +2913,56 @@ def preview_csv():
         if not domain:
             domain = 'example.com'
         
-        # Generate preview CSV content
-        csv_content = "first_name,last_name,email,password\n"
+        # Generate preview CSV content with realistic names
+        csv_content = "First Name [Required],Last Name [Required],Email Address [Required],Password [Required],Password Hash Function [UPLOAD ONLY],Org Unit Path [Required],New Primary Email [UPLOAD ONLY],Recovery Email,Home Secondary Email,Work Secondary Email,Recovery Phone [MUST BE IN THE E.164 FORMAT],Work Phone,Home Phone,Mobile Phone,Work Address,Home Address,Employee ID,Employee Type,Employee Title,Manager Email,Department,Cost Center,Building ID,Floor Name,Floor Section,Change Password at Next Sign-In,New Status [UPLOAD ONLY],Advanced Protection Program enrollment\n"
         
+        # Realistic names database (same as generate_csv)
+        first_names = [
+            "James", "Mary", "John", "Patricia", "Robert", "Jennifer", "Michael", "Linda", "William", "Elizabeth",
+            "David", "Barbara", "Richard", "Susan", "Joseph", "Jessica", "Thomas", "Sarah", "Christopher", "Karen",
+            "Charles", "Nancy", "Daniel", "Lisa", "Matthew", "Betty", "Anthony", "Helen", "Mark", "Sandra",
+            "Donald", "Donna", "Steven", "Carol", "Paul", "Ruth", "Andrew", "Sharon", "Joshua", "Michelle",
+            "Kenneth", "Laura", "Kevin", "Sarah", "Brian", "Kimberly", "George", "Deborah", "Edward", "Dorothy",
+            "Ronald", "Lisa", "Timothy", "Nancy", "Jason", "Karen", "Jeffrey", "Betty", "Ryan", "Helen",
+            "Jacob", "Sandra", "Gary", "Donna", "Nicholas", "Carol", "Eric", "Ruth", "Jonathan", "Sharon",
+            "Stephen", "Michelle", "Larry", "Laura", "Justin", "Sarah", "Scott", "Kimberly", "Brandon", "Deborah",
+            "Benjamin", "Dorothy", "Samuel", "Amy", "Gregory", "Angela", "Alexander", "Ashley", "Patrick", "Brenda",
+            "Jack", "Emma", "Dennis", "Olivia", "Jerry", "Cynthia", "Tyler", "Marie", "Aaron", "Janet",
+            "Jose", "Catherine", "Henry", "Frances", "Adam", "Christine", "Douglas", "Samantha", "Nathan", "Debra"
+        ]
+        
+        last_names = [
+            "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
+            "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
+            "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
+            "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores",
+            "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera", "Campbell", "Mitchell", "Carter", "Roberts",
+            "Gomez", "Phillips", "Evans", "Turner", "Diaz", "Parker", "Cruz", "Edwards", "Collins", "Reyes",
+            "Stewart", "Morris", "Morales", "Murphy", "Cook", "Rogers", "Gutierrez", "Ortiz", "Morgan", "Cooper",
+            "Peterson", "Bailey", "Reed", "Kelly", "Howard", "Ramos", "Kim", "Cox", "Ward", "Richardson",
+            "Watson", "Brooks", "Chavez", "Wood", "James", "Bennett", "Gray", "Mendoza", "Ruiz", "Hughes",
+            "Price", "Alvarez", "Castillo", "Sanders", "Patel", "Myers", "Long", "Ross", "Foster", "Jimenez",
+            "Powell", "Jenkins", "Perry", "Russell", "Sullivan", "Bell", "Coleman", "Butler", "Henderson", "Barnes"
+        ]
+        
+        # Generate unique names for preview
+        used_names = set()
         for i in range(1, num_users + 1):
-            first_name = f"User{i:03d}"
-            last_name = "Test"
-            email = f"user{i:03d}@{domain}"
-            csv_content += f"{first_name},{last_name},{email},{password}\n"
+            # Generate unique name combination
+            while True:
+                first_name = random.choice(first_names)
+                last_name = random.choice(last_names)
+                name_key = f"{first_name}_{last_name}"
+                if name_key not in used_names:
+                    used_names.add(name_key)
+                    break
+            
+            # Generate email with random number
+            email_number = random.randint(100, 999)
+            email = f"{first_name.lower()}.{last_name.lower()}{email_number}@{domain}"
+            
+            # Create CSV row matching the exact format from your example
+            csv_content += f"{first_name},{last_name},{email},{password},,/,{email},,,,,,,,,,,,,,,,,,,False,,False\n"
         
         return jsonify({
             'success': True,
