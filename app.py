@@ -10,6 +10,8 @@ import smtplib
 import tempfile
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging.handlers
+import threading
+import uuid
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -19,6 +21,60 @@ from email.mime.multipart import MIMEMultipart
 
 from core_logic import google_api
 from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope
+
+# Progress tracking system for domain changes
+progress_tracker = {}
+progress_lock = threading.Lock()
+
+def update_progress(task_id, current, total, status="processing", message=""):
+    """Update progress for a task"""
+    with progress_lock:
+        progress_tracker[task_id] = {
+            'current': current,
+            'total': total,
+            'status': status,  # processing, completed, error
+            'message': message,
+            'percentage': int((current / total) * 100) if total > 0 else 0,
+            'timestamp': datetime.now().isoformat()
+        }
+
+def get_progress(task_id):
+    """Get current progress for a task"""
+    with progress_lock:
+        return progress_tracker.get(task_id, {
+            'current': 0,
+            'total': 0,
+            'status': 'not_found',
+            'message': 'Task not found',
+            'percentage': 0,
+            'timestamp': datetime.now().isoformat()
+        })
+
+def clear_progress(task_id):
+    """Clear progress for a task"""
+    with progress_lock:
+        if task_id in progress_tracker:
+            del progress_tracker[task_id]
+
+def cleanup_old_progress():
+    """Clean up old progress entries to prevent memory leaks"""
+    with progress_lock:
+        current_time = datetime.now()
+        expired_tasks = []
+        
+        for task_id, progress in progress_tracker.items():
+            # Remove tasks older than 1 hour or completed/error tasks older than 5 minutes
+            task_time = datetime.fromisoformat(progress['timestamp'])
+            age_minutes = (current_time - task_time).total_seconds() / 60
+            
+            if age_minutes > 60 or (progress['status'] in ['completed', 'error'] and age_minutes > 5):
+                expired_tasks.append(task_id)
+        
+        for task_id in expired_tasks:
+            del progress_tracker[task_id]
+        
+        if expired_tasks:
+            logging.info(f"Cleaned up {len(expired_tasks)} old progress entries")
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -2395,8 +2451,10 @@ def add_from_server_json():
 @login_required
 def test_smtp_credentials():
     """Test SMTP credentials by sending test emails"""
-    if session.get('role') != 'admin':
-        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    # Allow all user types (admin, mailer, support) to test SMTP
+    user_role = session.get('role')
+    if user_role not in ['admin', 'mailer', 'support']:
+        return jsonify({'success': False, 'error': 'Access denied. Valid user role required.'})
     
     try:
         data = request.get_json()
@@ -2720,6 +2778,303 @@ def api_bulk_upload_authenticated_accounts():
         db.session.rollback()
         logging.error(f"Bulk upload error: {e}")
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
+
+@app.route('/api/generate-csv', methods=['POST'])
+@login_required
+def generate_csv():
+    """Generate CSV file with sample users"""
+    try:
+        data = request.get_json()
+        num_users = int(data.get('num_users', 50))
+        domain = data.get('domain', 'example.com').strip()
+        password = data.get('password', 'DefaultPass123').strip()
+        
+        if num_users < 1 or num_users > 1000:
+            return jsonify({'success': False, 'error': 'Number of users must be between 1 and 1000'})
+        
+        if not domain:
+            return jsonify({'success': False, 'error': 'Domain is required'})
+        
+        # Generate CSV content
+        csv_content = "first_name,last_name,email,password\n"
+        
+        for i in range(1, num_users + 1):
+            first_name = f"User{i:03d}"
+            last_name = "Test"
+            email = f"user{i:03d}@{domain}"
+            csv_content += f"{first_name},{last_name},{email},{password}\n"
+        
+        return jsonify({
+            'success': True,
+            'csv_data': csv_content,
+            'filename': f"users_{domain}_{num_users}.csv"
+        })
+        
+    except Exception as e:
+        logging.error(f"CSV generation error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/preview-csv', methods=['POST'])
+@login_required
+def preview_csv():
+    """Preview CSV content without downloading"""
+    try:
+        data = request.get_json()
+        num_users = int(data.get('num_users', 5))
+        domain = data.get('domain', 'example.com').strip()
+        password = data.get('password', 'DefaultPass123').strip()
+        
+        if num_users < 1 or num_users > 10:
+            num_users = min(num_users, 10)  # Limit preview to 10 users
+        
+        if not domain:
+            domain = 'example.com'
+        
+        # Generate preview CSV content
+        csv_content = "first_name,last_name,email,password\n"
+        
+        for i in range(1, num_users + 1):
+            first_name = f"User{i:03d}"
+            last_name = "Test"
+            email = f"user{i:03d}@{domain}"
+            csv_content += f"{first_name},{last_name},{email},{password}\n"
+        
+        return jsonify({
+            'success': True,
+            'csv_data': csv_content,
+            'num_users': num_users
+        })
+        
+    except Exception as e:
+        logging.error(f"CSV preview error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/progress/<task_id>', methods=['GET'])
+@login_required
+def get_task_progress(task_id):
+    """Get progress for a specific task"""
+    try:
+        # Clean up old progress entries periodically
+        cleanup_old_progress()
+        
+        progress = get_progress(task_id)
+        return jsonify({
+            'success': True,
+            'progress': progress
+        })
+    except Exception as e:
+        logging.error(f"Progress tracking error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/change-domain-all-users-async', methods=['POST'])
+@login_required
+def api_change_domain_all_users_async():
+    """Start async domain change process and return task ID"""
+    try:
+        # Check if user is authenticated
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
+        
+        # Get request data
+        data = request.get_json()
+        current_domain = data.get('current_domain', '').strip()
+        new_domain = data.get('new_domain', '').strip()
+        exclude_admin = data.get('exclude_admin', True)
+        
+        if not current_domain or not new_domain:
+            return jsonify({'success': False, 'error': 'Both current and new domain are required'})
+        
+        if current_domain == new_domain:
+            return jsonify({'success': False, 'error': 'Current and new domain cannot be the same'})
+        
+        # Generate unique task ID
+        task_id = str(uuid.uuid4())
+        
+        # Start the domain change process in a separate thread
+        thread = threading.Thread(
+            target=process_domain_change_async,
+            args=(task_id, current_domain, new_domain, exclude_admin, session.get('current_account_name'))
+        )
+        thread.daemon = True
+        thread.start()
+        
+        # Initialize progress
+        update_progress(task_id, 0, 100, "starting", "Initializing domain change process...")
+        
+        return jsonify({
+            'success': True,
+            'task_id': task_id,
+            'message': 'Domain change process started'
+        })
+        
+    except Exception as e:
+        logging.error(f"Async domain change error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+def process_domain_change_async(task_id, current_domain, new_domain, exclude_admin, account_name):
+    """Process domain change asynchronously with progress updates"""
+    try:
+        update_progress(task_id, 5, 100, "processing", "Authenticating with Google API...")
+        
+        # Authenticate with Google API
+        if not google_api.service:
+            if google_api.is_token_valid(account_name):
+                success = google_api.authenticate_with_tokens(account_name)
+                if not success:
+                    update_progress(task_id, 0, 100, "error", "Failed to authenticate with saved tokens")
+                    return
+            else:
+                update_progress(task_id, 0, 100, "error", "No valid tokens found")
+                return
+        
+        update_progress(task_id, 10, 100, "processing", "Fetching users from Google Workspace...")
+        
+        # Get all users
+        all_users_result = google_api.service.users().list(
+            customer='my_customer',
+            maxResults=500
+        ).execute()
+        
+        all_users = all_users_result.get('users', [])
+        
+        # Filter users by domain
+        users = []
+        for user in all_users:
+            email = user.get('primaryEmail', '')
+            if email and email.endswith(f"@{current_domain}"):
+                users.append(user)
+        
+        total_users = len(users)
+        update_progress(task_id, 20, 100, "processing", f"Found {total_users} users to process...")
+        
+        if not users:
+            update_progress(task_id, 100, 100, "completed", f"No users found with domain {current_domain}")
+            return
+        
+        # Update domain status in database
+        update_progress(task_id, 25, 100, "processing", "Updating domain status in database...")
+        
+        try:
+            from database import UsedDomain
+            
+            # Mark old domain as used
+            old_domain_record = UsedDomain.query.filter_by(domain_name=current_domain).first()
+            if old_domain_record:
+                old_domain_record.user_count = 0
+                try:
+                    old_domain_record.ever_used = True
+                except:
+                    pass
+                old_domain_record.updated_at = db.func.current_timestamp()
+            else:
+                try:
+                    old_domain_record = UsedDomain(
+                        domain_name=current_domain,
+                        user_count=0,
+                        ever_used=True,
+                        is_verified=True
+                    )
+                except:
+                    old_domain_record = UsedDomain(
+                        domain_name=current_domain,
+                        user_count=0,
+                        is_verified=True
+                    )
+                db.session.add(old_domain_record)
+            
+            # Mark new domain as in use
+            new_domain_record = UsedDomain.query.filter_by(domain_name=new_domain).first()
+            if new_domain_record:
+                new_domain_record.user_count = total_users
+                try:
+                    new_domain_record.ever_used = True
+                except:
+                    pass
+                new_domain_record.updated_at = db.func.current_timestamp()
+            else:
+                try:
+                    new_domain_record = UsedDomain(
+                        domain_name=new_domain,
+                        user_count=total_users,
+                        ever_used=True,
+                        is_verified=True
+                    )
+                except:
+                    new_domain_record = UsedDomain(
+                        domain_name=new_domain,
+                        user_count=total_users,
+                        is_verified=True
+                    )
+                db.session.add(new_domain_record)
+            
+            db.session.commit()
+            
+        except Exception as db_error:
+            logging.error(f"Failed to update domain status: {db_error}")
+            db.session.rollback()
+        
+        update_progress(task_id, 30, 100, "processing", "Starting user domain updates...")
+        
+        # Process users
+        successful = 0
+        failed = 0
+        skipped = 0
+        
+        for i, user in enumerate(users):
+            try:
+                email = user.get('primaryEmail', '')
+                if not email:
+                    continue
+                
+                # Check if user is admin (skip if exclude_admin is True)
+                if exclude_admin and user.get('isAdmin', False):
+                    skipped += 1
+                    continue
+                
+                # Create new email with new domain
+                username = email.split('@')[0]
+                new_email = f"{username}@{new_domain}"
+                
+                # Update user's primary email
+                user_update = {
+                    'primaryEmail': new_email
+                }
+                
+                google_api.service.users().update(
+                    userKey=email,
+                    body=user_update
+                ).execute()
+                
+                successful += 1
+                
+                # Update progress
+                progress_percentage = 30 + int((i + 1) / total_users * 65)  # 30-95%
+                update_progress(task_id, progress_percentage, 100, "processing", 
+                              f"Updated {i+1}/{total_users} users ({successful} successful, {failed} failed, {skipped} skipped)")
+                
+                # Small delay to avoid rate limiting
+                time.sleep(0.1)
+                
+            except Exception as user_error:
+                failed += 1
+                logging.error(f"Failed to update user {email}: {user_error}")
+        
+        # Final update
+        update_progress(task_id, 100, 100, "completed", 
+                       f"Domain change completed! {successful} successful, {failed} failed, {skipped} skipped")
+        
+        # Schedule cleanup of this task after 5 minutes
+        def delayed_cleanup():
+            time.sleep(300)  # 5 minutes
+            clear_progress(task_id)
+        
+        cleanup_thread = threading.Thread(target=delayed_cleanup)
+        cleanup_thread.daemon = True
+        cleanup_thread.start()
+        
+    except Exception as e:
+        logging.error(f"Async domain change process error: {e}")
+        update_progress(task_id, 0, 100, "error", f"Process failed: {str(e)}")
 
 if __name__ == '__main__':
     app.run(debug=True)

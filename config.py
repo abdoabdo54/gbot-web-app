@@ -12,7 +12,18 @@ ENABLE_IP_WHITELIST = os.environ.get('ENABLE_IP_WHITELIST', 'True').lower() == '
 ALLOW_ALL_IPS_IN_DEV = os.environ.get('ALLOW_ALL_IPS_IN_DEV', 'False').lower() == 'true'  # Default to False for security
 
 # Database Configuration
-SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'postgresql://user:password@localhost/gbot_db')
+# Use PostgreSQL for production (Ubuntu server), SQLite for local development
+if os.environ.get('DATABASE_URL'):
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+else:
+    # Check if we're in production environment (Ubuntu server)
+    if os.environ.get('FLASK_ENV') == 'production' or os.path.exists('/etc/nginx/sites-available/gbot'):
+        # Production environment - use PostgreSQL
+        SQLALCHEMY_DATABASE_URI = 'postgresql://gbot_user:gbot_password@localhost/gbot_db'
+    else:
+        # Development environment - use SQLite
+        db_path = os.path.join(os.path.dirname(__file__), 'instance', 'gbot.db')
+        SQLALCHEMY_DATABASE_URI = f'sqlite:///{db_path}'
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 # Production Settings

@@ -582,6 +582,22 @@
         <button onclick="changeDomainForAllUsers()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
             <i class="fas fa-exchange-alt"></i> Change Domain for ALL Matching Users (Non-Admin)
         </button>
+        
+        <!-- Progress Indicator -->
+        <div id="domain-change-progress" class="progress-container" style="display: none; margin-top: 20px;">
+            <div class="progress-header">
+                <h4 style="margin: 0; color: var(--color-fg-default);">
+                    <i class="fas fa-spinner fa-spin"></i> Domain Change Progress
+                </h4>
+                <span id="progress-percentage" style="color: var(--color-fg-muted);">0%</span>
+            </div>
+            <div class="progress-bar-container">
+                <div id="progress-bar" class="progress-bar" style="width: 0%;"></div>
+            </div>
+            <div id="progress-message" class="progress-message" style="margin-top: 8px; color: var(--color-fg-muted); font-size: 14px;">
+                Initializing...
+            </div>
+        </div>
     </div>
 
     <!-- Results Log (Covers Both Workflows) -->
@@ -3109,9 +3125,21 @@ function changeDomainForAllUsers() {
         return;
     }
     
+    // Show progress indicator
+    const progressContainer = document.getElementById('domain-change-progress');
+    const progressBar = document.getElementById('progress-bar');
+    const progressPercentage = document.getElementById('progress-percentage');
+    const progressMessage = document.getElementById('progress-message');
+    
+    progressContainer.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressPercentage.textContent = '0%';
+    progressMessage.textContent = 'Starting domain change process...';
+    
     logBulkDomain(`🔄 Starting bulk domain change: ${currentDomain} → ${newDomain}`);
     
-    fetch('/api/change-domain-all-users', {
+    // Start async domain change process
+    fetch('/api/change-domain-all-users-async', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -3121,7 +3149,6 @@ function changeDomainForAllUsers() {
         })
     })
     .then(response => {
-        // Check if response is actually JSON
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
@@ -3129,33 +3156,69 @@ function changeDomainForAllUsers() {
         return response.json();
     })
     .then(data => {
-        if (data.success) {
-            // Domain usage is already updated by the bulk change endpoint
-            // No need for additional API call to mark-domain-used
-            logBulkDomain(`✅ Bulk domain change completed!`);
-            logBulkDomain(`📊 Results: ${data.successful} successful, ${data.failed} failed, ${data.skipped} skipped (admin users)`);
-            
-            if (data.results) {
-                data.results.forEach(result => {
-                    if (result.success) {
-                        logBulkDomain(`✅ Updated: ${result.old_email} → ${result.new_email}`);
-                    } else if (result.skipped) {
-                        logBulkDomain(`⏭️ Skipped: ${result.email} (admin user)`);
-                    } else {
-                        logBulkDomain(`❌ Failed: ${result.email} - ${result.error}`);
-                    }
-                });
-            }
+        if (data.success && data.task_id) {
+            // Start polling for progress updates
+            pollProgress(data.task_id);
         } else {
-            logBulkDomain(`❌ Bulk domain change failed: ${data.error}`);
-            alert('Bulk domain change failed: ' + data.error);
+            throw new Error(data.error || 'Failed to start domain change process');
         }
     })
     .catch(error => {
-        logBulkDomain(`❌ Network error: ${error.message}`);
-        console.error('Full error:', error);
-        alert('Network error: ' + error.message);
+        console.error('Domain change start error:', error);
+        logBulkDomain(`❌ Failed to start domain change: ${error.message}`);
+        progressContainer.style.display = 'none';
     });
+}
+
+function pollProgress(taskId) {
+    const progressBar = document.getElementById('progress-bar');
+    const progressPercentage = document.getElementById('progress-percentage');
+    const progressMessage = document.getElementById('progress-message');
+    const progressContainer = document.getElementById('domain-change-progress');
+    
+    const poll = () => {
+        fetch(`/api/progress/${taskId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.progress) {
+                const progress = data.progress;
+                
+                // Update progress bar
+                progressBar.style.width = `${progress.percentage}%`;
+                progressPercentage.textContent = `${progress.percentage}%`;
+                progressMessage.textContent = progress.message;
+                
+                // Update log with progress
+                if (progress.status === 'processing') {
+                    logBulkDomain(`🔄 ${progress.message} (${progress.percentage}%)`);
+                } else if (progress.status === 'completed') {
+                    logBulkDomain(`✅ ${progress.message}`);
+                    progressContainer.style.display = 'none';
+                    return; // Stop polling
+                } else if (progress.status === 'error') {
+                    logBulkDomain(`❌ ${progress.message}`);
+                    progressContainer.style.display = 'none';
+                    return; // Stop polling
+                }
+                
+                // Continue polling if still processing
+                if (progress.status === 'processing' || progress.status === 'starting') {
+                    setTimeout(poll, 1000); // Poll every second
+                }
+            } else {
+                logBulkDomain(`❌ Failed to get progress: ${data.error || 'Unknown error'}`);
+                progressContainer.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Progress polling error:', error);
+            logBulkDomain(`❌ Progress polling failed: ${error.message}`);
+            progressContainer.style.display = 'none';
+        });
+    };
+    
+    // Start polling
+    poll();
 }
 
 function logBulkDomain(message) {
