@@ -3138,20 +3138,9 @@ function changeDomainForAllUsers() {
     
     logBulkDomain(`🔄 Starting bulk domain change: ${currentDomain} → ${newDomain}`);
     
-    // Start domain change process (using working synchronous function)
+    // Start async domain change process
     console.log(`Starting domain change: ${currentDomain} -> ${newDomain}`);
-    
-    // Start progress animation
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-        progress += Math.random() * 15; // Random progress increments
-        if (progress > 90) progress = 90; // Don't go to 100% until done
-        progressBar.style.width = `${progress}%`;
-        progressPercentage.textContent = `${Math.round(progress)}%`;
-        progressMessage.textContent = `Processing domain change... ${Math.round(progress)}%`;
-    }, 500);
-    
-    fetch('/api/change-domain-all-users', {
+    fetch('/api/change-domain-all-users-async', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -3170,28 +3159,16 @@ function changeDomainForAllUsers() {
     })
     .then(data => {
         console.log(`Domain change response data:`, data);
-        // Clear progress animation
-        clearInterval(progressInterval);
-        
-        if (data.success) {
-            // Domain change completed successfully
-            logBulkDomain(`✅ ${data.message || 'Domain change completed successfully!'}`);
-            progressBar.style.width = '100%';
-            progressPercentage.textContent = '100%';
-            progressMessage.textContent = 'Domain change completed successfully!';
-            
-            // Hide progress indicator after 3 seconds
-            setTimeout(() => {
-                progressContainer.style.display = 'none';
-            }, 3000);
+        if (data.success && data.task_id) {
+            console.log(`Starting polling for task: ${data.task_id}`);
+            // Start polling for progress updates
+            pollProgress(data.task_id);
                     } else {
-            throw new Error(data.error || 'Failed to change domains');
+            throw new Error(data.error || 'Failed to start domain change process');
         }
     })
     .catch(error => {
         console.error('Domain change start error:', error);
-        // Clear progress animation
-        clearInterval(progressInterval);
         logBulkDomain(`❌ Failed to start domain change: ${error.message}`);
         progressContainer.style.display = 'none';
     });
