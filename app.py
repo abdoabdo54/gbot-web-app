@@ -3051,10 +3051,13 @@ def api_change_domain_all_users_async():
         task_id = str(uuid.uuid4())
         logging.info(f"Created task ID: {task_id} for domain change: {current_domain} -> {new_domain}")
         
+        # Get account name before starting thread (to avoid request context issues)
+        account_name = session.get('current_account_name')
+        
         # Start the domain change process in a separate thread
         thread = threading.Thread(
             target=process_domain_change_async,
-            args=(task_id, current_domain, new_domain, exclude_admin, session.get('current_account_name'))
+            args=(task_id, current_domain, new_domain, exclude_admin, account_name)
         )
         thread.daemon = True
         thread.start()
@@ -3075,178 +3078,179 @@ def api_change_domain_all_users_async():
 
 def process_domain_change_async(task_id, current_domain, new_domain, exclude_admin, account_name):
     """Process domain change asynchronously with progress updates"""
-    try:
-        logging.info(f"Starting async domain change process: {task_id}")
-        update_progress(task_id, 5, 100, "processing", "Authenticating with Google API...")
-        
-        # Authenticate with Google API
-        if not google_api.service:
-            logging.info(f"Google API service not available, attempting authentication for account: {account_name}")
-            if google_api.is_token_valid(account_name):
-                success = google_api.authenticate_with_tokens(account_name)
-                if not success:
-                    error_msg = "Failed to authenticate with saved tokens"
-                    logging.error(f"Authentication failed for {account_name}: {error_msg}")
+    # Create a new database session for this thread
+    from database import db
+    with db.app.app_context():
+        try:
+            logging.info(f"Starting async domain change process: {task_id}")
+            update_progress(task_id, 5, 100, "processing", "Authenticating with Google API...")
+            
+            # Authenticate with Google API
+            if not google_api.service:
+                logging.info(f"Google API service not available, attempting authentication for account: {account_name}")
+                if google_api.is_token_valid(account_name):
+                    success = google_api.authenticate_with_tokens(account_name)
+                    if not success:
+                        error_msg = "Failed to authenticate with saved tokens"
+                        logging.error(f"Authentication failed for {account_name}: {error_msg}")
+                        update_progress(task_id, 0, 100, "error", error_msg)
+                        return
+                    else:
+                        logging.info(f"Successfully authenticated with saved tokens for {account_name}")
+                else:
+                    error_msg = "No valid tokens found"
+                    logging.error(f"No valid tokens for {account_name}: {error_msg}")
                     update_progress(task_id, 0, 100, "error", error_msg)
                     return
-                else:
-                    logging.info(f"Successfully authenticated with saved tokens for {account_name}")
             else:
-                error_msg = "No valid tokens found"
-                logging.error(f"No valid tokens for {account_name}: {error_msg}")
-                update_progress(task_id, 0, 100, "error", error_msg)
-                return
-        else:
-            logging.info(f"Google API service already available")
-        
-        update_progress(task_id, 10, 100, "processing", "Fetching users from Google Workspace...")
-        
-        # Get all users
-        all_users_result = google_api.service.users().list(
-            customer='my_customer',
-            maxResults=500
-        ).execute()
-        
-        all_users = all_users_result.get('users', [])
-        
-        # Filter users by domain
-        users = []
-        for user in all_users:
-            email = user.get('primaryEmail', '')
-            if email and email.endswith(f"@{current_domain}"):
-                users.append(user)
-        
-        total_users = len(users)
-        update_progress(task_id, 20, 100, "processing", f"Found {total_users} users to process...")
-        
-        if not users:
-            update_progress(task_id, 100, 100, "completed", f"No users found with domain {current_domain}")
-            return
-        
-        # Update domain status in database
-        update_progress(task_id, 25, 100, "processing", "Updating domain status in database...")
-        
-        try:
-            from database import UsedDomain
+                logging.info(f"Google API service already available")
             
-            # Mark old domain as used
-            old_domain_record = UsedDomain.query.filter_by(domain_name=current_domain).first()
-            if old_domain_record:
-                old_domain_record.user_count = 0
-                try:
-                    old_domain_record.ever_used = True
-                except:
-                    pass
-                old_domain_record.updated_at = db.func.current_timestamp()
-            else:
-                try:
-                    old_domain_record = UsedDomain(
-                        domain_name=current_domain,
-                        user_count=0,
-                        ever_used=True,
-                        is_verified=True
-                    )
-                except:
-                    old_domain_record = UsedDomain(
-                        domain_name=current_domain,
-                        user_count=0,
-                        is_verified=True
-                    )
-                db.session.add(old_domain_record)
+            update_progress(task_id, 10, 100, "processing", "Fetching users from Google Workspace...")
             
-            # Mark new domain as in use
-            new_domain_record = UsedDomain.query.filter_by(domain_name=new_domain).first()
-            if new_domain_record:
-                new_domain_record.user_count = total_users
-                try:
-                    new_domain_record.ever_used = True
-                except:
-                    pass
-                new_domain_record.updated_at = db.func.current_timestamp()
-            else:
-                try:
-                    new_domain_record = UsedDomain(
-                        domain_name=new_domain,
-                        user_count=total_users,
-                        ever_used=True,
-                        is_verified=True
-                    )
-                except:
-                    new_domain_record = UsedDomain(
-                        domain_name=new_domain,
-                        user_count=total_users,
-                        is_verified=True
-                    )
-                db.session.add(new_domain_record)
+            # Get all users
+            all_users_result = google_api.service.users().list(
+                customer='my_customer',
+                maxResults=500
+            ).execute()
             
-            db.session.commit()
+            all_users = all_users_result.get('users', [])
             
-        except Exception as db_error:
-            logging.error(f"Failed to update domain status: {db_error}")
-            db.session.rollback()
-        
-        update_progress(task_id, 30, 100, "processing", "Starting user domain updates...")
-        
-        # Process users
-        successful = 0
-        failed = 0
-        skipped = 0
-        
-        for i, user in enumerate(users):
-            try:
+            # Filter users by domain
+            users = []
+            for user in all_users:
                 email = user.get('primaryEmail', '')
-                if not email:
-                    continue
+                if email and email.endswith(f"@{current_domain}"):
+                    users.append(user)
+            
+            total_users = len(users)
+            update_progress(task_id, 20, 100, "processing", f"Found {total_users} users to process...")
+            
+            if not users:
+                update_progress(task_id, 100, 100, "completed", f"No users found with domain {current_domain}")
+                return
+            
+            # Update domain status in database
+            update_progress(task_id, 25, 100, "processing", "Updating domain status in database...")
+            
+            try:
+                # Mark old domain as used
+                old_domain_record = UsedDomain.query.filter_by(domain_name=current_domain).first()
+                if old_domain_record:
+                    old_domain_record.user_count = 0
+                    try:
+                        old_domain_record.ever_used = True
+                    except:
+                        pass
+                    old_domain_record.updated_at = db.func.current_timestamp()
+                else:
+                    try:
+                        old_domain_record = UsedDomain(
+                            domain_name=current_domain,
+                            user_count=0,
+                            ever_used=True,
+                            is_verified=True
+                        )
+                    except:
+                        old_domain_record = UsedDomain(
+                            domain_name=current_domain,
+                            user_count=0,
+                            is_verified=True
+                        )
+                    db.session.add(old_domain_record)
                 
-                # Check if user is admin (skip if exclude_admin is True)
-                if exclude_admin and user.get('isAdmin', False):
-                    skipped += 1
-                    continue
+                # Mark new domain as in use
+                new_domain_record = UsedDomain.query.filter_by(domain_name=new_domain).first()
+                if new_domain_record:
+                    new_domain_record.user_count = total_users
+                    try:
+                        new_domain_record.ever_used = True
+                    except:
+                        pass
+                    new_domain_record.updated_at = db.func.current_timestamp()
+                else:
+                    try:
+                        new_domain_record = UsedDomain(
+                            domain_name=new_domain,
+                            user_count=total_users,
+                            ever_used=True,
+                            is_verified=True
+                        )
+                    except:
+                        new_domain_record = UsedDomain(
+                            domain_name=new_domain,
+                            user_count=total_users,
+                            is_verified=True
+                        )
+                    db.session.add(new_domain_record)
                 
-                # Create new email with new domain
-                username = email.split('@')[0]
-                new_email = f"{username}@{new_domain}"
+                db.session.commit()
                 
-                # Update user's primary email
-                user_update = {
-                    'primaryEmail': new_email
-                }
-                
-                google_api.service.users().update(
-                    userKey=email,
-                    body=user_update
-                ).execute()
-                
-                successful += 1
-                
-                # Update progress
-                progress_percentage = 30 + int((i + 1) / total_users * 65)  # 30-95%
-                update_progress(task_id, progress_percentage, 100, "processing", 
-                              f"Updated {i+1}/{total_users} users ({successful} successful, {failed} failed, {skipped} skipped)")
-                
-                # Small delay to avoid rate limiting
-                time.sleep(0.1)
-                
-            except Exception as user_error:
-                failed += 1
-                logging.error(f"Failed to update user {email}: {user_error}")
-        
-        # Final update
-        update_progress(task_id, 100, 100, "completed", 
-                       f"Domain change completed! {successful} successful, {failed} failed, {skipped} skipped")
-        
-        # Schedule cleanup of this task after 5 minutes
-        def delayed_cleanup():
-            time.sleep(300)  # 5 minutes
-            clear_progress(task_id)
-        
-        cleanup_thread = threading.Thread(target=delayed_cleanup)
-        cleanup_thread.daemon = True
-        cleanup_thread.start()
-        
-    except Exception as e:
-        logging.error(f"Async domain change process error: {e}")
-        update_progress(task_id, 0, 100, "error", f"Process failed: {str(e)}")
+            except Exception as db_error:
+                logging.error(f"Failed to update domain status: {db_error}")
+                db.session.rollback()
+            
+            update_progress(task_id, 30, 100, "processing", "Starting user domain updates...")
+            
+            # Process users
+            successful = 0
+            failed = 0
+            skipped = 0
+            
+            for i, user in enumerate(users):
+                try:
+                    email = user.get('primaryEmail', '')
+                    if not email:
+                        continue
+                    
+                    # Check if user is admin (skip if exclude_admin is True)
+                    if exclude_admin and user.get('isAdmin', False):
+                        skipped += 1
+                        continue
+                    
+                    # Create new email with new domain
+                    username = email.split('@')[0]
+                    new_email = f"{username}@{new_domain}"
+                    
+                    # Update user's primary email
+                    user_update = {
+                        'primaryEmail': new_email
+                    }
+                    
+                    google_api.service.users().update(
+                        userKey=email,
+                        body=user_update
+                    ).execute()
+                    
+                    successful += 1
+                    
+                    # Update progress
+                    progress_percentage = 30 + int((i + 1) / total_users * 65)  # 30-95%
+                    update_progress(task_id, progress_percentage, 100, "processing", 
+                                  f"Updated {i+1}/{total_users} users ({successful} successful, {failed} failed, {skipped} skipped)")
+                    
+                    # Small delay to avoid rate limiting
+                    time.sleep(0.1)
+                    
+                except Exception as user_error:
+                    failed += 1
+                    logging.error(f"Failed to update user {email}: {user_error}")
+            
+            # Final update
+            update_progress(task_id, 100, 100, "completed", 
+                           f"Domain change completed! {successful} successful, {failed} failed, {skipped} skipped")
+            
+            # Schedule cleanup of this task after 5 minutes
+            def delayed_cleanup():
+                time.sleep(300)  # 5 minutes
+                clear_progress(task_id)
+            
+            cleanup_thread = threading.Thread(target=delayed_cleanup)
+            cleanup_thread.daemon = True
+            cleanup_thread.start()
+            
+        except Exception as e:
+            logging.error(f"Async domain change process error: {e}")
+            update_progress(task_id, 0, 100, "error", f"Process failed: {str(e)}")
 
 @app.route('/api/debug-progress', methods=['GET'])
 @login_required
