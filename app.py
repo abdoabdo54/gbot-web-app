@@ -37,11 +37,17 @@ def update_progress(task_id, current, total, status="processing", message=""):
             'percentage': int((current / total) * 100) if total > 0 else 0,
             'timestamp': datetime.now().isoformat()
         }
-        logging.info(f"Progress updated for task {task_id}: {status} - {message} ({current}/{total})")
+        logging.info(f"=== PROGRESS UPDATED FOR TASK {task_id}: {status} - {message} ({current}/{total}) ===")
+        logging.info(f"Progress tracker now contains {len(progress_tracker)} tasks: {list(progress_tracker.keys())}")
 
 def get_progress(task_id):
     """Get current progress for a task"""
     with progress_lock:
+        logging.info(f"=== GET_PROGRESS CALLED FOR TASK: {task_id} ===")
+        logging.info(f"Progress tracker contains: {list(progress_tracker.keys())}")
+        logging.info(f"Looking for task: {task_id}")
+        logging.info(f"Task exists: {task_id in progress_tracker}")
+        
         progress = progress_tracker.get(task_id, {
             'current': 0,
             'total': 0,
@@ -50,8 +56,14 @@ def get_progress(task_id):
             'percentage': 0,
             'timestamp': datetime.now().isoformat()
         })
+        
         if progress['status'] == 'not_found':
-            logging.warning(f"Task {task_id} not found in progress tracker. Available tasks: {list(progress_tracker.keys())}")
+            logging.warning(f"=== TASK {task_id} NOT FOUND IN PROGRESS TRACKER ===")
+            logging.warning(f"Available tasks: {list(progress_tracker.keys())}")
+            logging.warning(f"Progress tracker size: {len(progress_tracker)}")
+        else:
+            logging.info(f"Task {task_id} found with status: {progress['status']}")
+        
         return progress
 
 def clear_progress(task_id):
@@ -3015,12 +3027,14 @@ def preview_csv():
 def get_task_progress(task_id):
     """Get progress for a specific task"""
     try:
-        logging.info(f"Progress requested for task: {task_id}")
+        logging.info(f"=== PROGRESS REQUESTED FOR TASK: {task_id} ===")
         
         # Debug: Check what tasks are available before cleanup
         with progress_lock:
             available_tasks = list(progress_tracker.keys())
             logging.info(f"Available tasks before cleanup: {available_tasks}")
+            logging.info(f"Looking for task: {task_id}")
+            logging.info(f"Task exists in tracker: {task_id in progress_tracker}")
         
         # Clean up old progress entries periodically (but less aggressively)
         cleanup_old_progress()
@@ -3029,6 +3043,7 @@ def get_task_progress(task_id):
         with progress_lock:
             available_tasks_after = list(progress_tracker.keys())
             logging.info(f"Available tasks after cleanup: {available_tasks_after}")
+            logging.info(f"Task still exists after cleanup: {task_id in progress_tracker}")
         
         progress = get_progress(task_id)
         logging.info(f"Progress for task {task_id}: {progress['status']} - {progress['message']}")
@@ -3039,6 +3054,8 @@ def get_task_progress(task_id):
         })
     except Exception as e:
         logging.error(f"Progress tracking error: {e}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/change-domain-all-users-async', methods=['POST'])
@@ -3046,8 +3063,11 @@ def get_task_progress(task_id):
 def api_change_domain_all_users_async():
     """Start async domain change process and return task ID"""
     try:
+        logging.info("=== DOMAIN CHANGE ASYNC ENDPOINT CALLED ===")
+        
         # Check if user is authenticated
         if 'current_account_name' not in session:
+            logging.error("No account authenticated in session")
             return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
         
         # Get request data
@@ -3056,10 +3076,14 @@ def api_change_domain_all_users_async():
         new_domain = data.get('new_domain', '').strip()
         exclude_admin = data.get('exclude_admin', True)
         
+        logging.info(f"Request data: current_domain={current_domain}, new_domain={new_domain}, exclude_admin={exclude_admin}")
+        
         if not current_domain or not new_domain:
+            logging.error("Missing domain parameters")
             return jsonify({'success': False, 'error': 'Both current and new domain are required'})
         
         if current_domain == new_domain:
+            logging.error("Same domain provided")
             return jsonify({'success': False, 'error': 'Current and new domain cannot be the same'})
         
         # Generate unique task ID
@@ -3068,6 +3092,20 @@ def api_change_domain_all_users_async():
         
         # Get account name before starting thread (to avoid request context issues)
         account_name = session.get('current_account_name')
+        logging.info(f"Account name: {account_name}")
+        
+        # Initialize progress FIRST before starting thread
+        update_progress(task_id, 0, 100, "starting", "Initializing domain change process...")
+        logging.info(f"Progress initialized for task {task_id}")
+        
+        # Debug: Verify task was created
+        with progress_lock:
+            if task_id in progress_tracker:
+                logging.info(f"Task {task_id} successfully created and stored in progress tracker")
+                logging.info(f"Progress tracker now contains: {list(progress_tracker.keys())}")
+            else:
+                logging.error(f"Task {task_id} was NOT stored in progress tracker!")
+                logging.error(f"Progress tracker contains: {list(progress_tracker.keys())}")
         
         # Start the domain change process in a separate thread
         thread = threading.Thread(
@@ -3076,16 +3114,7 @@ def api_change_domain_all_users_async():
         )
         thread.daemon = True
         thread.start()
-        
-        # Initialize progress
-        update_progress(task_id, 0, 100, "starting", "Initializing domain change process...")
-        
-        # Debug: Verify task was created
-        with progress_lock:
-            if task_id in progress_tracker:
-                logging.info(f"Task {task_id} successfully created and stored in progress tracker")
-            else:
-                logging.error(f"Task {task_id} was NOT stored in progress tracker!")
+        logging.info(f"Thread started for task {task_id}")
         
         logging.info(f"Task {task_id} started successfully")
         return jsonify({
@@ -3096,6 +3125,8 @@ def api_change_domain_all_users_async():
         
     except Exception as e:
         logging.error(f"Async domain change error: {e}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)})
 
 def process_domain_change_async(task_id, current_domain, new_domain, exclude_admin, account_name):
@@ -3301,6 +3332,38 @@ def debug_progress_raw():
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/test-progress', methods=['POST'])
+@login_required
+def test_progress():
+    """Test endpoint to create a test task and verify progress tracking"""
+    try:
+        # Create a test task
+        test_task_id = str(uuid.uuid4())
+        logging.info(f"Creating test task: {test_task_id}")
+        
+        # Update progress
+        update_progress(test_task_id, 0, 100, "testing", "Test task created")
+        
+        # Verify it was created
+        with progress_lock:
+            if test_task_id in progress_tracker:
+                logging.info(f"Test task {test_task_id} successfully created")
+                return jsonify({
+                    'success': True,
+                    'test_task_id': test_task_id,
+                    'message': 'Test task created successfully',
+                    'progress_tracker_size': len(progress_tracker)
+                })
+            else:
+                logging.error(f"Test task {test_task_id} was NOT created")
+                return jsonify({
+                    'success': False,
+                    'error': 'Test task was not created in progress tracker'
+                })
+    except Exception as e:
+        logging.error(f"Test progress error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
