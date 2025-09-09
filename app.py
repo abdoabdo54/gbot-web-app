@@ -26,6 +26,24 @@ from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleT
 progress_tracker = {}
 progress_lock = threading.Lock()
 
+def validate_and_clean_account_name(account_name):
+    """Validate and clean account name to prevent conflicts"""
+    if not account_name:
+        return None
+    
+    # Clean the account name
+    cleaned_name = account_name.strip().lower()
+    
+    # Remove any invalid characters
+    import re
+    cleaned_name = re.sub(r'[^a-zA-Z0-9@._-]', '', cleaned_name)
+    
+    # Ensure it's a valid email format
+    if '@' not in cleaned_name or '.' not in cleaned_name.split('@')[1]:
+        return None
+    
+    return cleaned_name
+
 def update_progress(task_id, current, total, status="processing", message=""):
     """Update progress for a task"""
     with progress_lock:
@@ -1004,14 +1022,27 @@ def api_complete_oauth():
     try:
         data = request.get_json()
         auth_code = data.get('auth_code')
+        account_id = data.get('account_id')
         account_name = data.get('account_name')
         
-        if not auth_code or not account_name:
-            return jsonify({'success': False, 'error': 'Code and account name required'})
+        if not auth_code:
+            return jsonify({'success': False, 'error': 'Authorization code required'})
         
-        account = GoogleAccount.query.filter_by(account_name=account_name).first()
-        if not account:
-            return jsonify({'success': False, 'error': 'Account not found'})
+        # Use account_id if available (more reliable), otherwise fall back to account_name
+        if account_id:
+            account = GoogleAccount.query.get(account_id)
+            if not account:
+                return jsonify({'success': False, 'error': f'Account with ID {account_id} not found'})
+            # Use the account name from the database record to ensure consistency
+            account_name = account.account_name
+        elif account_name:
+            account = GoogleAccount.query.filter_by(account_name=account_name).first()
+            if not account:
+                return jsonify({'success': False, 'error': f'Account with name {account_name} not found'})
+        else:
+            return jsonify({'success': False, 'error': 'Account ID or account name required'})
+        
+        logging.info(f"Processing OAuth completion for account: {account_name} (ID: {account.id})")
         
         creds_data = {'client_id': account.client_id, 'client_secret': account.client_secret}
         
@@ -1033,9 +1064,14 @@ def api_complete_oauth():
         flow.fetch_token(code=auth_code)
         credentials = flow.credentials
         
+        logging.info(f"Saving tokens for account: {account_name} (ID: {account.id})")
+        
         token = GoogleToken.query.filter_by(account_id=account.id).first()
         if not token:
             token = GoogleToken(account_id=account.id)
+            logging.info(f"Created new token record for account: {account_name} (ID: {account.id})")
+        else:
+            logging.info(f"Updating existing token record for account: {account_name} (ID: {account.id})")
 
         token.token = credentials.token
         token.refresh_token = credentials.refresh_token
@@ -1052,6 +1088,8 @@ def api_complete_oauth():
 
         db.session.add(token)
         db.session.commit()
+        
+        logging.info(f"Successfully saved tokens for account: {account_name} (ID: {account.id})")
         
         return jsonify({'success': True, 'message': f'Authentication completed for {account_name}'})
         
@@ -2419,6 +2457,15 @@ def add_from_server_json():
                         failed_accounts.append({'email': email, 'error': 'Invalid email format'})
                         continue
                     
+                    # Validate and clean the account name
+                    cleaned_email = validate_and_clean_account_name(email)
+                    if not cleaned_email:
+                        failed_accounts.append({'email': email, 'error': 'Invalid account name format'})
+                        continue
+                    
+                    # Use the cleaned email as the account name
+                    account_name = cleaned_email
+                    
                     # Look for matching JSON file
                     json_filename = f"{email}.json"
                     if json_filename in json_files:
@@ -2445,21 +2492,26 @@ def add_from_server_json():
                                 failed_accounts.append({'email': email, 'error': 'Missing client_id or client_secret'})
                                 continue
                             
-                            # Check if account already exists
+                            # Check if account already exists (with database lock to prevent race conditions)
                             from database import GoogleAccount
-                            existing_account = GoogleAccount.query.filter_by(account_name=email).first()
-                            if existing_account:
-                                failed_accounts.append({'email': email, 'error': 'Account already exists'})
-                                continue
-                            
-                            # Add new account
-                            new_account = GoogleAccount(
-                                account_name=email,
-                                client_id=client_id,
-                                client_secret=client_secret
-                            )
-                            db.session.add(new_account)
-                            added_accounts.append(email)
+                            with db.session.begin_nested():  # Use nested transaction for atomic check
+                                existing_account = GoogleAccount.query.filter_by(account_name=account_name).first()
+                                if existing_account:
+                                    failed_accounts.append({'email': email, 'error': f'Account {account_name} already exists'})
+                                    continue
+                                
+                                logging.info(f"Creating new account from JSON file: {email} -> {account_name} with client_id: {client_id[:20]}...")
+                                
+                                # Add new account
+                                new_account = GoogleAccount(
+                                    account_name=account_name,
+                                    client_id=client_id,
+                                    client_secret=client_secret
+                                )
+                                db.session.add(new_account)
+                                db.session.flush()  # Flush to get the ID
+                                logging.info(f"Successfully created account: {account_name} (ID: {new_account.id}) from JSON file: {email}")
+                                added_accounts.append(account_name)
                             
                         except Exception as e:
                             failed_accounts.append({'email': email, 'error': f'Failed to process file: {str(e)}'})
