@@ -67,18 +67,23 @@ def cleanup_old_progress():
         expired_tasks = []
         
         for task_id, progress in progress_tracker.items():
-            # Remove tasks older than 2 hours or completed/error tasks older than 10 minutes
+            # Much less aggressive cleanup: Remove tasks older than 24 hours or completed/error tasks older than 1 hour
             task_time = datetime.fromisoformat(progress['timestamp'])
             age_minutes = (current_time - task_time).total_seconds() / 60
             
-            if age_minutes > 120 or (progress['status'] in ['completed', 'error'] and age_minutes > 10):
+            # Only clean up very old tasks or completed tasks that are quite old
+            if age_minutes > 1440 or (progress['status'] in ['completed', 'error'] and age_minutes > 60):
                 expired_tasks.append(task_id)
+                logging.info(f"Marking task {task_id} for cleanup: age={age_minutes:.1f}min, status={progress['status']}")
         
         for task_id in expired_tasks:
             del progress_tracker[task_id]
+            logging.info(f"Cleaned up expired task: {task_id}")
         
         if expired_tasks:
-            logging.info(f"Cleaned up {len(expired_tasks)} old progress entries: {expired_tasks}")
+            logging.info(f"Cleaned up {len(expired_tasks)} expired tasks")
+        else:
+            logging.info("No tasks needed cleanup")
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -3012,8 +3017,18 @@ def get_task_progress(task_id):
     try:
         logging.info(f"Progress requested for task: {task_id}")
         
-        # Clean up old progress entries periodically
+        # Debug: Check what tasks are available before cleanup
+        with progress_lock:
+            available_tasks = list(progress_tracker.keys())
+            logging.info(f"Available tasks before cleanup: {available_tasks}")
+        
+        # Clean up old progress entries periodically (but less aggressively)
         cleanup_old_progress()
+        
+        # Debug: Check what tasks are available after cleanup
+        with progress_lock:
+            available_tasks_after = list(progress_tracker.keys())
+            logging.info(f"Available tasks after cleanup: {available_tasks_after}")
         
         progress = get_progress(task_id)
         logging.info(f"Progress for task {task_id}: {progress['status']} - {progress['message']}")
@@ -3064,6 +3079,13 @@ def api_change_domain_all_users_async():
         
         # Initialize progress
         update_progress(task_id, 0, 100, "starting", "Initializing domain change process...")
+        
+        # Debug: Verify task was created
+        with progress_lock:
+            if task_id in progress_tracker:
+                logging.info(f"Task {task_id} successfully created and stored in progress tracker")
+            else:
+                logging.error(f"Task {task_id} was NOT stored in progress tracker!")
         
         logging.info(f"Task {task_id} started successfully")
         return jsonify({
@@ -3262,8 +3284,22 @@ def debug_progress():
                 'success': True,
                 'active_tasks': list(progress_tracker.keys()),
                 'task_count': len(progress_tracker),
-                'tasks': progress_tracker
+                'tasks': progress_tracker,
+                'timestamp': datetime.now().isoformat()
             })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/debug-progress-raw', methods=['GET'])
+@login_required
+def debug_progress_raw():
+    """Debug endpoint to check progress tracking system without any processing"""
+    try:
+        return jsonify({
+            'success': True,
+            'progress_tracker': progress_tracker,
+            'timestamp': datetime.now().isoformat()
+        })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
