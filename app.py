@@ -808,14 +808,14 @@ def api_delete_account():
                 db.session.flush()  # Flush to ensure the relationship is cleared
             
             # Now delete all tokens for this account
-        GoogleToken.query.filter_by(account_id=account_id).delete()
-        
+            GoogleToken.query.filter_by(account_id=account_id).delete()
+            
             # Finally delete the account (cascade will handle any remaining relationships)
-        db.session.delete(account)
+            db.session.delete(account)
             
             # Commit all changes
-        db.session.commit()
-        
+            db.session.commit()
+            
             logging.info(f"Successfully deleted account: {account_name} (ID: {account_id})")
             return jsonify({'success': True, 'message': f'Account {account_name} deleted successfully'})
             
