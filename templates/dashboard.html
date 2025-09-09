@@ -3184,7 +3184,7 @@ function changeDomainForAllUsers() {
             setTimeout(() => {
                 progressContainer.style.display = 'none';
             }, 3000);
-        } else {
+                    } else {
             throw new Error(data.error || 'Failed to change domains');
         }
     })
@@ -3241,7 +3241,7 @@ function pollProgress(taskId) {
                 // Continue polling if still processing
                 if (progress.status === 'processing' || progress.status === 'starting') {
                     setTimeout(poll, 1000); // Poll every second
-                } else {
+        } else {
                     // If we get an unexpected status, log it and stop polling
                     logBulkDomain(`❌ Unexpected status: ${progress.status} - ${progress.message}`);
                     progressContainer.style.display = 'none';
@@ -3249,9 +3249,9 @@ function pollProgress(taskId) {
             } else {
                 logBulkDomain(`❌ Failed to get progress: ${data.error || 'Unknown error'}`);
                 progressContainer.style.display = 'none';
-            }
-        })
-        .catch(error => {
+        }
+    })
+    .catch(error => {
             console.error('Progress polling error:', error);
             logBulkDomain(`❌ Progress polling failed: ${error.message}`);
             progressContainer.style.display = 'none';
