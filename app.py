@@ -37,11 +37,12 @@ def update_progress(task_id, current, total, status="processing", message=""):
             'percentage': int((current / total) * 100) if total > 0 else 0,
             'timestamp': datetime.now().isoformat()
         }
+        logging.info(f"Progress updated for task {task_id}: {status} - {message} ({current}/{total})")
 
 def get_progress(task_id):
     """Get current progress for a task"""
     with progress_lock:
-        return progress_tracker.get(task_id, {
+        progress = progress_tracker.get(task_id, {
             'current': 0,
             'total': 0,
             'status': 'not_found',
@@ -49,6 +50,9 @@ def get_progress(task_id):
             'percentage': 0,
             'timestamp': datetime.now().isoformat()
         })
+        if progress['status'] == 'not_found':
+            logging.warning(f"Task {task_id} not found in progress tracker. Available tasks: {list(progress_tracker.keys())}")
+        return progress
 
 def clear_progress(task_id):
     """Clear progress for a task"""
@@ -63,18 +67,18 @@ def cleanup_old_progress():
         expired_tasks = []
         
         for task_id, progress in progress_tracker.items():
-            # Remove tasks older than 1 hour or completed/error tasks older than 5 minutes
+            # Remove tasks older than 2 hours or completed/error tasks older than 10 minutes
             task_time = datetime.fromisoformat(progress['timestamp'])
             age_minutes = (current_time - task_time).total_seconds() / 60
             
-            if age_minutes > 60 or (progress['status'] in ['completed', 'error'] and age_minutes > 5):
+            if age_minutes > 120 or (progress['status'] in ['completed', 'error'] and age_minutes > 10):
                 expired_tasks.append(task_id)
         
         for task_id in expired_tasks:
             del progress_tracker[task_id]
         
         if expired_tasks:
-            logging.info(f"Cleaned up {len(expired_tasks)} old progress entries")
+            logging.info(f"Cleaned up {len(expired_tasks)} old progress entries: {expired_tasks}")
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -3006,10 +3010,14 @@ def preview_csv():
 def get_task_progress(task_id):
     """Get progress for a specific task"""
     try:
+        logging.info(f"Progress requested for task: {task_id}")
+        
         # Clean up old progress entries periodically
         cleanup_old_progress()
         
         progress = get_progress(task_id)
+        logging.info(f"Progress for task {task_id}: {progress['status']} - {progress['message']}")
+        
         return jsonify({
             'success': True,
             'progress': progress
@@ -3041,6 +3049,7 @@ def api_change_domain_all_users_async():
         
         # Generate unique task ID
         task_id = str(uuid.uuid4())
+        logging.info(f"Created task ID: {task_id} for domain change: {current_domain} -> {new_domain}")
         
         # Start the domain change process in a separate thread
         thread = threading.Thread(
@@ -3053,6 +3062,7 @@ def api_change_domain_all_users_async():
         # Initialize progress
         update_progress(task_id, 0, 100, "starting", "Initializing domain change process...")
         
+        logging.info(f"Task {task_id} started successfully")
         return jsonify({
             'success': True,
             'task_id': task_id,
@@ -3066,18 +3076,28 @@ def api_change_domain_all_users_async():
 def process_domain_change_async(task_id, current_domain, new_domain, exclude_admin, account_name):
     """Process domain change asynchronously with progress updates"""
     try:
+        logging.info(f"Starting async domain change process: {task_id}")
         update_progress(task_id, 5, 100, "processing", "Authenticating with Google API...")
         
         # Authenticate with Google API
         if not google_api.service:
+            logging.info(f"Google API service not available, attempting authentication for account: {account_name}")
             if google_api.is_token_valid(account_name):
                 success = google_api.authenticate_with_tokens(account_name)
                 if not success:
-                    update_progress(task_id, 0, 100, "error", "Failed to authenticate with saved tokens")
+                    error_msg = "Failed to authenticate with saved tokens"
+                    logging.error(f"Authentication failed for {account_name}: {error_msg}")
+                    update_progress(task_id, 0, 100, "error", error_msg)
                     return
+                else:
+                    logging.info(f"Successfully authenticated with saved tokens for {account_name}")
             else:
-                update_progress(task_id, 0, 100, "error", "No valid tokens found")
+                error_msg = "No valid tokens found"
+                logging.error(f"No valid tokens for {account_name}: {error_msg}")
+                update_progress(task_id, 0, 100, "error", error_msg)
                 return
+        else:
+            logging.info(f"Google API service already available")
         
         update_progress(task_id, 10, 100, "processing", "Fetching users from Google Workspace...")
         
@@ -3227,6 +3247,21 @@ def process_domain_change_async(task_id, current_domain, new_domain, exclude_adm
     except Exception as e:
         logging.error(f"Async domain change process error: {e}")
         update_progress(task_id, 0, 100, "error", f"Process failed: {str(e)}")
+
+@app.route('/api/debug-progress', methods=['GET'])
+@login_required
+def debug_progress():
+    """Debug endpoint to check progress tracking system"""
+    try:
+        with progress_lock:
+            return jsonify({
+                'success': True,
+                'active_tasks': list(progress_tracker.keys()),
+                'task_count': len(progress_tracker),
+                'tasks': progress_tracker
+            })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)
