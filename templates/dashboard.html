@@ -3139,6 +3139,7 @@ function changeDomainForAllUsers() {
     logBulkDomain(`🔄 Starting bulk domain change: ${currentDomain} → ${newDomain}`);
     
     // Start async domain change process
+    console.log(`Starting domain change: ${currentDomain} -> ${newDomain}`);
     fetch('/api/change-domain-all-users-async', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -3149,6 +3150,7 @@ function changeDomainForAllUsers() {
         })
     })
     .then(response => {
+        console.log(`Domain change response status: ${response.status}`);
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
@@ -3156,7 +3158,9 @@ function changeDomainForAllUsers() {
         return response.json();
     })
     .then(data => {
+        console.log(`Domain change response data:`, data);
         if (data.success && data.task_id) {
+            console.log(`Starting polling for task: ${data.task_id}`);
             // Start polling for progress updates
             pollProgress(data.task_id);
         } else {
@@ -3177,11 +3181,17 @@ function pollProgress(taskId) {
     const progressContainer = document.getElementById('domain-change-progress');
     
     const poll = () => {
+        console.log(`Polling for task: ${taskId}`);
         fetch(`/api/progress/${taskId}`)
-        .then(response => response.json())
+        .then(response => {
+            console.log(`Progress response status: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
+            console.log(`Progress response data:`, data);
             if (data.success && data.progress) {
                 const progress = data.progress;
+                console.log(`Progress status: ${progress.status}, message: ${progress.message}`);
                 
                 // Update progress bar
                 progressBar.style.width = `${progress.percentage}%`;
@@ -3199,11 +3209,19 @@ function pollProgress(taskId) {
                     logBulkDomain(`❌ ${progress.message}`);
                     progressContainer.style.display = 'none';
                     return; // Stop polling
+                } else if (progress.status === 'not_found') {
+                    logBulkDomain(`❌ Task not found: ${progress.message}`);
+                    progressContainer.style.display = 'none';
+                    return; // Stop polling
                 }
                 
                 // Continue polling if still processing
                 if (progress.status === 'processing' || progress.status === 'starting') {
                     setTimeout(poll, 1000); // Poll every second
+                } else {
+                    // If we get an unexpected status, log it and stop polling
+                    logBulkDomain(`❌ Unexpected status: ${progress.status} - ${progress.message}`);
+                    progressContainer.style.display = 'none';
                 }
             } else {
                 logBulkDomain(`❌ Failed to get progress: ${data.error || 'Unknown error'}`);
