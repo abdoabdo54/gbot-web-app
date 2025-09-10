@@ -133,123 +133,77 @@
         </form>
     </div>
 
-    <!-- Backup Download Section -->
+    <!-- Database Backup Section -->
     <div class="github-card" style="margin-bottom: 24px;">
         <div class="github-card-header">
             <h3 class="github-card-title" style="font-size: 18px;">
-                <i class="fas fa-download"></i>
-                Backup Download Configuration
+                <i class="fas fa-database"></i>
+                Database Backup
             </h3>
         </div>
         <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
-            Configure SFTP server connection for downloading backup files. This allows you to download backup files from a remote SFTP server.
+            Create and download complete database backups. This will backup the entire database including all users, accounts, tokens, and configurations.
         </p>
         
-        <form id="backup-config-form">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                <div class="form-group-github">
-                    <label for="backup_host" class="form-label-github">
-                        <i class="fas fa-globe"></i> SFTP Server Host/IP
-                    </label>
-                    <input type="text" class="form-control-github" id="backup_host" 
-                           placeholder="192.168.1.100 or backup.domain.com" required>
-                    <small style="color: #656d76; font-size: 12px;">
-                        IP address or hostname of the SFTP backup server
-                    </small>
-                </div>
-                <div class="form-group-github">
-                    <label for="backup_port" class="form-label-github">
-                        <i class="fas fa-plug"></i> Port
-                    </label>
-                    <input type="number" class="form-control-github" id="backup_port" 
-                           value="22" min="1" max="65535" required>
-                    <small style="color: #656d76; font-size: 12px;">
-                        SFTP port (default: 22)
-                    </small>
-                </div>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                <div class="form-group-github">
-                    <label for="backup_username" class="form-label-github">
-                        <i class="fas fa-user"></i> Username
-                    </label>
-                    <input type="text" class="form-control-github" id="backup_username" 
-                           placeholder="backup_user" required>
-                    <small style="color: #656d76; font-size: 12px;">
-                        SFTP username for server access
-                    </small>
-                </div>
-                <div class="form-group-github">
-                    <label for="backup_auth_method" class="form-label-github">
-                        <i class="fas fa-lock"></i> Authentication Method
-                    </label>
-                    <select class="form-control-github" id="backup_auth_method" required>
-                        <option value="password">Password</option>
-                        <option value="key">SSH Key</option>
-                    </select>
-                    <small style="color: #656d76; font-size: 12px;">
-                        Choose authentication method
-                    </small>
-                </div>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                <div class="form-group-github" id="backup-password-field">
-                    <label for="backup_password" class="form-label-github">
-                        <i class="fas fa-key"></i> Password
-                    </label>
-                    <input type="password" class="form-control-github" id="backup_password" 
-                           placeholder="SFTP password">
-                    <small style="color: #656d76; font-size: 12px;">
-                        SFTP password (if using password auth)
-                    </small>
-                </div>
-                <div class="form-group-github" id="backup-key-field" style="display: none;">
-                    <label for="backup_private_key" class="form-label-github">
-                        <i class="fas fa-key"></i> Private Key
-                    </label>
-                    <textarea class="form-control-github" id="backup_private_key" rows="4" 
-                              placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" 
-                              style="resize: vertical; font-family: 'Courier New', monospace; font-size: 12px;"></textarea>
-                    <small style="color: #656d76; font-size: 12px;">
-                        SSH private key content (if using key auth)
-                    </small>
-                </div>
-            </div>
-            
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
             <div class="form-group-github">
-                <label for="backup_path" class="form-label-github">
-                    <i class="fas fa-folder"></i> Backup Files Path
+                <label for="backup_format" class="form-label-github">
+                    <i class="fas fa-file-code"></i> Backup Format
                 </label>
-                <input type="text" class="form-control-github" id="backup_path" 
-                       value="/backups/gbot/" placeholder="/path/to/backup/files/" required>
+                <select class="form-control-github" id="backup_format">
+                    <option value="sql">SQL Dump (.sql)</option>
+                    <option value="json">JSON Export (.json)</option>
+                    <option value="csv">CSV Export (.csv)</option>
+                </select>
                 <small style="color: #656d76; font-size: 12px;">
-                    Directory path where backup files are stored on the SFTP server
+                    Choose the format for your database backup
                 </small>
             </div>
-            
-            <div style="display: flex; gap: 16px; justify-content: center; margin-top: 24px;">
-                <button type="button" class="btn-github" onclick="testBackupConnection()">
-                    <i class="fas fa-search"></i> Test Connection
-                </button>
-                <button type="submit" class="btn-github btn-github-primary">
-                    <i class="fas fa-save"></i> Save Backup Configuration
-                </button>
+            <div class="form-group-github">
+                <label for="backup_include_data" class="form-label-github">
+                    <i class="fas fa-check-square"></i> Include Data
+                </label>
+                <select class="form-control-github" id="backup_include_data">
+                    <option value="full">Full Backup (Schema + Data)</option>
+                    <option value="schema">Schema Only</option>
+                    <option value="data">Data Only</option>
+                </select>
+                <small style="color: #656d76; font-size: 12px;">
+                    Choose what to include in the backup
+                </small>
             </div>
-        </form>
+        </div>
+        
+        <div style="display: flex; gap: 16px; justify-content: center; margin-bottom: 24px;">
+            <button type="button" class="btn-github btn-github-primary" onclick="createDatabaseBackup()">
+                <i class="fas fa-database"></i> Create Database Backup
+            </button>
+            <button type="button" class="btn-github" onclick="refreshBackupFiles()">
+                <i class="fas fa-sync-alt"></i> Refresh Backup List
+            </button>
+        </div>
+        
+        <div id="backup-progress" style="display: none; margin-bottom: 24px;">
+            <div class="status-info" style="background: #fff3cd; border-color: #ffeaa7;">
+                <p><strong>🔄 Creating Database Backup</strong></p>
+                <p id="backup-progress-text">Preparing backup...</p>
+                <div style="background: #f6f8fa; border-radius: 6px; height: 8px; margin-top: 8px; overflow: hidden;">
+                    <div id="backup-progress-bar" style="background: #0969da; height: 100%; width: 0%; transition: width 0.3s; border-radius: 6px;"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Backup Download Actions -->
+    <!-- Available Backups -->
     <div class="github-card" style="margin-bottom: 24px;">
         <div class="github-card-header">
             <h3 class="github-card-title" style="font-size: 18px;">
-                <i class="fas fa-download"></i>
-                Download Backup Files
+                <i class="fas fa-archive"></i>
+                Available Database Backups
             </h3>
         </div>
         <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
-            Download backup files from the configured SFTP server. Available backup files will be listed below.
+            Download previously created database backups. Backups are stored on the server and can be downloaded.
         </p>
         
         <div id="backup-files-list" style="margin-bottom: 24px;">
@@ -263,8 +217,8 @@
             <button type="button" class="btn-github" onclick="refreshBackupFiles()">
                 <i class="fas fa-sync-alt"></i> Refresh Backup List
             </button>
-            <button type="button" class="btn-github btn-github-primary" onclick="downloadAllBackups()" disabled id="download-all-btn">
-                <i class="fas fa-download"></i> Download All Backups
+            <button type="button" class="btn-github btn-github-danger" onclick="cleanupOldBackups()">
+                <i class="fas fa-trash"></i> Cleanup Old Backups
             </button>
         </div>
     </div>
@@ -386,32 +340,10 @@ $(document).ready(function() {
         }
     });
     
-    // Handle backup authentication method change
-    $('#backup_auth_method').change(function() {
-        const method = $(this).val();
-        if (method === 'password') {
-            $('#backup-password-field').show();
-            $('#backup-key-field').hide();
-            $('#backup_password').prop('required', true);
-            $('#backup_private_key').prop('required', false);
-        } else {
-            $('#backup-password-field').hide();
-            $('#backup-key-field').show();
-            $('#backup_password').prop('required', false);
-            $('#backup_private_key').prop('required', true);
-        }
-    });
-    
     // Handle form submission
     $('#server-config-form').submit(function(e) {
         e.preventDefault();
         saveServerConfiguration();
-    });
-    
-    // Handle backup form submission
-    $('#backup-config-form').submit(function(e) {
-        e.preventDefault();
-        saveBackupConfiguration();
     });
     
     // Handle file upload
@@ -419,8 +351,7 @@ $(document).ready(function() {
         handleJsonFileSelection(e);
     });
     
-    // Load backup configuration and files
-    loadBackupConfiguration();
+    // Load backup files
     loadBackupFiles();
 });
 
@@ -970,154 +901,61 @@ function resetBulkUploadUI() {
     $('#upload-accounts-btn').prop('disabled', true);
 }
 
-// Backup Configuration Functions
-function loadBackupConfiguration() {
-    console.log('Loading backup configuration...');
+// Database Backup Functions
+function createDatabaseBackup() {
+    console.log('Creating database backup...');
     
-    fetch('/api/get-backup-config', {
-        method: 'GET',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.config) {
-            displayBackupConfiguration(data.config);
-        } else {
-            displayBackupConfiguration(null);
-        }
-    })
-    .catch(error => {
-        console.error('Error loading backup configuration:', error);
-        displayBackupConfiguration(null);
-    });
-}
-
-function displayBackupConfiguration(config) {
-    if (!config) {
-        return;
-    }
+    const backupFormat = $('#backup_format').val();
+    const includeData = $('#backup_include_data').val();
     
-    // Populate form fields
-    $('#backup_host').val(config.host || '');
-    $('#backup_port').val(config.port || 22);
-    $('#backup_username').val(config.username || '');
-    $('#backup_auth_method').val(config.auth_method || 'password');
-    $('#backup_password').val(config.password || '');
-    $('#backup_private_key').val(config.private_key || '');
-    $('#backup_path').val(config.backup_path || '');
+    // Show progress
+    $('#backup-progress').show();
+    updateBackupProgress(10, 'Initializing backup...');
     
-    // Trigger auth method change to show/hide fields
-    $('#backup_auth_method').trigger('change');
-}
-
-function saveBackupConfiguration() {
-    console.log('Saving backup configuration...');
+    showStatus('Creating database backup...', 'info');
     
-    const config = {
-        host: $('#backup_host').val().trim(),
-        port: parseInt($('#backup_port').val()),
-        username: $('#backup_username').val().trim(),
-        auth_method: $('#backup_auth_method').val(),
-        password: $('#backup_password').val(),
-        private_key: $('#backup_private_key').val().trim(),
-        backup_path: $('#backup_path').val().trim()
-    };
-    
-    // Validate required fields
-    if (!config.host || !config.username || !config.backup_path) {
-        showStatus('Please fill in all required fields', 'error');
-        return;
-    }
-    
-    if (config.auth_method === 'password' && !config.password) {
-        showStatus('Password is required when using password authentication', 'error');
-        return;
-    }
-    
-    if (config.auth_method === 'key' && !config.private_key) {
-        showStatus('Private key is required when using SSH key authentication', 'error');
-        return;
-    }
-    
-    showStatus('Saving backup configuration...', 'info');
-    
-    fetch('/api/save-backup-config', {
+    fetch('/api/create-database-backup', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(config)
+        body: JSON.stringify({
+            format: backupFormat,
+            include_data: includeData
+        })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showStatus('✅ Backup configuration saved successfully', 'success');
-            loadBackupConfiguration();
-            loadBackupFiles(); // Refresh backup files list
+            updateBackupProgress(100, 'Backup completed successfully!');
+            showStatus('✅ Database backup created successfully: ' + data.filename, 'success');
+            
+            // Hide progress after 3 seconds
+            setTimeout(() => {
+                $('#backup-progress').hide();
+            }, 3000);
+            
+            // Refresh backup files list
+            loadBackupFiles();
         } else {
-            showStatus('❌ Failed to save backup configuration: ' + data.error, 'error');
+            $('#backup-progress').hide();
+            showStatus('❌ Failed to create backup: ' + data.error, 'error');
         }
     })
     .catch(error => {
-        console.error('Error saving backup configuration:', error);
+        $('#backup-progress').hide();
+        console.error('Error creating database backup:', error);
         showStatus('❌ Network error: ' + error, 'error');
     });
 }
 
-function testBackupConnection() {
-    console.log('Testing backup connection...');
-    
-    const config = {
-        host: $('#backup_host').val().trim(),
-        port: parseInt($('#backup_port').val()),
-        username: $('#backup_username').val().trim(),
-        auth_method: $('#backup_auth_method').val(),
-        password: $('#backup_password').val(),
-        private_key: $('#backup_private_key').val().trim(),
-        backup_path: $('#backup_path').val().trim()
-    };
-    
-    // Validate required fields
-    if (!config.host || !config.username || !config.backup_path) {
-        showStatus('Please fill in all required fields before testing', 'error');
-        return;
-    }
-    
-    if (config.auth_method === 'password' && !config.password) {
-        showStatus('Password is required when using password authentication', 'error');
-        return;
-    }
-    
-    if (config.auth_method === 'key' && !config.private_key) {
-        showStatus('Private key is required when using SSH key authentication', 'error');
-        return;
-    }
-    
-    showStatus('Testing backup connection...', 'info');
-    
-    fetch('/api/test-backup-connection', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(config)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showStatus('✅ Backup connection successful! Found ' + data.files_count + ' backup files.', 'success');
-            loadBackupConfiguration();
-            loadBackupFiles(); // Refresh backup files list
-        } else {
-            showStatus('❌ Backup connection failed: ' + data.error, 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error testing backup connection:', error);
-        showStatus('❌ Network error: ' + error, 'error');
-    });
+function updateBackupProgress(percentage, message) {
+    $('#backup-progress-bar').css('width', percentage + '%');
+    $('#backup-progress-text').text(message);
 }
 
 function loadBackupFiles() {
     console.log('Loading backup files...');
     
-    fetch('/api/list-backup-files', {
+    fetch('/api/list-database-backups', {
         method: 'GET',
         headers: {'Content-Type': 'application/json'}
     })
@@ -1145,19 +983,18 @@ function displayBackupFiles(files) {
     if (files.length === 0) {
         container.html(`
             <div style="text-align: center; padding: 40px; color: #656d76;">
-                <i class="fas fa-folder-open" style="font-size: 48px; margin-bottom: 16px; color: #d0d7de;"></i>
-                <h5 style="color: #656d76; margin-bottom: 8px;">No Backup Files Found</h5>
-                <p style="color: #656d76;">Configure backup server settings and test connection to see available backup files.</p>
+                <i class="fas fa-database" style="font-size: 48px; margin-bottom: 16px; color: #d0d7de;"></i>
+                <h5 style="color: #656d76; margin-bottom: 8px;">No Database Backups Found</h5>
+                <p style="color: #656d76;">Create a database backup using the options above to see available backup files.</p>
             </div>
         `);
-        $('#download-all-btn').prop('disabled', true);
         return;
     }
     
     let html = `
         <div style="margin-bottom: 16px;">
             <h6 style="font-weight: 600; margin-bottom: 8px; color: #24292f;">
-                <i class="fas fa-list"></i> Available Backup Files (${files.length})
+                <i class="fas fa-list"></i> Available Database Backups (${files.length})
             </h6>
         </div>
         <div style="display: grid; gap: 8px;">
@@ -1166,6 +1003,7 @@ function displayBackupFiles(files) {
     files.forEach((file, index) => {
         const fileSize = file.size ? formatFileSize(file.size) : 'Unknown size';
         const modifiedDate = file.modified ? new Date(file.modified).toLocaleString() : 'Unknown date';
+        const fileIcon = getFileIcon(file.name);
         
         html += `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f6f8fa; border-radius: 6px; border: 1px solid #d0d7de;">
@@ -1173,17 +1011,20 @@ function displayBackupFiles(files) {
                     <span style="background: #24292f; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">${index + 1}</span>
                     <div>
                         <div style="font-weight: 600; font-size: 14px; color: #24292f; margin-bottom: 4px;">
-                            <i class="fas fa-file-archive" style="margin-right: 6px; color: #656d76;"></i>
+                            <i class="${fileIcon}" style="margin-right: 6px; color: #656d76;"></i>
                             ${file.name}
                         </div>
                         <div style="font-size: 12px; color: #656d76;">
-                            Size: ${fileSize} • Modified: ${modifiedDate}
+                            Size: ${fileSize} • Created: ${modifiedDate}
                         </div>
                     </div>
                 </div>
                 <div style="display: flex; gap: 8px;">
                     <button onclick="downloadBackupFile('${file.name}')" class="btn-github" style="padding: 4px 12px; font-size: 12px;">
                         <i class="fas fa-download"></i> Download
+                    </button>
+                    <button onclick="deleteBackupFile('${file.name}')" class="btn-github btn-github-danger" style="padding: 4px 12px; font-size: 12px;">
+                        <i class="fas fa-trash"></i> Delete
                     </button>
                 </div>
             </div>
@@ -1193,7 +1034,14 @@ function displayBackupFiles(files) {
     html += `</div>`;
     
     container.html(html);
-    $('#download-all-btn').prop('disabled', false);
+}
+
+function getFileIcon(filename) {
+    if (filename.endsWith('.sql')) return 'fas fa-database';
+    if (filename.endsWith('.json')) return 'fas fa-file-code';
+    if (filename.endsWith('.csv')) return 'fas fa-file-csv';
+    if (filename.endsWith('.zip')) return 'fas fa-file-archive';
+    return 'fas fa-file';
 }
 
 function formatFileSize(bytes) {
@@ -1214,7 +1062,7 @@ function downloadBackupFile(filename) {
     
     showStatus(`Downloading ${filename}...`, 'info');
     
-    fetch('/api/download-backup-file', {
+    fetch('/api/download-database-backup', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({filename: filename})
@@ -1245,42 +1093,60 @@ function downloadBackupFile(filename) {
     });
 }
 
-function downloadAllBackups() {
-    console.log('Downloading all backup files...');
+function deleteBackupFile(filename) {
+    console.log('Deleting backup file:', filename);
     
-    if (!confirm('Are you sure you want to download all backup files? This may take some time depending on the number and size of files.')) {
+    if (!confirm(`Are you sure you want to delete ${filename}? This action cannot be undone.`)) {
         return;
     }
     
-    showStatus('Preparing download of all backup files...', 'info');
+    showStatus(`Deleting ${filename}...`, 'info');
     
-    fetch('/api/download-all-backups', {
+    fetch('/api/delete-database-backup', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({filename: filename})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus(`✅ ${filename} deleted successfully`, 'success');
+            loadBackupFiles(); // Refresh the list
+        } else {
+            showStatus(`❌ Failed to delete ${filename}: ${data.error}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting backup file:', error);
+        showStatus(`❌ Failed to delete ${filename}: ${error.message}`, 'error');
+    });
+}
+
+function cleanupOldBackups() {
+    console.log('Cleaning up old backup files...');
+    
+    if (!confirm('Are you sure you want to delete old backup files? This will keep only the 5 most recent backups.')) {
+        return;
+    }
+    
+    showStatus('Cleaning up old backup files...', 'info');
+    
+    fetch('/api/cleanup-old-backups', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'}
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus(`✅ Cleanup completed. Deleted ${data.deleted_count} old backup files.`, 'success');
+            loadBackupFiles(); // Refresh the list
+        } else {
+            showStatus(`❌ Failed to cleanup old backups: ${data.error}`, 'error');
         }
-        return response.blob();
-    })
-    .then(blob => {
-        // Create download link
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = `gbot-backups-${new Date().toISOString().split('T')[0]}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        showStatus('✅ All backup files downloaded successfully', 'success');
     })
     .catch(error => {
-        console.error('Error downloading all backup files:', error);
-        showStatus(`❌ Failed to download backup files: ${error.message}`, 'error');
+        console.error('Error cleaning up old backups:', error);
+        showStatus(`❌ Failed to cleanup old backups: ${error.message}`, 'error');
     });
 }
 </script>

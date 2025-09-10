@@ -2516,228 +2516,202 @@ def clear_server_config():
         app.logger.error(f"Error clearing server config: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-# Backup Server Configuration API routes
-@app.route('/api/get-backup-config', methods=['GET'])
+# Database Backup API routes
+@app.route('/api/create-database-backup', methods=['POST'])
 @login_required
-def get_backup_config():
+def create_database_backup():
     if session.get('role') != 'admin':
         return jsonify({'success': False, 'error': 'Admin privileges required'})
     
     try:
-        config = BackupServerConfig.query.first()
-        if config:
-            return jsonify({
-                'success': True,
-                'config': {
-                    'host': config.host,
-                    'port': config.port,
-                    'username': config.username,
-                    'auth_method': config.auth_method,
-                    'password': config.password,
-                    'private_key': config.private_key,
-                    'backup_path': config.backup_path,
-                    'is_configured': config.is_configured,
-                    'last_tested': config.last_tested.isoformat() if config.last_tested else None
+        data = request.get_json()
+        backup_format = data.get('format', 'sql')
+        include_data = data.get('include_data', 'full')
+        
+        # Create backup directory if it doesn't exist
+        import os
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"gbot_db_backup_{timestamp}.{backup_format}"
+        filepath = os.path.join(backup_dir, filename)
+        
+        if backup_format == 'sql':
+            # Create SQL dump
+            if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgresql'):
+                # PostgreSQL backup
+                import subprocess
+                import urllib.parse
+                
+                # Parse database URL
+                db_url = app.config['SQLALCHEMY_DATABASE_URI']
+                parsed = urllib.parse.urlparse(db_url)
+                
+                # Set environment variables for pg_dump
+                env = os.environ.copy()
+                env['PGPASSWORD'] = parsed.password
+                
+                # Build pg_dump command
+                cmd = [
+                    'pg_dump',
+                    '-h', parsed.hostname,
+                    '-p', str(parsed.port),
+                    '-U', parsed.username,
+                    '-d', parsed.path[1:],  # Remove leading slash
+                    '--no-password'
+                ]
+                
+                if include_data == 'schema':
+                    cmd.append('--schema-only')
+                elif include_data == 'data':
+                    cmd.append('--data-only')
+                
+                # Execute pg_dump
+                with open(filepath, 'w') as f:
+                    result = subprocess.run(cmd, stdout=f, stderr=subprocess.PIPE, env=env, text=True)
+                
+                if result.returncode != 0:
+                    return jsonify({'success': False, 'error': f'pg_dump failed: {result.stderr}'})
+                    
+            else:
+                # SQLite backup
+                import shutil
+                db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+                shutil.copy2(db_path, filepath)
+        
+        elif backup_format == 'json':
+            # Create JSON export
+            backup_data = {}
+            
+            # Export all tables
+            from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig
+            
+            tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig]
+            
+            for table in tables:
+                table_name = table.__tablename__
+                records = []
+                
+                if include_data in ['full', 'data']:
+                    for record in table.query.all():
+                        record_dict = {}
+                        for column in table.__table__.columns:
+                            value = getattr(record, column.name)
+                            if isinstance(value, datetime):
+                                value = value.isoformat()
+                            record_dict[column.name] = value
+                        records.append(record_dict)
+                
+                backup_data[table_name] = {
+                    'schema': {
+                        'columns': [{'name': col.name, 'type': str(col.type)} for col in table.__table__.columns]
+                    },
+                    'data': records if include_data in ['full', 'data'] else []
                 }
-            })
-        else:
-            return jsonify({'success': True, 'config': None})
+            
+            # Write JSON file
+            import json
+            with open(filepath, 'w') as f:
+                json.dump(backup_data, f, indent=2, default=str)
+        
+        elif backup_format == 'csv':
+            # Create CSV export
+            import csv
+            import zipfile
+            
+            # Create ZIP file with multiple CSV files
+            zip_path = filepath.replace('.csv', '.zip')
+            
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig
+                
+                tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig]
+                
+                for table in tables:
+                    if include_data in ['full', 'data']:
+                        # Create CSV content
+                        csv_content = io.StringIO()
+                        writer = csv.writer(csv_content)
+                        
+                        # Write headers
+                        headers = [col.name for col in table.__table__.columns]
+                        writer.writerow(headers)
+                        
+                        # Write data
+                        for record in table.query.all():
+                            row = []
+                            for column in table.__table__.columns:
+                                value = getattr(record, column.name)
+                                if isinstance(value, datetime):
+                                    value = value.isoformat()
+                                row.append(str(value) if value is not None else '')
+                            writer.writerow(row)
+                        
+                        # Add to ZIP
+                        zip_file.writestr(f"{table.__tablename__}.csv", csv_content.getvalue())
+            
+            # Update filepath to ZIP
+            filepath = zip_path
+            filename = os.path.basename(zip_path)
+        
+        # Get file size
+        file_size = os.path.getsize(filepath)
+        
+        app.logger.info(f"Database backup created: {filename} ({file_size} bytes)")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Database backup created successfully',
+            'filename': filename,
+            'size': file_size
+        })
+        
     except Exception as e:
-        app.logger.error(f"Error getting backup config: {e}")
+        app.logger.error(f"Error creating database backup: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/api/save-backup-config', methods=['POST'])
+@app.route('/api/list-database-backups', methods=['GET'])
 @login_required
-def save_backup_config():
+def list_database_backups():
     if session.get('role') != 'admin':
         return jsonify({'success': False, 'error': 'Admin privileges required'})
     
     try:
-        data = request.get_json()
+        import os
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
         
-        # Validate required fields
-        required_fields = ['host', 'username', 'backup_path']
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({'success': False, 'error': f'Missing required field: {field}'})
+        if not os.path.exists(backup_dir):
+            return jsonify({'success': True, 'files': []})
         
-        # Get or create config
-        config = BackupServerConfig.query.first()
-        if not config:
-            config = BackupServerConfig()
-            db.session.add(config)
-        
-        # Update config
-        config.host = data['host']
-        config.port = data.get('port', 22)
-        config.username = data['username']
-        config.auth_method = data.get('auth_method', 'password')
-        config.password = data.get('password', '')
-        config.private_key = data.get('private_key', '')
-        config.backup_path = data['backup_path']
-        config.is_configured = True
-        config.updated_at = db.func.current_timestamp()
-        
-        db.session.commit()
-        
-        return jsonify({'success': True, 'message': 'Backup configuration saved successfully'})
-        
-    except Exception as e:
-        app.logger.error(f"Error saving backup config: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/test-backup-connection', methods=['POST'])
-@login_required
-def test_backup_connection():
-    if session.get('role') != 'admin':
-        return jsonify({'success': False, 'error': 'Admin privileges required'})
-    
-    try:
-        data = request.get_json()
-        
-        # Validate required fields
-        required_fields = ['host', 'username', 'backup_path']
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({'success': False, 'error': f'Missing required field: {field}'})
-        
-        # Test SFTP connection
-        import paramiko
-        import io
-        
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        
-        try:
-            # Connect to server
-            if data.get('auth_method') == 'key':
-                # Use SSH key authentication
-                private_key = paramiko.RSAKey.from_private_key(io.StringIO(data['private_key']))
-                ssh.connect(
-                    hostname=data['host'],
-                    port=data.get('port', 22),
-                    username=data['username'],
-                    pkey=private_key,
-                    timeout=10
-                )
-            else:
-                # Use password authentication
-                ssh.connect(
-                    hostname=data['host'],
-                    port=data.get('port', 22),
-                    username=data['username'],
-                    password=data.get('password', ''),
-                    timeout=10
-                )
-            
-            # Test SFTP connection
-            sftp = ssh.open_sftp()
-            
-            # List files in backup directory
-            try:
-                files = sftp.listdir_attr(data['backup_path'])
-                backup_files = [f for f in files if f.filename.endswith(('.zip', '.tar', '.tar.gz', '.sql', '.json'))]
-                
-                sftp.close()
-                ssh.close()
-                
-                # Update last tested time
-                config = BackupServerConfig.query.first()
-                if config:
-                    config.last_tested = db.func.current_timestamp()
-                    db.session.commit()
-                
-                return jsonify({
-                    'success': True,
-                    'message': f'Connection successful. Found {len(backup_files)} backup files.',
-                    'files_count': len(backup_files)
+        backup_files = []
+        for filename in os.listdir(backup_dir):
+            if filename.startswith('gbot_db_backup_') and filename.endswith(('.sql', '.json', '.zip')):
+                filepath = os.path.join(backup_dir, filename)
+                stat = os.stat(filepath)
+                backup_files.append({
+                    'name': filename,
+                    'size': stat.st_size,
+                    'modified': datetime.fromtimestamp(stat.st_mtime).isoformat()
                 })
-                
-            except FileNotFoundError:
-                sftp.close()
-                ssh.close()
-                return jsonify({'success': False, 'error': f'Backup directory not found: {data["backup_path"]}'})
-                
-        except paramiko.AuthenticationException:
-            return jsonify({'success': False, 'error': 'Authentication failed. Check username and password/key.'})
-        except paramiko.SSHException as e:
-            return jsonify({'success': False, 'error': f'SSH connection error: {str(e)}'})
-        except Exception as e:
-            return jsonify({'success': False, 'error': f'Connection failed: {str(e)}'})
+        
+        # Sort by modification time (newest first)
+        backup_files.sort(key=lambda x: x['modified'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'files': backup_files
+        })
         
     except Exception as e:
-        app.logger.error(f"Error testing backup connection: {e}")
+        app.logger.error(f"Error listing database backups: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/api/list-backup-files', methods=['GET'])
+@app.route('/api/download-database-backup', methods=['POST'])
 @login_required
-def list_backup_files():
-    if session.get('role') != 'admin':
-        return jsonify({'success': False, 'error': 'Admin privileges required'})
-    
-    try:
-        config = BackupServerConfig.query.first()
-        if not config or not config.is_configured:
-            return jsonify({'success': False, 'error': 'Backup server not configured'})
-        
-        # Connect to SFTP server
-        import paramiko
-        import io
-        
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        
-        try:
-            # Connect to server
-            if config.auth_method == 'key':
-                private_key = paramiko.RSAKey.from_private_key(io.StringIO(config.private_key))
-                ssh.connect(
-                    hostname=config.host,
-                    port=config.port,
-                    username=config.username,
-                    pkey=private_key,
-                    timeout=10
-                )
-            else:
-                ssh.connect(
-                    hostname=config.host,
-                    port=config.port,
-                    username=config.username,
-                    password=config.password,
-                    timeout=10
-                )
-            
-            # List files
-            sftp = ssh.open_sftp()
-            files = sftp.listdir_attr(config.backup_path)
-            backup_files = []
-            
-            for file_attr in files:
-                if file_attr.filename.endswith(('.zip', '.tar', '.tar.gz', '.sql', '.json')):
-                    backup_files.append({
-                        'name': file_attr.filename,
-                        'size': file_attr.st_size,
-                        'modified': datetime.fromtimestamp(file_attr.st_mtime).isoformat()
-                    })
-            
-            sftp.close()
-            ssh.close()
-            
-            return jsonify({
-                'success': True,
-                'files': backup_files
-            })
-            
-        except Exception as e:
-            return jsonify({'success': False, 'error': f'Failed to list backup files: {str(e)}'})
-        
-    except Exception as e:
-        app.logger.error(f"Error listing backup files: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/download-backup-file', methods=['POST'])
-@login_required
-def download_backup_file():
+def download_database_backup():
     if session.get('role') != 'admin':
         return jsonify({'success': False, 'error': 'Admin privileges required'})
     
@@ -2748,159 +2722,114 @@ def download_backup_file():
         if not filename:
             return jsonify({'success': False, 'error': 'Filename is required'})
         
-        config = BackupServerConfig.query.first()
-        if not config or not config.is_configured:
-            return jsonify({'success': False, 'error': 'Backup server not configured'})
+        import os
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
+        filepath = os.path.join(backup_dir, filename)
         
-        # Connect to SFTP server
-        import paramiko
-        import io
-        
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        
-        try:
-            # Connect to server
-            if config.auth_method == 'key':
-                private_key = paramiko.RSAKey.from_private_key(io.StringIO(config.private_key))
-                ssh.connect(
-                    hostname=config.host,
-                    port=config.port,
-                    username=config.username,
-                    pkey=private_key,
-                    timeout=10
-                )
-            else:
-                ssh.connect(
-                    hostname=config.host,
-                    port=config.port,
-                    username=config.username,
-                    password=config.password,
-                    timeout=10
-                )
-            
-            # Download file
-            sftp = ssh.open_sftp()
-            remote_path = f"{config.backup_path.rstrip('/')}/{filename}"
-            
-            # Create temporary file
-            import tempfile
-            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                sftp.get(remote_path, temp_file.name)
-                
-                # Read file content
-                with open(temp_file.name, 'rb') as f:
-                    file_content = f.read()
-                
-                # Clean up temp file
-                import os
-                os.unlink(temp_file.name)
-            
-            sftp.close()
-            ssh.close()
-            
-            # Return file as response
-            from flask import Response
-            return Response(
-                file_content,
-                mimetype='application/octet-stream',
-                headers={
-                    'Content-Disposition': f'attachment; filename="{filename}"',
-                    'Content-Length': str(len(file_content))
-                }
-            )
-            
-        except FileNotFoundError:
+        if not os.path.exists(filepath):
             return jsonify({'success': False, 'error': f'Backup file not found: {filename}'})
-        except Exception as e:
-            return jsonify({'success': False, 'error': f'Failed to download file: {str(e)}'})
+        
+        # Read file content
+        with open(filepath, 'rb') as f:
+            file_content = f.read()
+        
+        # Return file as response
+        from flask import Response
+        return Response(
+            file_content,
+            mimetype='application/octet-stream',
+            headers={
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Content-Length': str(len(file_content))
+            }
+        )
         
     except Exception as e:
-        app.logger.error(f"Error downloading backup file: {e}")
+        app.logger.error(f"Error downloading database backup: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/api/download-all-backups', methods=['POST'])
+@app.route('/api/delete-database-backup', methods=['POST'])
 @login_required
-def download_all_backups():
+def delete_database_backup():
     if session.get('role') != 'admin':
         return jsonify({'success': False, 'error': 'Admin privileges required'})
     
     try:
-        config = BackupServerConfig.query.first()
-        if not config or not config.is_configured:
-            return jsonify({'success': False, 'error': 'Backup server not configured'})
+        data = request.get_json()
+        filename = data.get('filename')
         
-        # Connect to SFTP server
-        import paramiko
-        import io
-        import zipfile
-        import tempfile
+        if not filename:
+            return jsonify({'success': False, 'error': 'Filename is required'})
         
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        import os
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
+        filepath = os.path.join(backup_dir, filename)
         
-        try:
-            # Connect to server
-            if config.auth_method == 'key':
-                private_key = paramiko.RSAKey.from_private_key(io.StringIO(config.private_key))
-                ssh.connect(
-                    hostname=config.host,
-                    port=config.port,
-                    username=config.username,
-                    pkey=private_key,
-                    timeout=10
-                )
-            else:
-                ssh.connect(
-                    hostname=config.host,
-                    port=config.port,
-                    username=config.username,
-                    password=config.password,
-                    timeout=10
-                )
-            
-            # List and download all backup files
-            sftp = ssh.open_sftp()
-            files = sftp.listdir_attr(config.backup_path)
-            backup_files = [f for f in files if f.filename.endswith(('.zip', '.tar', '.tar.gz', '.sql', '.json'))]
-            
-            # Create ZIP file in memory
-            zip_buffer = io.BytesIO()
-            
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                for file_attr in backup_files:
-                    remote_path = f"{config.backup_path.rstrip('/')}/{file_attr.filename}"
-                    
-                    # Download file to memory
-                    file_data = io.BytesIO()
-                    sftp.getfo(remote_path, file_data)
-                    file_data.seek(0)
-                    
-                    # Add to ZIP
-                    zip_file.writestr(file_attr.filename, file_data.getvalue())
-            
-            sftp.close()
-            ssh.close()
-            
-            zip_buffer.seek(0)
-            zip_content = zip_buffer.getvalue()
-            
-            # Return ZIP file as response
-            from flask import Response
-            return Response(
-                zip_content,
-                mimetype='application/zip',
-                headers={
-                    'Content-Disposition': f'attachment; filename="gbot-backups-{datetime.now().strftime("%Y%m%d")}.zip"',
-                    'Content-Length': str(len(zip_content))
-                }
-            )
-            
-        except Exception as e:
-            return jsonify({'success': False, 'error': f'Failed to download backup files: {str(e)}'})
+        if not os.path.exists(filepath):
+            return jsonify({'success': False, 'error': f'Backup file not found: {filename}'})
+        
+        # Delete file
+        os.remove(filepath)
+        
+        app.logger.info(f"Database backup deleted: {filename}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Backup file {filename} deleted successfully'
+        })
         
     except Exception as e:
-        app.logger.error(f"Error downloading all backup files: {e}")
+        app.logger.error(f"Error deleting database backup: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/cleanup-old-backups', methods=['POST'])
+@login_required
+def cleanup_old_backups():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        import os
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
+        
+        if not os.path.exists(backup_dir):
+            return jsonify({'success': True, 'deleted_count': 0})
+        
+        # Get all backup files
+        backup_files = []
+        for filename in os.listdir(backup_dir):
+            if filename.startswith('gbot_db_backup_') and filename.endswith(('.sql', '.json', '.zip')):
+                filepath = os.path.join(backup_dir, filename)
+                stat = os.stat(filepath)
+                backup_files.append({
+                    'name': filename,
+                    'path': filepath,
+                    'modified': stat.st_mtime
+                })
+        
+        # Sort by modification time (newest first)
+        backup_files.sort(key=lambda x: x['modified'], reverse=True)
+        
+        # Keep only the 5 most recent backups
+        files_to_delete = backup_files[5:]
+        deleted_count = 0
+        
+        for file_info in files_to_delete:
+            try:
+                os.remove(file_info['path'])
+                deleted_count += 1
+                app.logger.info(f"Deleted old backup: {file_info['name']}")
+            except Exception as e:
+                app.logger.error(f"Error deleting backup {file_info['name']}: {e}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Cleanup completed. Deleted {deleted_count} old backup files.',
+            'deleted_count': deleted_count
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error cleaning up old backups: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 # Enhanced Add from Server JSON functionality
