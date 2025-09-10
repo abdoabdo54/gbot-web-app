@@ -1648,10 +1648,12 @@ function loadSuspendedUsers() {
     })
     .then(response => response.json())
     .then(data => {
+        console.log('Suspended users API response:', data); // Debug log
         if (data.success) {
-            if (data.users.length > 0) {
+            if (data.users && data.users.length > 0) {
                 let html = `<div class="status-info">
                     <p><strong>📊 Found ${data.total_count} suspended user(s):</strong></p>
+                    ${data.debug_info ? `<p><small>Debug: Raw count: ${data.debug_info.raw_suspended_count}, Formatted: ${data.debug_info.formatted_count}</small></p>` : ''}
                 </div>`;
                 
                 data.users.forEach(user => {
@@ -1675,16 +1677,24 @@ function loadSuspendedUsers() {
                     <div class="status-info">
                         <p><strong>✅ No Suspended Users Found</strong></p>
                         <p>All users in this account are currently active.</p>
+                        ${data.debug_info ? `<p><small>Debug: Raw count: ${data.debug_info.raw_suspended_count}, Formatted: ${data.debug_info.formatted_count}</small></p>` : ''}
                     </div>`;
             }
         } else {
+            console.error('Suspended users API error:', data); // Debug log
             document.getElementById('suspended-display').innerHTML = `
                 <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
                     <p><strong>❌ Error Loading Suspended Users</strong></p>
-                    <p>${data.error}</p>
+                    <p>${data.error || 'Unknown error occurred'}</p>
                     <p><small>Please try refreshing or re-authenticating your account.</small></p>
                     <button onclick="debugAuthStatus()" class="btn-github" style="margin-top: 10px;">
                         🔍 Debug Authentication Status
+                    </button>
+                    <button onclick="testSuspendedQuery()" class="btn-github" style="margin-top: 10px; margin-left: 10px;">
+                        🧪 Test Suspended Query
+                    </button>
+                    <button onclick="console.log('Full API response:', ${JSON.stringify(data)})" class="btn-github" style="margin-top: 10px; margin-left: 10px;">
+                        📋 Log Full Response
                     </button>
                 </div>`;
         }
@@ -1770,6 +1780,85 @@ function debugAuthStatus() {
     })
     .catch(error => {
         alert('Debug request failed: ' + error);
+    });
+}
+
+function testSuspendedQuery() {
+    document.getElementById('suspended-display').innerHTML = `
+        <div class="status-info" style="background: #fff3cd; border-color: #ffeaa7;">
+            <p><strong>🧪 Testing Suspended User Queries</strong></p>
+            <p>Running diagnostic tests...</p>
+        </div>`;
+    
+    fetch('/api/test-suspended-query', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Test suspended query response:', data);
+        if (data.success) {
+            const results = data.results;
+            let html = `
+                <div class="status-info" style="background: #e7f3ff; border-color: #b3d9ff;">
+                    <p><strong>🧪 Suspended Query Test Results</strong></p>
+                    <p><strong>Account:</strong> ${data.account}</p>
+            `;
+            
+            // Direct suspended query results
+            if (results.direct_suspended_query.success) {
+                html += `
+                    <p><strong>Direct Suspended Query:</strong> ✅ Success</p>
+                    <p><strong>Found:</strong> ${results.direct_suspended_query.count} suspended users</p>
+                `;
+                if (results.direct_suspended_query.users.length > 0) {
+                    html += `<p><strong>Users:</strong></p><ul>`;
+                    results.direct_suspended_query.users.forEach(user => {
+                        html += `<li>${user.email} (suspended: ${user.suspended})</li>`;
+                    });
+                    html += `</ul>`;
+                }
+            } else {
+                html += `
+                    <p><strong>Direct Suspended Query:</strong> ❌ Failed</p>
+                    <p><strong>Error:</strong> ${results.direct_suspended_query.error}</p>
+                `;
+            }
+            
+            // All users filter results
+            if (results.all_users_filter.success) {
+                html += `
+                    <p><strong>All Users Filter:</strong> ✅ Success</p>
+                    <p><strong>Total Users:</strong> ${results.all_users_filter.total_users}</p>
+                    <p><strong>Suspended Users:</strong> ${results.all_users_filter.suspended_count}</p>
+                `;
+                if (results.all_users_filter.users.length > 0) {
+                    html += `<p><strong>All Users (first 10):</strong></p><ul>`;
+                    results.all_users_filter.users.forEach(user => {
+                        html += `<li>${user.email} (suspended: ${user.suspended})</li>`;
+                    });
+                    html += `</ul>`;
+                }
+            } else {
+                html += `
+                    <p><strong>All Users Filter:</strong> ❌ Failed</p>
+                    <p><strong>Error:</strong> ${results.all_users_filter.error}</p>
+                `;
+            }
+            
+            html += `
+                <button onclick="clearSuspendedUsers()" class="btn-github" style="margin-top: 10px;">
+                    🔙 Back to Suspended Users
+                </button>
+            </div>`;
+            
+            document.getElementById('suspended-display').innerHTML = html;
+        } else {
+            alert('Test failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Test request failed: ' + error);
     });
 }
 

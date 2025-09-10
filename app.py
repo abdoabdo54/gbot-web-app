@@ -1516,6 +1516,62 @@ def api_debug_auth_status():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/test-suspended-query', methods=['POST'])
+@login_required
+def api_test_suspended_query():
+    """Test endpoint to debug suspended user queries"""
+    try:
+        current_account = session.get('current_account_name')
+        if not current_account:
+            return jsonify({'success': False, 'error': 'No account authenticated'})
+        
+        # Validate service
+        if not google_api.validate_and_recreate_service(current_account):
+            return jsonify({'success': False, 'error': 'Failed to establish Google API connection'})
+        
+        results = {}
+        
+        # Test 1: Direct suspended query
+        try:
+            suspended_result = google_api.service.users().list(
+                customer='my_customer', 
+                query='suspended:true',
+                maxResults=10
+            ).execute()
+            results['direct_suspended_query'] = {
+                'success': True,
+                'count': len(suspended_result.get('users', [])),
+                'users': [{'email': u.get('primaryEmail'), 'suspended': u.get('suspended')} for u in suspended_result.get('users', [])]
+            }
+        except Exception as e:
+            results['direct_suspended_query'] = {'success': False, 'error': str(e)}
+        
+        # Test 2: Get all users and check suspension status
+        try:
+            all_users_result = google_api.service.users().list(
+                customer='my_customer',
+                maxResults=10
+            ).execute()
+            all_users = all_users_result.get('users', [])
+            suspended_users = [u for u in all_users if u.get('suspended', False)]
+            results['all_users_filter'] = {
+                'success': True,
+                'total_users': len(all_users),
+                'suspended_count': len(suspended_users),
+                'users': [{'email': u.get('primaryEmail'), 'suspended': u.get('suspended')} for u in all_users]
+            }
+        except Exception as e:
+            results['all_users_filter'] = {'success': False, 'error': str(e)}
+        
+        return jsonify({
+            'success': True,
+            'account': current_account,
+            'results': results
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/load-suspended-users', methods=['POST'])
 @login_required
 def api_load_suspended_users():
@@ -1537,15 +1593,30 @@ def api_load_suspended_users():
         
         try:
             logging.info(f"Retrieving suspended users from Google Admin Directory API for {account_name}")
-            # Retrieve suspended users from Google Admin Directory API
-            users_result = google_api.service.users().list(
-                customer='my_customer', 
-                query='suspended:true',
-                maxResults=500
-            ).execute()
             
-            suspended_users = users_result.get('users', [])
-            logging.info(f"Found {len(suspended_users)} suspended users for {account_name}")
+            # First try the direct query approach
+            try:
+                users_result = google_api.service.users().list(
+                    customer='my_customer', 
+                    query='suspended:true',
+                    maxResults=500
+                ).execute()
+                suspended_users = users_result.get('users', [])
+                logging.info(f"Direct query found {len(suspended_users)} suspended users for {account_name}")
+            except Exception as query_error:
+                logging.warning(f"Direct suspended query failed: {query_error}, trying alternative approach...")
+                
+                # Alternative approach: get all users and filter for suspended ones
+                all_users_result = google_api.service.users().list(
+                    customer='my_customer',
+                    maxResults=500
+                ).execute()
+                
+                all_users = all_users_result.get('users', [])
+                suspended_users = [user for user in all_users if user.get('suspended', False)]
+                logging.info(f"Alternative approach found {len(suspended_users)} suspended users out of {len(all_users)} total users for {account_name}")
+            
+            logging.info(f"Final count: {len(suspended_users)} suspended users for {account_name}")
             
             # Format suspended user data with full information
             formatted_suspended_users = []
@@ -1560,13 +1631,23 @@ def api_load_suspended_users():
                         'full_name': f"{user.get('name', {}).get('givenName', '')} {user.get('name', {}).get('familyName', '')}".strip()
                     }
                     formatted_suspended_users.append(user_data)
+                    logging.debug(f"Formatted suspended user: {user_data['email']}")
             
             logging.info(f"Successfully formatted {len(formatted_suspended_users)} suspended users for {account_name}")
-            return jsonify({
+            
+            # Add debug information to response
+            response_data = {
                 'success': True,
                 'users': formatted_suspended_users,
-                'total_count': len(formatted_suspended_users)
-            })
+                'total_count': len(formatted_suspended_users),
+                'debug_info': {
+                    'account_name': account_name,
+                    'raw_suspended_count': len(suspended_users),
+                    'formatted_count': len(formatted_suspended_users)
+                }
+            }
+            
+            return jsonify(response_data)
             
         except Exception as api_error:
             logging.error(f"Google API error for account {account_name}: {api_error}")
