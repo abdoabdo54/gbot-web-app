@@ -2559,7 +2559,12 @@ function deleteSpecificUsers() {
             user_emails: emails
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             logResult(`✅ User deletion completed for ${emails.length} users.`);
@@ -2577,7 +2582,8 @@ function deleteSpecificUsers() {
         }
     })
     .catch(error => {
-        logResult(`❌ Network error: ${error}`);
+        console.error('Delete users error:', error);
+        logResult(`❌ Network error: ${error.message || error}`);
     });
 }
 

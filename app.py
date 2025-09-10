@@ -591,6 +591,78 @@ def api_delete_user():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/delete-users', methods=['POST'])
+@login_required
+def api_delete_users():
+    """Delete multiple Google Workspace users by email addresses"""
+    try:
+        # Check if user is authenticated with Google account
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No Google account authenticated. Please authenticate first.'})
+        
+        # Get the current authenticated account
+        account_name = session.get('current_account_name')
+        logging.info(f"Deleting users for account: {account_name}")
+        
+        # Validate and recreate service if necessary
+        if not google_api.validate_and_recreate_service(account_name):
+            logging.error(f"Failed to validate or recreate service for account {account_name}")
+            return jsonify({'success': False, 'error': 'Failed to establish Google API connection. Please re-authenticate.'})
+        
+        data = request.get_json()
+        user_emails = data.get('user_emails', [])
+        
+        if not user_emails:
+            return jsonify({'success': False, 'error': 'No email addresses provided'})
+        
+        if not isinstance(user_emails, list):
+            return jsonify({'success': False, 'error': 'Email addresses must be provided as a list'})
+        
+        logging.info(f"Attempting to delete {len(user_emails)} users: {user_emails}")
+        
+        results = []
+        successful_deletions = 0
+        
+        for email in user_emails:
+            email = email.strip()
+            if not email:
+                continue
+                
+            try:
+                logging.info(f"Deleting user: {email}")
+                
+                # Delete user from Google Workspace
+                google_api.service.users().delete(userKey=email).execute()
+                
+                results.append({
+                    'email': email,
+                    'result': {'success': True, 'message': f'User {email} deleted successfully'}
+                })
+                successful_deletions += 1
+                logging.info(f"Successfully deleted user: {email}")
+                
+            except Exception as user_error:
+                error_msg = str(user_error)
+                logging.error(f"Failed to delete user {email}: {error_msg}")
+                results.append({
+                    'email': email,
+                    'result': {'success': False, 'error': error_msg}
+                })
+        
+        logging.info(f"User deletion completed. Successfully deleted {successful_deletions} out of {len(user_emails)} users")
+        
+        return jsonify({
+            'success': True,
+            'message': f'User deletion completed. Successfully deleted {successful_deletions} out of {len(user_emails)} users.',
+            'results': results,
+            'total_requested': len(user_emails),
+            'successful_deletions': successful_deletions
+        })
+        
+    except Exception as e:
+        logging.error(f"Delete users error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/add-whitelist-ip', methods=['POST'])
 @login_required
 def api_add_whitelist_ip():
