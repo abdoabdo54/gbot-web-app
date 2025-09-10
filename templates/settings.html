@@ -178,6 +178,9 @@
             <button type="button" class="btn-github btn-github-primary" onclick="createDatabaseBackup()">
                 <i class="fas fa-database"></i> Create Database Backup
             </button>
+            <button type="button" class="btn-github" onclick="testDatabaseBackup()">
+                <i class="fas fa-search"></i> Test Backup System
+            </button>
             <button type="button" class="btn-github" onclick="refreshBackupFiles()">
                 <i class="fas fa-sync-alt"></i> Refresh Backup List
             </button>
@@ -950,6 +953,60 @@ function createDatabaseBackup() {
 function updateBackupProgress(percentage, message) {
     $('#backup-progress-bar').css('width', percentage + '%');
     $('#backup-progress-text').text(message);
+}
+
+function testDatabaseBackup() {
+    console.log('Testing database backup system...');
+    
+    showStatus('Testing database backup system...', 'info');
+    
+    fetch('/api/test-database-backup', {
+        method: 'GET',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const results = data.test_results;
+            let statusMessage = '🔍 Database Backup System Test Results:\n\n';
+            
+            statusMessage += `📊 Database Type: ${results.database_type}\n`;
+            statusMessage += `🔗 Database URL: ${results.database_url}\n\n`;
+            
+            statusMessage += `🗄️ pg_dump Available: ${results.pg_dump_available ? '✅ Yes' : '❌ No'}\n`;
+            if (results.pg_dump_version) {
+                statusMessage += `📦 pg_dump Version: ${results.pg_dump_version}\n`;
+            }
+            if (results.pg_dump_error) {
+                statusMessage += `⚠️ pg_dump Error: ${results.pg_dump_error}\n`;
+            }
+            
+            statusMessage += `\n🔌 Database Connection: ${results.database_connection ? '✅ Yes' : '❌ No'}\n`;
+            if (results.database_connection_error) {
+                statusMessage += `⚠️ Connection Error: ${results.database_connection_error}\n`;
+            }
+            
+            statusMessage += `\n📁 Backup Directory: ${results.backup_directory ? '✅ Writable' : '❌ Not Writable'}\n`;
+            if (results.backup_directory_error) {
+                statusMessage += `⚠️ Directory Error: ${results.backup_directory_error}\n`;
+            }
+            
+            // Show detailed results in a modal or alert
+            alert(statusMessage);
+            
+            if (results.pg_dump_available && results.database_connection && results.backup_directory) {
+                showStatus('✅ Database backup system is ready!', 'success');
+            } else {
+                showStatus('⚠️ Database backup system has issues. Check the test results above.', 'warning');
+            }
+        } else {
+            showStatus('❌ Failed to test database backup system: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error testing database backup system:', error);
+        showStatus('❌ Network error testing backup system: ' + error, 'error');
+    });
 }
 
 function loadBackupFiles() {

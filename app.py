@@ -8,6 +8,7 @@ import csv
 import io
 import smtplib
 import tempfile
+import time
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging.handlers
 import threading
@@ -2516,6 +2517,76 @@ def clear_server_config():
         app.logger.error(f"Error clearing server config: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+# Helper function for SQLAlchemy-based backup
+def create_sqlalchemy_backup(filepath, include_data):
+    """Create a backup using SQLAlchemy when pg_dump fails"""
+    try:
+        app.logger.info("Creating SQLAlchemy-based backup...")
+        
+        with open(filepath, 'w') as f:
+            # Write header
+            f.write("-- GBot Database Backup (SQLAlchemy)\n")
+            f.write(f"-- Created: {datetime.now().isoformat()}\n")
+            f.write("-- Database: PostgreSQL\n\n")
+            
+            # Import all models
+            from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig
+            
+            tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig]
+            
+            for table in tables:
+                table_name = table.__tablename__
+                f.write(f"\n-- Table: {table_name}\n")
+                
+                if include_data in ['full', 'schema']:
+                    # Create table schema
+                    f.write(f"CREATE TABLE IF NOT EXISTS {table_name} (\n")
+                    columns = []
+                    for column in table.__table__.columns:
+                        col_def = f"    {column.name} {column.type}"
+                        if column.primary_key:
+                            col_def += " PRIMARY KEY"
+                        if not column.nullable:
+                            col_def += " NOT NULL"
+                        columns.append(col_def)
+                    f.write(",\n".join(columns))
+                    f.write("\n);\n\n")
+                
+                if include_data in ['full', 'data']:
+                    # Insert data
+                    records = table.query.all()
+                    if records:
+                        f.write(f"-- Data for {table_name}\n")
+                        for record in records:
+                            values = []
+                            for column in table.__table__.columns:
+                                value = getattr(record, column.name)
+                                if value is None:
+                                    values.append('NULL')
+                                elif isinstance(value, str):
+                                    # Escape single quotes
+                                    escaped_value = value.replace("'", "''")
+                                    values.append(f"'{escaped_value}'")
+                                elif isinstance(value, datetime):
+                                    values.append(f"'{value.isoformat()}'")
+                                else:
+                                    values.append(str(value))
+                            
+                            column_names = [col.name for col in table.__table__.columns]
+                            f.write(f"INSERT INTO {table_name} ({', '.join(column_names)}) VALUES ({', '.join(values)});\n")
+                        f.write("\n")
+        
+        # Check if file was created and has content
+        if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+            return jsonify({'success': False, 'error': 'SQLAlchemy backup created empty file'})
+        
+        app.logger.info("SQLAlchemy backup created successfully")
+        return None  # Success, continue with normal flow
+        
+    except Exception as e:
+        app.logger.error(f"SQLAlchemy backup failed: {e}")
+        return jsonify({'success': False, 'error': f'SQLAlchemy backup failed: {str(e)}'})
+
 # Database Backup API routes
 @app.route('/api/create-database-backup', methods=['POST'])
 @login_required
@@ -2550,6 +2621,8 @@ def create_database_backup():
                 db_url = app.config['SQLALCHEMY_DATABASE_URI']
                 parsed = urllib.parse.urlparse(db_url)
                 
+                app.logger.info(f"Creating PostgreSQL backup for database: {parsed.path[1:]}")
+                
                 # Set environment variables for pg_dump
                 env = os.environ.copy()
                 env['PGPASSWORD'] = parsed.password
@@ -2557,11 +2630,12 @@ def create_database_backup():
                 # Build pg_dump command
                 cmd = [
                     'pg_dump',
-                    '-h', parsed.hostname,
-                    '-p', str(parsed.port),
+                    '-h', parsed.hostname or 'localhost',
+                    '-p', str(parsed.port or 5432),
                     '-U', parsed.username,
-                    '-d', parsed.path[1:],  # Remove leading slash
-                    '--no-password'
+                    '-d', parsed.path[1:] if parsed.path else 'gbot_db',  # Remove leading slash
+                    '--no-password',
+                    '--verbose'
                 ]
                 
                 if include_data == 'schema':
@@ -2569,17 +2643,39 @@ def create_database_backup():
                 elif include_data == 'data':
                     cmd.append('--data-only')
                 
-                # Execute pg_dump
-                with open(filepath, 'w') as f:
-                    result = subprocess.run(cmd, stdout=f, stderr=subprocess.PIPE, env=env, text=True)
+                app.logger.info(f"Executing pg_dump command: {' '.join(cmd)}")
                 
-                if result.returncode != 0:
-                    return jsonify({'success': False, 'error': f'pg_dump failed: {result.stderr}'})
+                # Execute pg_dump
+                try:
+                    with open(filepath, 'w') as f:
+                        result = subprocess.run(cmd, stdout=f, stderr=subprocess.PIPE, env=env, text=True, timeout=300)
+                    
+                    app.logger.info(f"pg_dump return code: {result.returncode}")
+                    if result.stderr:
+                        app.logger.warning(f"pg_dump stderr: {result.stderr}")
+                    
+                    if result.returncode != 0:
+                        return jsonify({'success': False, 'error': f'pg_dump failed (code {result.returncode}): {result.stderr}'})
+                    
+                    # Check if file was created and has content
+                    if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+                        app.logger.warning("pg_dump created empty file, trying SQLAlchemy fallback...")
+                        # Fallback to SQLAlchemy-based backup
+                        return create_sqlalchemy_backup(filepath, include_data)
+                        
+                except subprocess.TimeoutExpired:
+                    app.logger.warning("pg_dump timed out, trying SQLAlchemy fallback...")
+                    return create_sqlalchemy_backup(filepath, include_data)
+                except Exception as e:
+                    app.logger.warning(f"pg_dump failed: {e}, trying SQLAlchemy fallback...")
+                    return create_sqlalchemy_backup(filepath, include_data)
                     
             else:
                 # SQLite backup
                 import shutil
                 db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+                if not os.path.exists(db_path):
+                    return jsonify({'success': False, 'error': f'SQLite database file not found: {db_path}'})
                 shutil.copy2(db_path, filepath)
         
         elif backup_format == 'json':
@@ -2830,6 +2926,64 @@ def cleanup_old_backups():
         
     except Exception as e:
         app.logger.error(f"Error cleaning up old backups: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/test-database-backup', methods=['GET'])
+@login_required
+def test_database_backup():
+    """Test database backup functionality"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        import subprocess
+        import urllib.parse
+        
+        # Check database configuration
+        db_url = app.config['SQLALCHEMY_DATABASE_URI']
+        parsed = urllib.parse.urlparse(db_url)
+        
+        test_results = {
+            'database_type': 'PostgreSQL' if db_url.startswith('postgresql') else 'SQLite',
+            'database_url': f"{parsed.scheme}://{parsed.username}@{parsed.hostname}:{parsed.port}{parsed.path}",
+            'pg_dump_available': False,
+            'database_connection': False,
+            'backup_directory': False
+        }
+        
+        # Test pg_dump availability
+        try:
+            result = subprocess.run(['pg_dump', '--version'], capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                test_results['pg_dump_available'] = True
+                test_results['pg_dump_version'] = result.stdout.strip()
+        except Exception as e:
+            test_results['pg_dump_error'] = str(e)
+        
+        # Test database connection
+        try:
+            from database import db
+            with app.app_context():
+                db.session.execute('SELECT 1')
+                test_results['database_connection'] = True
+        except Exception as e:
+            test_results['database_connection_error'] = str(e)
+        
+        # Test backup directory
+        import os
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
+        if os.path.exists(backup_dir) or os.access(os.path.dirname(backup_dir), os.W_OK):
+            test_results['backup_directory'] = True
+        else:
+            test_results['backup_directory_error'] = 'Cannot create backup directory'
+        
+        return jsonify({
+            'success': True,
+            'test_results': test_results
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error testing database backup: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 # Enhanced Add from Server JSON functionality
