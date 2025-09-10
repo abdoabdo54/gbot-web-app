@@ -133,6 +133,142 @@
         </form>
     </div>
 
+    <!-- Backup Download Section -->
+    <div class="github-card" style="margin-bottom: 24px;">
+        <div class="github-card-header">
+            <h3 class="github-card-title" style="font-size: 18px;">
+                <i class="fas fa-download"></i>
+                Backup Download Configuration
+            </h3>
+        </div>
+        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
+            Configure SFTP server connection for downloading backup files. This allows you to download backup files from a remote SFTP server.
+        </p>
+        
+        <form id="backup-config-form">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div class="form-group-github">
+                    <label for="backup_host" class="form-label-github">
+                        <i class="fas fa-globe"></i> SFTP Server Host/IP
+                    </label>
+                    <input type="text" class="form-control-github" id="backup_host" 
+                           placeholder="192.168.1.100 or backup.domain.com" required>
+                    <small style="color: #656d76; font-size: 12px;">
+                        IP address or hostname of the SFTP backup server
+                    </small>
+                </div>
+                <div class="form-group-github">
+                    <label for="backup_port" class="form-label-github">
+                        <i class="fas fa-plug"></i> Port
+                    </label>
+                    <input type="number" class="form-control-github" id="backup_port" 
+                           value="22" min="1" max="65535" required>
+                    <small style="color: #656d76; font-size: 12px;">
+                        SFTP port (default: 22)
+                    </small>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div class="form-group-github">
+                    <label for="backup_username" class="form-label-github">
+                        <i class="fas fa-user"></i> Username
+                    </label>
+                    <input type="text" class="form-control-github" id="backup_username" 
+                           placeholder="backup_user" required>
+                    <small style="color: #656d76; font-size: 12px;">
+                        SFTP username for server access
+                    </small>
+                </div>
+                <div class="form-group-github">
+                    <label for="backup_auth_method" class="form-label-github">
+                        <i class="fas fa-lock"></i> Authentication Method
+                    </label>
+                    <select class="form-control-github" id="backup_auth_method" required>
+                        <option value="password">Password</option>
+                        <option value="key">SSH Key</option>
+                    </select>
+                    <small style="color: #656d76; font-size: 12px;">
+                        Choose authentication method
+                    </small>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div class="form-group-github" id="backup-password-field">
+                    <label for="backup_password" class="form-label-github">
+                        <i class="fas fa-key"></i> Password
+                    </label>
+                    <input type="password" class="form-control-github" id="backup_password" 
+                           placeholder="SFTP password">
+                    <small style="color: #656d76; font-size: 12px;">
+                        SFTP password (if using password auth)
+                    </small>
+                </div>
+                <div class="form-group-github" id="backup-key-field" style="display: none;">
+                    <label for="backup_private_key" class="form-label-github">
+                        <i class="fas fa-key"></i> Private Key
+                    </label>
+                    <textarea class="form-control-github" id="backup_private_key" rows="4" 
+                              placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" 
+                              style="resize: vertical; font-family: 'Courier New', monospace; font-size: 12px;"></textarea>
+                    <small style="color: #656d76; font-size: 12px;">
+                        SSH private key content (if using key auth)
+                    </small>
+                </div>
+            </div>
+            
+            <div class="form-group-github">
+                <label for="backup_path" class="form-label-github">
+                    <i class="fas fa-folder"></i> Backup Files Path
+                </label>
+                <input type="text" class="form-control-github" id="backup_path" 
+                       value="/backups/gbot/" placeholder="/path/to/backup/files/" required>
+                <small style="color: #656d76; font-size: 12px;">
+                    Directory path where backup files are stored on the SFTP server
+                </small>
+            </div>
+            
+            <div style="display: flex; gap: 16px; justify-content: center; margin-top: 24px;">
+                <button type="button" class="btn-github" onclick="testBackupConnection()">
+                    <i class="fas fa-search"></i> Test Connection
+                </button>
+                <button type="submit" class="btn-github btn-github-primary">
+                    <i class="fas fa-save"></i> Save Backup Configuration
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Backup Download Actions -->
+    <div class="github-card" style="margin-bottom: 24px;">
+        <div class="github-card-header">
+            <h3 class="github-card-title" style="font-size: 18px;">
+                <i class="fas fa-download"></i>
+                Download Backup Files
+            </h3>
+        </div>
+        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
+            Download backup files from the configured SFTP server. Available backup files will be listed below.
+        </p>
+        
+        <div id="backup-files-list" style="margin-bottom: 24px;">
+            <div style="text-align: center; padding: 40px; color: #656d76;">
+                <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
+                Loading backup files...
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 16px; justify-content: center;">
+            <button type="button" class="btn-github" onclick="refreshBackupFiles()">
+                <i class="fas fa-sync-alt"></i> Refresh Backup List
+            </button>
+            <button type="button" class="btn-github btn-github-primary" onclick="downloadAllBackups()" disabled id="download-all-btn">
+                <i class="fas fa-download"></i> Download All Backups
+            </button>
+        </div>
+    </div>
+
     <!-- Bulk Account Upload Section -->
     <div class="github-card" style="margin-bottom: 24px;">
         <div class="github-card-header">
@@ -250,16 +386,42 @@ $(document).ready(function() {
         }
     });
     
+    // Handle backup authentication method change
+    $('#backup_auth_method').change(function() {
+        const method = $(this).val();
+        if (method === 'password') {
+            $('#backup-password-field').show();
+            $('#backup-key-field').hide();
+            $('#backup_password').prop('required', true);
+            $('#backup_private_key').prop('required', false);
+        } else {
+            $('#backup-password-field').hide();
+            $('#backup-key-field').show();
+            $('#backup_password').prop('required', false);
+            $('#backup_private_key').prop('required', true);
+        }
+    });
+    
     // Handle form submission
     $('#server-config-form').submit(function(e) {
         e.preventDefault();
         saveServerConfiguration();
     });
     
+    // Handle backup form submission
+    $('#backup-config-form').submit(function(e) {
+        e.preventDefault();
+        saveBackupConfiguration();
+    });
+    
     // Handle file upload
     $('#bulk-json-upload').change(function(e) {
         handleJsonFileSelection(e);
     });
+    
+    // Load backup configuration and files
+    loadBackupConfiguration();
+    loadBackupFiles();
 });
 
 function loadCurrentConfiguration() {
@@ -806,6 +968,320 @@ function resetBulkUploadUI() {
     $('#upload-results').hide();
     $('#validate-json-btn').prop('disabled', true);
     $('#upload-accounts-btn').prop('disabled', true);
+}
+
+// Backup Configuration Functions
+function loadBackupConfiguration() {
+    console.log('Loading backup configuration...');
+    
+    fetch('/api/get-backup-config', {
+        method: 'GET',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.config) {
+            displayBackupConfiguration(data.config);
+        } else {
+            displayBackupConfiguration(null);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading backup configuration:', error);
+        displayBackupConfiguration(null);
+    });
+}
+
+function displayBackupConfiguration(config) {
+    if (!config) {
+        return;
+    }
+    
+    // Populate form fields
+    $('#backup_host').val(config.host || '');
+    $('#backup_port').val(config.port || 22);
+    $('#backup_username').val(config.username || '');
+    $('#backup_auth_method').val(config.auth_method || 'password');
+    $('#backup_password').val(config.password || '');
+    $('#backup_private_key').val(config.private_key || '');
+    $('#backup_path').val(config.backup_path || '');
+    
+    // Trigger auth method change to show/hide fields
+    $('#backup_auth_method').trigger('change');
+}
+
+function saveBackupConfiguration() {
+    console.log('Saving backup configuration...');
+    
+    const config = {
+        host: $('#backup_host').val().trim(),
+        port: parseInt($('#backup_port').val()),
+        username: $('#backup_username').val().trim(),
+        auth_method: $('#backup_auth_method').val(),
+        password: $('#backup_password').val(),
+        private_key: $('#backup_private_key').val().trim(),
+        backup_path: $('#backup_path').val().trim()
+    };
+    
+    // Validate required fields
+    if (!config.host || !config.username || !config.backup_path) {
+        showStatus('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    if (config.auth_method === 'password' && !config.password) {
+        showStatus('Password is required when using password authentication', 'error');
+        return;
+    }
+    
+    if (config.auth_method === 'key' && !config.private_key) {
+        showStatus('Private key is required when using SSH key authentication', 'error');
+        return;
+    }
+    
+    showStatus('Saving backup configuration...', 'info');
+    
+    fetch('/api/save-backup-config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(config)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('✅ Backup configuration saved successfully', 'success');
+            loadBackupConfiguration();
+            loadBackupFiles(); // Refresh backup files list
+        } else {
+            showStatus('❌ Failed to save backup configuration: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving backup configuration:', error);
+        showStatus('❌ Network error: ' + error, 'error');
+    });
+}
+
+function testBackupConnection() {
+    console.log('Testing backup connection...');
+    
+    const config = {
+        host: $('#backup_host').val().trim(),
+        port: parseInt($('#backup_port').val()),
+        username: $('#backup_username').val().trim(),
+        auth_method: $('#backup_auth_method').val(),
+        password: $('#backup_password').val(),
+        private_key: $('#backup_private_key').val().trim(),
+        backup_path: $('#backup_path').val().trim()
+    };
+    
+    // Validate required fields
+    if (!config.host || !config.username || !config.backup_path) {
+        showStatus('Please fill in all required fields before testing', 'error');
+        return;
+    }
+    
+    if (config.auth_method === 'password' && !config.password) {
+        showStatus('Password is required when using password authentication', 'error');
+        return;
+    }
+    
+    if (config.auth_method === 'key' && !config.private_key) {
+        showStatus('Private key is required when using SSH key authentication', 'error');
+        return;
+    }
+    
+    showStatus('Testing backup connection...', 'info');
+    
+    fetch('/api/test-backup-connection', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(config)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('✅ Backup connection successful! Found ' + data.files_count + ' backup files.', 'success');
+            loadBackupConfiguration();
+            loadBackupFiles(); // Refresh backup files list
+        } else {
+            showStatus('❌ Backup connection failed: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error testing backup connection:', error);
+        showStatus('❌ Network error: ' + error, 'error');
+    });
+}
+
+function loadBackupFiles() {
+    console.log('Loading backup files...');
+    
+    fetch('/api/list-backup-files', {
+        method: 'GET',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayBackupFiles(data.files || []);
+        } else {
+            displayBackupFiles([]);
+            if (data.error) {
+                showStatus('❌ Failed to load backup files: ' + data.error, 'error');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error loading backup files:', error);
+        displayBackupFiles([]);
+        showStatus('❌ Network error loading backup files: ' + error, 'error');
+    });
+}
+
+function displayBackupFiles(files) {
+    const container = $('#backup-files-list');
+    
+    if (files.length === 0) {
+        container.html(`
+            <div style="text-align: center; padding: 40px; color: #656d76;">
+                <i class="fas fa-folder-open" style="font-size: 48px; margin-bottom: 16px; color: #d0d7de;"></i>
+                <h5 style="color: #656d76; margin-bottom: 8px;">No Backup Files Found</h5>
+                <p style="color: #656d76;">Configure backup server settings and test connection to see available backup files.</p>
+            </div>
+        `);
+        $('#download-all-btn').prop('disabled', true);
+        return;
+    }
+    
+    let html = `
+        <div style="margin-bottom: 16px;">
+            <h6 style="font-weight: 600; margin-bottom: 8px; color: #24292f;">
+                <i class="fas fa-list"></i> Available Backup Files (${files.length})
+            </h6>
+        </div>
+        <div style="display: grid; gap: 8px;">
+    `;
+    
+    files.forEach((file, index) => {
+        const fileSize = file.size ? formatFileSize(file.size) : 'Unknown size';
+        const modifiedDate = file.modified ? new Date(file.modified).toLocaleString() : 'Unknown date';
+        
+        html += `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f6f8fa; border-radius: 6px; border: 1px solid #d0d7de;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="background: #24292f; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">${index + 1}</span>
+                    <div>
+                        <div style="font-weight: 600; font-size: 14px; color: #24292f; margin-bottom: 4px;">
+                            <i class="fas fa-file-archive" style="margin-right: 6px; color: #656d76;"></i>
+                            ${file.name}
+                        </div>
+                        <div style="font-size: 12px; color: #656d76;">
+                            Size: ${fileSize} • Modified: ${modifiedDate}
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="downloadBackupFile('${file.name}')" class="btn-github" style="padding: 4px 12px; font-size: 12px;">
+                        <i class="fas fa-download"></i> Download
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    
+    container.html(html);
+    $('#download-all-btn').prop('disabled', false);
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function refreshBackupFiles() {
+    showStatus('Refreshing backup files list...', 'info');
+    loadBackupFiles();
+}
+
+function downloadBackupFile(filename) {
+    console.log('Downloading backup file:', filename);
+    
+    showStatus(`Downloading ${filename}...`, 'info');
+    
+    fetch('/api/download-backup-file', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({filename: filename})
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showStatus(`✅ ${filename} downloaded successfully`, 'success');
+    })
+    .catch(error => {
+        console.error('Error downloading backup file:', error);
+        showStatus(`❌ Failed to download ${filename}: ${error.message}`, 'error');
+    });
+}
+
+function downloadAllBackups() {
+    console.log('Downloading all backup files...');
+    
+    if (!confirm('Are you sure you want to download all backup files? This may take some time depending on the number and size of files.')) {
+        return;
+    }
+    
+    showStatus('Preparing download of all backup files...', 'info');
+    
+    fetch('/api/download-all-backups', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `gbot-backups-${new Date().toISOString().split('T')[0]}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showStatus('✅ All backup files downloaded successfully', 'success');
+    })
+    .catch(error => {
+        console.error('Error downloading all backup files:', error);
+        showStatus(`❌ Failed to download backup files: ${error.message}`, 'error');
+    });
 }
 </script>
 {% endblock %}

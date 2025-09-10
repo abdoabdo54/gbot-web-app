@@ -20,7 +20,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from core_logic import google_api
-from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope
+from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, BackupServerConfig
 
 # Progress tracking system for domain changes
 progress_tracker = {}
@@ -2514,6 +2514,393 @@ def clear_server_config():
         
     except Exception as e:
         app.logger.error(f"Error clearing server config: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+# Backup Server Configuration API routes
+@app.route('/api/get-backup-config', methods=['GET'])
+@login_required
+def get_backup_config():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        config = BackupServerConfig.query.first()
+        if config:
+            return jsonify({
+                'success': True,
+                'config': {
+                    'host': config.host,
+                    'port': config.port,
+                    'username': config.username,
+                    'auth_method': config.auth_method,
+                    'password': config.password,
+                    'private_key': config.private_key,
+                    'backup_path': config.backup_path,
+                    'is_configured': config.is_configured,
+                    'last_tested': config.last_tested.isoformat() if config.last_tested else None
+                }
+            })
+        else:
+            return jsonify({'success': True, 'config': None})
+    except Exception as e:
+        app.logger.error(f"Error getting backup config: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/save-backup-config', methods=['POST'])
+@login_required
+def save_backup_config():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['host', 'username', 'backup_path']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'})
+        
+        # Get or create config
+        config = BackupServerConfig.query.first()
+        if not config:
+            config = BackupServerConfig()
+            db.session.add(config)
+        
+        # Update config
+        config.host = data['host']
+        config.port = data.get('port', 22)
+        config.username = data['username']
+        config.auth_method = data.get('auth_method', 'password')
+        config.password = data.get('password', '')
+        config.private_key = data.get('private_key', '')
+        config.backup_path = data['backup_path']
+        config.is_configured = True
+        config.updated_at = db.func.current_timestamp()
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Backup configuration saved successfully'})
+        
+    except Exception as e:
+        app.logger.error(f"Error saving backup config: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/test-backup-connection', methods=['POST'])
+@login_required
+def test_backup_connection():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['host', 'username', 'backup_path']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'})
+        
+        # Test SFTP connection
+        import paramiko
+        import io
+        
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
+        try:
+            # Connect to server
+            if data.get('auth_method') == 'key':
+                # Use SSH key authentication
+                private_key = paramiko.RSAKey.from_private_key(io.StringIO(data['private_key']))
+                ssh.connect(
+                    hostname=data['host'],
+                    port=data.get('port', 22),
+                    username=data['username'],
+                    pkey=private_key,
+                    timeout=10
+                )
+            else:
+                # Use password authentication
+                ssh.connect(
+                    hostname=data['host'],
+                    port=data.get('port', 22),
+                    username=data['username'],
+                    password=data.get('password', ''),
+                    timeout=10
+                )
+            
+            # Test SFTP connection
+            sftp = ssh.open_sftp()
+            
+            # List files in backup directory
+            try:
+                files = sftp.listdir_attr(data['backup_path'])
+                backup_files = [f for f in files if f.filename.endswith(('.zip', '.tar', '.tar.gz', '.sql', '.json'))]
+                
+                sftp.close()
+                ssh.close()
+                
+                # Update last tested time
+                config = BackupServerConfig.query.first()
+                if config:
+                    config.last_tested = db.func.current_timestamp()
+                    db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'Connection successful. Found {len(backup_files)} backup files.',
+                    'files_count': len(backup_files)
+                })
+                
+            except FileNotFoundError:
+                sftp.close()
+                ssh.close()
+                return jsonify({'success': False, 'error': f'Backup directory not found: {data["backup_path"]}'})
+                
+        except paramiko.AuthenticationException:
+            return jsonify({'success': False, 'error': 'Authentication failed. Check username and password/key.'})
+        except paramiko.SSHException as e:
+            return jsonify({'success': False, 'error': f'SSH connection error: {str(e)}'})
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Connection failed: {str(e)}'})
+        
+    except Exception as e:
+        app.logger.error(f"Error testing backup connection: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/list-backup-files', methods=['GET'])
+@login_required
+def list_backup_files():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        config = BackupServerConfig.query.first()
+        if not config or not config.is_configured:
+            return jsonify({'success': False, 'error': 'Backup server not configured'})
+        
+        # Connect to SFTP server
+        import paramiko
+        import io
+        
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
+        try:
+            # Connect to server
+            if config.auth_method == 'key':
+                private_key = paramiko.RSAKey.from_private_key(io.StringIO(config.private_key))
+                ssh.connect(
+                    hostname=config.host,
+                    port=config.port,
+                    username=config.username,
+                    pkey=private_key,
+                    timeout=10
+                )
+            else:
+                ssh.connect(
+                    hostname=config.host,
+                    port=config.port,
+                    username=config.username,
+                    password=config.password,
+                    timeout=10
+                )
+            
+            # List files
+            sftp = ssh.open_sftp()
+            files = sftp.listdir_attr(config.backup_path)
+            backup_files = []
+            
+            for file_attr in files:
+                if file_attr.filename.endswith(('.zip', '.tar', '.tar.gz', '.sql', '.json')):
+                    backup_files.append({
+                        'name': file_attr.filename,
+                        'size': file_attr.st_size,
+                        'modified': datetime.fromtimestamp(file_attr.st_mtime).isoformat()
+                    })
+            
+            sftp.close()
+            ssh.close()
+            
+            return jsonify({
+                'success': True,
+                'files': backup_files
+            })
+            
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Failed to list backup files: {str(e)}'})
+        
+    except Exception as e:
+        app.logger.error(f"Error listing backup files: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/download-backup-file', methods=['POST'])
+@login_required
+def download_backup_file():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        
+        if not filename:
+            return jsonify({'success': False, 'error': 'Filename is required'})
+        
+        config = BackupServerConfig.query.first()
+        if not config or not config.is_configured:
+            return jsonify({'success': False, 'error': 'Backup server not configured'})
+        
+        # Connect to SFTP server
+        import paramiko
+        import io
+        
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
+        try:
+            # Connect to server
+            if config.auth_method == 'key':
+                private_key = paramiko.RSAKey.from_private_key(io.StringIO(config.private_key))
+                ssh.connect(
+                    hostname=config.host,
+                    port=config.port,
+                    username=config.username,
+                    pkey=private_key,
+                    timeout=10
+                )
+            else:
+                ssh.connect(
+                    hostname=config.host,
+                    port=config.port,
+                    username=config.username,
+                    password=config.password,
+                    timeout=10
+                )
+            
+            # Download file
+            sftp = ssh.open_sftp()
+            remote_path = f"{config.backup_path.rstrip('/')}/{filename}"
+            
+            # Create temporary file
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                sftp.get(remote_path, temp_file.name)
+                
+                # Read file content
+                with open(temp_file.name, 'rb') as f:
+                    file_content = f.read()
+                
+                # Clean up temp file
+                import os
+                os.unlink(temp_file.name)
+            
+            sftp.close()
+            ssh.close()
+            
+            # Return file as response
+            from flask import Response
+            return Response(
+                file_content,
+                mimetype='application/octet-stream',
+                headers={
+                    'Content-Disposition': f'attachment; filename="{filename}"',
+                    'Content-Length': str(len(file_content))
+                }
+            )
+            
+        except FileNotFoundError:
+            return jsonify({'success': False, 'error': f'Backup file not found: {filename}'})
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Failed to download file: {str(e)}'})
+        
+    except Exception as e:
+        app.logger.error(f"Error downloading backup file: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/download-all-backups', methods=['POST'])
+@login_required
+def download_all_backups():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        config = BackupServerConfig.query.first()
+        if not config or not config.is_configured:
+            return jsonify({'success': False, 'error': 'Backup server not configured'})
+        
+        # Connect to SFTP server
+        import paramiko
+        import io
+        import zipfile
+        import tempfile
+        
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
+        try:
+            # Connect to server
+            if config.auth_method == 'key':
+                private_key = paramiko.RSAKey.from_private_key(io.StringIO(config.private_key))
+                ssh.connect(
+                    hostname=config.host,
+                    port=config.port,
+                    username=config.username,
+                    pkey=private_key,
+                    timeout=10
+                )
+            else:
+                ssh.connect(
+                    hostname=config.host,
+                    port=config.port,
+                    username=config.username,
+                    password=config.password,
+                    timeout=10
+                )
+            
+            # List and download all backup files
+            sftp = ssh.open_sftp()
+            files = sftp.listdir_attr(config.backup_path)
+            backup_files = [f for f in files if f.filename.endswith(('.zip', '.tar', '.tar.gz', '.sql', '.json'))]
+            
+            # Create ZIP file in memory
+            zip_buffer = io.BytesIO()
+            
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                for file_attr in backup_files:
+                    remote_path = f"{config.backup_path.rstrip('/')}/{file_attr.filename}"
+                    
+                    # Download file to memory
+                    file_data = io.BytesIO()
+                    sftp.getfo(remote_path, file_data)
+                    file_data.seek(0)
+                    
+                    # Add to ZIP
+                    zip_file.writestr(file_attr.filename, file_data.getvalue())
+            
+            sftp.close()
+            ssh.close()
+            
+            zip_buffer.seek(0)
+            zip_content = zip_buffer.getvalue()
+            
+            # Return ZIP file as response
+            from flask import Response
+            return Response(
+                zip_content,
+                mimetype='application/zip',
+                headers={
+                    'Content-Disposition': f'attachment; filename="gbot-backups-{datetime.now().strftime("%Y%m%d")}.zip"',
+                    'Content-Length': str(len(zip_content))
+                }
+            )
+            
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Failed to download backup files: {str(e)}'})
+        
+    except Exception as e:
+        app.logger.error(f"Error downloading all backup files: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 # Enhanced Add from Server JSON functionality
