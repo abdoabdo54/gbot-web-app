@@ -88,6 +88,11 @@
             <button onclick="authenticateFromList()" class="action-button">
                 🔑 Authenticate<br>(List Selection)
             </button>
+            {% if session.role == 'admin' %}
+            <button onclick="openBulkDeleteModal()" class="action-button delete-button" style="background-color: #dc3545; border-color: #dc3545;">
+                🗑️ Bulk Delete<br>(Admin Only)
+            </button>
+            {% endif %}
             <button onclick="deleteFromList()" class="action-button delete-button">
                 🗑️ Delete Account<br>(List Selection)
             </button>
@@ -175,6 +180,66 @@
             </button>
             <button onclick="closeOAuthModal()" class="btn-github">
                 <i class="fas fa-times"></i> Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Delete Accounts Modal -->
+<div id="bulkDeleteModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">
+                <i class="fas fa-trash-alt"></i> Bulk Delete Accounts
+            </h3>
+            <button type="button" class="btn-github" onclick="closeBulkDeleteModal()" style="margin-left: auto;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div style="background-color: rgba(220, 53, 69, 0.1); border: 1px solid #dc3545; border-radius: 6px; padding: 12px; margin-bottom: 16px; color: #dc3545;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Warning:</strong> This action will permanently delete the specified accounts. This cannot be undone!
+            </div>
+            
+            <div class="form-group-github">
+                <label for="bulkDeleteAccounts" class="form-label-github">
+                    <i class="fas fa-list"></i> Account Names (one per line)
+                </label>
+                <textarea id="bulkDeleteAccounts" class="form-control-github" rows="8" 
+                          placeholder="Enter account names, one per line:&#10;admin@domain1.com&#10;user@domain2.com&#10;manager@domain3.com"
+                          style="font-family: 'Courier New', monospace; font-size: 14px;"></textarea>
+                <small style="color: #656d76; font-size: 12px;">
+                    Enter the exact account names (email addresses) that you want to delete, one per line.
+                </small>
+            </div>
+            
+            <div id="bulkDeleteProgress" style="display: none; margin-top: 16px;">
+                <div style="background: #f6f8fa; border-radius: 6px; padding: 16px; border: 1px solid #d0d7de;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span id="bulkDeleteStatus">Processing...</span>
+                        <span id="bulkDeleteCount">0/0</span>
+                    </div>
+                    <div style="background: #e1e4e8; border-radius: 6px; height: 8px; overflow: hidden;">
+                        <div id="bulkDeleteProgressBar" style="background: #dc3545; height: 100%; width: 0%; transition: width 0.3s; border-radius: 6px;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="bulkDeleteResults" style="display: none; margin-top: 16px;">
+                <h6 style="font-weight: 600; margin-bottom: 8px; color: #24292f;">
+                    <i class="fas fa-list-check"></i> Deletion Results
+                </h6>
+                <div id="bulkDeleteResultsContent" style="background: #f6f8fa; padding: 12px; border-radius: 6px; border: 1px solid #d0d7de; max-height: 200px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px;">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button onclick="executeBulkDelete()" class="btn-github btn-github-danger" id="bulkDeleteExecuteBtn">
+                <i class="fas fa-trash-alt"></i> Delete Accounts
+            </button>
+            <button onclick="closeBulkDeleteModal()" class="btn-github">
+                <i class="fas fa-times"></i> Cancel
             </button>
         </div>
     </div>
@@ -2000,6 +2065,124 @@ function deleteFromList() {
         console.error('Delete error:', error);
         alert('❌ Error: ' + error.message);
     });
+}
+
+// Bulk Delete Functions
+function openBulkDeleteModal() {
+    // Check if user is admin
+    if (sessionStorage.getItem('userRole') !== 'admin') {
+        alert('❌ This feature is only available for administrators.');
+        return;
+    }
+    
+    // Clear previous data
+    document.getElementById('bulkDeleteAccounts').value = '';
+    document.getElementById('bulkDeleteProgress').style.display = 'none';
+    document.getElementById('bulkDeleteResults').style.display = 'none';
+    document.getElementById('bulkDeleteExecuteBtn').disabled = false;
+    
+    // Show modal
+    document.getElementById('bulkDeleteModal').style.display = 'block';
+}
+
+function closeBulkDeleteModal() {
+    document.getElementById('bulkDeleteModal').style.display = 'none';
+}
+
+function executeBulkDelete() {
+    const accountsText = document.getElementById('bulkDeleteAccounts').value.trim();
+    
+    if (!accountsText) {
+        alert('❌ Please enter at least one account name to delete.');
+        return;
+    }
+    
+    // Parse account names
+    const accountNames = accountsText.split('\n')
+        .map(name => name.trim())
+        .filter(name => name.length > 0);
+    
+    if (accountNames.length === 0) {
+        alert('❌ Please enter valid account names.');
+        return;
+    }
+    
+    // Confirm deletion
+    if (!confirm(`Are you sure you want to delete ${accountNames.length} accounts?\n\nThis action cannot be undone!`)) {
+        return;
+    }
+    
+    // Show progress
+    document.getElementById('bulkDeleteProgress').style.display = 'block';
+    document.getElementById('bulkDeleteResults').style.display = 'none';
+    document.getElementById('bulkDeleteExecuteBtn').disabled = true;
+    
+    // Update progress
+    updateBulkDeleteProgress(0, accountNames.length, 'Starting bulk deletion...');
+    
+    // Execute bulk delete
+    fetch('/api/bulk-delete-accounts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({account_names: accountNames})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateBulkDeleteProgress(accountNames.length, accountNames.length, 'Bulk deletion completed!');
+            showBulkDeleteResults(data.results, accountNames.length);
+            
+            // Reload page after 3 seconds to refresh the account list
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        } else {
+            updateBulkDeleteProgress(0, accountNames.length, 'Bulk deletion failed!');
+            showBulkDeleteResults([{success: false, account: 'All', error: data.error}], 0);
+        }
+    })
+    .catch(error => {
+        console.error('Bulk delete error:', error);
+        updateBulkDeleteProgress(0, accountNames.length, 'Network error occurred!');
+        showBulkDeleteResults([{success: false, account: 'All', error: error.message}], 0);
+    })
+    .finally(() => {
+        document.getElementById('bulkDeleteExecuteBtn').disabled = false;
+    });
+}
+
+function updateBulkDeleteProgress(completed, total, status) {
+    const percentage = total > 0 ? (completed / total) * 100 : 0;
+    
+    document.getElementById('bulkDeleteStatus').textContent = status;
+    document.getElementById('bulkDeleteCount').textContent = `${completed}/${total}`;
+    document.getElementById('bulkDeleteProgressBar').style.width = percentage + '%';
+}
+
+function showBulkDeleteResults(results, totalAccounts) {
+    const resultsContainer = document.getElementById('bulkDeleteResultsContent');
+    let html = '';
+    
+    let successful = 0;
+    let failed = 0;
+    
+    results.forEach(result => {
+        if (result.success) {
+            successful++;
+            html += `<div style="color: #2da44e; margin-bottom: 4px;">✅ ${result.account} - Deleted successfully</div>`;
+        } else {
+            failed++;
+            html += `<div style="color: #da3633; margin-bottom: 4px;">❌ ${result.account} - ${result.error}</div>`;
+        }
+    });
+    
+    // Add summary
+    html = `<div style="font-weight: 600; margin-bottom: 8px; color: #24292f;">
+                Summary: ${successful} successful, ${failed} failed out of ${totalAccounts} total
+            </div>` + html;
+    
+    resultsContainer.innerHTML = html;
+    document.getElementById('bulkDeleteResults').style.display = 'block';
 }
 
 function refreshAccountsDisplay() {

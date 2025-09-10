@@ -2986,6 +2986,82 @@ def test_database_backup():
         app.logger.error(f"Error testing database backup: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/bulk-delete-accounts', methods=['POST'])
+@login_required
+def bulk_delete_accounts():
+    """Bulk delete multiple Google Workspace accounts"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        data = request.get_json()
+        account_names = data.get('account_names', [])
+        
+        if not account_names:
+            return jsonify({'success': False, 'error': 'No account names provided'})
+        
+        if not isinstance(account_names, list):
+            return jsonify({'success': False, 'error': 'Account names must be provided as a list'})
+        
+        logging.info(f"Bulk deleting {len(account_names)} accounts: {account_names}")
+        
+        results = []
+        successful_deletions = 0
+        
+        for account_name in account_names:
+            account_name = account_name.strip()
+            if not account_name:
+                continue
+                
+            try:
+                logging.info(f"Deleting account: {account_name}")
+                
+                # Find the account in the database
+                account = GoogleAccount.query.filter_by(account_name=account_name).first()
+                
+                if not account:
+                    results.append({
+                        'success': False,
+                        'account': account_name,
+                        'error': 'Account not found in database'
+                    })
+                    continue
+                
+                # Delete the account from database (this will cascade delete tokens)
+                db.session.delete(account)
+                db.session.commit()
+                
+                results.append({
+                    'success': True,
+                    'account': account_name,
+                    'message': 'Account deleted successfully'
+                })
+                successful_deletions += 1
+                logging.info(f"Successfully deleted account: {account_name}")
+                
+            except Exception as account_error:
+                error_msg = str(account_error)
+                logging.error(f"Failed to delete account {account_name}: {error_msg}")
+                results.append({
+                    'success': False,
+                    'account': account_name,
+                    'error': error_msg
+                })
+        
+        logging.info(f"Bulk account deletion completed. Successfully deleted {successful_deletions} out of {len(account_names)} accounts")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Bulk deletion completed. Successfully deleted {successful_deletions} out of {len(account_names)} accounts.',
+            'results': results,
+            'total_requested': len(account_names),
+            'successful_deletions': successful_deletions
+        })
+        
+    except Exception as e:
+        logging.error(f"Bulk delete accounts error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 # Enhanced Add from Server JSON functionality
 @app.route('/api/add-from-server-json', methods=['POST'])
 @login_required
