@@ -85,15 +85,15 @@
         </div>
         
         <div class="account-actions">
-            <button onclick="authenticateFromList()" class="action-button">
+            <button onclick="authenticateFromList()" class="action-button" style="height: 50px; font-size: 12px;">
                 🔑 Authenticate<br>(List Selection)
             </button>
             {% if session.role == 'admin' %}
-            <button onclick="openBulkDeleteModal()" class="action-button delete-button" style="background-color: #dc3545; border-color: #dc3545;">
+            <button onclick="openBulkDeleteModal()" class="action-button delete-button" style="background-color: #dc3545; border-color: #dc3545; height: 50px; font-size: 12px;">
                 🗑️ Bulk Delete<br>(Admin Only)
             </button>
             {% endif %}
-            <button onclick="deleteFromList()" class="action-button delete-button">
+            <button onclick="deleteFromList()" class="action-button delete-button" style="height: 50px; font-size: 12px;">
                 🗑️ Delete Account<br>(List Selection)
             </button>
         </div>
@@ -2069,11 +2069,8 @@ function deleteFromList() {
 
 // Bulk Delete Functions
 function openBulkDeleteModal() {
-    // Check if user is admin
-    if (sessionStorage.getItem('userRole') !== 'admin') {
-        alert('❌ This feature is only available for administrators.');
-        return;
-    }
+    // Admin check is handled by the backend, so we can proceed directly
+    // The button is only shown to admins via server-side template logic
     
     // Clear previous data
     document.getElementById('bulkDeleteAccounts').value = '';
