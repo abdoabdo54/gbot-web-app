@@ -22,7 +22,6 @@ from email.mime.multipart import MIMEMultipart
 
 from core_logic import google_api
 from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, BackupServerConfig
-from backup_scheduler import init_backup_scheduler, get_backup_scheduler
 
 # Progress tracking system for domain changes
 progress_tracker = {}
@@ -2588,10 +2587,18 @@ def create_sqlalchemy_backup(filepath, include_data):
         app.logger.error(f"SQLAlchemy backup failed: {e}")
         return jsonify({'success': False, 'error': f'SQLAlchemy backup failed: {str(e)}'})
 
-# Internal backup function (used by scheduler)
-def create_database_backup_internal(format='sql', include_data='full', automated=False, backup_type='manual'):
-    """Internal function to create database backup (used by scheduler and API)"""
+# Database Backup API routes
+@app.route('/api/create-database-backup', methods=['POST'])
+@login_required
+def create_database_backup():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
     try:
+        data = request.get_json()
+        backup_format = data.get('format', 'sql')
+        include_data = data.get('include_data', 'full')
+        
         # Create backup directory if it doesn't exist
         import os
         backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
@@ -2600,11 +2607,10 @@ def create_database_backup_internal(format='sql', include_data='full', automated
         
         # Generate filename with timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        prefix = f"auto_{backup_type}" if automated else "manual"
-        filename = f"gbot_db_backup_{prefix}_{timestamp}.{format}"
+        filename = f"gbot_db_backup_{timestamp}.{backup_format}"
         filepath = os.path.join(backup_dir, filename)
         
-        if format == 'sql':
+        if backup_format == 'sql':
             # Create SQL dump
             if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgresql'):
                 # PostgreSQL backup
@@ -2649,36 +2655,30 @@ def create_database_backup_internal(format='sql', include_data='full', automated
                         app.logger.warning(f"pg_dump stderr: {result.stderr}")
                     
                     if result.returncode != 0:
-                        return {'success': False, 'error': f'pg_dump failed (code {result.returncode}): {result.stderr}'}
+                        return jsonify({'success': False, 'error': f'pg_dump failed (code {result.returncode}): {result.stderr}'})
                     
                     # Check if file was created and has content
                     if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
                         app.logger.warning("pg_dump created empty file, trying SQLAlchemy fallback...")
                         # Fallback to SQLAlchemy-based backup
-                        fallback_result = create_sqlalchemy_backup(filepath, include_data)
-                        if fallback_result:
-                            return fallback_result
+                        return create_sqlalchemy_backup(filepath, include_data)
                         
                 except subprocess.TimeoutExpired:
                     app.logger.warning("pg_dump timed out, trying SQLAlchemy fallback...")
-                    fallback_result = create_sqlalchemy_backup(filepath, include_data)
-                    if fallback_result:
-                        return fallback_result
+                    return create_sqlalchemy_backup(filepath, include_data)
                 except Exception as e:
                     app.logger.warning(f"pg_dump failed: {e}, trying SQLAlchemy fallback...")
-                    fallback_result = create_sqlalchemy_backup(filepath, include_data)
-                    if fallback_result:
-                        return fallback_result
-                        
+                    return create_sqlalchemy_backup(filepath, include_data)
+                    
             else:
                 # SQLite backup
                 import shutil
                 db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
                 if not os.path.exists(db_path):
-                    return {'success': False, 'error': f'SQLite database file not found: {db_path}'}
+                    return jsonify({'success': False, 'error': f'SQLite database file not found: {db_path}'})
                 shutil.copy2(db_path, filepath)
         
-        elif format == 'json':
+        elif backup_format == 'json':
             # Create JSON export
             backup_data = {}
             
@@ -2713,7 +2713,7 @@ def create_database_backup_internal(format='sql', include_data='full', automated
             with open(filepath, 'w') as f:
                 json.dump(backup_data, f, indent=2, default=str)
         
-        elif format == 'csv':
+        elif backup_format == 'csv':
             # Create CSV export
             import csv
             import zipfile
@@ -2756,41 +2756,14 @@ def create_database_backup_internal(format='sql', include_data='full', automated
         # Get file size
         file_size = os.path.getsize(filepath)
         
-        backup_type_text = f"automated {backup_type}" if automated else "manual"
-        app.logger.info(f"Database backup created ({backup_type_text}): {filename} ({file_size} bytes)")
+        app.logger.info(f"Database backup created: {filename} ({file_size} bytes)")
         
-        return {
+        return jsonify({
             'success': True,
             'message': f'Database backup created successfully',
             'filename': filename,
-            'size': file_size,
-            'automated': automated,
-            'backup_type': backup_type
-        }
-        
-    except Exception as e:
-        app.logger.error(f"Error creating database backup: {e}")
-        return {'success': False, 'error': str(e)}
-
-# Database Backup API routes
-@app.route('/api/create-database-backup', methods=['POST'])
-@login_required
-def create_database_backup():
-    if session.get('role') != 'admin':
-        return jsonify({'success': False, 'error': 'Admin privileges required'})
-    
-    try:
-        data = request.get_json()
-        backup_format = data.get('format', 'sql')
-        include_data = data.get('include_data', 'full')
-        
-        # Use the internal backup function
-        result = create_database_backup_internal(backup_format, include_data, automated=False, backup_type='manual')
-        
-        if result['success']:
-            return jsonify(result)
-        else:
-            return jsonify({'success': False, 'error': result['error']})
+            'size': file_size
+        })
         
     except Exception as e:
         app.logger.error(f"Error creating database backup: {e}")
@@ -3011,94 +2984,6 @@ def test_database_backup():
         
     except Exception as e:
         app.logger.error(f"Error testing database backup: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-# Automated Backup Scheduler API routes
-@app.route('/api/backup-scheduler/status', methods=['GET'])
-@login_required
-def get_backup_scheduler_status():
-    """Get backup scheduler status"""
-    if session.get('role') != 'admin':
-        return jsonify({'success': False, 'error': 'Admin privileges required'})
-    
-    try:
-        scheduler = get_backup_scheduler()
-        status = scheduler.get_scheduler_status()
-        return jsonify({
-            'success': True,
-            'status': status
-        })
-    except Exception as e:
-        app.logger.error(f"Error getting backup scheduler status: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/backup-scheduler/start', methods=['POST'])
-@login_required
-def start_backup_scheduler():
-    """Start the backup scheduler"""
-    if session.get('role') != 'admin':
-        return jsonify({'success': False, 'error': 'Admin privileges required'})
-    
-    try:
-        scheduler = get_backup_scheduler()
-        scheduler.start_scheduler()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Backup scheduler started successfully'
-        })
-    except Exception as e:
-        app.logger.error(f"Error starting backup scheduler: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/backup-scheduler/stop', methods=['POST'])
-@login_required
-def stop_backup_scheduler():
-    """Stop the backup scheduler"""
-    if session.get('role') != 'admin':
-        return jsonify({'success': False, 'error': 'Admin privileges required'})
-    
-    try:
-        scheduler = get_backup_scheduler()
-        scheduler.stop_scheduler()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Backup scheduler stopped successfully'
-        })
-    except Exception as e:
-        app.logger.error(f"Error stopping backup scheduler: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/backup-scheduler/test', methods=['POST'])
-@login_required
-def test_backup_scheduler():
-    """Test the backup scheduler by creating a test backup"""
-    if session.get('role') != 'admin':
-        return jsonify({'success': False, 'error': 'Admin privileges required'})
-    
-    try:
-        # Create a test backup
-        result = create_database_backup_internal(
-            format='sql',
-            include_data='full',
-            automated=True,
-            backup_type='test'
-        )
-        
-        if result['success']:
-            return jsonify({
-                'success': True,
-                'message': 'Test backup created successfully',
-                'filename': result['filename']
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'error': result['error']
-            })
-    except Exception as e:
-        app.logger.error(f"Error testing backup scheduler: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 # Enhanced Add from Server JSON functionality
@@ -4129,8 +4014,4 @@ def test_progress():
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        # Initialize backup scheduler
-        init_backup_scheduler(app)
     app.run(debug=True)
