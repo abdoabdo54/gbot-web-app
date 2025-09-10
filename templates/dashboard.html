@@ -1683,6 +1683,9 @@ function loadSuspendedUsers() {
                     <p><strong>❌ Error Loading Suspended Users</strong></p>
                     <p>${data.error}</p>
                     <p><small>Please try refreshing or re-authenticating your account.</small></p>
+                    <button onclick="debugAuthStatus()" class="btn-github" style="margin-top: 10px;">
+                        🔍 Debug Authentication Status
+                    </button>
                 </div>`;
         }
     })
@@ -1740,6 +1743,34 @@ function clearSuspendedUsers() {
             <p>Click "🔍 Load Suspended Users" to check for suspended accounts in your Google Workspace.</p>
             <p><small>This will show all users with suspended status, including their names, emails, and admin privileges.</small></p>
         </div>`;
+}
+
+function debugAuthStatus() {
+    fetch('/api/debug-auth-status')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const debugInfo = data.debug_info;
+            const debugHtml = `
+                <div class="status-info" style="background: #e7f3ff; border-color: #b3d9ff;">
+                    <p><strong>🔍 Authentication Debug Information</strong></p>
+                    <p><strong>Current Account:</strong> ${debugInfo.current_account || 'None'}</p>
+                    <p><strong>Service Available:</strong> ${debugInfo.service_available ? '✅ Yes' : '❌ No'}</p>
+                    <p><strong>Token Valid:</strong> ${debugInfo.token_valid ? '✅ Yes' : '❌ No'}</p>
+                    <p><strong>Session ID:</strong> ${debugInfo.session_id || 'None'}</p>
+                    <p><strong>Session Keys:</strong> ${debugInfo.session_keys.join(', ') || 'None'}</p>
+                    <button onclick="clearSuspendedUsers()" class="btn-github" style="margin-top: 10px;">
+                        🔙 Back to Suspended Users
+                    </button>
+                </div>`;
+            document.getElementById('suspended-display').innerHTML = debugHtml;
+        } else {
+            alert('Debug failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Debug request failed: ' + error);
+    });
 }
 
 function refreshAccounts() {

@@ -1492,6 +1492,30 @@ def api_clear_old_domain_data():
         logging.error(f"Clear old domain data error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/debug-auth-status', methods=['GET'])
+@login_required
+def api_debug_auth_status():
+    """Debug endpoint to check authentication and service status"""
+    try:
+        current_account = session.get('current_account_name')
+        service_available = google_api.service is not None
+        token_valid = google_api.is_token_valid(current_account) if current_account else False
+        
+        debug_info = {
+            'current_account': current_account,
+            'service_available': service_available,
+            'token_valid': token_valid,
+            'session_id': session.get('session_id'),
+            'session_keys': list(session.keys())
+        }
+        
+        return jsonify({
+            'success': True,
+            'debug_info': debug_info
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/load-suspended-users', methods=['POST'])
 @login_required
 def api_load_suspended_users():
@@ -1499,22 +1523,20 @@ def api_load_suspended_users():
     try:
         # Check if user is authenticated
         if 'current_account_name' not in session:
+            logging.error("No current_account_name in session")
             return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
         
         # Get the current authenticated account
         account_name = session.get('current_account_name')
+        logging.info(f"Loading suspended users for account: {account_name}")
         
-        # First, try to authenticate using saved tokens if service is not available
-        if not google_api.service:
-            # Check if we have valid tokens for this account
-            if google_api.is_token_valid(account_name):
-                success = google_api.authenticate_with_tokens(account_name)
-                if not success:
-                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
-            else:
-                return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
+        # Validate and recreate service if necessary
+        if not google_api.validate_and_recreate_service(account_name):
+            logging.error(f"Failed to validate or recreate service for account {account_name}")
+            return jsonify({'success': False, 'error': 'Failed to establish Google API connection. Please re-authenticate.'})
         
         try:
+            logging.info(f"Retrieving suspended users from Google Admin Directory API for {account_name}")
             # Retrieve suspended users from Google Admin Directory API
             users_result = google_api.service.users().list(
                 customer='my_customer', 
@@ -1523,6 +1545,7 @@ def api_load_suspended_users():
             ).execute()
             
             suspended_users = users_result.get('users', [])
+            logging.info(f"Found {len(suspended_users)} suspended users for {account_name}")
             
             # Format suspended user data with full information
             formatted_suspended_users = []
@@ -1538,6 +1561,7 @@ def api_load_suspended_users():
                     }
                     formatted_suspended_users.append(user_data)
             
+            logging.info(f"Successfully formatted {len(formatted_suspended_users)} suspended users for {account_name}")
             return jsonify({
                 'success': True,
                 'users': formatted_suspended_users,
@@ -1545,7 +1569,7 @@ def api_load_suspended_users():
             })
             
         except Exception as api_error:
-            logging.error(f"Google API error: {api_error}")
+            logging.error(f"Google API error for account {account_name}: {api_error}")
             return jsonify({'success': False, 'error': f'Failed to retrieve suspended users: {str(api_error)}'})
             
     except Exception as e:

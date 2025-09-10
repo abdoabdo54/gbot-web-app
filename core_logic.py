@@ -10,6 +10,7 @@ import google.auth.transport.requests
 from flask import session
 from database import db, GoogleAccount, GoogleToken
 
+# Use a more robust session service storage
 _session_services = {}
 
 class WebGoogleAPI:
@@ -90,18 +91,68 @@ class WebGoogleAPI:
     def _get_current_service(self):
         current_account = session.get('current_account_name')
         if not current_account:
+            logging.warning("No current account in session")
             return None
+        
         service_key = self._get_session_key(current_account)
-        return _session_services.get(service_key)
+        service = _session_services.get(service_key)
+        
+        if service is None:
+            logging.info(f"No service found for account {current_account}, attempting to recreate...")
+            # Try to recreate the service if it doesn't exist
+            if self.is_token_valid(current_account):
+                success = self.authenticate_with_tokens(current_account)
+                if success:
+                    service = _session_services.get(service_key)
+                    logging.info(f"Successfully recreated service for account {current_account}")
+                else:
+                    logging.error(f"Failed to recreate service for account {current_account}")
+            else:
+                logging.error(f"No valid tokens for account {current_account}")
+        
+        return service
 
     def _set_current_service(self, account_name, service):
         service_key = self._get_session_key(account_name)
         _session_services[service_key] = service
         session['current_account_name'] = account_name
+        logging.info(f"Service set for account {account_name} with key {service_key}")
 
     @property
     def service(self):
         return self._get_current_service()
+    
+    def clear_invalid_services(self):
+        """Clear any invalid or expired services from the session storage"""
+        current_account = session.get('current_account_name')
+        if current_account:
+            service_key = self._get_session_key(current_account)
+            if service_key in _session_services:
+                del _session_services[service_key]
+                logging.info(f"Cleared invalid service for account {current_account}")
+    
+    def validate_and_recreate_service(self, account_name):
+        """Validate current service and recreate if necessary"""
+        if not account_name:
+            return False
+            
+        # Check if we have a valid service
+        service = self._get_current_service()
+        if service is not None:
+            return True
+            
+        # Try to recreate the service
+        if self.is_token_valid(account_name):
+            success = self.authenticate_with_tokens(account_name)
+            if success:
+                logging.info(f"Successfully recreated service for account {account_name}")
+                return True
+            else:
+                logging.error(f"Failed to recreate service for account {account_name}")
+                return False
+        else:
+            logging.error(f"No valid tokens for account {account_name}")
+            return False
 
     def create_gsuite_user(self, first_name, last_name, email, password):
         if not self.service:
