@@ -3197,7 +3197,7 @@ def api_auto_change_subdomain():
         for domain_record in UsedDomain.query.all():
             domain_records[domain_record.domain_name] = domain_record
         
-        # Find next available domain (never used, ascending order)
+        # Find next available domain from the retrieved domains list (ascending order)
         available_domains = []
         for domain in domains:
             domain_name = domain.get('domainName', '')
@@ -3220,7 +3220,17 @@ def api_auto_change_subdomain():
         
         # Sort available domains alphabetically for ascending order
         available_domains.sort()
-        next_domain = available_domains[0]
+        
+        # Find the next domain after the current domain
+        next_domain = None
+        for domain in available_domains:
+            if domain > current_domain:
+                next_domain = domain
+                break
+        
+        # If no domain found after current, use the first available domain
+        if not next_domain:
+            next_domain = available_domains[0]
         
         # Get all users from current domain (excluding admin accounts)
         users_to_change = []
@@ -3237,11 +3247,12 @@ def api_auto_change_subdomain():
         if not users_to_change:
             return jsonify({'success': False, 'error': f'No non-admin users found in domain {current_domain}.'})
         
-        # Perform domain change for all users
+        # Perform domain change for all users with progress tracking
         successful_changes = 0
         failed_changes = []
+        total_users = len(users_to_change)
         
-        for user_data in users_to_change:
+        for i, user_data in enumerate(users_to_change):
             email = user_data['email']
             user = user_data['user']
             
@@ -3260,7 +3271,7 @@ def api_auto_change_subdomain():
                 ).execute()
                 
                 successful_changes += 1
-                logging.info(f"✅ Successfully changed {email} → {new_email}")
+                logging.info(f"✅ Successfully changed {email} → {new_email} ({i+1}/{total_users})")
                 
             except Exception as e:
                 failed_changes.append({'email': email, 'error': str(e)})
@@ -3307,7 +3318,9 @@ def api_auto_change_subdomain():
             'next_domain': next_domain,
             'successful_changes': successful_changes,
             'failed_changes': len(failed_changes),
-            'failed_details': failed_changes
+            'total_users': total_users,
+            'failed_details': failed_changes,
+            'available_domains': available_domains
         })
         
     except Exception as e:

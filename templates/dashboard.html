@@ -3604,10 +3604,32 @@ function autoChangeSubdomain() {
     logBulkDomain('🔄 Starting automated subdomain change...');
     
     // Show progress indicator
+    const progressContainer = document.getElementById('domain-change-progress');
+    const progressBar = document.getElementById('progress-bar');
+    const progressMessage = document.getElementById('progress-message');
+    const progressPercentage = document.getElementById('progress-percentage');
+    
+    progressContainer.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressPercentage.textContent = '0%';
+    progressMessage.textContent = 'Initializing automated subdomain change...';
+    
+    // Show progress indicator on button
     const button = event.target;
     const originalText = button.innerHTML;
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Changing...';
     button.disabled = true;
+    
+    // Simulate progress updates
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress += 2;
+        if (progress <= 90) {
+            progressBar.style.width = progress + '%';
+            progressPercentage.textContent = progress + '%';
+            progressMessage.textContent = `Processing domain change... ${progress}%`;
+        }
+    }, 200);
     
     fetch('/api/auto-change-subdomain', {
         method: 'POST',
@@ -3615,10 +3637,15 @@ function autoChangeSubdomain() {
     })
     .then(response => response.json())
     .then(data => {
+        clearInterval(progressInterval);
+        progressBar.style.width = '100%';
+        progressPercentage.textContent = '100%';
+        
         if (data.success) {
             logBulkDomain(`✅ ${data.message}`);
-            logBulkDomain(`📊 Successfully changed ${data.successful_changes} users`);
+            logBulkDomain(`📊 Successfully changed ${data.successful_changes}/${data.total_users} users`);
             logBulkDomain(`🔄 Domain change: ${data.current_domain} → ${data.next_domain}`);
+            logBulkDomain(`📋 Available domains: ${data.available_domains.join(', ')}`);
             
             if (data.failed_changes > 0) {
                 logBulkDomain(`⚠️ ${data.failed_changes} users failed to change`);
@@ -3629,25 +3656,35 @@ function autoChangeSubdomain() {
                 }
             }
             
+            progressMessage.textContent = 'Automated subdomain change completed successfully!';
+            
             // Refresh domain display
             getDomainInfo();
             
             // Show success message
-            alert(`✅ Automated subdomain change completed!\n\n${data.message}\n\nChanged ${data.successful_changes} users from ${data.current_domain} to ${data.next_domain}`);
+            alert(`✅ Automated subdomain change completed!\n\n${data.message}\n\nChanged ${data.successful_changes}/${data.total_users} users from ${data.current_domain} to ${data.next_domain}`);
             
         } else {
             logBulkDomain(`❌ Auto change subdomain failed: ${data.error}`);
+            progressMessage.textContent = `Failed: ${data.error}`;
             alert(`❌ Failed to change subdomain: ${data.error}`);
         }
     })
     .catch(error => {
+        clearInterval(progressInterval);
         logBulkDomain(`❌ Network error: ${error}`);
+        progressMessage.textContent = `Network error: ${error.message}`;
         alert(`❌ Network error: ${error.message}`);
     })
     .finally(() => {
         // Restore button
         button.innerHTML = originalText;
         button.disabled = false;
+        
+        // Hide progress after 3 seconds
+        setTimeout(() => {
+            progressContainer.style.display = 'none';
+        }, 3000);
     });
 }
 
