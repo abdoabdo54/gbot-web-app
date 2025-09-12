@@ -102,36 +102,12 @@
             
             <div class="form-group-github">
                 <label for="server_json_path" class="form-label-github">
-                    <i class="fas fa-folder"></i> JSON Files Path (Legacy)
+                    <i class="fas fa-folder"></i> JSON Files Path
                 </label>
                 <input type="text" class="form-control-github" id="server_json_path" 
                        value="/opt/gbot-web-app/credentials/" placeholder="/path/to/json/files/" required>
                 <small style="color: #656d76; font-size: 12px;">
-                    Directory path where JSON credential files are stored on the server (legacy method)
-                </small>
-            </div>
-            
-            <div class="form-group-github">
-                <label for="server_base_directory" class="form-label-github">
-                    <i class="fas fa-sitemap"></i> Base Directory for Account Folders
-                </label>
-                <input type="text" class="form-control-github" id="server_base_directory" 
-                       value="/home/brightmindscampus" placeholder="/home/brightmindscampus" required>
-                <small style="color: #656d76; font-size: 12px;">
-                    Base directory where account-specific folders are located (e.g., /home/brightmindscampus/{account}/*.json)
-                </small>
-            </div>
-            
-            <div class="form-group-github">
-                <label for="server_use_account_directories" class="form-label-github">
-                    <i class="fas fa-toggle-on"></i> Use Account-Specific Directories
-                </label>
-                <select class="form-control-github" id="server_use_account_directories" required>
-                    <option value="true">Yes - Use account directories (Recommended)</option>
-                    <option value="false">No - Use legacy single directory</option>
-                </select>
-                <small style="color: #656d76; font-size: 12px;">
-                    Enable to use the new directory structure: base_directory/{account}/*.json
+                    Directory path where JSON credential files are stored on the server
                 </small>
             </div>
             
@@ -426,8 +402,6 @@ function displayCurrentConfiguration(config) {
     $('#server_private_key').val(config.private_key || '');
     $('#server_json_path').val(config.json_path || '');
     $('#server_file_pattern').val(config.file_pattern || '');
-    $('#server_base_directory').val(config.base_directory || '/home/brightmindscampus');
-    $('#server_use_account_directories').val(config.use_account_directories ? 'true' : 'false');
     
     // Trigger auth method change to show/hide fields
     $('#server_auth_method').trigger('change');
@@ -455,9 +429,7 @@ function displayCurrentConfiguration(config) {
                     <i class="fas fa-folder"></i> File Configuration
                 </h6>
                 <div style="background: #f6f8fa; padding: 16px; border-radius: 6px; border: 1px solid #d0d7de;">
-                    <div style="margin-bottom: 8px;"><strong>JSON Path (Legacy):</strong> <code>${config.json_path || 'Not set'}</code></div>
-                    <div style="margin-bottom: 8px;"><strong>Base Directory:</strong> <code>${config.base_directory || 'Not set'}</code></div>
-                    <div style="margin-bottom: 8px;"><strong>Use Account Directories:</strong> <code>${config.use_account_directories ? 'Yes' : 'No'}</code></div>
+                    <div style="margin-bottom: 8px;"><strong>JSON Path:</strong> <code>${config.json_path || 'Not set'}</code></div>
                     <div style="margin-bottom: 8px;"><strong>File Pattern:</strong> <code>${config.file_pattern || 'Not set'}</code></div>
                     <div><strong>Status:</strong> 
                         <span style="display: inline-flex; align-items: center; gap: 4px; background: ${statusColor}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">
@@ -486,13 +458,11 @@ function saveServerConfiguration() {
         password: $('#server_password').val(),
         private_key: $('#server_private_key').val().trim(),
         json_path: $('#server_json_path').val().trim(),
-        file_pattern: $('#server_file_pattern').val().trim(),
-        base_directory: $('#server_base_directory').val().trim(),
-        use_account_directories: $('#server_use_account_directories').val() === 'true'
+        file_pattern: $('#server_file_pattern').val().trim()
     };
     
     // Validate required fields
-    if (!config.host || !config.username || !config.json_path || !config.file_pattern || !config.base_directory) {
+    if (!config.host || !config.username || !config.json_path || !config.file_pattern) {
         showStatus('Please fill in all required fields', 'error');
         return;
     }
@@ -540,13 +510,11 @@ function testServerConnection() {
         password: $('#server_password').val(),
         private_key: $('#server_private_key').val().trim(),
         json_path: $('#server_json_path').val().trim(),
-        file_pattern: $('#server_file_pattern').val().trim(),
-        base_directory: $('#server_base_directory').val().trim(),
-        use_account_directories: $('#server_use_account_directories').val() === 'true'
+        file_pattern: $('#server_file_pattern').val().trim()
     };
     
     // Validate required fields
-    if (!config.host || !config.username || !config.json_path || !config.file_pattern || !config.base_directory) {
+    if (!config.host || !config.username || !config.json_path || !config.file_pattern) {
         showStatus('Please fill in all required fields before testing', 'error');
         return;
     }
