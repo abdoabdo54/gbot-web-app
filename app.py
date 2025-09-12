@@ -2363,8 +2363,8 @@ def save_server_config():
     try:
         data = request.get_json()
         
-        # Validate required fields
-        required_fields = ['host', 'username', 'json_path', 'file_pattern']
+        # Validate required fields - updated for new structure
+        required_fields = ['host', 'username']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'success': False, 'error': f'Missing required field: {field}'})
@@ -2382,8 +2382,10 @@ def save_server_config():
         config.port = data.get('port', 22)
         config.username = data['username']
         config.auth_method = data.get('auth_method', 'password')
-        config.json_path = data['json_path']
-        config.file_pattern = data['file_pattern']
+        
+        # Set fixed values for new directory structure
+        config.json_path = "home/brightmindscampus"  # Fixed base path
+        config.file_pattern = "*.json"  # Fixed pattern
         
         # Handle authentication credentials
         if data['auth_method'] == 'password':
@@ -2413,8 +2415,8 @@ def test_server_connection():
     try:
         data = request.get_json()
         
-        # Validate required fields
-        required_fields = ['host', 'username', 'json_path', 'file_pattern']
+        # Validate required fields - updated for new structure
+        required_fields = ['host', 'username']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'success': False, 'error': f'Missing required field: {field}'})
@@ -2455,41 +2457,90 @@ def test_server_connection():
                 finally:
                     os.unlink(key_file_path)
             
-            # Test file access
+            # Test file access with new directory structure
             sftp = ssh.open_sftp()
             try:
-                # List files in the specified directory
-                files = sftp.listdir(data['json_path'])
+                # Test the base directory structure: home/brightmindscampus/
+                base_dir = "home/brightmindscampus"
                 
-                # Filter files based on pattern
-                import fnmatch
-                json_files = [f for f in files if fnmatch.fnmatch(f, data['file_pattern'])]
+                try:
+                    # List directories in the base directory
+                    account_dirs = sftp.listdir(base_dir)
+                except FileNotFoundError:
+                    ssh.close()
+                    return jsonify({'success': False, 'error': f'Base directory not found: {base_dir}'})
                 
-                # Test reading a few files to ensure they're valid JSON
-                valid_files = []
-                for filename in json_files[:5]:  # Test first 5 files
+                # Test a few account directories to find JSON files
+                valid_accounts = []
+                tested_accounts = 0
+                max_test_accounts = 5  # Limit testing to avoid long delays
+                
+                for account_dir in account_dirs[:max_test_accounts]:
+                    if '@' not in account_dir:  # Skip non-email directories
+                        continue
+                    
+                    tested_accounts += 1
+                    account_path = f"{base_dir}/{account_dir}"
+                    
                     try:
-                        file_path = os.path.join(data['json_path'], filename)
-                        with sftp.open(file_path, 'r') as f:
-                            content = f.read()
-                            json.loads(content)  # Validate JSON
-                            valid_files.append(filename)
+                        # List files in the account directory
+                        account_files = sftp.listdir(account_path)
+                        
+                        # Look for JSON files
+                        import fnmatch
+                        json_files = [f for f in account_files if fnmatch.fnmatch(f, '*.json')]
+                        
+                        if json_files:
+                            # Test reading the first JSON file
+                            json_filename = json_files[0]
+                            file_path = f"{account_path}/{json_filename}"
+                            
+                            try:
+                                with sftp.open(file_path, 'r') as f:
+                                    content = f.read()
+                                    json_data = json.loads(content)
+                                
+                                # Validate JSON structure
+                                if 'installed' in json_data or 'web' in json_data:
+                                    valid_accounts.append({
+                                        'account': account_dir,
+                                        'json_file': json_filename,
+                                        'has_credentials': True
+                                    })
+                                else:
+                                    valid_accounts.append({
+                                        'account': account_dir,
+                                        'json_file': json_filename,
+                                        'has_credentials': False
+                                    })
+                            except Exception as e:
+                                app.logger.warning(f"Invalid JSON file {file_path}: {e}")
+                                continue
+                    
                     except Exception as e:
-                        app.logger.warning(f"Invalid JSON file {filename}: {e}")
+                        app.logger.warning(f"Could not access account directory {account_path}: {e}")
                         continue
                 
                 ssh.close()
                 
-                return jsonify({
-                    'success': True,
-                    'message': f'Connection successful. Found {len(valid_files)} valid JSON files.',
-                    'files_count': len(valid_files),
-                    'files': valid_files[:10]  # Return first 10 valid files
-                })
+                if valid_accounts:
+                    return jsonify({
+                        'success': True,
+                        'message': f'Connection successful. Found {len(valid_accounts)} account(s) with JSON files in {len(account_dirs)} total directories.',
+                        'accounts_count': len(valid_accounts),
+                        'total_dirs': len(account_dirs),
+                        'tested_accounts': tested_accounts,
+                        'sample_accounts': valid_accounts[:5]  # Return first 5 valid accounts
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': f'No valid JSON files found in any account directories. Checked {tested_accounts} directories.'
+                    })
                 
             except Exception as e:
                 ssh.close()
-                return jsonify({'success': False, 'error': f'Failed to access files: {str(e)}'})
+                return jsonify({'success': False, 'error': f'Failed to access directories: {str(e)}'})
                 
         except Exception as e:
             return jsonify({'success': False, 'error': f'SSH connection failed: {str(e)}'})
@@ -3123,15 +3174,9 @@ def add_from_server_json():
                 finally:
                     os.unlink(key_file_path)
             
-            # Get JSON files
+            # Get JSON files using the new directory structure
             sftp = ssh.open_sftp()
             try:
-                files = sftp.listdir(config.json_path)
-                
-                # Filter files based on pattern
-                import fnmatch
-                json_files = [f for f in files if fnmatch.fnmatch(f, config.file_pattern)]
-                
                 # Process each email
                 added_accounts = []
                 failed_accounts = []
@@ -3142,53 +3187,70 @@ def add_from_server_json():
                         failed_accounts.append({'email': email, 'error': 'Invalid email format'})
                         continue
                     
-                    # Look for matching JSON file
-                    json_filename = f"{email}.json"
-                    if json_filename in json_files:
+                    try:
+                        # Construct the account-specific directory path
+                        # Pattern: home/brightmindscampus/{account}/*.json
+                        account_dir = f"home/brightmindscampus/{email}"
+                        
+                        # Check if account directory exists
                         try:
-                            # Read and parse JSON file
-                            file_path = os.path.join(config.json_path, json_filename)
-                            with sftp.open(file_path, 'r') as f:
-                                content = f.read()
-                                json_data = json.loads(content)
-                            
-                            # Extract client credentials
-                            if 'installed' in json_data:
-                                client_data = json_data['installed']
-                            elif 'web' in json_data:
-                                client_data = json_data['web']
-                            else:
-                                failed_accounts.append({'email': email, 'error': 'Invalid JSON format'})
-                                continue
-                            
-                            client_id = client_data.get('client_id')
-                            client_secret = client_data.get('client_secret')
-                            
-                            if not client_id or not client_secret:
-                                failed_accounts.append({'email': email, 'error': 'Missing client_id or client_secret'})
-                                continue
-                            
-                            # Check if account already exists
-                            from database import GoogleAccount
-                            existing_account = GoogleAccount.query.filter_by(account_name=email).first()
-                            if existing_account:
-                                failed_accounts.append({'email': email, 'error': 'Account already exists'})
-                                continue
-                            
-                            # Add new account
-                            new_account = GoogleAccount(
-                                account_name=email,
-                                client_id=client_id,
-                                client_secret=client_secret
-                            )
-                            db.session.add(new_account)
-                            added_accounts.append(email)
-                            
-                        except Exception as e:
-                            failed_accounts.append({'email': email, 'error': f'Failed to process file: {str(e)}'})
+                            account_files = sftp.listdir(account_dir)
+                        except FileNotFoundError:
+                            failed_accounts.append({'email': email, 'error': f'Account directory not found: {account_dir}'})
                             continue
-                    else:
-                        failed_accounts.append({'email': email, 'error': f'JSON file not found: {json_filename}'})
+                        
+                        # Look for JSON files in the account directory
+                        import fnmatch
+                        json_files = [f for f in account_files if fnmatch.fnmatch(f, '*.json')]
+                        
+                        if not json_files:
+                            failed_accounts.append({'email': email, 'error': f'No JSON files found in directory: {account_dir}'})
+                            continue
+                        
+                        # Use the first JSON file found (or could be modified to use specific pattern)
+                        json_filename = json_files[0]
+                        file_path = f"{account_dir}/{json_filename}"
+                        
+                        # Read and parse JSON file
+                        with sftp.open(file_path, 'r') as f:
+                            content = f.read()
+                            json_data = json.loads(content)
+                        
+                        # Extract client credentials
+                        if 'installed' in json_data:
+                            client_data = json_data['installed']
+                        elif 'web' in json_data:
+                            client_data = json_data['web']
+                        else:
+                            failed_accounts.append({'email': email, 'error': 'Invalid JSON format - missing installed/web section'})
+                            continue
+                        
+                        client_id = client_data.get('client_id')
+                        client_secret = client_data.get('client_secret')
+                        
+                        if not client_id or not client_secret:
+                            failed_accounts.append({'email': email, 'error': 'Missing client_id or client_secret in JSON file'})
+                            continue
+                        
+                        # Check if account already exists
+                        from database import GoogleAccount
+                        existing_account = GoogleAccount.query.filter_by(account_name=email).first()
+                        if existing_account:
+                            failed_accounts.append({'email': email, 'error': 'Account already exists'})
+                            continue
+                        
+                        # Add new account
+                        new_account = GoogleAccount(
+                            account_name=email,
+                            client_id=client_id,
+                            client_secret=client_secret
+                        )
+                        db.session.add(new_account)
+                        added_accounts.append(email)
+                        
+                    except Exception as e:
+                        failed_accounts.append({'email': email, 'error': f'Failed to process account: {str(e)}'})
+                        continue
                 
                 # Commit all changes
                 db.session.commit()

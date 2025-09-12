@@ -102,23 +102,13 @@
             
             <div class="form-group-github">
                 <label for="server_json_path" class="form-label-github">
-                    <i class="fas fa-folder"></i> JSON Files Path
+                    <i class="fas fa-folder"></i> JSON Files Directory Structure
                 </label>
-                <input type="text" class="form-control-github" id="server_json_path" 
-                       value="/opt/gbot-web-app/credentials/" placeholder="/path/to/json/files/" required>
+                <div style="background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 12px; margin-bottom: 8px;">
+                    <code style="color: #0969da; font-size: 14px;">home/brightmindscampus/{account}/*.json</code>
+                </div>
                 <small style="color: #656d76; font-size: 12px;">
-                    Directory path where JSON credential files are stored on the server
-                </small>
-            </div>
-            
-            <div class="form-group-github">
-                <label for="server_file_pattern" class="form-label-github">
-                    <i class="fas fa-file-code"></i> File Pattern
-                </label>
-                <input type="text" class="form-control-github" id="server_file_pattern" 
-                       value="*.json" placeholder="*.json or admin@*.json" required>
-                <small style="color: #656d76; font-size: 12px;">
-                    File pattern to match JSON files (e.g., *.json, admin@*.json)
+                    Each account has its own directory containing JSON credential files. The system will automatically look for JSON files in each account's directory.
                 </small>
             </div>
             
@@ -400,8 +390,6 @@ function displayCurrentConfiguration(config) {
     $('#server_auth_method').val(config.auth_method || 'password');
     $('#server_password').val(config.password || '');
     $('#server_private_key').val(config.private_key || '');
-    $('#server_json_path').val(config.json_path || '');
-    $('#server_file_pattern').val(config.file_pattern || '');
     
     // Trigger auth method change to show/hide fields
     $('#server_auth_method').trigger('change');
@@ -426,11 +414,12 @@ function displayCurrentConfiguration(config) {
             </div>
             <div>
                 <h6 style="font-weight: 600; margin-bottom: 16px; color: #24292f;">
-                    <i class="fas fa-folder"></i> File Configuration
+                    <i class="fas fa-folder"></i> Directory Structure
                 </h6>
                 <div style="background: #f6f8fa; padding: 16px; border-radius: 6px; border: 1px solid #d0d7de;">
-                    <div style="margin-bottom: 8px;"><strong>JSON Path:</strong> <code>${config.json_path || 'Not set'}</code></div>
-                    <div style="margin-bottom: 8px;"><strong>File Pattern:</strong> <code>${config.file_pattern || 'Not set'}</code></div>
+                    <div style="margin-bottom: 8px;"><strong>Base Path:</strong> <code>home/brightmindscampus</code></div>
+                    <div style="margin-bottom: 8px;"><strong>Account Pattern:</strong> <code>{account}/*.json</code></div>
+                    <div style="margin-bottom: 8px;"><strong>Example:</strong> <code>home/brightmindscampus/support@example.com/client_secret.json</code></div>
                     <div><strong>Status:</strong> 
                         <span style="display: inline-flex; align-items: center; gap: 4px; background: ${statusColor}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">
                             <i class="${statusIcon}"></i> ${statusText}
@@ -456,13 +445,11 @@ function saveServerConfiguration() {
         username: $('#server_username').val().trim(),
         auth_method: $('#server_auth_method').val(),
         password: $('#server_password').val(),
-        private_key: $('#server_private_key').val().trim(),
-        json_path: $('#server_json_path').val().trim(),
-        file_pattern: $('#server_file_pattern').val().trim()
+        private_key: $('#server_private_key').val().trim()
     };
     
-    // Validate required fields
-    if (!config.host || !config.username || !config.json_path || !config.file_pattern) {
+    // Validate required fields - updated for new structure
+    if (!config.host || !config.username) {
         showStatus('Please fill in all required fields', 'error');
         return;
     }
@@ -508,13 +495,11 @@ function testServerConnection() {
         username: $('#server_username').val().trim(),
         auth_method: $('#server_auth_method').val(),
         password: $('#server_password').val(),
-        private_key: $('#server_private_key').val().trim(),
-        json_path: $('#server_json_path').val().trim(),
-        file_pattern: $('#server_file_pattern').val().trim()
+        private_key: $('#server_private_key').val().trim()
     };
     
-    // Validate required fields
-    if (!config.host || !config.username || !config.json_path || !config.file_pattern) {
+    // Validate required fields - updated for new structure
+    if (!config.host || !config.username) {
         showStatus('Please fill in all required fields before testing', 'error');
         return;
     }
@@ -560,7 +545,7 @@ function testServerConnection() {
             modal.hide();
             
             if (data.success) {
-                showStatus('✅ Server connection successful! Found ' + data.files_count + ' JSON files.', 'success');
+                showStatus('✅ ' + data.message, 'success');
                 loadCurrentConfiguration();
             } else {
                 showStatus('❌ Connection failed: ' + data.error, 'error');
