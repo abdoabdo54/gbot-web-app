@@ -2384,7 +2384,7 @@ def save_server_config():
         config.auth_method = data.get('auth_method', 'password')
         
         # Set fixed values for new directory structure
-        config.json_path = "home/brightmindscampus"  # Fixed base path
+        config.json_path = "/home/brightmindscampus"  # Fixed base path
         config.file_pattern = "*.json"  # Fixed pattern
         
         # Handle authentication credentials
@@ -2460,8 +2460,8 @@ def test_server_connection():
             # Test file access with new directory structure
             sftp = ssh.open_sftp()
             try:
-                # Test the base directory structure: home/brightmindscampus/
-                base_dir = "home/brightmindscampus"
+                # Test the base directory structure: /home/brightmindscampus/
+                base_dir = "/home/brightmindscampus"
                 
                 try:
                     # List directories in the base directory
@@ -3189,8 +3189,8 @@ def add_from_server_json():
                     
                     try:
                         # Construct the account-specific directory path
-                        # Pattern: home/brightmindscampus/{account}/*.json
-                        account_dir = f"home/brightmindscampus/{email}"
+                        # Pattern: /home/brightmindscampus/{account}/*.json
+                        account_dir = f"/home/brightmindscampus/{email}"
                         
                         # Check if account directory exists
                         try:

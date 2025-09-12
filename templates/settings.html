@@ -105,7 +105,7 @@
                     <i class="fas fa-folder"></i> JSON Files Directory Structure
                 </label>
                 <div style="background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 12px; margin-bottom: 8px;">
-                    <code style="color: #0969da; font-size: 14px;">home/brightmindscampus/{account}/*.json</code>
+                    <code style="color: #0969da; font-size: 14px;">/home/brightmindscampus/{account}/*.json</code>
                 </div>
                 <small style="color: #656d76; font-size: 12px;">
                     Each account has its own directory containing JSON credential files. The system will automatically look for JSON files in each account's directory.
@@ -417,9 +417,9 @@ function displayCurrentConfiguration(config) {
                     <i class="fas fa-folder"></i> Directory Structure
                 </h6>
                 <div style="background: #f6f8fa; padding: 16px; border-radius: 6px; border: 1px solid #d0d7de;">
-                    <div style="margin-bottom: 8px;"><strong>Base Path:</strong> <code>home/brightmindscampus</code></div>
+                    <div style="margin-bottom: 8px;"><strong>Base Path:</strong> <code>/home/brightmindscampus</code></div>
                     <div style="margin-bottom: 8px;"><strong>Account Pattern:</strong> <code>{account}/*.json</code></div>
-                    <div style="margin-bottom: 8px;"><strong>Example:</strong> <code>home/brightmindscampus/support@example.com/client_secret.json</code></div>
+                    <div style="margin-bottom: 8px;"><strong>Example:</strong> <code>/home/brightmindscampus/support@example.com/client_secret.json</code></div>
                     <div><strong>Status:</strong> 
                         <span style="display: inline-flex; align-items: center; gap: 4px; background: ${statusColor}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">
                             <i class="${statusIcon}"></i> ${statusText}
