@@ -396,9 +396,6 @@
             <button onclick="refreshDomainStatus()" class="btn-github" style="margin-left: 8px;">
                 <i class="fas fa-sync-alt"></i> Refresh Status
             </button>
-            <button onclick="autoChangeSubdomain()" class="btn-github" style="margin-left: 8px; background-color: #9C27B0; border-color: #9C27B0; color: white;">
-                <i class="fas fa-magic"></i> Auto Change Subdomain
-            </button>
         </div>
         <div id="domain-info-display" class="data-display">
             <div class="status-info">
@@ -649,6 +646,10 @@
         
         <button onclick="changeDomainForAllUsers()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
             <i class="fas fa-exchange-alt"></i> Change Domain for ALL Matching Users (Non-Admin)
+        </button>
+        
+        <button onclick="autoChangeSubdomain()" class="btn-github" style="margin-left: 8px; background-color: #9C27B0; border-color: #9C27B0; color: white;">
+            <i class="fas fa-magic"></i> Auto Change Subdomain
         </button>
         
         <!-- Progress Indicator -->
@@ -3598,7 +3599,7 @@ function autoChangeSubdomain() {
         return;
     }
     
-    logResult('🔄 Starting automated subdomain change...');
+    logBulkDomain('🔄 Starting automated subdomain change...');
     
     // Show progress indicator
     const button = event.target;
@@ -3613,15 +3614,15 @@ function autoChangeSubdomain() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            logResult(`✅ ${data.message}`);
-            logResult(`📊 Successfully changed ${data.successful_changes} users`);
-            logResult(`🔄 Domain change: ${data.current_domain} → ${data.next_domain}`);
+            logBulkDomain(`✅ ${data.message}`);
+            logBulkDomain(`📊 Successfully changed ${data.successful_changes} users`);
+            logBulkDomain(`🔄 Domain change: ${data.current_domain} → ${data.next_domain}`);
             
             if (data.failed_changes > 0) {
-                logResult(`⚠️ ${data.failed_changes} users failed to change`);
+                logBulkDomain(`⚠️ ${data.failed_changes} users failed to change`);
                 if (data.failed_details && data.failed_details.length > 0) {
                     data.failed_details.forEach(failed => {
-                        logResult(`❌ Failed: ${failed.email} - ${failed.error}`);
+                        logBulkDomain(`❌ Failed: ${failed.email} - ${failed.error}`);
                     });
                 }
             }
@@ -3633,12 +3634,12 @@ function autoChangeSubdomain() {
             alert(`✅ Automated subdomain change completed!\n\n${data.message}\n\nChanged ${data.successful_changes} users from ${data.current_domain} to ${data.next_domain}`);
             
         } else {
-            logResult(`❌ Auto change subdomain failed: ${data.error}`);
+            logBulkDomain(`❌ Auto change subdomain failed: ${data.error}`);
             alert(`❌ Failed to change subdomain: ${data.error}`);
         }
     })
     .catch(error => {
-        logResult(`❌ Network error: ${error}`);
+        logBulkDomain(`❌ Network error: ${error}`);
         alert(`❌ Network error: ${error.message}`);
     })
     .finally(() => {
