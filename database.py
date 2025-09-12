@@ -56,6 +56,8 @@ class ServerConfig(db.Model):
     private_key = db.Column(db.Text)  # Encrypted private key
     json_path = db.Column(db.String(500), nullable=False)
     file_pattern = db.Column(db.String(100), default='*.json')
+    base_directory = db.Column(db.String(500), default='/home/brightmindscampus')  # Base directory for account-specific folders
+    use_account_directories = db.Column(db.Boolean, default=True)  # Whether to use account-specific directories
     is_configured = db.Column(db.Boolean, default=False)
     last_tested = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
