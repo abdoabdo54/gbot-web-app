@@ -396,6 +396,9 @@
             <button onclick="refreshDomainStatus()" class="btn-github" style="margin-left: 8px;">
                 <i class="fas fa-sync-alt"></i> Refresh Status
             </button>
+            <button onclick="autoChangeSubdomain()" class="btn-github" style="margin-left: 8px; background-color: #9C27B0; border-color: #9C27B0; color: white;">
+                <i class="fas fa-magic"></i> Auto Change Subdomain
+            </button>
         </div>
         <div id="domain-info-display" class="data-display">
             <div class="status-info">
@@ -3584,11 +3587,68 @@ function clearBulkDomainLog() {
     document.getElementById('bulk-domain-results').innerHTML = '<p class="placeholder-text">Processing results will appear here...</p>';
 }
 
-function refreshDomainStatus() {
+function autoChangeSubdomain() {
     if (!isAuthenticated) {
         alert('Please authenticate an account first');
         return;
     }
+    
+    // Confirm the action
+    if (!confirm('🔄 Auto Change Subdomain\n\nThis will automatically change all users from the current in-use domain to the next available domain (ascending order).\n\nThis action cannot be easily undone!\n\nContinue?')) {
+        return;
+    }
+    
+    logResult('🔄 Starting automated subdomain change...');
+    
+    // Show progress indicator
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Changing...';
+    button.disabled = true;
+    
+    fetch('/api/auto-change-subdomain', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ ${data.message}`);
+            logResult(`📊 Successfully changed ${data.successful_changes} users`);
+            logResult(`🔄 Domain change: ${data.current_domain} → ${data.next_domain}`);
+            
+            if (data.failed_changes > 0) {
+                logResult(`⚠️ ${data.failed_changes} users failed to change`);
+                if (data.failed_details && data.failed_details.length > 0) {
+                    data.failed_details.forEach(failed => {
+                        logResult(`❌ Failed: ${failed.email} - ${failed.error}`);
+                    });
+                }
+            }
+            
+            // Refresh domain display
+            getDomainInfo();
+            
+            // Show success message
+            alert(`✅ Automated subdomain change completed!\n\n${data.message}\n\nChanged ${data.successful_changes} users from ${data.current_domain} to ${data.next_domain}`);
+            
+        } else {
+            logResult(`❌ Auto change subdomain failed: ${data.error}`);
+            alert(`❌ Failed to change subdomain: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error}`);
+        alert(`❌ Network error: ${error.message}`);
+    })
+    .finally(() => {
+        // Restore button
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function refreshDomainStatus() {
     
     const button = event.target;
     const originalText = button.innerHTML;

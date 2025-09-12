@@ -3113,7 +3113,206 @@ def bulk_delete_accounts():
         logging.error(f"Bulk delete accounts error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-# Enhanced Add from Server JSON functionality
+# Automated Subdomain Change API
+@app.route('/api/auto-change-subdomain', methods=['POST'])
+@login_required
+def api_auto_change_subdomain():
+    """Automatically change subdomain from current in-use to next available domain"""
+    try:
+        # Check if user is authenticated
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
+        
+        # Get the current authenticated account
+        account_name = session.get('current_account_name')
+        
+        # First, try to authenticate using saved tokens if service is not available
+        if not google_api.service:
+            if google_api.is_token_valid(account_name):
+                success = google_api.authenticate_with_tokens(account_name)
+                if not success:
+                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
+            else:
+                return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
+        
+        # Get all domains and their status
+        result = google_api.get_domain_info()
+        if not result['success']:
+            return jsonify({'success': False, 'error': result['error']})
+        
+        domains = result['domains']
+        
+        # Get all users to calculate domain usage
+        all_users = []
+        page_token = None
+        
+        while True:
+            try:
+                if page_token:
+                    users_result = google_api.service.users().list(
+                        customer='my_customer',
+                        maxResults=500,
+                        pageToken=page_token
+                    ).execute()
+                else:
+                    users_result = google_api.service.users().list(
+                        customer='my_customer',
+                        maxResults=500
+                    ).execute()
+                
+                users = users_result.get('users', [])
+                all_users.extend(users)
+                
+                page_token = users_result.get('nextPageToken')
+                if not page_token:
+                    break
+                    
+            except Exception as e:
+                logging.warning(f"Failed to retrieve users page: {e}")
+                break
+        
+        # Calculate user count per domain
+        domain_user_counts = {}
+        for user in all_users:
+            email = user.get('primaryEmail', '')
+            if email and '@' in email:
+                domain = email.split('@')[1]
+                domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+        
+        # Find current in-use domain (domain with most users)
+        current_domain = None
+        max_users = 0
+        
+        for domain_name, user_count in domain_user_counts.items():
+            if user_count > max_users:
+                max_users = user_count
+                current_domain = domain_name
+        
+        if not current_domain or max_users == 0:
+            return jsonify({'success': False, 'error': 'No domain currently in use found.'})
+        
+        # Get domain records from database to check ever_used status
+        from database import UsedDomain
+        domain_records = {}
+        for domain_record in UsedDomain.query.all():
+            domain_records[domain_record.domain_name] = domain_record
+        
+        # Find next available domain (never used, ascending order)
+        available_domains = []
+        for domain in domains:
+            domain_name = domain.get('domainName', '')
+            user_count = domain_user_counts.get(domain_name, 0)
+            domain_record = domain_records.get(domain_name)
+            
+            # Check if domain is available (never used)
+            ever_used = False
+            if domain_record:
+                try:
+                    ever_used = getattr(domain_record, 'ever_used', False)
+                except:
+                    ever_used = False
+            
+            if user_count == 0 and not ever_used:
+                available_domains.append(domain_name)
+        
+        if not available_domains:
+            return jsonify({'success': False, 'error': 'No available domains found for automatic change.'})
+        
+        # Sort available domains alphabetically for ascending order
+        available_domains.sort()
+        next_domain = available_domains[0]
+        
+        # Get all users from current domain (excluding admin accounts)
+        users_to_change = []
+        for user in all_users:
+            email = user.get('primaryEmail', '')
+            if email and email.endswith(f'@{current_domain}'):
+                # Skip admin accounts
+                if not user.get('isAdmin', False):
+                    users_to_change.append({
+                        'email': email,
+                        'user': user
+                    })
+        
+        if not users_to_change:
+            return jsonify({'success': False, 'error': f'No non-admin users found in domain {current_domain}.'})
+        
+        # Perform domain change for all users
+        successful_changes = 0
+        failed_changes = []
+        
+        for user_data in users_to_change:
+            email = user_data['email']
+            user = user_data['user']
+            
+            try:
+                # Extract username from email
+                username = email.split('@')[0]
+                new_email = f"{username}@{next_domain}"
+                
+                # Update user's primary email
+                user['primaryEmail'] = new_email
+                
+                # Update user in Google Workspace
+                google_api.service.users().update(
+                    userKey=email,
+                    body=user
+                ).execute()
+                
+                successful_changes += 1
+                logging.info(f"✅ Successfully changed {email} → {new_email}")
+                
+            except Exception as e:
+                failed_changes.append({'email': email, 'error': str(e)})
+                logging.error(f"❌ Failed to change {email}: {e}")
+        
+        # Update domain usage in database
+        try:
+            # Update old domain record
+            old_domain_record = UsedDomain.query.filter_by(domain_name=current_domain).first()
+            if old_domain_record:
+                old_domain_record.user_count = max(0, old_domain_record.user_count - successful_changes)
+                old_domain_record.updated_at = db.func.current_timestamp()
+            
+            # Update new domain record
+            new_domain_record = UsedDomain.query.filter_by(domain_name=next_domain).first()
+            if new_domain_record:
+                new_domain_record.user_count += successful_changes
+                new_domain_record.updated_at = db.func.current_timestamp()
+            else:
+                # Create new domain record
+                new_domain_record = UsedDomain(
+                    domain_name=next_domain,
+                    user_count=successful_changes,
+                    is_verified=True,
+                    ever_used=True
+                )
+                db.session.add(new_domain_record)
+            
+            db.session.commit()
+            logging.info(f"Updated domain usage: {current_domain} (-{successful_changes}) → {next_domain} (+{successful_changes})")
+            
+        except Exception as db_error:
+            logging.warning(f"Failed to update domain usage in database: {db_error}")
+        
+        # Prepare response
+        message = f"Automated subdomain change completed: {current_domain} → {next_domain}"
+        if failed_changes:
+            message += f". {len(failed_changes)} users failed to change."
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'current_domain': current_domain,
+            'next_domain': next_domain,
+            'successful_changes': successful_changes,
+            'failed_changes': len(failed_changes),
+            'failed_details': failed_changes
+        })
+        
+    except Exception as e:
+        logging.error(f"Auto change subdomain error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 @app.route('/api/add-from-server-json', methods=['POST'])
 @login_required
 def add_from_server_json():
