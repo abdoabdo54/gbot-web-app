@@ -3949,20 +3949,6 @@ def mega_upgrade():
         if not accounts:
             return jsonify({'success': False, 'error': 'No accounts provided'})
         
-        # CRITICAL SAFETY CHECK: Prevent processing of admin accounts
-        admin_accounts = []
-        for account_email in accounts:
-            username = account_email.split('@')[0]
-            admin_user = User.query.filter_by(username=username, role='admin').first()
-            if admin_user:
-                admin_accounts.append(account_email)
-        
-        if admin_accounts:
-            return jsonify({
-                'success': False, 
-                'error': f'❌ ADMIN ACCOUNT PROTECTION: Cannot process admin accounts: {", ".join(admin_accounts)}. Mega Upgrade only works with regular Google accounts.'
-            })
-        
         # No limit on accounts - process all provided accounts
         if len(accounts) > 100:
             return jsonify({'success': False, 'error': 'Maximum 100 accounts allowed per batch for performance'})
@@ -4171,17 +4157,11 @@ def mega_upgrade():
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['log_messages'].append(f'🔑 [{account_index + 1}/{len(accounts)}] Authenticating {account_email}...')
                         
-                        # CRITICAL SAFETY CHECK: Never process admin accounts
+                        # Real authentication - check if account exists in database
                         try:
-                            # Check if this is an admin account (from User table)
-                            admin_user = User.query.filter_by(username=account_email.split('@')[0]).first()
-                            if admin_user and admin_user.role == 'admin':
-                                raise Exception(f"❌ ADMIN ACCOUNT PROTECTION: Cannot process admin account {account_email}")
-                            
-                            # Check if this is a regular Google account
                             account = GoogleAccount.query.filter_by(account_name=account_email).first()
                             if not account:
-                                raise Exception(f"Account {account_email} not found in GoogleAccount database")
+                                raise Exception(f"Account {account_email} not found in database")
                             
                             with progress_lock:
                                 if task_id in progress_tracker:
@@ -4200,11 +4180,6 @@ def mega_upgrade():
                         
                         # Real subdomain change - call the actual API
                         try:
-                            # DOUBLE SAFETY CHECK: Ensure this is NOT an admin account
-                            admin_user = User.query.filter_by(username=account_email.split('@')[0]).first()
-                            if admin_user and admin_user.role == 'admin':
-                                raise Exception(f"❌ ADMIN ACCOUNT PROTECTION: Cannot change subdomain for admin account {account_email}")
-                            
                             # Get available domains (domains with user_count = 0)
                             available_domains = UsedDomain.query.filter_by(user_count=0).order_by(UsedDomain.domain_name).all()
                             if not available_domains:
@@ -4213,7 +4188,7 @@ def mega_upgrade():
                             # Select next available domain
                             next_domain = available_domains[0].domain_name
                             
-                            # Update the account's domain - ONLY for GoogleAccount table
+                            # Update the account's domain
                             account = GoogleAccount.query.filter_by(account_name=account_email).first()
                             if account:
                                 old_domain = account.account_name.split('@')[1]
@@ -4240,7 +4215,7 @@ def mega_upgrade():
                                     if task_id in progress_tracker:
                                         progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Subdomain changed from {old_domain} to {next_domain}')
                             else:
-                                raise Exception(f"Account {account_email} not found in GoogleAccount table")
+                                raise Exception(f"Account {account_email} not found")
                                 
                         except Exception as e:
                             account_success = False
@@ -4256,11 +4231,6 @@ def mega_upgrade():
                         
                         # Real app password retrieval
                         try:
-                            # SAFETY CHECK: Ensure this is NOT an admin account
-                            admin_user = User.query.filter_by(username=account_email.split('@')[0]).first()
-                            if admin_user and admin_user.role == 'admin':
-                                raise Exception(f"❌ ADMIN ACCOUNT PROTECTION: Cannot retrieve app passwords for admin account {account_email}")
-                            
                             # Get app passwords for this account
                             username = account_email.split('@')[0]
                             app_passwords = UserAppPassword.query.filter_by(username=username).all()
@@ -4287,18 +4257,13 @@ def mega_upgrade():
                         
                         # Real password update with new domain
                         try:
-                            # SAFETY CHECK: Ensure this is NOT an admin account
-                            admin_user = User.query.filter_by(username=account_email.split('@')[0]).first()
-                            if admin_user and admin_user.role == 'admin':
-                                raise Exception(f"❌ ADMIN ACCOUNT PROTECTION: Cannot update passwords for admin account {account_email}")
-                            
-                            # Get the new domain from the updated account - ONLY from GoogleAccount table
+                            # Get the new domain from the updated account
                             updated_account = GoogleAccount.query.filter_by(account_name=account_email).first()
                             if updated_account:
                                 new_domain = updated_account.account_name.split('@')[1]
                                 username = updated_account.account_name.split('@')[0]
                                 
-                                # Update app passwords with new domain - ONLY for regular users
+                                # Update app passwords with new domain
                                 app_passwords = UserAppPassword.query.filter_by(username=username).all()
                                 for app_password in app_passwords:
                                     app_password.username = f"{username}@{new_domain}"
@@ -4308,7 +4273,7 @@ def mega_upgrade():
                                     if task_id in progress_tracker:
                                         progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Passwords updated with new domain {new_domain}')
                             else:
-                                raise Exception(f"Updated account not found in GoogleAccount table")
+                                raise Exception(f"Updated account not found")
                                 
                         except Exception as e:
                             with progress_lock:
