@@ -671,6 +671,24 @@
         </div>
     </div>
 
+    <!-- Mega Upgrade: Multi-Account Workflow -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-rocket"></i>
+                Mega Upgrade: Multi-Account Workflow
+            </h3>
+        </div>
+        
+        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
+            Process multiple accounts simultaneously with automated workflows. Select which features to apply to all accounts.
+        </p>
+        
+        <button onclick="openMegaUpgradeModal()" class="btn-github btn-github-primary" style="width: 100%; padding: 16px; font-size: 16px;">
+            <i class="fas fa-magic"></i> Launch Mega Upgrade Workflow
+        </button>
+    </div>
+
     <!-- App Password Management -->
     <div class="github-card">
         <div class="github-card-header">
@@ -4254,5 +4272,252 @@ function testEmailTemplate() {
 }
 */
 
+// Mega Upgrade Functions
+function openMegaUpgradeModal() {
+    document.getElementById('megaUpgradeModal').style.display = 'block';
+}
+
+function closeMegaUpgradeModal() {
+    document.getElementById('megaUpgradeModal').style.display = 'none';
+}
+
+function startMegaUpgrade() {
+    const accounts = [];
+    const accountInputs = document.querySelectorAll('.account-input');
+    
+    // Collect non-empty accounts
+    accountInputs.forEach(input => {
+        if (input.value.trim()) {
+            accounts.push(input.value.trim());
+        }
+    });
+    
+    if (accounts.length === 0) {
+        alert('Please enter at least one account');
+        return;
+    }
+    
+    // Get selected features
+    const features = {
+        authenticate: document.getElementById('feature-authenticate').checked,
+        changeSubdomain: document.getElementById('feature-change-subdomain').checked,
+        retrievePasswords: document.getElementById('feature-retrieve-passwords').checked,
+        updatePasswords: document.getElementById('feature-update-passwords').checked
+    };
+    
+    // Show progress section
+    document.getElementById('megaUpgradeProgress').style.display = 'block';
+    document.getElementById('megaStartBtn').style.display = 'none';
+    document.getElementById('megaStopBtn').style.display = 'inline-block';
+    
+    // Start mega upgrade process
+    runMegaUpgradeWorkflow(accounts, features);
+}
+
+function stopMegaUpgrade() {
+    // Stop the process (implementation depends on backend)
+    document.getElementById('megaStartBtn').style.display = 'inline-block';
+    document.getElementById('megaStopBtn').style.display = 'none';
+    logBulkDomain('⏹️ Mega upgrade process stopped by user');
+}
+
+function clearMegaUpgradeResults() {
+    document.getElementById('app-passwords-display').value = '';
+    logBulkDomain('🧹 Mega upgrade results cleared');
+}
+
+function runMegaUpgradeWorkflow(accounts, features) {
+    logBulkDomain('🚀 Starting Mega Upgrade Workflow...');
+    logBulkDomain(`📊 Processing ${accounts.length} accounts with selected features`);
+    logBulkDomain(`🔧 Features: ${Object.keys(features).filter(k => features[k]).join(', ')}`);
+    logBulkDomain('─'.repeat(50));
+    
+    // Start the mega upgrade process
+    fetch('/api/mega-upgrade', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            accounts: accounts,
+            features: features
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const taskId = data.task_id;
+            logBulkDomain(`📋 Mega upgrade started with task ID: ${taskId}`);
+            
+            // Poll for progress updates
+            const progressInterval = setInterval(() => {
+                fetch(`/api/mega-upgrade-progress/${taskId}`)
+                .then(response => response.json())
+                .then(progressData => {
+                    if (progressData.success) {
+                        const progress = progressData.progress;
+                        
+                        // Update progress bar
+                        const progressBar = document.getElementById('megaProgressBar');
+                        const progressText = document.getElementById('megaProgressText');
+                        const progressPercent = document.getElementById('megaProgressPercent');
+                        
+                        const percentage = Math.round((progress.current_step / progress.total_steps) * 100);
+                        progressBar.style.width = `${percentage}%`;
+                        progressPercent.textContent = `${percentage}%`;
+                        progressText.textContent = progress.message;
+                        
+                        // Log progress updates
+                        if (progress.log_messages && progress.log_messages.length > 0) {
+                            progress.log_messages.forEach(msg => {
+                                logBulkDomain(msg);
+                            });
+                        }
+                        
+                        // Check if completed
+                        if (progress.status === 'completed') {
+                            clearInterval(progressInterval);
+                            document.getElementById('megaStartBtn').style.display = 'inline-block';
+                            document.getElementById('megaStopBtn').style.display = 'none';
+                            
+                            // Display results in App Passwords Display
+                            if (progress.final_results && progress.final_results.length > 0) {
+                                const display = document.getElementById('app-passwords-display');
+                                display.value = progress.final_results.join('\n');
+                                logBulkDomain(`📋 ${progress.final_results.length} accounts processed successfully`);
+                            }
+                            
+                            // Show summary
+                            logBulkDomain('─'.repeat(50));
+                            logBulkDomain(`📈 Mega Upgrade Summary:`);
+                            logBulkDomain(`✅ Successful: ${progress.successful_accounts || 0}`);
+                            logBulkDomain(`❌ Failed: ${progress.failed_accounts || 0}`);
+                            logBulkDomain(`📊 Total Processed: ${progress.total_accounts || 0}`);
+                            
+                        } else if (progress.status === 'error') {
+                            clearInterval(progressInterval);
+                            document.getElementById('megaStartBtn').style.display = 'inline-block';
+                            document.getElementById('megaStopBtn').style.display = 'none';
+                            logBulkDomain(`❌ Mega upgrade failed: ${progress.message}`);
+                        }
+                    } else {
+                        clearInterval(progressInterval);
+                        document.getElementById('megaStartBtn').style.display = 'inline-block';
+                        document.getElementById('megaStopBtn').style.display = 'none';
+                        logBulkDomain(`❌ Progress tracking failed: ${progressData.error}`);
+                    }
+                })
+                .catch(error => {
+                    clearInterval(progressInterval);
+                    document.getElementById('megaStartBtn').style.display = 'inline-block';
+                    document.getElementById('megaStopBtn').style.display = 'none';
+                    logBulkDomain(`❌ Progress check error: ${error.message}`);
+                });
+            }, 2000); // Check every 2 seconds
+            
+        } else {
+            document.getElementById('megaStartBtn').style.display = 'inline-block';
+            document.getElementById('megaStopBtn').style.display = 'none';
+            logBulkDomain(`❌ Failed to start mega upgrade: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        document.getElementById('megaStartBtn').style.display = 'inline-block';
+        document.getElementById('megaStopBtn').style.display = 'none';
+        logBulkDomain(`❌ Error: ${error.message}`);
+        console.error('Mega Upgrade Error:', error);
+    });
+}
+
 </script>
+
+<!-- Mega Upgrade Modal -->
+<div id="megaUpgradeModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 1200px; width: 95%;">
+        <div class="modal-header">
+            <h2><i class="fas fa-rocket"></i> Mega Upgrade: Multi-Account Workflow</h2>
+            <span class="close" onclick="closeMegaUpgradeModal()">&times;</span>
+        </div>
+        
+        <div class="modal-body">
+            <!-- Feature Selection -->
+            <div style="margin-bottom: 24px;">
+                <h3 style="margin-bottom: 16px; color: #24292f;">
+                    <i class="fas fa-cogs"></i> Select Features to Apply
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="feature-authenticate" checked>
+                        <span class="checkmark"></span>
+                        <i class="fas fa-key"></i> Authenticate Accounts
+                    </label>
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="feature-change-subdomain" checked>
+                        <span class="checkmark"></span>
+                        <i class="fas fa-exchange-alt"></i> Auto Change Subdomain
+                    </label>
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="feature-retrieve-passwords" checked>
+                        <span class="checkmark"></span>
+                        <i class="fas fa-download"></i> Retrieve App Passwords
+                    </label>
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="feature-update-passwords" checked>
+                        <span class="checkmark"></span>
+                        <i class="fas fa-sync-alt"></i> Update Domain in Passwords
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Account Input -->
+            <div style="margin-bottom: 24px;">
+                <h3 style="margin-bottom: 16px; color: #24292f;">
+                    <i class="fas fa-users"></i> Account List (Up to 12 accounts)
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px;">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 1: user@domain.com" data-index="0">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 2: user@domain.com" data-index="1">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 3: user@domain.com" data-index="2">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 4: user@domain.com" data-index="3">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 5: user@domain.com" data-index="4">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 6: user@domain.com" data-index="5">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 7: user@domain.com" data-index="6">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 8: user@domain.com" data-index="7">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 9: user@domain.com" data-index="8">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 10: user@domain.com" data-index="9">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 11: user@domain.com" data-index="10">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 12: user@domain.com" data-index="11">
+                </div>
+            </div>
+            
+            <!-- Progress Section -->
+            <div id="megaUpgradeProgress" style="display: none; margin-bottom: 24px;">
+                <h3 style="margin-bottom: 16px; color: #24292f;">
+                    <i class="fas fa-tasks"></i> Progress
+                </h3>
+                <div style="background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span id="megaProgressText">Initializing...</span>
+                        <span id="megaProgressPercent">0%</span>
+                    </div>
+                    <div style="background: #d0d7de; border-radius: 3px; height: 8px; overflow: hidden;">
+                        <div id="megaProgressBar" style="background: #2da44e; height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button onclick="startMegaUpgrade()" class="btn-github btn-github-primary" id="megaStartBtn">
+                    <i class="fas fa-play"></i> Run Mega Upgrade
+                </button>
+                <button onclick="stopMegaUpgrade()" class="btn-github" style="background-color: #d73a49; border-color: #d73a49; color: white;" id="megaStopBtn" style="display: none;">
+                    <i class="fas fa-stop"></i> Stop Process
+                </button>
+                <button onclick="clearMegaUpgradeResults()" class="btn-github">
+                    <i class="fas fa-broom"></i> Clear Results
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
