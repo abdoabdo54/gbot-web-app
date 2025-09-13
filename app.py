@@ -3744,10 +3744,221 @@ def add_from_server_json():
         app.logger.error(f"Error adding from server JSON: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/test-smtp-progress', methods=['POST'])
+@login_required
+def test_smtp_credentials_progress():
+    """Test SMTP credentials with progress tracking"""
+    # Allow all user types (admin, mailer, support) to test SMTP
+    user_role = session.get('role')
+    if user_role not in ['admin', 'mailer', 'support']:
+        return jsonify({'success': False, 'error': 'Access denied. Valid user role required.'})
+    
+    try:
+        data = request.get_json()
+        credentials_text = data.get('credentials', '').strip()
+        recipient_email = data.get('recipient_email', '').strip()
+        smtp_server = data.get('smtp_server', 'smtp.gmail.com').strip()
+        smtp_port = int(data.get('smtp_port', 587))
+        
+        if not credentials_text:
+            return jsonify({'success': False, 'error': 'No credentials provided'})
+        
+        if not recipient_email or '@' not in recipient_email:
+            return jsonify({'success': False, 'error': 'Invalid recipient email'})
+        
+        # Parse credentials (email:password format, one per line)
+        credentials_lines = [line.strip() for line in credentials_text.split('\n') if line.strip()]
+        
+        # Generate unique task ID
+        import uuid
+        task_id = str(uuid.uuid4())
+        
+        # Initialize progress tracking
+        with progress_lock:
+            progress_tracker[task_id] = {
+                'status': 'running',
+                'progress': 0,
+                'total': len(credentials_lines),
+                'current_email': '',
+                'message': 'Starting SMTP testing...',
+                'results': [],
+                'success_count': 0,
+                'fail_count': 0
+            }
+        
+        # Start background task
+        import threading
+        def smtp_test_worker():
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            import socket
+            
+            try:
+                for i, line in enumerate(credentials_lines, 1):
+                    with progress_lock:
+                        if task_id not in progress_tracker:
+                            break
+                        progress_tracker[task_id]['progress'] = i
+                        progress_tracker[task_id]['message'] = f'Testing credential {i}/{len(credentials_lines)}...'
+                    
+                    if ':' not in line:
+                        with progress_lock:
+                            if task_id in progress_tracker:
+                                progress_tracker[task_id]['fail_count'] += 1
+                                progress_tracker[task_id]['results'].append({
+                                    'email': line,
+                                    'status': 'error',
+                                    'error': 'Invalid format - use email:password'
+                                })
+                        continue
+                    
+                    try:
+                        email, password = line.split(':', 1)
+                        email = email.strip()
+                        password = password.strip()
+                        
+                        if not email or not password:
+                            with progress_lock:
+                                if task_id in progress_tracker:
+                                    progress_tracker[task_id]['fail_count'] += 1
+                                    progress_tracker[task_id]['results'].append({
+                                        'email': email or 'unknown',
+                                        'status': 'error',
+                                        'error': 'Empty email or password'
+                                    })
+                            continue
+                        
+                        with progress_lock:
+                            if task_id in progress_tracker:
+                                progress_tracker[task_id]['current_email'] = email
+                                progress_tracker[task_id]['message'] = f'Testing {email}...'
+                        
+                        # Create message
+                        msg = MIMEMultipart()
+                        msg['From'] = email
+                        msg['To'] = recipient_email
+                        msg['Subject'] = f"SMTP Test from {email}"
+                        
+                        body = f"""
+This is a test email sent from {email} using the GBot Web Application SMTP tester.
+
+Test Details:
+- Sender: {email}
+- SMTP Server: {smtp_server}:{smtp_port}
+- Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+If you received this email, the SMTP credentials are working correctly.
+"""
+                        msg.attach(MIMEText(body, 'plain'))
+                        
+                        # Connect and send
+                        server = smtplib.SMTP(smtp_server, smtp_port)
+                        server.starttls()  # Enable encryption
+                        server.login(email, password)
+                        server.send_message(msg)
+                        server.quit()
+                        
+                        with progress_lock:
+                            if task_id in progress_tracker:
+                                progress_tracker[task_id]['success_count'] += 1
+                                progress_tracker[task_id]['results'].append({
+                                    'email': email,
+                                    'status': 'success',
+                                    'message': f'Test email sent successfully to {recipient_email}'
+                                })
+                        
+                    except smtplib.SMTPAuthenticationError as e:
+                        with progress_lock:
+                            if task_id in progress_tracker:
+                                progress_tracker[task_id]['fail_count'] += 1
+                                progress_tracker[task_id]['results'].append({
+                                    'email': email,
+                                    'status': 'error',
+                                    'error': f'Authentication failed: {str(e)}'
+                                })
+                    except smtplib.SMTPException as e:
+                        with progress_lock:
+                            if task_id in progress_tracker:
+                                progress_tracker[task_id]['fail_count'] += 1
+                                progress_tracker[task_id]['results'].append({
+                                    'email': email,
+                                    'status': 'error',
+                                    'error': f'SMTP error: {str(e)}'
+                                })
+                    except socket.gaierror as e:
+                        with progress_lock:
+                            if task_id in progress_tracker:
+                                progress_tracker[task_id]['fail_count'] += 1
+                                progress_tracker[task_id]['results'].append({
+                                    'email': email,
+                                    'status': 'error',
+                                    'error': f'DNS/Network error: {str(e)}'
+                                })
+                    except Exception as e:
+                        with progress_lock:
+                            if task_id in progress_tracker:
+                                progress_tracker[task_id]['fail_count'] += 1
+                                progress_tracker[task_id]['results'].append({
+                                    'email': email,
+                                    'status': 'error',
+                                    'error': f'Unexpected error: {str(e)}'
+                                })
+                
+                # Mark as completed
+                with progress_lock:
+                    if task_id in progress_tracker:
+                        progress_tracker[task_id]['status'] = 'completed'
+                        progress_tracker[task_id]['message'] = 'SMTP testing completed'
+                        
+            except Exception as e:
+                with progress_lock:
+                    if task_id in progress_tracker:
+                        progress_tracker[task_id]['status'] = 'error'
+                        progress_tracker[task_id]['message'] = f'Error: {str(e)}'
+        
+        # Start the background thread
+        thread = threading.Thread(target=smtp_test_worker)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'success': True,
+            'task_id': task_id,
+            'message': 'SMTP testing started'
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error starting SMTP testing: {e}")
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
+
+@app.route('/api/smtp-progress/<task_id>')
+@login_required
+def get_smtp_progress(task_id):
+    """Get SMTP testing progress"""
+    with progress_lock:
+        if task_id not in progress_tracker:
+            return jsonify({'success': False, 'error': 'Task not found'})
+        
+        progress_data = progress_tracker[task_id].copy()
+        
+        # Clean up completed tasks after 5 minutes
+        if progress_data['status'] in ['completed', 'error']:
+            import time
+            if 'completed_at' not in progress_data:
+                progress_data['completed_at'] = time.time()
+            elif time.time() - progress_data['completed_at'] > 300:  # 5 minutes
+                del progress_tracker[task_id]
+        
+        return jsonify({
+            'success': True,
+            'progress': progress_data
+        })
+
 @app.route('/api/test-smtp', methods=['POST'])
 @login_required
 def test_smtp_credentials():
-    """Test SMTP credentials by sending test emails"""
+    """Test SMTP credentials by sending test emails (legacy endpoint for compatibility)"""
     # Allow all user types (admin, mailer, support) to test SMTP
     user_role = session.get('role')
     if user_role not in ['admin', 'mailer', 'support']:

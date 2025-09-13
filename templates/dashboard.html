@@ -4018,7 +4018,8 @@ function testSMTPCredentials() {
     logSMTPResult(`🖥️ Server: ${server}:${port}`);
     logSMTPResult('─'.repeat(50));
     
-    fetch('/api/test-smtp', {
+    // Start SMTP testing with progress tracking
+    fetch('/api/test-smtp-progress', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -4028,43 +4029,64 @@ function testSMTPCredentials() {
             smtp_port: parseInt(port)
         })
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return response.json().catch(err => {
-            throw new Error(`Invalid JSON response: ${err.message}`);
-        });
-    })
+    .then(response => response.json())
     .then(data => {
-        smtpTesting = false;
-        
-        if (data.success && data.results) {
-            logSMTPResult(`📊 Testing completed for ${data.results.length} credentials:`);
-            logSMTPResult('─'.repeat(50));
+        if (data.success) {
+            const taskId = data.task_id;
+            logSMTPResult(`📊 Testing ${credentials.split('\n').filter(line => line.trim()).length} credentials...`);
             
-            let successCount = 0;
-            let failCount = 0;
+            // Poll for progress updates
+            const progressInterval = setInterval(() => {
+                fetch(`/api/smtp-progress/${taskId}`)
+                .then(response => response.json())
+                .then(progressData => {
+                    if (progressData.success) {
+                        const progress = progressData.progress;
+                        
+                        // Update progress message
+                        if (progress.current_email) {
+                            logSMTPResult(`🔄 [${progress.progress}/${progress.total}] Testing ${progress.current_email}...`);
+                        } else {
+                            logSMTPResult(`🔄 [${progress.progress}/${progress.total}] ${progress.message}`);
+                        }
+                        
+                        // Show results as they come in
+                        if (progress.results && progress.results.length > 0) {
+                            const latestResult = progress.results[progress.results.length - 1];
+                            if (latestResult.status === 'success') {
+                                logSMTPResult(`✅ [${progress.progress}/${progress.total}] ${latestResult.email}: ${latestResult.message || 'Success'}`);
+                            } else {
+                                logSMTPResult(`❌ [${progress.progress}/${progress.total}] ${latestResult.email}: ${latestResult.error}`);
+                            }
+                        }
+                        
+                        // Check if completed
+                        if (progress.status === 'completed') {
+                            clearInterval(progressInterval);
+                            smtpTesting = false;
+                            logSMTPResult('─'.repeat(50));
+                            logSMTPResult(`📈 Final Summary: ${progress.success_count}/${progress.total} credentials working`);
+                        } else if (progress.status === 'error') {
+                            clearInterval(progressInterval);
+                            smtpTesting = false;
+                            logSMTPResult(`❌ SMTP testing failed: ${progress.message}`);
+                        }
+                    } else {
+                        clearInterval(progressInterval);
+                        smtpTesting = false;
+                        logSMTPResult(`❌ Progress tracking failed: ${progressData.error}`);
+                    }
+                })
+                .catch(error => {
+                    clearInterval(progressInterval);
+                    smtpTesting = false;
+                    logSMTPResult(`❌ Progress check error: ${error.message}`);
+                });
+            }, 1000); // Check every second
             
-            data.results.forEach(result => {
-                if (result.status === 'success') {
-                    logSMTPResult(`✅ ${result.email}: ${result.message || 'Success'}`);
-                    successCount++;
-                } else {
-                    logSMTPResult(`❌ ${result.email}: ${result.error}`);
-                    failCount++;
-                }
-            });
-            
-            logSMTPResult('─'.repeat(50));
-            logSMTPResult(`📈 Summary: ${successCount} successful, ${failCount} failed`);
-            
-            // Show summary in browser notification if available
-            if (data.summary) {
-                logSMTPResult(`📊 Final Summary: ${data.summary.successful}/${data.summary.total} credentials working`);
-            }
         } else {
-            logSMTPResult(`❌ SMTP testing failed: ${data.error || 'Unknown error'}`);
+            smtpTesting = false;
+            logSMTPResult(`❌ Failed to start SMTP testing: ${data.error}`);
         }
     })
     .catch(error => {
