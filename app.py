@@ -4157,7 +4157,7 @@ def mega_upgrade():
                                 
                                 # Real authentication - check if account exists in database
                                 try:
-                                    account = GoogleAccount.query.filter_by(email=account_email).first()
+                                    account = GoogleAccount.query.filter_by(account_name=account_email).first()
                                     if not account:
                                         raise Exception(f"Account {account_email} not found in database")
                                     
@@ -4178,30 +4178,31 @@ def mega_upgrade():
                                 
                                 # Real subdomain change - call the actual API
                                 try:
-                                    # Get available domains
-                                    available_domains = UsedDomain.query.filter_by(status='available').order_by(UsedDomain.domain).all()
+                                    # Get available domains (domains with user_count = 0)
+                                    available_domains = UsedDomain.query.filter_by(user_count=0).order_by(UsedDomain.domain_name).all()
                                     if not available_domains:
                                         raise Exception("No available domains found")
                                     
                                     # Select next available domain
-                                    next_domain = available_domains[0].domain
+                                    next_domain = available_domains[0].domain_name
                                     
                                     # Update the account's domain
-                                    account = GoogleAccount.query.filter_by(email=account_email).first()
+                                    account = GoogleAccount.query.filter_by(account_name=account_email).first()
                                     if account:
-                                        old_domain = account.email.split('@')[1]
-                                        new_email = f"{account.email.split('@')[0]}@{next_domain}"
-                                        account.email = new_email
+                                        old_domain = account.account_name.split('@')[1]
+                                        new_email = f"{account.account_name.split('@')[0]}@{next_domain}"
+                                        account.account_name = new_email
                                         db.session.commit()
                                         
-                                        # Update domain status
-                                        old_domain_record = UsedDomain.query.filter_by(domain=old_domain).first()
+                                        # Update domain user counts
+                                        old_domain_record = UsedDomain.query.filter_by(domain_name=old_domain).first()
                                         if old_domain_record:
-                                            old_domain_record.status = 'used'
+                                            old_domain_record.user_count = 0  # Mark as available
+                                            old_domain_record.ever_used = True
                                         
-                                        new_domain_record = UsedDomain.query.filter_by(domain=next_domain).first()
+                                        new_domain_record = UsedDomain.query.filter_by(domain_name=next_domain).first()
                                         if new_domain_record:
-                                            new_domain_record.status = 'in-use'
+                                            new_domain_record.user_count = 1  # Mark as in use
                                         
                                         db.session.commit()
                                         
@@ -4254,11 +4255,11 @@ def mega_upgrade():
                                 
                                 # Real password update with new domain
                                 try:
-                                    # Get the new domain from the updated account
-                                    updated_account = GoogleAccount.query.filter_by(email=account_email).first()
-                                    if updated_account:
-                                        new_domain = updated_account.email.split('@')[1]
-                                        username = updated_account.email.split('@')[0]
+                            # Get the new domain from the updated account
+                            updated_account = GoogleAccount.query.filter_by(account_name=account_email).first()
+                            if updated_account:
+                                new_domain = updated_account.account_name.split('@')[1]
+                                username = updated_account.account_name.split('@')[0]
                                         
                                         # Update app passwords with new domain
                                         app_passwords = UserAppPassword.query.filter_by(username=username).all()
@@ -4281,11 +4282,11 @@ def mega_upgrade():
                             if account_success:
                                 successful_accounts += 1
                                 
-                                # Get the final account information (after domain change)
-                                final_account = GoogleAccount.query.filter_by(email=account_email).first()
-                                if final_account:
-                                    final_domain = final_account.email.split('@')[1]
-                                    username = final_account.email.split('@')[0]
+                        # Get the final account information (after domain change)
+                        final_account = GoogleAccount.query.filter_by(account_name=account_email).first()
+                        if final_account:
+                            final_domain = final_account.account_name.split('@')[1]
+                            username = final_account.account_name.split('@')[0]
                                     
                                     # Get app passwords for this account
                                     app_passwords = UserAppPassword.query.filter_by(username=username).all()
