@@ -4282,20 +4282,18 @@ function closeMegaUpgradeModal() {
 }
 
 function startMegaUpgrade() {
-    const accountsText = document.getElementById('mega-accounts-list').value.trim();
+    const accounts = [];
+    const accountInputs = document.querySelectorAll('.account-input');
     
-    if (!accountsText) {
-        alert('Please enter at least one account');
-        return;
-    }
-    
-    // Parse accounts from textarea (one per line)
-    const accounts = accountsText.split('\n')
-        .map(line => line.trim())
-        .filter(line => line && line.includes('@')); // Filter out empty lines and invalid emails
+    // Collect non-empty accounts
+    accountInputs.forEach(input => {
+        if (input.value.trim()) {
+            accounts.push(input.value.trim());
+        }
+    });
     
     if (accounts.length === 0) {
-        alert('Please enter valid email addresses (one per line)');
+        alert('Please enter at least one account');
         return;
     }
     
@@ -4311,9 +4309,6 @@ function startMegaUpgrade() {
     document.getElementById('megaUpgradeProgress').style.display = 'block';
     document.getElementById('megaStartBtn').style.display = 'none';
     document.getElementById('megaStopBtn').style.display = 'inline-block';
-    
-    // Reset log counter for new process
-    window.lastLoggedCount = 0;
     
     // Start mega upgrade process
     runMegaUpgradeWorkflow(accounts, features);
@@ -4370,15 +4365,11 @@ function runMegaUpgradeWorkflow(accounts, features) {
                         progressPercent.textContent = `${percentage}%`;
                         progressText.textContent = progress.message;
                         
-                        // Log progress updates with enhanced live visibility
+                        // Log progress updates
                         if (progress.log_messages && progress.log_messages.length > 0) {
-                            // Only log new messages to avoid duplicates
-                            const lastLoggedCount = window.lastLoggedCount || 0;
-                            const newMessages = progress.log_messages.slice(lastLoggedCount);
-                            newMessages.forEach(msg => {
+                            progress.log_messages.forEach(msg => {
                                 logBulkDomain(msg);
                             });
-                            window.lastLoggedCount = progress.log_messages.length;
                         }
                         
                         // Check if completed
@@ -4479,18 +4470,21 @@ function runMegaUpgradeWorkflow(accounts, features) {
             <!-- Account Input -->
             <div style="margin-bottom: 24px;">
                 <h3 style="margin-bottom: 16px; color: #24292f;">
-                    <i class="fas fa-users"></i> Account List (One per line)
+                    <i class="fas fa-users"></i> Account List (Up to 12 accounts)
                 </h3>
-                <div class="form-group-github">
-                    <label for="mega-accounts-list" class="form-label-github">
-                        <i class="fas fa-list"></i> Accounts (One email per line)
-                    </label>
-                    <textarea id="mega-accounts-list" class="form-control-github" rows="8" 
-                              placeholder="Enter accounts one per line:&#10;admin@domain1.com&#10;support@domain2.com&#10;mailer@domain3.com&#10;...&#10;&#10;Supports unlimited accounts for processing"
-                              style="font-family: monospace; font-size: 13px;"></textarea>
-                    <small style="color: #656d76; font-size: 12px;">
-                        Enter one email address per line. The system will process all accounts with the selected features.
-                    </small>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px;">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 1: user@domain.com" data-index="0">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 2: user@domain.com" data-index="1">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 3: user@domain.com" data-index="2">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 4: user@domain.com" data-index="3">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 5: user@domain.com" data-index="4">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 6: user@domain.com" data-index="5">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 7: user@domain.com" data-index="6">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 8: user@domain.com" data-index="7">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 9: user@domain.com" data-index="8">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 10: user@domain.com" data-index="9">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 11: user@domain.com" data-index="10">
+                    <input type="text" class="form-control-github account-input" placeholder="Account 12: user@domain.com" data-index="11">
                 </div>
             </div>
             
