@@ -1026,7 +1026,7 @@ def oauth_callback():
         code = request.args.get('code')
         
         if not code:
-            return "ERROR: No authorization code received", 400
+            return "❌ No authorization code received", 400
         
         return f"""
         <html>
@@ -1069,7 +1069,7 @@ def oauth_callback():
         """
         
     except Exception as e:
-        return f"ERROR: {str(e)}", 500
+        return f"❌ Error: {str(e)}", 500
 
 @app.route('/api/complete-oauth', methods=['POST'])
 @login_required
@@ -1859,7 +1859,7 @@ def api_change_domain_all_users():
                 logging.info(f"✅ Domain status pre-updated: {current_domain} (USED) → {new_domain} (IN USE)")
                 
             except Exception as db_error:
-                logging.error(f"ERROR: Failed to pre-update domain status: {db_error}")
+                logging.error(f"❌ Failed to pre-update domain status: {db_error}")
                 try:
                     db.session.rollback()
                 except:
@@ -1931,7 +1931,7 @@ def api_change_domain_all_users():
                         'email': email,
                         'error': str(user_error)
                     })
-                    logging.error(f"ERROR: Failed to update user {i+1}/{total_users} {email}: {user_error}")
+                    logging.error(f"❌ Failed to update user {i+1}/{total_users} {email}: {user_error}")
                     
                     # Continue processing other users even if one fails
                     continue
@@ -2060,7 +2060,7 @@ def api_change_domain():
                         'email': email,
                         'error': str(user_error)
                     })
-                    logging.error(f"ERROR: Failed to update user {email}: {user_error}")
+                    logging.error(f"❌ Failed to update user {email}: {user_error}")
                     continue
             
             # Update domain usage in database
@@ -2487,7 +2487,7 @@ def test_server_connection():
                         account_files = sftp.listdir(account_path)
                         
                         # Look for JSON files
-                        import fnmatch
+                import fnmatch
                         json_files = [f for f in account_files if fnmatch.fnmatch(f, '*.json')]
                         
                         if json_files:
@@ -3275,7 +3275,7 @@ def api_auto_change_subdomain():
                 
             except Exception as e:
                 failed_changes.append({'email': email, 'error': str(e)})
-                logging.error(f"ERROR: Failed to change {email}: {e}")
+                logging.error(f"❌ Failed to change {email}: {e}")
         
         # Update domain usage in database
         try:
@@ -4041,7 +4041,7 @@ def mega_upgrade():
                         account_success = False
                         with progress_lock:
                             if task_id in progress_tracker:
-                                progress_tracker[task_id]['log_messages'].append(f'ERROR: [{account_index + 1}/{total_accounts}] Subdomain change failed for {account_email}: {str(e)}')
+                                progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{total_accounts}] Subdomain change failed for {account_email}: {str(e)}')
                 
                 # Step 3: Retrieve App Passwords (if enabled)
                 if features.get('retrievePasswords'):
@@ -4088,7 +4088,7 @@ def mega_upgrade():
                 else:
                     with progress_lock:
                         if task_id in progress_tracker:
-                            progress_tracker[task_id]['log_messages'].append(f'ERROR: [{account_index + 1}/{total_accounts}] Account {account_email} failed')
+                            progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{total_accounts}] Account {account_email} failed')
                     
                     return {
                         'success': False,
@@ -4099,7 +4099,7 @@ def mega_upgrade():
             except Exception as e:
                 with progress_lock:
                     if task_id in progress_tracker:
-                        progress_tracker[task_id]['log_messages'].append(f'ERROR: [{account_index + 1}/{total_accounts}] Account {account_email} failed: {str(e)}')
+                        progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{total_accounts}] Account {account_email} failed: {str(e)}')
                 
                 return {
                     'success': False,
@@ -4170,7 +4170,7 @@ def mega_upgrade():
                             account_success = False
                             with progress_lock:
                                 if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'ERROR: [{account_index + 1}/{len(accounts)}] Authentication failed for {account_email}: {str(e)}')
+                                    progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{len(accounts)}] Authentication failed for {account_email}: {str(e)}')
                     
                     # Step 2: Change Subdomain (if enabled) - REAL
                     if features.get('changeSubdomain') and account_success:
@@ -4221,7 +4221,7 @@ def mega_upgrade():
                             account_success = False
                             with progress_lock:
                                 if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'ERROR: [{account_index + 1}/{len(accounts)}] Subdomain change failed for {account_email}: {str(e)}')
+                                    progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{len(accounts)}] Subdomain change failed for {account_email}: {str(e)}')
                     
                     # Step 3: Retrieve App Passwords (if enabled) - REAL
                     if features.get('retrievePasswords') and account_success:
@@ -4242,12 +4242,12 @@ def mega_upgrade():
                             else:
                                 with progress_lock:
                                     if task_id in progress_tracker:
-                                        progress_tracker[task_id]['log_messages'].append(f'WARNING: [{account_index + 1}/{len(accounts)}] No app passwords found for {account_email}')
+                                        progress_tracker[task_id]['log_messages'].append(f'⚠️ [{account_index + 1}/{len(accounts)}] No app passwords found for {account_email}')
                                 
                         except Exception as e:
                             with progress_lock:
                                 if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'ERROR: [{account_index + 1}/{len(accounts)}] App password retrieval failed for {account_email}: {str(e)}')
+                                    progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{len(accounts)}] App password retrieval failed for {account_email}: {str(e)}')
                     
                     # Step 4: Update Passwords (if enabled) - REAL
                     if features.get('updatePasswords') and account_success:
@@ -4278,7 +4278,7 @@ def mega_upgrade():
                         except Exception as e:
                             with progress_lock:
                                 if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'ERROR: [{account_index + 1}/{len(accounts)}] Password update failed for {account_email}: {str(e)}')
+                                    progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{len(accounts)}] Password update failed for {account_email}: {str(e)}')
                     
                     # Generate result if successful
                     if account_success:
@@ -4322,7 +4322,7 @@ def mega_upgrade():
                     })
                     with progress_lock:
                         if task_id in progress_tracker:
-                            progress_tracker[task_id]['log_messages'].append(f'ERROR: [{account_index + 1}/{len(accounts)}] Account {account_email} failed: {str(e)}')
+                            progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{len(accounts)}] Account {account_email} failed: {str(e)}')
             
             # Mark as completed
             with progress_lock:
@@ -4344,7 +4344,7 @@ def mega_upgrade():
                 if task_id in progress_tracker:
                     progress_tracker[task_id]['status'] = 'error'
                     progress_tracker[task_id]['message'] = f'Error: {str(e)}'
-                    progress_tracker[task_id]['log_messages'].append(f'ERROR: Mega upgrade workflow failed: {str(e)}')
+                    progress_tracker[task_id]['log_messages'].append(f'❌ Mega upgrade workflow failed: {str(e)}')
             
             return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
         
