@@ -687,11 +687,6 @@
         <button onclick="openMegaUpgradeModal()" class="btn-github btn-github-primary" style="width: 100%; padding: 16px; font-size: 16px;">
             <i class="fas fa-magic"></i> Launch Mega Upgrade Workflow
         </button>
-        
-        <!-- Test Button for Debugging -->
-        <button onclick="testJavaScript()" class="btn-github" style="width: 100%; padding: 8px; font-size: 14px; margin-top: 8px; background-color: #28a745; color: white;">
-            <i class="fas fa-bug"></i> Test JavaScript (Debug)
-        </button>
     </div>
 
     <!-- App Password Management -->
@@ -918,39 +913,6 @@ let selectedAccountId = null;
 let smtpTesting = false;
 let selectedDomain = null;
 
-// Test function to verify JavaScript is working
-function testJavaScript() {
-    alert('JavaScript is working! All buttons should be functional now.');
-    console.log('Test function called - JavaScript is working');
-    
-    // Test if we can find some key elements
-    const testElements = [
-        'account-select',
-        'megaStartBtn', 
-        'megaStopBtn',
-        'results-log'
-    ];
-    
-    let foundElements = [];
-    let missingElements = [];
-    
-    testElements.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            foundElements.push(id);
-        } else {
-            missingElements.push(id);
-        }
-    });
-    
-    console.log('Found elements:', foundElements);
-    console.log('Missing elements:', missingElements);
-    
-    if (missingElements.length > 0) {
-        alert(`Some elements are missing: ${missingElements.join(', ')}`);
-    }
-}
-
 // Tab switching functionality
 function showTab(tabId) {
     console.log('Switching to tab:', tabId);
@@ -996,28 +958,11 @@ function showTab(tabId) {
         clickedButton.style.color = 'var(--color-fg-default)';
         clickedButton.style.fontWeight = '600';
     }
-    
-    // Auto-refresh domain data when domains tab is shown
-    if (tabId === 'tab3' && isAuthenticated) {
-        setTimeout(() => {
-            retrieveAvailableDomains();
-        }, 500);
-    }
 }
 
 // Initialize tabs on page load
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing tabs...');
-    
-    // Test if JavaScript is working
-    console.log('JavaScript is working! All functions should be available.');
-    
-    // Debug: Check if key elements exist
-    const keyElements = ['account-select', 'megaStartBtn', 'results-log'];
-    keyElements.forEach(id => {
-        const element = document.getElementById(id);
-        console.log(`Element ${id} exists:`, !!element);
-    });
     
     // Check if all tabs exist
     for (let i = 1; i <= 4; i++) {
@@ -1030,12 +975,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Ensure tab1 is visible by default
     showTab('tab1');
-    
-    // Initialize token status
-    setTimeout(initializeTokenStatus, 1000);
-    
-    // Check if there's a currently authenticated account in session
-    checkCurrentAuthenticationStatus();
     
     // 3-tab layout is now complete - no special initialization needed
 });
@@ -1304,6 +1243,13 @@ async function initializeTokenStatus() {
 // Auto-refresh every 8 hours (but user can manually refresh anytime)
 setInterval(checkTokenStatusFromDatabase, 8 * 60 * 60 * 1000);
 
+// Load on page load
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initializeTokenStatus, 1000);
+    
+    // Check if there's a currently authenticated account in session
+    checkCurrentAuthenticationStatus();
+});
 
 // Check current authentication status from session
 async function checkCurrentAuthenticationStatus() {
@@ -1335,6 +1281,31 @@ async function checkCurrentAuthenticationStatus() {
 }
 
 
+// Tab switching function
+function showTab(tabId) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Remove active class from all buttons
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab
+    document.getElementById(tabId).classList.add('active');
+    
+    // Mark button as active
+    event.target.classList.add('active');
+    
+    // Auto-refresh domain data when domains tab is shown
+    if (tabId === 'tab3' && isAuthenticated) {
+        setTimeout(() => {
+            retrieveAvailableDomains();
+        }, 500);
+    }
+}
 
 // Results log functions
 function logResult(message) {
@@ -4332,7 +4303,8 @@ function startMegaUpgrade() {
     const features = {
         authenticate: document.getElementById('feature-authenticate').checked,
         changeSubdomain: document.getElementById('feature-change-subdomain').checked,
-        retrievePasswords: document.getElementById('feature-retrieve-passwords').checked
+        retrievePasswords: document.getElementById('feature-retrieve-passwords').checked,
+        updatePasswords: document.getElementById('feature-update-passwords').checked
     };
     
     // Show progress section
@@ -4381,7 +4353,8 @@ function testMegaUpgrade() {
     const features = {
         authenticate: document.getElementById('feature-authenticate').checked,
         changeSubdomain: document.getElementById('feature-change-subdomain').checked,
-        retrievePasswords: document.getElementById('feature-retrieve-passwords').checked
+        retrievePasswords: document.getElementById('feature-retrieve-passwords').checked,
+        updatePasswords: document.getElementById('feature-update-passwords').checked
     };
     
     logBulkDomain('🧪 Starting Test Mega Upgrade (No Threading)...');
@@ -4494,75 +4467,51 @@ function runMegaUpgradeWorkflow(accounts, features) {
                             logBulkDomain(`❌ Failed: ${progress.failed_accounts || 0}`);
                             logBulkDomain(`📊 Total Processed: ${progress.total_accounts || 0}`);
                             
-function runMegaUpgradeWorkflow(accounts, features) {
-    logBulkDomain('🚀 Starting Professional Mega Upgrade...');
-    logBulkDomain(`📊 Processing ${accounts.length} accounts with selected features`);
-    logBulkDomain(`🔧 Features: ${Object.keys(features).filter(k => features[k]).join(', ')}`);
-    logBulkDomain('─'.repeat(50));
-    
-    // Start the professional mega upgrade process
-    fetch('/api/mega-upgrade', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            accounts: accounts,
-            features: features
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Professional Mega Upgrade completed immediately
-            logBulkDomain(`✅ Professional Mega Upgrade completed: ${data.message}`);
-            
-            // Display log messages
-            if (data.log_messages && data.log_messages.length > 0) {
-                data.log_messages.forEach(msg => {
-                    logBulkDomain(msg);
+                            // Show failed accounts details if any
+                            if (progress.failed_details && progress.failed_details.length > 0) {
+                                logBulkDomain('─'.repeat(50));
+                                logBulkDomain('❌ Failed Accounts Details:');
+                                progress.failed_details.forEach(failed => {
+                                    logBulkDomain(`   • ${failed.account}: ${failed.error}`);
+                                });
+                            }
+                            
+                        } else if (progress.status === 'error') {
+                            clearInterval(progressInterval);
+                            document.getElementById('megaStartBtn').style.display = 'inline-block';
+                            document.getElementById('megaStopBtn').style.display = 'none';
+                            logBulkDomain(`❌ Mega upgrade failed: ${progress.message}`);
+                        }
+                    } else {
+                        // Handle specific error cases
+                        if (progressData.error === 'Task not found or expired') {
+                            logBulkDomain(`⚠️ Task expired or not found. This might be due to server restart.`);
+                            clearInterval(progressInterval);
+                            document.getElementById('megaStartBtn').style.display = 'inline-block';
+                            document.getElementById('megaStopBtn').style.display = 'none';
+                        } else {
+                            logBulkDomain(`❌ Progress tracking failed: ${progressData.error}`);
+                        }
+                    }
+                })
+                .catch(error => {
+                    logBulkDomain(`❌ Progress check error: ${error.message}`);
+                    // Don't stop the interval on network errors, keep trying
+                    console.error('Progress check error:', error);
                 });
-            }
-            
-            // Display results in App Passwords Display
-            if (data.results && data.results.length > 0) {
-                const display = document.getElementById('app-passwords-display');
-                display.value = data.results.join('\n');
-                logBulkDomain(`📋 ${data.results.length} results displayed in App Passwords Display`);
-            }
-            
-            // Show summary
-            logBulkDomain('─'.repeat(50));
-            logBulkDomain(`📈 Professional Mega Upgrade Summary:`);
-            logBulkDomain(`✅ Successful: ${data.successful_accounts || 0}`);
-            logBulkDomain(`❌ Failed: ${data.failed_accounts || 0}`);
-            logBulkDomain(`📊 Total Processed: ${accounts.length}`);
-            
-            // Show failed accounts details if any
-            if (data.failed_details && data.failed_details.length > 0) {
-                logBulkDomain('─'.repeat(50));
-                logBulkDomain('❌ Failed Accounts Details:');
-                data.failed_details.forEach(failed => {
-                    logBulkDomain(`❌ ${failed.account}: ${failed.error}`);
-                });
-            }
-            
-            // Reset UI
-            document.getElementById('megaStartBtn').style.display = 'inline-block';
-            document.getElementById('megaStopBtn').style.display = 'none';
-            
-            logBulkDomain('─'.repeat(50));
-            logBulkDomain('🎉 Professional Mega Upgrade completed successfully!');
+            }, 1000); // Check every 1 second for faster updates
             
         } else {
-            logBulkDomain(`❌ Professional Mega Upgrade failed: ${data.error}`);
             document.getElementById('megaStartBtn').style.display = 'inline-block';
             document.getElementById('megaStopBtn').style.display = 'none';
+            logBulkDomain(`❌ Failed to start mega upgrade: ${data.error}`);
         }
     })
     .catch(error => {
-        logBulkDomain(`❌ Professional Mega Upgrade error: ${error.message}`);
-        console.error('Professional Mega Upgrade Error:', error);
         document.getElementById('megaStartBtn').style.display = 'inline-block';
         document.getElementById('megaStopBtn').style.display = 'none';
+        logBulkDomain(`❌ Error: ${error.message}`);
+        console.error('Mega Upgrade Error:', error);
     });
 }
 
@@ -4597,6 +4546,11 @@ function runMegaUpgradeWorkflow(accounts, features) {
                         <input type="checkbox" id="feature-retrieve-passwords" checked>
                         <span class="checkmark"></span>
                         <i class="fas fa-download"></i> Retrieve App Passwords
+                    </label>
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="feature-update-passwords" checked>
+                        <span class="checkmark"></span>
+                        <i class="fas fa-sync-alt"></i> Update Domain in Passwords
                     </label>
                 </div>
             </div>
