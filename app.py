@@ -4343,35 +4343,17 @@ def mega_upgrade():
                             progress_tracker[task_id]['message'] = f'Error: {str(e)}'
                             progress_tracker[task_id]['log_messages'].append(f'❌ Mega upgrade workflow failed: {str(e)}')
         
-        # Start the background thread with better error handling
-        try:
-            thread = threading.Thread(target=mega_upgrade_worker)
-            thread.daemon = True
-            thread.start()
-            
-            # Give the thread a moment to start and verify it's running
-            time.sleep(0.1)
-            
-            # Verify the task is still in progress tracker
-            with progress_lock:
-                if task_id not in progress_tracker:
-                    app.logger.error(f"Task {task_id} disappeared immediately after creation")
-                    return jsonify({'success': False, 'error': 'Failed to start background task'})
-            
-            app.logger.info(f"Mega upgrade task {task_id} started successfully")
-            return jsonify({
-                'success': True,
-                'task_id': task_id,
-                'message': 'Mega upgrade workflow started'
-            })
-            
-        except Exception as e:
-            app.logger.error(f"Error starting mega upgrade thread: {e}")
-            # Clean up the task if thread creation failed
-            with progress_lock:
-                if task_id in progress_tracker:
-                    del progress_tracker[task_id]
-            return jsonify({'success': False, 'error': f'Failed to start background task: {str(e)}'})
+        # Run synchronously to avoid thread context issues
+        app.logger.info(f"Running mega upgrade synchronously for task {task_id}")
+        
+        # Call the worker function directly (no threading)
+        mega_upgrade_worker()
+        
+        return jsonify({
+            'success': True,
+            'task_id': task_id,
+            'message': 'Mega upgrade workflow completed'
+        })
         
     except Exception as e:
         app.logger.error(f"Error starting mega upgrade: {e}")
