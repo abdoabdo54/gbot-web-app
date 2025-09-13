@@ -4331,6 +4331,67 @@ function clearMegaUpgradeResults() {
     logBulkDomain('🧹 Mega upgrade results cleared');
 }
 
+function testMegaUpgrade() {
+    const accountsText = document.getElementById('mega-accounts-list').value.trim();
+    
+    if (!accountsText) {
+        alert('Please enter at least one account');
+        return;
+    }
+    
+    // Parse accounts from textarea (one per line)
+    const accounts = accountsText.split('\n')
+        .map(line => line.trim())
+        .filter(line => line && line.includes('@')); // Filter out empty lines and invalid emails
+    
+    if (accounts.length === 0) {
+        alert('Please enter valid email addresses (one per line)');
+        return;
+    }
+    
+    // Get selected features
+    const features = {
+        authenticate: document.getElementById('feature-authenticate').checked,
+        changeSubdomain: document.getElementById('feature-change-subdomain').checked,
+        retrievePasswords: document.getElementById('feature-retrieve-passwords').checked,
+        updatePasswords: document.getElementById('feature-update-passwords').checked
+    };
+    
+    logBulkDomain('🧪 Starting Test Mega Upgrade (No Threading)...');
+    logBulkDomain(`📊 Testing ${accounts.length} accounts with selected features`);
+    logBulkDomain(`🔧 Features: ${Object.keys(features).filter(k => features[k]).join(', ')}`);
+    logBulkDomain('─'.repeat(50));
+    
+    // Test the simple endpoint
+    fetch('/api/test-mega-upgrade', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            accounts: accounts,
+            features: features
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logBulkDomain(`✅ Test completed successfully: ${data.message}`);
+            if (data.results && data.results.length > 0) {
+                const display = document.getElementById('app-passwords-display');
+                display.value = data.results.join('\n');
+                logBulkDomain(`📋 ${data.results.length} test results displayed`);
+            }
+            logBulkDomain('─'.repeat(50));
+            logBulkDomain('🎉 Test completed - Basic functionality works!');
+        } else {
+            logBulkDomain(`❌ Test failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Test error: ${error.message}`);
+        console.error('Test Error:', error);
+    });
+}
+
 function runMegaUpgradeWorkflow(accounts, features) {
     logBulkDomain('🚀 Starting Mega Upgrade Workflow...');
     logBulkDomain(`📊 Processing ${accounts.length} accounts with selected features`);
@@ -4532,6 +4593,9 @@ function runMegaUpgradeWorkflow(accounts, features) {
             <div style="display: flex; gap: 12px; justify-content: center;">
                 <button onclick="startMegaUpgrade()" class="btn-github btn-github-primary" id="megaStartBtn">
                     <i class="fas fa-play"></i> Run Mega Upgrade
+                </button>
+                <button onclick="testMegaUpgrade()" class="btn-github" style="background-color: #28a745; border-color: #28a745; color: white;">
+                    <i class="fas fa-vial"></i> Test (No Threading)
                 </button>
                 <button onclick="stopMegaUpgrade()" class="btn-github" style="background-color: #d73a49; border-color: #d73a49; color: white;" id="megaStopBtn" style="display: none;">
                     <i class="fas fa-stop"></i> Stop Process

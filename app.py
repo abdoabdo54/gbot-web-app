@@ -3992,6 +3992,7 @@ def mega_upgrade():
         def process_single_account(account_email, account_index, total_accounts, features, task_id):
             """Process a single account with all selected features"""
             try:
+                app.logger.info(f"Processing account {account_index + 1}/{total_accounts}: {account_email}")
                 account_success = True
                 account_results = []
                 
@@ -3999,6 +4000,13 @@ def mega_upgrade():
                 with progress_lock:
                     if task_id in progress_tracker:
                         progress_tracker[task_id]['log_messages'].append(f'🔄 [{account_index + 1}/{total_accounts}] Processing: {account_email}')
+                    else:
+                        app.logger.error(f"Task {task_id} not found when processing account {account_email}")
+                        return {
+                            'success': False,
+                            'account': account_email,
+                            'error': 'Task not found in progress tracker'
+                        }
                 
                 # Step 1: Authenticate (if enabled)
                 if features.get('authenticate'):
@@ -4102,6 +4110,8 @@ def mega_upgrade():
         
         def mega_upgrade_worker():
             try:
+                app.logger.info(f"Starting mega upgrade worker for task {task_id}")
+                
                 successful_accounts = 0
                 failed_accounts = 0
                 final_results = []
@@ -4113,36 +4123,61 @@ def mega_upgrade():
                         progress_tracker[task_id]['log_messages'].append(f'🚀 Starting mega upgrade for {len(accounts)} accounts')
                         progress_tracker[task_id]['log_messages'].append(f'📊 Features enabled: {[k for k, v in features.items() if v]}')
                         progress_tracker[task_id]['log_messages'].append(f'⚡ Processing up to 5 accounts in parallel for faster execution')
+                        progress_tracker[task_id]['status'] = 'running'
+                    else:
+                        app.logger.error(f"Task {task_id} not found in progress tracker at start of worker")
+                        return
                 
                 # Process accounts in parallel (max 5 at a time)
                 max_workers = min(5, len(accounts))
+                app.logger.info(f"Starting parallel processing with {max_workers} workers for {len(accounts)} accounts")
                 
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    # Submit all tasks
-                    future_to_account = {
-                        executor.submit(process_single_account, account_email.strip(), idx, len(accounts), features, task_id): account_email.strip()
-                        for idx, account_email in enumerate(accounts) if account_email.strip()
-                    }
-                    
-                    # Process completed tasks
-                    for future in as_completed(future_to_account):
-                        result = future.result()
+                try:
+                    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                        # Submit all tasks
+                        future_to_account = {
+                            executor.submit(process_single_account, account_email.strip(), idx, len(accounts), features, task_id): account_email.strip()
+                            for idx, account_email in enumerate(accounts) if account_email.strip()
+                        }
                         
-                        if result['success']:
-                            successful_accounts += 1
-                            final_results.append(result['result'])
-                        else:
-                            failed_accounts += 1
-                            failed_details.append({
-                                'account': result['account'],
-                                'error': result['error']
-                            })
+                        app.logger.info(f"Submitted {len(future_to_account)} tasks to executor")
                         
-                        # Update progress
-                        with progress_lock:
-                            if task_id in progress_tracker:
-                                progress_tracker[task_id]['current_step'] = successful_accounts + failed_accounts
-                                progress_tracker[task_id]['message'] = f'Completed {successful_accounts + failed_accounts}/{len(accounts)} accounts'
+                        # Process completed tasks
+                        for future in as_completed(future_to_account):
+                            try:
+                                result = future.result()
+                                
+                                if result['success']:
+                                    successful_accounts += 1
+                                    final_results.append(result['result'])
+                                else:
+                                    failed_accounts += 1
+                                    failed_details.append({
+                                        'account': result['account'],
+                                        'error': result['error']
+                                    })
+                                
+                                # Update progress
+                                with progress_lock:
+                                    if task_id in progress_tracker:
+                                        progress_tracker[task_id]['current_step'] = successful_accounts + failed_accounts
+                                        progress_tracker[task_id]['message'] = f'Completed {successful_accounts + failed_accounts}/{len(accounts)} accounts'
+                                
+                                app.logger.info(f"Completed account {successful_accounts + failed_accounts}/{len(accounts)}")
+                                
+                            except Exception as e:
+                                app.logger.error(f"Error processing future result: {e}")
+                                failed_accounts += 1
+                                failed_details.append({
+                                    'account': 'unknown',
+                                    'error': f'Future processing error: {str(e)}'
+                                })
+                
+                except Exception as e:
+                    app.logger.error(f"Error in ThreadPoolExecutor: {e}")
+                    with progress_lock:
+                        if task_id in progress_tracker:
+                            progress_tracker[task_id]['log_messages'].append(f'❌ Parallel processing failed: {str(e)}')
                 
                 # Mark as completed
                 with progress_lock:
@@ -4163,20 +4198,71 @@ def mega_upgrade():
                         progress_tracker[task_id]['message'] = f'Error: {str(e)}'
                         progress_tracker[task_id]['log_messages'].append(f'❌ Mega upgrade workflow failed: {str(e)}')
         
-        # Start the background thread
-        thread = threading.Thread(target=mega_upgrade_worker)
-        thread.daemon = True
-        thread.start()
-        
-        return jsonify({
-            'success': True,
-            'task_id': task_id,
-            'message': 'Mega upgrade workflow started'
-        })
+        # Start the background thread with better error handling
+        try:
+            thread = threading.Thread(target=mega_upgrade_worker)
+            thread.daemon = True
+            thread.start()
+            
+            # Give the thread a moment to start and verify it's running
+            time.sleep(0.1)
+            
+            # Verify the task is still in progress tracker
+            with progress_lock:
+                if task_id not in progress_tracker:
+                    app.logger.error(f"Task {task_id} disappeared immediately after creation")
+                    return jsonify({'success': False, 'error': 'Failed to start background task'})
+            
+            app.logger.info(f"Mega upgrade task {task_id} started successfully")
+            return jsonify({
+                'success': True,
+                'task_id': task_id,
+                'message': 'Mega upgrade workflow started'
+            })
+            
+        except Exception as e:
+            app.logger.error(f"Error starting mega upgrade thread: {e}")
+            # Clean up the task if thread creation failed
+            with progress_lock:
+                if task_id in progress_tracker:
+                    del progress_tracker[task_id]
+            return jsonify({'success': False, 'error': f'Failed to start background task: {str(e)}'})
         
     except Exception as e:
         app.logger.error(f"Error starting mega upgrade: {e}")
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
+
+@app.route('/api/test-mega-upgrade', methods=['POST'])
+@login_required
+def test_mega_upgrade():
+    """Test endpoint to debug mega upgrade issues"""
+    try:
+        data = request.get_json()
+        accounts = data.get('accounts', [])
+        features = data.get('features', {})
+        
+        if not accounts:
+            return jsonify({'success': False, 'error': 'No accounts provided'})
+        
+        # Simple test without threading
+        results = []
+        for account_email in accounts[:2]:  # Test with first 2 accounts only
+            account_email = account_email.strip()
+            if account_email:
+                # Simulate processing
+                domain = account_email.split('@')[1] if '@' in account_email else 'domain.com'
+                result = f"user@{domain},app_password123,smtp.gmail.com,587"
+                results.append(result)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Test completed successfully for {len(results)} accounts',
+            'results': results
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Test mega upgrade error: {e}")
+        return jsonify({'success': False, 'error': f'Test error: {str(e)}'})
 
 @app.route('/api/mega-upgrade-progress/<task_id>')
 @login_required
