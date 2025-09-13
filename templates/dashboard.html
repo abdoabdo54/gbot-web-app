@@ -682,8 +682,8 @@
         
         <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
             Upload and manage app passwords for SMTP authentication. When retrieving, the system automatically 
-            updates the domain part to match your current domain and optimizes the database by replacing old entries 
-            with new ones to prevent accumulation and improve performance.
+            updates the domain part to match your current domain and formats output as SMTP configuration 
+            (user@domain,app_password,smtp.gmail.com,587) ready for direct use in email clients.
         </p>
         
         <!-- Upload Section -->
@@ -698,7 +698,8 @@
                 <input type="file" id="app-password-file" class="form-control-github" accept=".txt" 
                        style="padding: 12px; border: 2px dashed #d0d7de; background: #f6f8fa;">
                 <small style="color: #656d76; font-size: 12px;">
-                    Upload a .txt file with format: user@domain.com:app_password (one per line)
+                    Upload a .txt file with format: user@domain.com:app_password (one per line)<br>
+                    Output will be formatted as: user@domain.com,app_password,smtp.gmail.com,587
                 </small>
             </div>
             <button onclick="uploadAppPasswords()" class="btn-github btn-github-primary">
@@ -747,7 +748,7 @@
                 </button>
             </div>
             <textarea id="app-passwords-display" class="form-control-github" rows="8" 
-                      placeholder="App passwords will appear here..." readonly
+                      placeholder="SMTP configuration will appear here in format: user@domain.com,app_password,smtp.gmail.com,587" readonly
                       style="font-family: monospace; font-size: 13px; background: #f6f8fa;"></textarea>
         </div>
     </div>
@@ -3079,6 +3080,7 @@ function retrieveAppPasswords() {
                 display.value = data.app_passwords.join('\n');
                 logBulkDomain(`✅ ${data.message}`);
                 logBulkDomain(`🔄 Domain updated: All usernames now use ${domain}`);
+                logBulkDomain(`📧 SMTP format: user@domain,app_password,smtp.gmail.com,587`);
                 if (data.optimization) {
                     logBulkDomain(`⚡ Optimization: ${data.optimization}`);
                 }
@@ -3123,13 +3125,13 @@ function copyAppPasswords() {
         button.style.backgroundColor = '';
     }, 2000);
     
-    logBulkDomain('📋 App passwords copied to clipboard');
+    logBulkDomain('📋 SMTP configuration copied to clipboard');
 }
 
 function clearAppPasswordsDisplay() {
     const display = document.getElementById('app-passwords-display');
     display.value = '';
-    logBulkDomain('🧹 App passwords display cleared');
+    logBulkDomain('🧹 SMTP configuration display cleared');
 }
 
 function deleteAllAppPasswords() {

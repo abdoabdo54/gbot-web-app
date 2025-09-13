@@ -3471,8 +3471,8 @@ def retrieve_app_passwords():
                 'username': record.username,
                 'app_password': record.app_password
             })
-            # Format for display
-            results.append(f"{record.username}@{new_domain}:{record.app_password}")
+            # Format for SMTP display: user@domain,app_password,smtp.gmail.com,587
+            results.append(f"{record.username}@{new_domain},{record.app_password},smtp.gmail.com,587")
         
         # Clear ALL existing app passwords to prevent accumulation
         UserAppPassword.query.delete()
