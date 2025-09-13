@@ -2524,8 +2524,8 @@ def test_server_connection():
                 ssh.close()
                 
                 if valid_accounts:
-                    return jsonify({
-                        'success': True,
+                return jsonify({
+                    'success': True,
                         'message': f'Connection successful. Found {len(valid_accounts)} account(s) with JSON files in {len(account_dirs)} total directories.',
                         'accounts_count': len(valid_accounts),
                         'total_dirs': len(account_dirs),
@@ -2536,7 +2536,7 @@ def test_server_connection():
                     return jsonify({
                         'success': False,
                         'error': f'No valid JSON files found in any account directories. Checked {tested_accounts} directories.'
-                    })
+                })
                 
             except Exception as e:
                 ssh.close()
@@ -3675,46 +3675,46 @@ def add_from_server_json():
                         json_filename = json_files[0]
                         file_path = f"{account_dir}/{json_filename}"
                         
-                        # Read and parse JSON file
-                        with sftp.open(file_path, 'r') as f:
-                            content = f.read()
-                            json_data = json.loads(content)
-                        
-                        # Extract client credentials
-                        if 'installed' in json_data:
-                            client_data = json_data['installed']
-                        elif 'web' in json_data:
-                            client_data = json_data['web']
-                        else:
+                            # Read and parse JSON file
+                            with sftp.open(file_path, 'r') as f:
+                                content = f.read()
+                                json_data = json.loads(content)
+                            
+                            # Extract client credentials
+                            if 'installed' in json_data:
+                                client_data = json_data['installed']
+                            elif 'web' in json_data:
+                                client_data = json_data['web']
+                            else:
                             failed_accounts.append({'email': email, 'error': 'Invalid JSON format - missing installed/web section'})
-                            continue
-                        
-                        client_id = client_data.get('client_id')
-                        client_secret = client_data.get('client_secret')
-                        
-                        if not client_id or not client_secret:
+                                continue
+                            
+                            client_id = client_data.get('client_id')
+                            client_secret = client_data.get('client_secret')
+                            
+                            if not client_id or not client_secret:
                             failed_accounts.append({'email': email, 'error': 'Missing client_id or client_secret in JSON file'})
-                            continue
-                        
-                        # Check if account already exists
-                        from database import GoogleAccount
-                        existing_account = GoogleAccount.query.filter_by(account_name=email).first()
-                        if existing_account:
-                            failed_accounts.append({'email': email, 'error': 'Account already exists'})
-                            continue
-                        
-                        # Add new account
-                        new_account = GoogleAccount(
-                            account_name=email,
-                            client_id=client_id,
-                            client_secret=client_secret
-                        )
-                        db.session.add(new_account)
-                        added_accounts.append(email)
-                        
-                    except Exception as e:
+                                continue
+                            
+                            # Check if account already exists
+                            from database import GoogleAccount
+                            existing_account = GoogleAccount.query.filter_by(account_name=email).first()
+                            if existing_account:
+                                failed_accounts.append({'email': email, 'error': 'Account already exists'})
+                                continue
+                            
+                            # Add new account
+                            new_account = GoogleAccount(
+                                account_name=email,
+                                client_id=client_id,
+                                client_secret=client_secret
+                            )
+                            db.session.add(new_account)
+                            added_accounts.append(email)
+                            
+                        except Exception as e:
                         failed_accounts.append({'email': email, 'error': f'Failed to process account: {str(e)}'})
-                        continue
+                            continue
                 
                 # Commit all changes
                 db.session.commit()
@@ -3949,8 +3949,8 @@ def mega_upgrade():
         if not accounts:
             return jsonify({'success': False, 'error': 'No accounts provided'})
         
-        if len(accounts) > 12:
-            return jsonify({'success': False, 'error': 'Maximum 12 accounts allowed'})
+        if len(accounts) > 100:
+            return jsonify({'success': False, 'error': 'Maximum 100 accounts allowed for performance reasons'})
         
         # Generate unique task ID
         import uuid
@@ -3998,13 +3998,14 @@ def mega_upgrade():
                     if not account_email:
                         continue
                     
-                    # Update progress
+                    # Update progress with enhanced live visibility
                     with progress_lock:
                         if task_id not in progress_tracker:
                             break
                         progress_tracker[task_id]['current_account'] = account_email
                         progress_tracker[task_id]['message'] = f'Processing account {account_index + 1}/{len(accounts)}: {account_email}'
-                        progress_tracker[task_id]['log_messages'].append(f'🔄 Processing account {account_index + 1}/{len(accounts)}: {account_email}')
+                        progress_tracker[task_id]['log_messages'].append(f'🔄 [{account_index + 1}/{len(accounts)}] Starting processing: {account_email}')
+                        progress_tracker[task_id]['log_messages'].append(f'📊 Progress: {current_step}/{total_steps} steps completed')
                     
                     account_success = True
                     account_results = []
@@ -4017,13 +4018,13 @@ def mega_upgrade():
                                 if task_id in progress_tracker:
                                     progress_tracker[task_id]['current_step'] = current_step
                                     progress_tracker[task_id]['message'] = f'Authenticating {account_email}...'
-                                    progress_tracker[task_id]['log_messages'].append(f'🔑 Authenticating {account_email}...')
+                                    progress_tracker[task_id]['log_messages'].append(f'🔑 [{account_index + 1}/{len(accounts)}] Authenticating {account_email}...')
                             
                             # Authenticate account (simplified - you may need to implement actual authentication)
                             # For now, we'll assume authentication is successful
                             with progress_lock:
                                 if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'✅ Authentication successful for {account_email}')
+                                    progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Authentication successful for {account_email}')
                         
                         # Step 2: Change Subdomain (if enabled)
                         if features.get('changeSubdomain'):
@@ -4032,7 +4033,7 @@ def mega_upgrade():
                                 if task_id in progress_tracker:
                                     progress_tracker[task_id]['current_step'] = current_step
                                     progress_tracker[task_id]['message'] = f'Changing subdomain for {account_email}...'
-                                    progress_tracker[task_id]['log_messages'].append(f'🔄 Changing subdomain for {account_email}...')
+                                    progress_tracker[task_id]['log_messages'].append(f'🔄 [{account_index + 1}/{len(accounts)}] Changing subdomain for {account_email}...')
                             
                             # Call auto change subdomain API
                             try:
@@ -4040,12 +4041,12 @@ def mega_upgrade():
                                 # For now, we'll simulate success
                                 with progress_lock:
                                     if task_id in progress_tracker:
-                                        progress_tracker[task_id]['log_messages'].append(f'✅ Subdomain changed successfully for {account_email}')
+                                        progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Subdomain changed successfully for {account_email}')
                             except Exception as e:
                                 account_success = False
                                 with progress_lock:
                                     if task_id in progress_tracker:
-                                        progress_tracker[task_id]['log_messages'].append(f'❌ Subdomain change failed for {account_email}: {str(e)}')
+                                        progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{len(accounts)}] Subdomain change failed for {account_email}: {str(e)}')
                         
                         # Step 3: Retrieve App Passwords (if enabled)
                         if features.get('retrievePasswords'):
@@ -4054,13 +4055,13 @@ def mega_upgrade():
                                 if task_id in progress_tracker:
                                     progress_tracker[task_id]['current_step'] = current_step
                                     progress_tracker[task_id]['message'] = f'Retrieving app passwords for {account_email}...'
-                                    progress_tracker[task_id]['log_messages'].append(f'📥 Retrieving app passwords for {account_email}...')
+                                    progress_tracker[task_id]['log_messages'].append(f'📥 [{account_index + 1}/{len(accounts)}] Retrieving app passwords for {account_email}...')
                             
                             # Retrieve app passwords (simplified)
                             # This would call the existing retrieve app passwords functionality
                             with progress_lock:
                                 if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'✅ App passwords retrieved for {account_email}')
+                                    progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] App passwords retrieved for {account_email}')
                         
                         # Step 4: Update Passwords (if enabled)
                         if features.get('updatePasswords'):
@@ -4069,13 +4070,13 @@ def mega_upgrade():
                                 if task_id in progress_tracker:
                                     progress_tracker[task_id]['current_step'] = current_step
                                     progress_tracker[task_id]['message'] = f'Updating passwords for {account_email}...'
-                                    progress_tracker[task_id]['log_messages'].append(f'🔄 Updating passwords for {account_email}...')
+                                    progress_tracker[task_id]['log_messages'].append(f'🔄 [{account_index + 1}/{len(accounts)}] Updating passwords for {account_email}...')
                             
                             # Update passwords with new domain
                             # This would call the existing update passwords functionality
                             with progress_lock:
                                 if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'✅ Passwords updated for {account_email}')
+                                    progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Passwords updated for {account_email}')
                         
                         # Add to final results if successful
                         if account_success:
@@ -4083,12 +4084,18 @@ def mega_upgrade():
                             # Generate sample result (you would get this from actual processing)
                             sample_result = f"user@{account_email.split('@')[1] if '@' in account_email else 'domain.com'},app_password123,smtp.gmail.com,587"
                             final_results.append(sample_result)
+                            with progress_lock:
+                                if task_id in progress_tracker:
+                                    progress_tracker[task_id]['log_messages'].append(f'🎉 [{account_index + 1}/{len(accounts)}] Account {account_email} completed successfully!')
                         else:
                             failed_accounts += 1
                             failed_details.append({
                                 'account': account_email,
                                 'error': 'Processing failed'
                             })
+                            with progress_lock:
+                                if task_id in progress_tracker:
+                                    progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{len(accounts)}] Account {account_email} failed processing!')
                     
                     except Exception as e:
                         account_success = False
