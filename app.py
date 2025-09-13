@@ -2487,7 +2487,7 @@ def test_server_connection():
                         account_files = sftp.listdir(account_path)
                         
                         # Look for JSON files
-                import fnmatch
+                        import fnmatch
                         json_files = [f for f in account_files if fnmatch.fnmatch(f, '*.json')]
                         
                         if json_files:
@@ -2496,8 +2496,8 @@ def test_server_connection():
                             file_path = f"{account_path}/{json_filename}"
                             
                             try:
-                        with sftp.open(file_path, 'r') as f:
-                            content = f.read()
+                                with sftp.open(file_path, 'r') as f:
+                                    content = f.read()
                                     json_data = json.loads(content)
                                 
                                     # Validate JSON structure
@@ -2513,7 +2513,7 @@ def test_server_connection():
                                             'json_file': json_filename,
                                             'has_credentials': False
                                         })
-                    except Exception as e:
+                            except Exception as e:
                                 app.logger.warning(f"Invalid JSON file {file_path}: {e}")
                                 continue
                     
@@ -2524,7 +2524,7 @@ def test_server_connection():
                 ssh.close()
                 
                 if valid_accounts:
-                return jsonify({
+                    return jsonify({
                     'success': True,
                         'message': f'Connection successful. Found {len(valid_accounts)} account(s) with JSON files in {len(account_dirs)} total directories.',
                         'accounts_count': len(valid_accounts),
@@ -3675,46 +3675,46 @@ def add_from_server_json():
                         json_filename = json_files[0]
                         file_path = f"{account_dir}/{json_filename}"
                         
-                            # Read and parse JSON file
-                            with sftp.open(file_path, 'r') as f:
-                                content = f.read()
-                                json_data = json.loads(content)
-                            
-                            # Extract client credentials
-                            if 'installed' in json_data:
-                                client_data = json_data['installed']
-                            elif 'web' in json_data:
-                                client_data = json_data['web']
-                            else:
+                        # Read and parse JSON file
+                        with sftp.open(file_path, 'r') as f:
+                            content = f.read()
+                            json_data = json.loads(content)
+                        
+                        # Extract client credentials
+                        if 'installed' in json_data:
+                            client_data = json_data['installed']
+                        elif 'web' in json_data:
+                            client_data = json_data['web']
+                        else:
                             failed_accounts.append({'email': email, 'error': 'Invalid JSON format - missing installed/web section'})
-                                continue
-                            
-                            client_id = client_data.get('client_id')
-                            client_secret = client_data.get('client_secret')
-                            
-                            if not client_id or not client_secret:
-                            failed_accounts.append({'email': email, 'error': 'Missing client_id or client_secret in JSON file'})
-                                continue
-                            
-                            # Check if account already exists
-                            from database import GoogleAccount
-                            existing_account = GoogleAccount.query.filter_by(account_name=email).first()
-                            if existing_account:
-                                failed_accounts.append({'email': email, 'error': 'Account already exists'})
-                                continue
-                            
-                            # Add new account
-                            new_account = GoogleAccount(
-                                account_name=email,
-                                client_id=client_id,
-                                client_secret=client_secret
-                            )
-                            db.session.add(new_account)
-                            added_accounts.append(email)
-                            
-                        except Exception as e:
-                        failed_accounts.append({'email': email, 'error': f'Failed to process account: {str(e)}'})
                             continue
+                        
+                        client_id = client_data.get('client_id')
+                        client_secret = client_data.get('client_secret')
+                        
+                        if not client_id or not client_secret:
+                            failed_accounts.append({'email': email, 'error': 'Missing client_id or client_secret in JSON file'})
+                            continue
+                        
+                        # Check if account already exists
+                        from database import GoogleAccount
+                        existing_account = GoogleAccount.query.filter_by(account_name=email).first()
+                        if existing_account:
+                            failed_accounts.append({'email': email, 'error': 'Account already exists'})
+                            continue
+                        
+                        # Add new account
+                        new_account = GoogleAccount(
+                            account_name=email,
+                            client_id=client_id,
+                            client_secret=client_secret
+                        )
+                        db.session.add(new_account)
+                        added_accounts.append(email)
+                        
+                    except Exception as e:
+                        failed_accounts.append({'email': email, 'error': f'Failed to process account: {str(e)}'})
+                        continue
                 
                 # Commit all changes
                 db.session.commit()
