@@ -738,7 +738,12 @@
                     <i class="fas fa-copy"></i> Copy
                 </button>
                 <button onclick="clearAppPasswordsDisplay()" class="btn-github">
-                    <i class="fas fa-broom"></i> Clear
+                    <i class="fas fa-broom"></i> Clear Display
+                </button>
+                <button onclick="deleteAllAppPasswords()" class="btn-github" 
+                        style="background-color: #d73a49; border-color: #d73a49; color: white;"
+                        id="delete-all-btn">
+                    <i class="fas fa-trash-alt"></i> Delete All (Admin Only)
                 </button>
             </div>
             <textarea id="app-passwords-display" class="form-control-github" rows="8" 
@@ -3125,6 +3130,58 @@ function clearAppPasswordsDisplay() {
     const display = document.getElementById('app-passwords-display');
     display.value = '';
     logBulkDomain('🧹 App passwords display cleared');
+}
+
+function deleteAllAppPasswords() {
+    // Double confirmation for admin-only permanent deletion
+    const confirm1 = confirm('⚠️ ADMIN ONLY: This will PERMANENTLY DELETE ALL app passwords from the database!\n\nThis action cannot be undone!\n\nAre you sure you want to continue?');
+    
+    if (!confirm1) {
+        return;
+    }
+    
+    const confirm2 = confirm('🚨 FINAL CONFIRMATION 🚨\n\nYou are about to PERMANENTLY DELETE ALL app passwords!\n\nType "DELETE ALL" in the next prompt to confirm.');
+    
+    if (!confirm2) {
+        return;
+    }
+    
+    const finalConfirm = prompt('Type "DELETE ALL" to permanently delete all app passwords:');
+    
+    if (finalConfirm !== 'DELETE ALL') {
+        alert('❌ Deletion cancelled. You must type "DELETE ALL" exactly.');
+        return;
+    }
+    
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    button.disabled = true;
+    
+    fetch('/api/delete-all-app-passwords', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Clear the display
+            document.getElementById('app-passwords-display').value = '';
+            logBulkDomain(`🗑️ ${data.message}`);
+            alert(`✅ ${data.message}`);
+        } else {
+            logBulkDomain(`❌ Delete failed: ${data.error}`);
+            alert(`❌ Delete failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        alert(`❌ Network error: ${error.message}`);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
 }
 
 // Tab 3 Functions - Bulk Domain Change (Desktop App Style)

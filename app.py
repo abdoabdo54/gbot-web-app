@@ -3461,24 +3461,32 @@ def retrieve_app_passwords():
                 'message': f"No app passwords found to update for domain {new_domain}"
             })
         
-        # Clear ALL existing app passwords to prevent accumulation
-        UserAppPassword.query.delete()
-        
-        # Create new records with the NEW domain
-        new_records = []
+        # Store the data before clearing
+        old_count = len(all_app_passwords)
+        password_data = []
         results = []
         
         for record in all_app_passwords:
-            # Create new record with updated domain
-            new_record = UserAppPassword(
-                username=record.username,
-                domain=new_domain,  # Use the new domain
-                app_password=record.app_password
-            )
-            new_records.append(new_record)
-            
+            password_data.append({
+                'username': record.username,
+                'app_password': record.app_password
+            })
             # Format for display
             results.append(f"{record.username}@{new_domain}:{record.app_password}")
+        
+        # Clear ALL existing app passwords to prevent accumulation
+        UserAppPassword.query.delete()
+        db.session.commit()  # Commit the deletion first
+        
+        # Create new records with the NEW domain
+        new_records = []
+        for data in password_data:
+            new_record = UserAppPassword(
+                username=data['username'],
+                domain=new_domain,  # Use the new domain
+                app_password=data['app_password']
+            )
+            new_records.append(new_record)
         
         # Add all new records to database
         db.session.add_all(new_records)
@@ -3490,7 +3498,7 @@ def retrieve_app_passwords():
             'count': len(results),
             'app_passwords': results,
             'message': f"Updated {len(results)} app passwords to domain {new_domain}. Old entries cleared for optimization.",
-            'optimization': f"Cleared {len(all_app_passwords)} old entries, created {len(new_records)} new entries"
+            'optimization': f"Cleared {old_count} old entries, created {len(new_records)} new entries"
         })
         
     except Exception as e:
@@ -3532,6 +3540,42 @@ def clear_app_passwords():
     except Exception as e:
         db.session.rollback()
         logging.error(f"Clear app passwords error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/delete-all-app-passwords', methods=['POST'])
+@login_required
+def delete_all_app_passwords():
+    """Permanently delete ALL app passwords - ADMIN ONLY"""
+    try:
+        # Check if user is admin only
+        if session.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Admin privileges required for permanent deletion'})
+        
+        from database import UserAppPassword
+        
+        # Get count before deletion for reporting
+        total_count = UserAppPassword.query.count()
+        
+        if total_count == 0:
+            return jsonify({
+                'success': True,
+                'message': 'No app passwords found to delete',
+                'deleted_count': 0
+            })
+        
+        # Permanently delete ALL app passwords
+        UserAppPassword.query.delete()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Permanently deleted all {total_count} app passwords from database',
+            'deleted_count': total_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Delete all app passwords error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/add-from-server-json', methods=['POST'])
