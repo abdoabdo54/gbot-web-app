@@ -689,7 +689,7 @@
         </button>
         
         <!-- Test Button for Debugging -->
-        <button onclick="testButton()" class="btn-github" style="width: 100%; padding: 8px; font-size: 14px; margin-top: 8px; background-color: #28a745; color: white;">
+        <button onclick="testJavaScript()" class="btn-github" style="width: 100%; padding: 8px; font-size: 14px; margin-top: 8px; background-color: #28a745; color: white;">
             <i class="fas fa-bug"></i> Test JavaScript (Debug)
         </button>
     </div>
@@ -918,6 +918,12 @@ let selectedAccountId = null;
 let smtpTesting = false;
 let selectedDomain = null;
 
+// Test function to verify JavaScript is working
+function testJavaScript() {
+    alert('JavaScript is working! All buttons should be functional now.');
+    console.log('Test function called - JavaScript is working');
+}
+
 // Tab switching functionality
 function showTab(tabId) {
     console.log('Switching to tab:', tabId);
@@ -963,11 +969,21 @@ function showTab(tabId) {
         clickedButton.style.color = 'var(--color-fg-default)';
         clickedButton.style.fontWeight = '600';
     }
+    
+    // Auto-refresh domain data when domains tab is shown
+    if (tabId === 'tab3' && isAuthenticated) {
+        setTimeout(() => {
+            retrieveAvailableDomains();
+        }, 500);
+    }
 }
 
 // Initialize tabs on page load
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing tabs...');
+    
+    // Test if JavaScript is working
+    console.log('JavaScript is working! All functions should be available.');
     
     // Check if all tabs exist
     for (let i = 1; i <= 4; i++) {
@@ -1284,6 +1300,7 @@ async function checkCurrentAuthenticationStatus() {
         console.error('Failed to check current authentication status:', error);
     }
 }
+
 
 
 // Results log functions
@@ -4251,12 +4268,6 @@ function testEmailTemplate() {
 }
 */
 
-// Test function to debug button issues
-function testButton() {
-    alert('JavaScript is working! Buttons should be functional.');
-    console.log('Test button clicked - JavaScript is working');
-}
-
 // Mega Upgrade Functions
 function openMegaUpgradeModal() {
     document.getElementById('megaUpgradeModal').style.display = 'block';
@@ -4599,7 +4610,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 <button onclick="testMegaUpgrade()" class="btn-github" style="background-color: #28a745; border-color: #28a745; color: white;">
                     <i class="fas fa-vial"></i> Test (No Threading)
                 </button>
-                <button onclick="stopMegaUpgrade()" class="btn-github" style="background-color: #d73a49; border-color: #d73a49; color: white; display: none;" id="megaStopBtn">
+                <button onclick="stopMegaUpgrade()" class="btn-github" style="background-color: #d73a49; border-color: #d73a49; color: white;" id="megaStopBtn" style="display: none;">
                     <i class="fas fa-stop"></i> Stop Process
                 </button>
                 <button onclick="clearMegaUpgradeResults()" class="btn-github">
