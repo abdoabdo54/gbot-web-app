@@ -682,7 +682,8 @@
         
         <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
             Upload and manage app passwords for SMTP authentication. When retrieving, the system automatically 
-            updates the domain part to match your current domain, so usernames work with any domain change.
+            updates the domain part to match your current domain and optimizes the database by replacing old entries 
+            with new ones to prevent accumulation and improve performance.
         </p>
         
         <!-- Upload Section -->
@@ -722,7 +723,7 @@
                     </small>
                 </div>
                 <button onclick="retrieveAppPasswords()" class="btn-github btn-github-primary">
-                    <i class="fas fa-search"></i> Retrieve & Update Domain
+                    <i class="fas fa-sync-alt"></i> Update & Optimize
                 </button>
             </div>
         </div>
@@ -3073,6 +3074,9 @@ function retrieveAppPasswords() {
                 display.value = data.app_passwords.join('\n');
                 logBulkDomain(`✅ ${data.message}`);
                 logBulkDomain(`🔄 Domain updated: All usernames now use ${domain}`);
+                if (data.optimization) {
+                    logBulkDomain(`⚡ Optimization: ${data.optimization}`);
+                }
             } else {
                 display.value = `No app passwords found for domain: ${domain}`;
                 logBulkDomain(`ℹ️ No app passwords found for domain ${domain}`);

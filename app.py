@@ -3450,24 +3450,51 @@ def retrieve_app_passwords():
         from database import UserAppPassword
         
         # Get ALL app passwords (regardless of stored domain)
-        # We'll update the domain part when displaying
         all_app_passwords = UserAppPassword.query.all()
         
-        # Format the results with the NEW domain
+        if not all_app_passwords:
+            return jsonify({
+                'success': True,
+                'domain': new_domain,
+                'count': 0,
+                'app_passwords': [],
+                'message': f"No app passwords found to update for domain {new_domain}"
+            })
+        
+        # Clear ALL existing app passwords to prevent accumulation
+        UserAppPassword.query.delete()
+        
+        # Create new records with the NEW domain
+        new_records = []
         results = []
+        
         for record in all_app_passwords:
-            # Display with the new domain: username@newdomain:app_password
+            # Create new record with updated domain
+            new_record = UserAppPassword(
+                username=record.username,
+                domain=new_domain,  # Use the new domain
+                app_password=record.app_password
+            )
+            new_records.append(new_record)
+            
+            # Format for display
             results.append(f"{record.username}@{new_domain}:{record.app_password}")
+        
+        # Add all new records to database
+        db.session.add_all(new_records)
+        db.session.commit()
         
         return jsonify({
             'success': True,
             'domain': new_domain,
             'count': len(results),
             'app_passwords': results,
-            'message': f"Retrieved {len(results)} app passwords updated for domain {new_domain}"
+            'message': f"Updated {len(results)} app passwords to domain {new_domain}. Old entries cleared for optimization.",
+            'optimization': f"Cleared {len(all_app_passwords)} old entries, created {len(new_records)} new entries"
         })
         
     except Exception as e:
+        db.session.rollback()
         logging.error(f"Retrieve app passwords error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
