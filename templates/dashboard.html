@@ -681,8 +681,8 @@
         </div>
         
         <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
-            Upload and manage app passwords for SMTP authentication. App passwords are stored by username and domain, 
-            so they automatically work with domain changes.
+            Upload and manage app passwords for SMTP authentication. When retrieving, the system automatically 
+            updates the domain part to match your current domain, so usernames work with any domain change.
         </p>
         
         <!-- Upload Section -->
@@ -713,13 +713,16 @@
             <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end;">
                 <div class="form-group-github">
                     <label for="retrieve-domain" class="form-label-github">
-                        <i class="fas fa-globe"></i> Domain
+                        <i class="fas fa-globe"></i> New Domain
                     </label>
                     <input type="text" id="retrieve-domain" class="form-control-github" 
-                           placeholder="domain.com" value="">
+                           placeholder="newdomain.com" value="">
+                    <small style="color: #656d76; font-size: 12px;">
+                        Enter the domain you want to use for all usernames
+                    </small>
                 </div>
                 <button onclick="retrieveAppPasswords()" class="btn-github btn-github-primary">
-                    <i class="fas fa-search"></i> Retrieve
+                    <i class="fas fa-search"></i> Retrieve & Update Domain
                 </button>
             </div>
         </div>
@@ -3068,7 +3071,8 @@ function retrieveAppPasswords() {
             const display = document.getElementById('app-passwords-display');
             if (data.app_passwords.length > 0) {
                 display.value = data.app_passwords.join('\n');
-                logBulkDomain(`✅ Retrieved ${data.count} app passwords for domain ${domain}`);
+                logBulkDomain(`✅ ${data.message}`);
+                logBulkDomain(`🔄 Domain updated: All usernames now use ${domain}`);
             } else {
                 display.value = `No app passwords found for domain: ${domain}`;
                 logBulkDomain(`ℹ️ No app passwords found for domain ${domain}`);

@@ -3435,33 +3435,36 @@ def upload_app_passwords():
 @app.route('/api/retrieve-app-passwords', methods=['POST'])
 @login_required
 def retrieve_app_passwords():
-    """Retrieve app passwords for current domain users"""
+    """Retrieve app passwords and update domain to current domain"""
     try:
         # Check if user has permission
         if session.get('role') not in ['admin', 'support']:
             return jsonify({'success': False, 'error': 'Admin or support privileges required'})
         
         data = request.get_json()
-        domain = data.get('domain', '').strip()
+        new_domain = data.get('domain', '').strip()
         
-        if not domain:
+        if not new_domain:
             return jsonify({'success': False, 'error': 'Domain is required'})
         
         from database import UserAppPassword
         
-        # Get all app passwords for the specified domain
-        app_passwords = UserAppPassword.query.filter_by(domain=domain).all()
+        # Get ALL app passwords (regardless of stored domain)
+        # We'll update the domain part when displaying
+        all_app_passwords = UserAppPassword.query.all()
         
-        # Format the results
+        # Format the results with the NEW domain
         results = []
-        for record in app_passwords:
-            results.append(f"{record.username}@{record.domain}:{record.app_password}")
+        for record in all_app_passwords:
+            # Display with the new domain: username@newdomain:app_password
+            results.append(f"{record.username}@{new_domain}:{record.app_password}")
         
         return jsonify({
             'success': True,
-            'domain': domain,
+            'domain': new_domain,
             'count': len(results),
-            'app_passwords': results
+            'app_passwords': results,
+            'message': f"Retrieved {len(results)} app passwords updated for domain {new_domain}"
         })
         
     except Exception as e:
