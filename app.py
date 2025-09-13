@@ -21,7 +21,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from core_logic import google_api
-from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, BackupServerConfig
+from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword
 
 # Progress tracking system for domain changes
 progress_tracker = {}
@@ -3326,6 +3326,184 @@ def api_auto_change_subdomain():
     except Exception as e:
         logging.error(f"Auto change subdomain error: {e}")
         return jsonify({'success': False, 'error': str(e)})
+# App Password Management API
+@app.route('/api/upload-app-passwords', methods=['POST'])
+@login_required
+def upload_app_passwords():
+    """Upload and parse app password txt file"""
+    try:
+        # Check if user has permission
+        if session.get('role') not in ['admin', 'support']:
+            return jsonify({'success': False, 'error': 'Admin or support privileges required'})
+        
+        # Check if file was uploaded
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file uploaded'})
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'})
+        
+        if not file.filename.endswith('.txt'):
+            return jsonify({'success': False, 'error': 'Only .txt files are allowed'})
+        
+        # Read and parse file content
+        content = file.read().decode('utf-8')
+        lines = content.strip().split('\n')
+        
+        from database import UserAppPassword
+        
+        uploaded_count = 0
+        updated_count = 0
+        error_count = 0
+        errors = []
+        
+        for line_num, line in enumerate(lines, 1):
+            line = line.strip()
+            if not line or ':' not in line:
+                continue
+            
+            try:
+                # Parse user:app_password format
+                parts = line.split(':', 1)
+                if len(parts) != 2:
+                    errors.append(f"Line {line_num}: Invalid format - {line}")
+                    error_count += 1
+                    continue
+                
+                user_email = parts[0].strip()
+                app_password = parts[1].strip()
+                
+                if not user_email or not app_password:
+                    errors.append(f"Line {line_num}: Empty username or password - {line}")
+                    error_count += 1
+                    continue
+                
+                # Validate email format
+                if '@' not in user_email:
+                    errors.append(f"Line {line_num}: Invalid email format - {user_email}")
+                    error_count += 1
+                    continue
+                
+                # Split email into username and domain
+                username, domain = user_email.split('@', 1)
+                
+                # Check if record already exists
+                existing = UserAppPassword.query.filter_by(username=username, domain=domain).first()
+                
+                if existing:
+                    # Update existing record
+                    existing.app_password = app_password
+                    existing.updated_at = db.func.current_timestamp()
+                    updated_count += 1
+                else:
+                    # Create new record
+                    new_record = UserAppPassword(
+                        username=username,
+                        domain=domain,
+                        app_password=app_password
+                    )
+                    db.session.add(new_record)
+                    uploaded_count += 1
+                
+            except Exception as e:
+                errors.append(f"Line {line_num}: Error processing - {str(e)}")
+                error_count += 1
+                continue
+        
+        # Commit all changes
+        db.session.commit()
+        
+        message = f"App passwords uploaded successfully. New: {uploaded_count}, Updated: {updated_count}"
+        if error_count > 0:
+            message += f", Errors: {error_count}"
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'uploaded_count': uploaded_count,
+            'updated_count': updated_count,
+            'error_count': error_count,
+            'errors': errors[:10]  # Return first 10 errors
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Upload app passwords error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/retrieve-app-passwords', methods=['POST'])
+@login_required
+def retrieve_app_passwords():
+    """Retrieve app passwords for current domain users"""
+    try:
+        # Check if user has permission
+        if session.get('role') not in ['admin', 'support']:
+            return jsonify({'success': False, 'error': 'Admin or support privileges required'})
+        
+        data = request.get_json()
+        domain = data.get('domain', '').strip()
+        
+        if not domain:
+            return jsonify({'success': False, 'error': 'Domain is required'})
+        
+        from database import UserAppPassword
+        
+        # Get all app passwords for the specified domain
+        app_passwords = UserAppPassword.query.filter_by(domain=domain).all()
+        
+        # Format the results
+        results = []
+        for record in app_passwords:
+            results.append(f"{record.username}@{record.domain}:{record.app_password}")
+        
+        return jsonify({
+            'success': True,
+            'domain': domain,
+            'count': len(results),
+            'app_passwords': results
+        })
+        
+    except Exception as e:
+        logging.error(f"Retrieve app passwords error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/clear-app-passwords', methods=['POST'])
+@login_required
+def clear_app_passwords():
+    """Clear app passwords for a specific domain"""
+    try:
+        # Check if user has permission
+        if session.get('role') not in ['admin', 'support']:
+            return jsonify({'success': False, 'error': 'Admin or support privileges required'})
+        
+        data = request.get_json()
+        domain = data.get('domain', '').strip()
+        
+        from database import UserAppPassword
+        
+        if domain:
+            # Clear specific domain
+            deleted_count = UserAppPassword.query.filter_by(domain=domain).delete()
+            message = f"Cleared {deleted_count} app passwords for domain {domain}"
+        else:
+            # Clear all
+            deleted_count = UserAppPassword.query.delete()
+            message = f"Cleared all {deleted_count} app passwords"
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'deleted_count': deleted_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Clear app passwords error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/add-from-server-json', methods=['POST'])
 @login_required
 def add_from_server_json():

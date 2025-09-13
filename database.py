@@ -61,16 +61,13 @@ class ServerConfig(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
-class BackupServerConfig(db.Model):
+class UserAppPassword(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    host = db.Column(db.String(255), nullable=False)
-    port = db.Column(db.Integer, default=22)
-    username = db.Column(db.String(255), nullable=False)
-    auth_method = db.Column(db.String(50), default='password')  # 'password' or 'key'
-    password = db.Column(db.Text)  # Encrypted password
-    private_key = db.Column(db.Text)  # Encrypted private key
-    backup_path = db.Column(db.String(500), nullable=False)  # Path to backup files on SFTP server
-    is_configured = db.Column(db.Boolean, default=False)
-    last_tested = db.Column(db.DateTime)
+    username = db.Column(db.String(255), nullable=False)  # username part (before @)
+    domain = db.Column(db.String(255), nullable=False)   # domain part (after @)
+    app_password = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    
+    # Composite unique constraint on username + domain
+    __table_args__ = (db.UniqueConstraint('username', 'domain', name='unique_user_domain'),)

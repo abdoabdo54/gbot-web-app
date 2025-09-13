@@ -671,6 +671,78 @@
         </div>
     </div>
 
+    <!-- App Password Management -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-key"></i>
+                App Password Management
+            </h3>
+        </div>
+        
+        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
+            Upload and manage app passwords for SMTP authentication. App passwords are stored by username and domain, 
+            so they automatically work with domain changes.
+        </p>
+        
+        <!-- Upload Section -->
+        <div style="margin-bottom: 24px;">
+            <h4 style="margin-bottom: 16px; color: #24292f;">
+                <i class="fas fa-upload"></i> Upload App Passwords
+            </h4>
+            <div class="form-group-github">
+                <label for="app-password-file" class="form-label-github">
+                    <i class="fas fa-file-text"></i> App Password File (.txt)
+                </label>
+                <input type="file" id="app-password-file" class="form-control-github" accept=".txt" 
+                       style="padding: 12px; border: 2px dashed #d0d7de; background: #f6f8fa;">
+                <small style="color: #656d76; font-size: 12px;">
+                    Upload a .txt file with format: user@domain.com:app_password (one per line)
+                </small>
+            </div>
+            <button onclick="uploadAppPasswords()" class="btn-github btn-github-primary">
+                <i class="fas fa-upload"></i> Upload App Passwords
+            </button>
+        </div>
+        
+        <!-- Retrieve Section -->
+        <div style="margin-bottom: 24px;">
+            <h4 style="margin-bottom: 16px; color: #24292f;">
+                <i class="fas fa-download"></i> Retrieve App Passwords
+            </h4>
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end;">
+                <div class="form-group-github">
+                    <label for="retrieve-domain" class="form-label-github">
+                        <i class="fas fa-globe"></i> Domain
+                    </label>
+                    <input type="text" id="retrieve-domain" class="form-control-github" 
+                           placeholder="domain.com" value="">
+                </div>
+                <button onclick="retrieveAppPasswords()" class="btn-github btn-github-primary">
+                    <i class="fas fa-search"></i> Retrieve
+                </button>
+            </div>
+        </div>
+        
+        <!-- Display Section -->
+        <div style="margin-bottom: 24px;">
+            <h4 style="margin-bottom: 16px; color: #24292f;">
+                <i class="fas fa-list"></i> App Passwords Display
+            </h4>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <button onclick="copyAppPasswords()" class="btn-github">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+                <button onclick="clearAppPasswordsDisplay()" class="btn-github">
+                    <i class="fas fa-broom"></i> Clear
+                </button>
+            </div>
+            <textarea id="app-passwords-display" class="form-control-github" rows="8" 
+                      placeholder="App passwords will appear here..." readonly
+                      style="font-family: monospace; font-size: 13px; background: #f6f8fa;"></textarea>
+        </div>
+    </div>
+
     <!-- Results Log (Covers Both Workflows) -->
     <div class="github-card">
         <div class="github-card-header">
@@ -2918,6 +2990,135 @@ function deleteDomain(domainName) {
 }
 
 
+// App Password Management Functions
+function uploadAppPasswords() {
+    const fileInput = document.getElementById('app-password-file');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select a .txt file to upload');
+        return;
+    }
+    
+    if (!file.name.endsWith('.txt')) {
+        alert('Please select a .txt file');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    button.disabled = true;
+    
+    fetch('/api/upload-app-passwords', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logBulkDomain(`✅ ${data.message}`);
+            if (data.errors && data.errors.length > 0) {
+                logBulkDomain(`⚠️ Errors encountered:`);
+                data.errors.forEach(error => {
+                    logBulkDomain(`   ${error}`);
+                });
+            }
+            alert(`✅ Upload completed!\n\n${data.message}`);
+        } else {
+            logBulkDomain(`❌ Upload failed: ${data.error}`);
+            alert(`❌ Upload failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        alert(`❌ Network error: ${error.message}`);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+        fileInput.value = ''; // Clear file input
+    });
+}
+
+function retrieveAppPasswords() {
+    const domain = document.getElementById('retrieve-domain').value.trim();
+    
+    if (!domain) {
+        alert('Please enter a domain');
+        return;
+    }
+    
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Retrieving...';
+    button.disabled = true;
+    
+    fetch('/api/retrieve-app-passwords', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ domain: domain })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const display = document.getElementById('app-passwords-display');
+            if (data.app_passwords.length > 0) {
+                display.value = data.app_passwords.join('\n');
+                logBulkDomain(`✅ Retrieved ${data.count} app passwords for domain ${domain}`);
+            } else {
+                display.value = `No app passwords found for domain: ${domain}`;
+                logBulkDomain(`ℹ️ No app passwords found for domain ${domain}`);
+            }
+        } else {
+            logBulkDomain(`❌ Retrieve failed: ${data.error}`);
+            alert(`❌ Retrieve failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error}`);
+        alert(`❌ Network error: ${error.message}`);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function copyAppPasswords() {
+    const display = document.getElementById('app-passwords-display');
+    
+    if (!display.value.trim()) {
+        alert('No app passwords to copy');
+        return;
+    }
+    
+    display.select();
+    document.execCommand('copy');
+    
+    // Show feedback
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+    button.style.backgroundColor = '#2da44e';
+    
+    setTimeout(() => {
+        button.innerHTML = originalText;
+        button.style.backgroundColor = '';
+    }, 2000);
+    
+    logBulkDomain('📋 App passwords copied to clipboard');
+}
+
+function clearAppPasswordsDisplay() {
+    const display = document.getElementById('app-passwords-display');
+    display.value = '';
+    logBulkDomain('🧹 App passwords display cleared');
+}
+
 // Tab 3 Functions - Bulk Domain Change (Desktop App Style)
 
 
@@ -3660,6 +3861,12 @@ function autoChangeSubdomain() {
             
             // Refresh domain display
             getDomainInfo();
+            
+            // Auto-retrieve app passwords for the new domain
+            setTimeout(() => {
+                document.getElementById('retrieve-domain').value = data.next_domain;
+                retrieveAppPasswords();
+            }, 1000);
             
             // Show success message
             alert(`✅ Automated subdomain change completed!\n\n${data.message}\n\nChanged ${data.successful_changes}/${data.total_users} users from ${data.current_domain} to ${data.next_domain}`);
