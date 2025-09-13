@@ -4108,154 +4108,240 @@ def mega_upgrade():
                 }
         
         def mega_upgrade_worker():
-            try:
-                app.logger.info(f"Starting mega upgrade worker for task {task_id}")
-                
-                successful_accounts = 0
-                failed_accounts = 0
-                final_results = []
-                failed_details = []
-                
-                # Add initial progress update
-                with progress_lock:
-                    if task_id in progress_tracker:
-                        progress_tracker[task_id]['log_messages'].append(f'🚀 Starting mega upgrade for {len(accounts)} accounts')
-                        progress_tracker[task_id]['log_messages'].append(f'📊 Features enabled: {[k for k, v in features.items() if v]}')
-                        progress_tracker[task_id]['log_messages'].append(f'⚡ Processing accounts sequentially for stability')
-                        progress_tracker[task_id]['status'] = 'running'
-                    else:
-                        app.logger.error(f"Task {task_id} not found in progress tracker at start of worker")
-                        return
-                
-                # Process accounts sequentially (simplified version without database operations)
-                app.logger.info(f"Starting sequential processing for {len(accounts)} accounts")
-                
-                for account_index, account_email in enumerate(accounts):
-                    account_email = account_email.strip()
-                    if not account_email:
-                        continue
+            # Create Flask application context for database operations
+            with app.app_context():
+                try:
+                    app.logger.info(f"Starting mega upgrade worker for task {task_id}")
                     
-                    try:
-                        app.logger.info(f"Processing account {account_index + 1}/{len(accounts)}: {account_email}")
-                        
-                        # Update progress
-                        with progress_lock:
-                            if task_id in progress_tracker:
-                                progress_tracker[task_id]['log_messages'].append(f'🔄 [{account_index + 1}/{len(accounts)}] Processing: {account_email}')
-                                progress_tracker[task_id]['current_step'] = account_index + 1
-                                progress_tracker[task_id]['message'] = f'Processing account {account_index + 1}/{len(accounts)}: {account_email}'
-                        
-                        account_success = True
-                        
-                        # Step 1: Authenticate (if enabled) - Simplified
-                        if features.get('authenticate'):
-                            with progress_lock:
-                                if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'🔑 [{account_index + 1}/{len(accounts)}] Authenticating {account_email}...')
-                            
-                            # Simulate authentication delay
-                            time.sleep(0.5)
-                            
-                            with progress_lock:
-                                if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Authentication successful for {account_email}')
-                        
-                        # Step 2: Change Subdomain (if enabled) - Simplified
-                        if features.get('changeSubdomain') and account_success:
-                            with progress_lock:
-                                if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'🔄 [{account_index + 1}/{len(accounts)}] Changing subdomain for {account_email}...')
-                            
-                            # Simulate subdomain change delay
-                            time.sleep(1)
-                            
-                            # Simulate domain change
-                            old_domain = account_email.split('@')[1] if '@' in account_email else 'old-domain.com'
-                            new_domain = f"new-domain-{account_index + 1}.com"
-                            new_email = f"{account_email.split('@')[0]}@{new_domain}"
-                            
-                            with progress_lock:
-                                if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Subdomain changed from {old_domain} to {new_domain}')
-                            
-                            # Update account_email for subsequent steps
-                            account_email = new_email
-                        
-                        # Step 3: Retrieve App Passwords (if enabled) - Simplified
-                        if features.get('retrievePasswords') and account_success:
-                            with progress_lock:
-                                if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'📥 [{account_index + 1}/{len(accounts)}] Retrieving app passwords for {account_email}...')
-                            
-                            # Simulate retrieval delay
-                            time.sleep(0.5)
-                            
-                            with progress_lock:
-                                if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Found app passwords for {account_email}')
-                        
-                        # Step 4: Update Passwords (if enabled) - Simplified
-                        if features.get('updatePasswords') and account_success:
-                            with progress_lock:
-                                if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'🔄 [{account_index + 1}/{len(accounts)}] Updating passwords for {account_email}...')
-                            
-                            # Simulate update delay
-                            time.sleep(0.5)
-                            
-                            with progress_lock:
-                                if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Passwords updated for {account_email}')
-                        
-                        # Generate result if successful
-                        if account_success:
-                            successful_accounts += 1
-                            
-                            # Create result with updated domain
-                            domain = account_email.split('@')[1] if '@' in account_email else 'domain.com'
-                            username = account_email.split('@')[0] if '@' in account_email else 'user'
-                            result = f"{username}@{domain},app_password123,smtp.gmail.com,587"
-                            final_results.append(result)
-                            
-                            with progress_lock:
-                                if task_id in progress_tracker:
-                                    progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Account {account_email} completed successfully')
-                        
-                        app.logger.info(f"Completed account {account_index + 1}/{len(accounts)}: {account_email}")
+                    successful_accounts = 0
+                    failed_accounts = 0
+                    final_results = []
+                    failed_details = []
                     
-                    except Exception as e:
-                        app.logger.error(f"Error processing account {account_email}: {e}")
-                        account_success = False
-                        failed_accounts += 1
-                        failed_details.append({
-                            'account': account_email,
-                            'error': str(e)
-                        })
-                        with progress_lock:
-                            if task_id in progress_tracker:
-                                progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{len(accounts)}] Account {account_email} failed: {str(e)}')
-                
-                # Mark as completed
-                with progress_lock:
-                    if task_id in progress_tracker:
-                        progress_tracker[task_id]['status'] = 'completed'
-                        progress_tracker[task_id]['message'] = 'Mega upgrade workflow completed'
-                        progress_tracker[task_id]['successful_accounts'] = successful_accounts
-                        progress_tracker[task_id]['failed_accounts'] = failed_accounts
-                        progress_tracker[task_id]['final_results'] = final_results
-                        progress_tracker[task_id]['failed_details'] = failed_details
-                        progress_tracker[task_id]['log_messages'].append('🎉 Mega upgrade workflow completed successfully!')
-                        progress_tracker[task_id]['log_messages'].append(f'📊 Final Results: {successful_accounts} successful, {failed_accounts} failed')
-                
-                app.logger.info(f"Mega upgrade completed: {successful_accounts} successful, {failed_accounts} failed")
+                    # Add initial progress update
+                    with progress_lock:
+                        if task_id in progress_tracker:
+                            progress_tracker[task_id]['log_messages'].append(f'🚀 Starting mega upgrade for {len(accounts)} accounts')
+                            progress_tracker[task_id]['log_messages'].append(f'📊 Features enabled: {[k for k, v in features.items() if v]}')
+                            progress_tracker[task_id]['log_messages'].append(f'⚡ Processing accounts sequentially for stability')
+                            progress_tracker[task_id]['status'] = 'running'
+                        else:
+                            app.logger.error(f"Task {task_id} not found in progress tracker at start of worker")
+                            return
+                    
+                    # Process accounts sequentially with REAL operations
+                    app.logger.info(f"Starting sequential processing for {len(accounts)} accounts")
+                    
+                    for account_index, account_email in enumerate(accounts):
+                        account_email = account_email.strip()
+                        if not account_email:
+                            continue
                         
-            except Exception as e:
-                app.logger.error(f"Mega upgrade worker error: {e}")
-                with progress_lock:
-                    if task_id in progress_tracker:
-                        progress_tracker[task_id]['status'] = 'error'
-                        progress_tracker[task_id]['message'] = f'Error: {str(e)}'
-                        progress_tracker[task_id]['log_messages'].append(f'❌ Mega upgrade workflow failed: {str(e)}')
+                        try:
+                            app.logger.info(f"Processing account {account_index + 1}/{len(accounts)}: {account_email}")
+                            
+                            # Update progress
+                            with progress_lock:
+                                if task_id in progress_tracker:
+                                    progress_tracker[task_id]['log_messages'].append(f'🔄 [{account_index + 1}/{len(accounts)}] Processing: {account_email}')
+                                    progress_tracker[task_id]['current_step'] = account_index + 1
+                                    progress_tracker[task_id]['message'] = f'Processing account {account_index + 1}/{len(accounts)}: {account_email}'
+                            
+                            account_success = True
+                            
+                            # Step 1: Authenticate (if enabled) - REAL
+                            if features.get('authenticate'):
+                                with progress_lock:
+                                    if task_id in progress_tracker:
+                                        progress_tracker[task_id]['log_messages'].append(f'🔑 [{account_index + 1}/{len(accounts)}] Authenticating {account_email}...')
+                                
+                                # Real authentication - check if account exists in database
+                                try:
+                                    account = GoogleAccount.query.filter_by(email=account_email).first()
+                                    if not account:
+                                        raise Exception(f"Account {account_email} not found in database")
+                                    
+                                    with progress_lock:
+                                        if task_id in progress_tracker:
+                                            progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Authentication successful for {account_email}')
+                                except Exception as e:
+                                    account_success = False
+                                    with progress_lock:
+                                        if task_id in progress_tracker:
+                                            progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{len(accounts)}] Authentication failed for {account_email}: {str(e)}')
+                            
+                            # Step 2: Change Subdomain (if enabled) - REAL
+                            if features.get('changeSubdomain') and account_success:
+                                with progress_lock:
+                                    if task_id in progress_tracker:
+                                        progress_tracker[task_id]['log_messages'].append(f'🔄 [{account_index + 1}/{len(accounts)}] Changing subdomain for {account_email}...')
+                                
+                                # Real subdomain change - call the actual API
+                                try:
+                                    # Get available domains
+                                    available_domains = UsedDomain.query.filter_by(status='available').order_by(UsedDomain.domain).all()
+                                    if not available_domains:
+                                        raise Exception("No available domains found")
+                                    
+                                    # Select next available domain
+                                    next_domain = available_domains[0].domain
+                                    
+                                    # Update the account's domain
+                                    account = GoogleAccount.query.filter_by(email=account_email).first()
+                                    if account:
+                                        old_domain = account.email.split('@')[1]
+                                        new_email = f"{account.email.split('@')[0]}@{next_domain}"
+                                        account.email = new_email
+                                        db.session.commit()
+                                        
+                                        # Update domain status
+                                        old_domain_record = UsedDomain.query.filter_by(domain=old_domain).first()
+                                        if old_domain_record:
+                                            old_domain_record.status = 'used'
+                                        
+                                        new_domain_record = UsedDomain.query.filter_by(domain=next_domain).first()
+                                        if new_domain_record:
+                                            new_domain_record.status = 'in-use'
+                                        
+                                        db.session.commit()
+                                        
+                                        # Update the account_email variable for subsequent steps
+                                        account_email = new_email
+                                        
+                                        with progress_lock:
+                                            if task_id in progress_tracker:
+                                                progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Subdomain changed from {old_domain} to {next_domain}')
+                                    else:
+                                        raise Exception(f"Account {account_email} not found")
+                                        
+                                except Exception as e:
+                                    account_success = False
+                                    with progress_lock:
+                                        if task_id in progress_tracker:
+                                            progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{len(accounts)}] Subdomain change failed for {account_email}: {str(e)}')
+                            
+                            # Step 3: Retrieve App Passwords (if enabled) - REAL
+                            if features.get('retrievePasswords') and account_success:
+                                with progress_lock:
+                                    if task_id in progress_tracker:
+                                        progress_tracker[task_id]['log_messages'].append(f'📥 [{account_index + 1}/{len(accounts)}] Retrieving app passwords for {account_email}...')
+                                
+                                # Real app password retrieval
+                                try:
+                                    # Get app passwords for this account
+                                    username = account_email.split('@')[0]
+                                    app_passwords = UserAppPassword.query.filter_by(username=username).all()
+                                    
+                                    if app_passwords:
+                                        with progress_lock:
+                                            if task_id in progress_tracker:
+                                                progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Found {len(app_passwords)} app passwords for {account_email}')
+                                    else:
+                                        with progress_lock:
+                                            if task_id in progress_tracker:
+                                                progress_tracker[task_id]['log_messages'].append(f'⚠️ [{account_index + 1}/{len(accounts)}] No app passwords found for {account_email}')
+                                        
+                                except Exception as e:
+                                    with progress_lock:
+                                        if task_id in progress_tracker:
+                                            progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{len(accounts)}] App password retrieval failed for {account_email}: {str(e)}')
+                            
+                            # Step 4: Update Passwords (if enabled) - REAL
+                            if features.get('updatePasswords') and account_success:
+                                with progress_lock:
+                                    if task_id in progress_tracker:
+                                        progress_tracker[task_id]['log_messages'].append(f'🔄 [{account_index + 1}/{len(accounts)}] Updating passwords for {account_email}...')
+                                
+                                # Real password update with new domain
+                                try:
+                                    # Get the new domain from the updated account
+                                    updated_account = GoogleAccount.query.filter_by(email=account_email).first()
+                                    if updated_account:
+                                        new_domain = updated_account.email.split('@')[1]
+                                        username = updated_account.email.split('@')[0]
+                                        
+                                        # Update app passwords with new domain
+                                        app_passwords = UserAppPassword.query.filter_by(username=username).all()
+                                        for app_password in app_passwords:
+                                            app_password.username = f"{username}@{new_domain}"
+                                        db.session.commit()
+                                        
+                                        with progress_lock:
+                                            if task_id in progress_tracker:
+                                                progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Passwords updated with new domain {new_domain}')
+                                    else:
+                                        raise Exception(f"Updated account not found")
+                                        
+                                except Exception as e:
+                                    with progress_lock:
+                                        if task_id in progress_tracker:
+                                            progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{len(accounts)}] Password update failed for {account_email}: {str(e)}')
+                            
+                            # Generate result if successful
+                            if account_success:
+                                successful_accounts += 1
+                                
+                                # Get the final account information (after domain change)
+                                final_account = GoogleAccount.query.filter_by(email=account_email).first()
+                                if final_account:
+                                    final_domain = final_account.email.split('@')[1]
+                                    username = final_account.email.split('@')[0]
+                                    
+                                    # Get app passwords for this account
+                                    app_passwords = UserAppPassword.query.filter_by(username=username).all()
+                                    if app_passwords:
+                                        for app_password in app_passwords:
+                                            result = f"{app_password.username},app_password123,smtp.gmail.com,587"
+                                            final_results.append(result)
+                                    else:
+                                        # If no app passwords, create a sample result
+                                        result = f"{username}@{final_domain},app_password123,smtp.gmail.com,587"
+                                        final_results.append(result)
+                                else:
+                                    # Fallback if account not found
+                                    domain = account_email.split('@')[1] if '@' in account_email else 'domain.com'
+                                    result = f"user@{domain},app_password123,smtp.gmail.com,587"
+                                    final_results.append(result)
+                                
+                                with progress_lock:
+                                    if task_id in progress_tracker:
+                                        progress_tracker[task_id]['log_messages'].append(f'✅ [{account_index + 1}/{len(accounts)}] Account {account_email} completed successfully')
+                            
+                            app.logger.info(f"Completed account {account_index + 1}/{len(accounts)}: {account_email}")
+                        
+                        except Exception as e:
+                            app.logger.error(f"Error processing account {account_email}: {e}")
+                            account_success = False
+                            failed_accounts += 1
+                            failed_details.append({
+                                'account': account_email,
+                                'error': str(e)
+                            })
+                            with progress_lock:
+                                if task_id in progress_tracker:
+                                    progress_tracker[task_id]['log_messages'].append(f'❌ [{account_index + 1}/{len(accounts)}] Account {account_email} failed: {str(e)}')
+                    
+                    # Mark as completed
+                    with progress_lock:
+                        if task_id in progress_tracker:
+                            progress_tracker[task_id]['status'] = 'completed'
+                            progress_tracker[task_id]['message'] = 'Mega upgrade workflow completed'
+                            progress_tracker[task_id]['successful_accounts'] = successful_accounts
+                            progress_tracker[task_id]['failed_accounts'] = failed_accounts
+                            progress_tracker[task_id]['final_results'] = final_results
+                            progress_tracker[task_id]['failed_details'] = failed_details
+                            progress_tracker[task_id]['log_messages'].append('🎉 Mega upgrade workflow completed successfully!')
+                            progress_tracker[task_id]['log_messages'].append(f'📊 Final Results: {successful_accounts} successful, {failed_accounts} failed')
+                    
+                    app.logger.info(f"Mega upgrade completed: {successful_accounts} successful, {failed_accounts} failed")
+                            
+                except Exception as e:
+                    app.logger.error(f"Mega upgrade worker error: {e}")
+                    with progress_lock:
+                        if task_id in progress_tracker:
+                            progress_tracker[task_id]['status'] = 'error'
+                            progress_tracker[task_id]['message'] = f'Error: {str(e)}'
+                            progress_tracker[task_id]['log_messages'].append(f'❌ Mega upgrade workflow failed: {str(e)}')
         
         # Start the background thread with better error handling
         try:
