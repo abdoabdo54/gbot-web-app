@@ -687,6 +687,11 @@
         <button onclick="openMegaUpgradeModal()" class="btn-github btn-github-primary" style="width: 100%; padding: 16px; font-size: 16px;">
             <i class="fas fa-magic"></i> Launch Mega Upgrade Workflow
         </button>
+        
+        <!-- Test Button for Debugging -->
+        <button onclick="testButton()" class="btn-github" style="width: 100%; padding: 8px; font-size: 14px; margin-top: 8px; background-color: #28a745; color: white;">
+            <i class="fas fa-bug"></i> Test JavaScript (Debug)
+        </button>
     </div>
 
     <!-- App Password Management -->
@@ -1280,32 +1285,6 @@ async function checkCurrentAuthenticationStatus() {
     }
 }
 
-
-// Tab switching function
-function showTab(tabId) {
-    // Hide all tabs
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // Remove active class from all buttons
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    // Show selected tab
-    document.getElementById(tabId).classList.add('active');
-    
-    // Mark button as active
-    event.target.classList.add('active');
-    
-    // Auto-refresh domain data when domains tab is shown
-    if (tabId === 'tab3' && isAuthenticated) {
-        setTimeout(() => {
-            retrieveAvailableDomains();
-        }, 500);
-    }
-}
 
 // Results log functions
 function logResult(message) {
@@ -4272,6 +4251,12 @@ function testEmailTemplate() {
 }
 */
 
+// Test function to debug button issues
+function testButton() {
+    alert('JavaScript is working! Buttons should be functional.');
+    console.log('Test button clicked - JavaScript is working');
+}
+
 // Mega Upgrade Functions
 function openMegaUpgradeModal() {
     document.getElementById('megaUpgradeModal').style.display = 'block';
@@ -4614,7 +4599,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 <button onclick="testMegaUpgrade()" class="btn-github" style="background-color: #28a745; border-color: #28a745; color: white;">
                     <i class="fas fa-vial"></i> Test (No Threading)
                 </button>
-                <button onclick="stopMegaUpgrade()" class="btn-github" style="background-color: #d73a49; border-color: #d73a49; color: white;" id="megaStopBtn" style="display: none;">
+                <button onclick="stopMegaUpgrade()" class="btn-github" style="background-color: #d73a49; border-color: #d73a49; color: white; display: none;" id="megaStopBtn">
                     <i class="fas fa-stop"></i> Stop Process
                 </button>
                 <button onclick="clearMegaUpgradeResults()" class="btn-github">
