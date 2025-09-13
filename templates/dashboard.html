@@ -922,6 +922,33 @@ let selectedDomain = null;
 function testJavaScript() {
     alert('JavaScript is working! All buttons should be functional now.');
     console.log('Test function called - JavaScript is working');
+    
+    // Test if we can find some key elements
+    const testElements = [
+        'account-select',
+        'megaStartBtn', 
+        'megaStopBtn',
+        'results-log'
+    ];
+    
+    let foundElements = [];
+    let missingElements = [];
+    
+    testElements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            foundElements.push(id);
+        } else {
+            missingElements.push(id);
+        }
+    });
+    
+    console.log('Found elements:', foundElements);
+    console.log('Missing elements:', missingElements);
+    
+    if (missingElements.length > 0) {
+        alert(`Some elements are missing: ${missingElements.join(', ')}`);
+    }
 }
 
 // Tab switching functionality
@@ -985,6 +1012,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Test if JavaScript is working
     console.log('JavaScript is working! All functions should be available.');
     
+    // Debug: Check if key elements exist
+    const keyElements = ['account-select', 'megaStartBtn', 'results-log'];
+    keyElements.forEach(id => {
+        const element = document.getElementById(id);
+        console.log(`Element ${id} exists:`, !!element);
+    });
+    
     // Check if all tabs exist
     for (let i = 1; i <= 4; i++) {
         const tab = document.getElementById(`tab${i}`);
@@ -996,6 +1030,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Ensure tab1 is visible by default
     showTab('tab1');
+    
+    // Initialize token status
+    setTimeout(initializeTokenStatus, 1000);
+    
+    // Check if there's a currently authenticated account in session
+    checkCurrentAuthenticationStatus();
     
     // 3-tab layout is now complete - no special initialization needed
 });
@@ -1264,13 +1304,6 @@ async function initializeTokenStatus() {
 // Auto-refresh every 8 hours (but user can manually refresh anytime)
 setInterval(checkTokenStatusFromDatabase, 8 * 60 * 60 * 1000);
 
-// Load on page load
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(initializeTokenStatus, 1000);
-    
-    // Check if there's a currently authenticated account in session
-    checkCurrentAuthenticationStatus();
-});
 
 // Check current authentication status from session
 async function checkCurrentAuthenticationStatus() {
