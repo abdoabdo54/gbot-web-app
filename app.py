@@ -4420,7 +4420,7 @@ def restore_backup():
             if backup_filename.endswith('.sql'):
                 # SQL file restore
                 psql_cmd = [
-                    'psql',
+                    psql_path,
                     f'--host={parsed.hostname}',
                     f'--port={parsed.port}',
                     f'--username={parsed.username}',
@@ -4562,7 +4562,7 @@ def upload_restore_backup():
             if file_ext == '.sql':
                 # SQL file restore
                 psql_cmd = [
-                    'psql',
+                    psql_path,
                     f'--host={parsed.hostname}',
                     f'--port={parsed.port}',
                     f'--username={parsed.username}',
@@ -4736,7 +4736,7 @@ def restore_from_chunks():
             # Restore from reassembled file
             if file_ext == '.sql':
                 psql_cmd = [
-                    'psql',
+                    psql_path,
                     f'--host={parsed.hostname}',
                     f'--port={parsed.port}',
                     f'--username={parsed.username}',
@@ -4879,42 +4879,81 @@ def restore_from_base64():
                     '/usr/bin/pg_dump',
                     '/usr/local/bin/pg_dump',
                     '/opt/postgresql/bin/pg_dump',
+                    '/usr/lib/postgresql/*/bin/pg_dump',  # Ubuntu/Debian standard
+                    '/usr/pgsql-*/bin/pg_dump',  # RedHat/CentOS
+                    '/opt/local/bin/pg_dump',  # MacPorts
+                    '/usr/local/pgsql/bin/pg_dump',  # Source install
                     'pg_dump'  # Try PATH
                 ]
+                
+                # Also check for versioned paths
+                import glob
+                versioned_paths = glob.glob('/usr/lib/postgresql/*/bin/pg_dump')
+                common_paths.extend(versioned_paths)
+                
+                app.logger.info(f"Checking PostgreSQL tools in {len(common_paths)} locations...")
                 
                 for path in common_paths:
                     try:
                         result = subprocess.run([path, '--version'], capture_output=True, text=True, timeout=5)
                         if result.returncode == 0:
                             pg_dump_path = path
-                            app.logger.info(f"pg_dump found at {path}: {result.stdout.strip()}")
+                            app.logger.info(f"✅ pg_dump found at {path}: {result.stdout.strip()}")
                             break
+                        else:
+                            app.logger.debug(f"pg_dump at {path} returned code {result.returncode}")
                     except Exception as e:
                         app.logger.debug(f"pg_dump not found at {path}: {e}")
                 
                 if not pg_dump_path:
-                    app.logger.warning("pg_dump not found in any common location")
+                    app.logger.warning("❌ pg_dump not found in any common location")
+                    # Try to find it using which command
+                    try:
+                        which_result = subprocess.run(['which', 'pg_dump'], capture_output=True, text=True, timeout=5)
+                        if which_result.returncode == 0:
+                            pg_dump_path = which_result.stdout.strip()
+                            app.logger.info(f"✅ pg_dump found via which: {pg_dump_path}")
+                    except Exception as e:
+                        app.logger.debug(f"which pg_dump failed: {e}")
                 
                 # Check for psql
                 common_paths = [
                     '/usr/bin/psql',
                     '/usr/local/bin/psql',
                     '/opt/postgresql/bin/psql',
+                    '/usr/lib/postgresql/*/bin/psql',  # Ubuntu/Debian standard
+                    '/usr/pgsql-*/bin/psql',  # RedHat/CentOS
+                    '/opt/local/bin/psql',  # MacPorts
+                    '/usr/local/pgsql/bin/psql',  # Source install
                     'psql'  # Try PATH
                 ]
+                
+                # Also check for versioned paths
+                versioned_paths = glob.glob('/usr/lib/postgresql/*/bin/psql')
+                common_paths.extend(versioned_paths)
                 
                 for path in common_paths:
                     try:
                         result = subprocess.run([path, '--version'], capture_output=True, text=True, timeout=5)
                         if result.returncode == 0:
                             psql_path = path
-                            app.logger.info(f"psql found at {path}: {result.stdout.strip()}")
+                            app.logger.info(f"✅ psql found at {path}: {result.stdout.strip()}")
                             break
+                        else:
+                            app.logger.debug(f"psql at {path} returned code {result.returncode}")
                     except Exception as e:
                         app.logger.debug(f"psql not found at {path}: {e}")
                 
                 if not psql_path:
-                    app.logger.warning("psql not found in any common location")
+                    app.logger.warning("❌ psql not found in any common location")
+                    # Try to find it using which command
+                    try:
+                        which_result = subprocess.run(['which', 'psql'], capture_output=True, text=True, timeout=5)
+                        if which_result.returncode == 0:
+                            psql_path = which_result.stdout.strip()
+                            app.logger.info(f"✅ psql found via which: {psql_path}")
+                    except Exception as e:
+                        app.logger.debug(f"which psql failed: {e}")
                 
                 if pg_dump_path and psql_path:
                     pg_tools_available = True
@@ -4930,7 +4969,7 @@ def restore_from_base64():
                 # Use PostgreSQL command-line tools
                 # Create backup of current database
                 pg_dump_cmd = [
-                    'pg_dump',
+                    pg_dump_path,
                     f'--host={parsed.hostname}',
                     f'--port={parsed.port}',
                     f'--username={parsed.username}',
@@ -4950,7 +4989,7 @@ def restore_from_base64():
                 # Restore from decoded file
                 if file_ext == '.sql':
                     psql_cmd = [
-                        'psql',
+                        psql_path,
                         f'--host={parsed.hostname}',
                         f'--port={parsed.port}',
                         f'--username={parsed.username}',
@@ -5169,42 +5208,81 @@ def restore_from_base64_chunks():
                     '/usr/bin/pg_dump',
                     '/usr/local/bin/pg_dump',
                     '/opt/postgresql/bin/pg_dump',
+                    '/usr/lib/postgresql/*/bin/pg_dump',  # Ubuntu/Debian standard
+                    '/usr/pgsql-*/bin/pg_dump',  # RedHat/CentOS
+                    '/opt/local/bin/pg_dump',  # MacPorts
+                    '/usr/local/pgsql/bin/pg_dump',  # Source install
                     'pg_dump'  # Try PATH
                 ]
+                
+                # Also check for versioned paths
+                import glob
+                versioned_paths = glob.glob('/usr/lib/postgresql/*/bin/pg_dump')
+                common_paths.extend(versioned_paths)
+                
+                app.logger.info(f"Checking PostgreSQL tools in {len(common_paths)} locations...")
                 
                 for path in common_paths:
                     try:
                         result = subprocess.run([path, '--version'], capture_output=True, text=True, timeout=5)
                         if result.returncode == 0:
                             pg_dump_path = path
-                            app.logger.info(f"pg_dump found at {path}: {result.stdout.strip()}")
+                            app.logger.info(f"✅ pg_dump found at {path}: {result.stdout.strip()}")
                             break
+                        else:
+                            app.logger.debug(f"pg_dump at {path} returned code {result.returncode}")
                     except Exception as e:
                         app.logger.debug(f"pg_dump not found at {path}: {e}")
                 
                 if not pg_dump_path:
-                    app.logger.warning("pg_dump not found in any common location")
+                    app.logger.warning("❌ pg_dump not found in any common location")
+                    # Try to find it using which command
+                    try:
+                        which_result = subprocess.run(['which', 'pg_dump'], capture_output=True, text=True, timeout=5)
+                        if which_result.returncode == 0:
+                            pg_dump_path = which_result.stdout.strip()
+                            app.logger.info(f"✅ pg_dump found via which: {pg_dump_path}")
+                    except Exception as e:
+                        app.logger.debug(f"which pg_dump failed: {e}")
                 
                 # Check for psql
                 common_paths = [
                     '/usr/bin/psql',
                     '/usr/local/bin/psql',
                     '/opt/postgresql/bin/psql',
+                    '/usr/lib/postgresql/*/bin/psql',  # Ubuntu/Debian standard
+                    '/usr/pgsql-*/bin/psql',  # RedHat/CentOS
+                    '/opt/local/bin/psql',  # MacPorts
+                    '/usr/local/pgsql/bin/psql',  # Source install
                     'psql'  # Try PATH
                 ]
+                
+                # Also check for versioned paths
+                versioned_paths = glob.glob('/usr/lib/postgresql/*/bin/psql')
+                common_paths.extend(versioned_paths)
                 
                 for path in common_paths:
                     try:
                         result = subprocess.run([path, '--version'], capture_output=True, text=True, timeout=5)
                         if result.returncode == 0:
                             psql_path = path
-                            app.logger.info(f"psql found at {path}: {result.stdout.strip()}")
+                            app.logger.info(f"✅ psql found at {path}: {result.stdout.strip()}")
                             break
+                        else:
+                            app.logger.debug(f"psql at {path} returned code {result.returncode}")
                     except Exception as e:
                         app.logger.debug(f"psql not found at {path}: {e}")
                 
                 if not psql_path:
-                    app.logger.warning("psql not found in any common location")
+                    app.logger.warning("❌ psql not found in any common location")
+                    # Try to find it using which command
+                    try:
+                        which_result = subprocess.run(['which', 'psql'], capture_output=True, text=True, timeout=5)
+                        if which_result.returncode == 0:
+                            psql_path = which_result.stdout.strip()
+                            app.logger.info(f"✅ psql found via which: {psql_path}")
+                    except Exception as e:
+                        app.logger.debug(f"which psql failed: {e}")
                 
                 if pg_dump_path and psql_path:
                     pg_tools_available = True
@@ -5220,7 +5298,7 @@ def restore_from_base64_chunks():
                 # Use PostgreSQL command-line tools
                 # Create backup of current database
                 pg_dump_cmd = [
-                    'pg_dump',
+                    pg_dump_path,
                     f'--host={parsed.hostname}',
                     f'--port={parsed.port}',
                     f'--username={parsed.username}',
@@ -5240,7 +5318,7 @@ def restore_from_base64_chunks():
                 # Restore from decoded file
                 if file_ext == '.sql':
                     psql_cmd = [
-                        'psql',
+                        psql_path,
                         f'--host={parsed.hostname}',
                         f'--port={parsed.port}',
                         f'--username={parsed.username}',
