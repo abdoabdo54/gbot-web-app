@@ -4459,30 +4459,6 @@ def restore_backup():
         app.logger.error(f"Error restoring backup: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/api/test-upload', methods=['POST'])
-@login_required
-def test_upload():
-    """Test endpoint to debug upload issues"""
-    try:
-        app.logger.info(f"Test upload request received from {request.remote_addr}")
-        app.logger.info(f"Request files: {list(request.files.keys())}")
-        app.logger.info(f"Request content type: {request.content_type}")
-        
-        if 'backup_file' in request.files:
-            backup_file = request.files['backup_file']
-            app.logger.info(f"Test file received: {backup_file.filename}")
-            return jsonify({
-                'success': True,
-                'message': 'Test upload successful',
-                'filename': backup_file.filename,
-                'content_type': backup_file.content_type
-            })
-        else:
-            return jsonify({'success': False, 'error': 'No file in request'})
-    except Exception as e:
-        app.logger.error(f"Test upload error: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
 @app.route('/api/upload-restore-backup', methods=['POST'])
 @login_required
 def upload_restore_backup():
@@ -4501,6 +4477,12 @@ def upload_restore_backup():
         
         backup_file = request.files['backup_file']
         app.logger.info(f"Backup file received: {backup_file.filename}")
+        
+        # Debug file size
+        backup_file.seek(0, 2)  # Seek to end
+        file_size = backup_file.tell()
+        backup_file.seek(0)  # Reset to beginning
+        app.logger.info(f"File size from request: {file_size} bytes ({file_size / (1024*1024):.2f} MB)")
         
         if backup_file.filename == '':
             app.logger.error("Empty filename")
