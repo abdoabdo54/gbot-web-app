@@ -2504,19 +2504,19 @@ def test_server_connection():
                                     content = f.read()
                                     json_data = json.loads(content)
                                 
-                                    # Validate JSON structure
-                                    if 'installed' in json_data or 'web' in json_data:
-                                        valid_accounts.append({
-                                            'account': account_dir,
-                                            'json_file': json_filename,
-                                            'has_credentials': True
-                                        })
-                                    else:
-                                        valid_accounts.append({
-                                            'account': account_dir,
-                                            'json_file': json_filename,
-                                            'has_credentials': False
-                                        })
+                                # Validate JSON structure
+                                if 'installed' in json_data or 'web' in json_data:
+                                    valid_accounts.append({
+                                        'account': account_dir,
+                                        'json_file': json_filename,
+                                        'has_credentials': True
+                                    })
+                                else:
+                                    valid_accounts.append({
+                                        'account': account_dir,
+                                        'json_file': json_filename,
+                                        'has_credentials': False
+                                    })
                             except Exception as e:
                                 app.logger.warning(f"Invalid JSON file {file_path}: {e}")
                                 continue
@@ -3848,8 +3848,8 @@ def test_smtp_credentials_progress():
                         msg['From'] = email
                         msg['To'] = recipient_email
                         msg['Subject'] = f"SMTP Test from {email}"
-                        
-                        body = f"""
+                
+                body = f"""
 This is a test email sent from {email} using the GBot Web Application SMTP tester.
 
 Test Details:
@@ -3859,61 +3859,61 @@ Test Details:
 
 If you received this email, the SMTP credentials are working correctly.
 """
-                        msg.attach(MIMEText(body, 'plain'))
-                        
-                        # Connect and send
-                        server = smtplib.SMTP(smtp_server, smtp_port)
-                        server.starttls()  # Enable encryption
-                        server.login(email, password)
-                        server.send_message(msg)
-                        server.quit()
-                        
+                msg.attach(MIMEText(body, 'plain'))
+                
+                # Connect and send
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()  # Enable encryption
+                server.login(email, password)
+                server.send_message(msg)
+                server.quit()
+                
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['success_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'success',
-                                    'message': f'Test email sent successfully to {recipient_email}'
-                                })
-                        
-                    except smtplib.SMTPAuthenticationError as e:
-                        with progress_lock:
-                            if task_id in progress_tracker:
-                                progress_tracker[task_id]['fail_count'] += 1
-                                progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'error',
-                                    'error': f'Authentication failed: {str(e)}'
-                                })
-                    except smtplib.SMTPException as e:
-                        with progress_lock:
-                            if task_id in progress_tracker:
-                                progress_tracker[task_id]['fail_count'] += 1
-                                progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'error',
-                                    'error': f'SMTP error: {str(e)}'
-                                })
-                    except socket.gaierror as e:
-                        with progress_lock:
-                            if task_id in progress_tracker:
-                                progress_tracker[task_id]['fail_count'] += 1
-                                progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'error',
-                                    'error': f'DNS/Network error: {str(e)}'
-                                })
-                    except Exception as e:
-                        with progress_lock:
-                            if task_id in progress_tracker:
-                                progress_tracker[task_id]['fail_count'] += 1
-                                progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'error',
-                                    'error': f'Unexpected error: {str(e)}'
-                                })
+                    'email': email,
+                    'status': 'success',
+                    'message': f'Test email sent successfully to {recipient_email}'
+                })
                 
+            except smtplib.SMTPAuthenticationError as e:
+                        with progress_lock:
+                            if task_id in progress_tracker:
+                                progress_tracker[task_id]['fail_count'] += 1
+                                progress_tracker[task_id]['results'].append({
+                    'email': email,
+                    'status': 'error',
+                    'error': f'Authentication failed: {str(e)}'
+                })
+            except smtplib.SMTPException as e:
+                        with progress_lock:
+                            if task_id in progress_tracker:
+                                progress_tracker[task_id]['fail_count'] += 1
+                                progress_tracker[task_id]['results'].append({
+                    'email': email,
+                    'status': 'error',
+                    'error': f'SMTP error: {str(e)}'
+                })
+            except socket.gaierror as e:
+                        with progress_lock:
+                            if task_id in progress_tracker:
+                                progress_tracker[task_id]['fail_count'] += 1
+                                progress_tracker[task_id]['results'].append({
+                    'email': email,
+                    'status': 'error',
+                    'error': f'DNS/Network error: {str(e)}'
+                })
+            except Exception as e:
+                        with progress_lock:
+                            if task_id in progress_tracker:
+                                progress_tracker[task_id]['fail_count'] += 1
+                                progress_tracker[task_id]['results'].append({
+                    'email': email,
+                    'status': 'error',
+                    'error': f'Unexpected error: {str(e)}'
+                })
+        
                 # Mark as completed
                 with progress_lock:
                     if task_id in progress_tracker:
@@ -4193,7 +4193,7 @@ def test_smtp():
             return jsonify({'success': False, 'error': f'Cannot connect to SMTP server {smtp_server}:{smtp_port}'})
         except smtplib.SMTPException as e:
             return jsonify({'success': False, 'error': f'SMTP error: {str(e)}'})
-        except Exception as e:
+    except Exception as e:
             return jsonify({'success': False, 'error': f'Email sending failed: {str(e)}'})
         
     except Exception as e:
@@ -4232,18 +4232,18 @@ def api_refresh_domain_status():
         # Get all domains from database
         domains = UsedDomain.query.all()
         domain_dict = {domain.domain_name: domain for domain in domains}
-        
-        # Count users per domain
-        domain_user_counts = {}
+            
+            # Count users per domain
+            domain_user_counts = {}
         for user in users:
-            email = user.get('primaryEmail', '')
-            if '@' in email:
-                domain = email.split('@')[1]
-                domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
-        
+                email = user.get('primaryEmail', '')
+                if '@' in email:
+                    domain = email.split('@')[1]
+                    domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+            
         # Update domain statuses
-        updated_domains = []
-        for domain_name, user_count in domain_user_counts.items():
+            updated_domains = []
+            for domain_name, user_count in domain_user_counts.items():
             if domain_name in domain_dict:
                 domain = domain_dict[domain_name]
                 old_count = domain.user_count
@@ -4254,14 +4254,14 @@ def api_refresh_domain_status():
                     'old_count': old_count,
                     'new_count': user_count
                 })
-            else:
+                    else:
                 # Create new domain entry
-                new_domain = UsedDomain(
-                    domain_name=domain_name,
-                    user_count=user_count,
+                        new_domain = UsedDomain(
+                            domain_name=domain_name,
+                            user_count=user_count,
                     ever_used=True
-                )
-                db.session.add(new_domain)
+                        )
+                        db.session.add(new_domain)
                 updated_domains.append({
                     'domain': domain_name,
                     'old_count': 0,
@@ -4278,17 +4278,17 @@ def api_refresh_domain_status():
                         'old_count': domain.user_count,
                         'new_count': 0
                     })
-        
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': f'Domain status refreshed successfully. Updated {len(updated_domains)} domains.',
-            'updated_domains': updated_domains,
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Domain status refreshed successfully. Updated {len(updated_domains)} domains.',
+                'updated_domains': updated_domains,
             'total_users': len(users),
             'total_domains': len(domains)
-        })
-        
+            })
+            
     except Exception as e:
         app.logger.error(f"Error refreshing domain status: {e}")
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
@@ -4431,7 +4431,7 @@ def restore_backup():
                 result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
                 if result.returncode != 0:
                     return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
-            else:
+        else:
                 return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
         
         else:
@@ -4869,13 +4869,41 @@ def restore_from_base64():
             parsed = urllib.parse.urlparse(db_url)
             
             # Check if PostgreSQL tools are available
+            pg_tools_available = False
+            pg_dump_path = None
+            psql_path = None
+            
             try:
-                subprocess.run(['pg_dump', '--version'], capture_output=True, check=True)
-                subprocess.run(['psql', '--version'], capture_output=True, check=True)
-                pg_tools_available = True
-            except (subprocess.CalledProcessError, FileNotFoundError):
+                # Simple detection - just try to run the commands
+                try:
+                    result = subprocess.run(['pg_dump', '--version'], capture_output=True, text=True, timeout=5)
+                    if result.returncode == 0:
+                        pg_dump_path = 'pg_dump'
+                        app.logger.info(f"pg_dump found: {result.stdout.strip()}")
+                else:
+                        app.logger.warning(f"pg_dump failed with return code {result.returncode}")
+                except Exception as e:
+                    app.logger.warning(f"pg_dump not available: {e}")
+                
+                try:
+                    result = subprocess.run(['psql', '--version'], capture_output=True, text=True, timeout=5)
+                    if result.returncode == 0:
+                        psql_path = 'psql'
+                        app.logger.info(f"psql found: {result.stdout.strip()}")
+                else:
+                        app.logger.warning(f"psql failed with return code {result.returncode}")
+                except Exception as e:
+                    app.logger.warning(f"psql not available: {e}")
+                
+                if pg_dump_path and psql_path:
+                    pg_tools_available = True
+                    app.logger.info("PostgreSQL tools are available")
+                else:
+                    app.logger.warning(f"PostgreSQL tools not fully available. pg_dump: {pg_dump_path}, psql: {psql_path}")
+                    
+            except Exception as e:
+                app.logger.warning(f"Error checking PostgreSQL tools: {e}")
                 pg_tools_available = False
-                app.logger.warning("PostgreSQL tools (pg_dump, psql) not available, using Python-based restore")
             
             if pg_tools_available:
                 # Use PostgreSQL command-line tools
@@ -4918,9 +4946,20 @@ def restore_from_base64():
                 # PostgreSQL tools not available - try to install them
                 app.logger.info("PostgreSQL client tools not found, attempting to install...")
                 try:
-                    # Try to install PostgreSQL client tools
-                    install_cmd = ['sudo', 'apt-get', 'update', '&&', 'sudo', 'apt-get', 'install', '-y', 'postgresql-client']
-                    result = subprocess.run(' '.join(install_cmd), shell=True, capture_output=True, text=True, timeout=300)
+                    # Check if we're running as root (no sudo needed)
+                    import getpass
+                    is_root = getpass.getuser() == 'root'
+                    
+                    if is_root:
+                        # Running as root, no sudo needed
+                        install_cmd = 'apt-get update && apt-get install -y postgresql-client'
+                        app.logger.info("Running as root, installing PostgreSQL client tools without sudo")
+                    else:
+                        # Not root, use sudo
+                        install_cmd = 'sudo apt-get update && sudo apt-get install -y postgresql-client'
+                        app.logger.info("Not running as root, installing PostgreSQL client tools with sudo")
+                    
+                    result = subprocess.run(install_cmd, shell=True, capture_output=True, text=True, timeout=300)
                     
                     if result.returncode == 0:
                         app.logger.info("PostgreSQL client tools installed successfully")
@@ -4960,10 +4999,12 @@ def restore_from_base64():
                         else:
                             return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
                     else:
-                        return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {result.stderr}. Please install them manually: sudo apt-get install postgresql-client'})
+                        sudo_cmd = 'sudo apt-get install postgresql-client' if not is_root else 'apt-get install postgresql-client'
+                        return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {result.stderr}. Please install them manually: {sudo_cmd}'})
                         
                 except Exception as e:
-                    return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {str(e)}. Please install them manually: sudo apt-get install postgresql-client'})
+                    sudo_cmd = 'sudo apt-get install postgresql-client' if not is_root else 'apt-get install postgresql-client'
+                    return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {str(e)}. Please install them manually: {sudo_cmd}'})
         
         else:
             return jsonify({'success': False, 'error': 'Unsupported database type'})
@@ -4971,8 +5012,8 @@ def restore_from_base64():
         # Clear SQLAlchemy session to force reload
         db.session.remove()
         
-        return jsonify({
-            'success': True,
+            return jsonify({
+                'success': True,
             'message': f'Database restored successfully from base64 upload: {filename}',
             'decoded_file': decoded_filename,
             'current_backup': current_backup_name
@@ -5140,13 +5181,41 @@ def restore_from_base64_chunks():
             parsed = urllib.parse.urlparse(db_url)
             
             # Check if PostgreSQL tools are available
+            pg_tools_available = False
+            pg_dump_path = None
+            psql_path = None
+            
             try:
-                subprocess.run(['pg_dump', '--version'], capture_output=True, check=True)
-                subprocess.run(['psql', '--version'], capture_output=True, check=True)
-                pg_tools_available = True
-            except (subprocess.CalledProcessError, FileNotFoundError):
+                # Simple detection - just try to run the commands
+                try:
+                    result = subprocess.run(['pg_dump', '--version'], capture_output=True, text=True, timeout=5)
+                    if result.returncode == 0:
+                        pg_dump_path = 'pg_dump'
+                        app.logger.info(f"pg_dump found: {result.stdout.strip()}")
+                    else:
+                        app.logger.warning(f"pg_dump failed with return code {result.returncode}")
+                except Exception as e:
+                    app.logger.warning(f"pg_dump not available: {e}")
+                
+                try:
+                    result = subprocess.run(['psql', '--version'], capture_output=True, text=True, timeout=5)
+                    if result.returncode == 0:
+                        psql_path = 'psql'
+                        app.logger.info(f"psql found: {result.stdout.strip()}")
+                    else:
+                        app.logger.warning(f"psql failed with return code {result.returncode}")
+                except Exception as e:
+                    app.logger.warning(f"psql not available: {e}")
+                
+                if pg_dump_path and psql_path:
+                    pg_tools_available = True
+                    app.logger.info("PostgreSQL tools are available")
+                else:
+                    app.logger.warning(f"PostgreSQL tools not fully available. pg_dump: {pg_dump_path}, psql: {psql_path}")
+                    
+            except Exception as e:
+                app.logger.warning(f"Error checking PostgreSQL tools: {e}")
                 pg_tools_available = False
-                app.logger.warning("PostgreSQL tools (pg_dump, psql) not available, using Python-based restore")
             
             if pg_tools_available:
                 # Use PostgreSQL command-line tools
@@ -5189,9 +5258,20 @@ def restore_from_base64_chunks():
                 # PostgreSQL tools not available - try to install them
                 app.logger.info("PostgreSQL client tools not found, attempting to install...")
                 try:
-                    # Try to install PostgreSQL client tools
-                    install_cmd = ['sudo', 'apt-get', 'update', '&&', 'sudo', 'apt-get', 'install', '-y', 'postgresql-client']
-                    result = subprocess.run(' '.join(install_cmd), shell=True, capture_output=True, text=True, timeout=300)
+                    # Check if we're running as root (no sudo needed)
+                    import getpass
+                    is_root = getpass.getuser() == 'root'
+                    
+                    if is_root:
+                        # Running as root, no sudo needed
+                        install_cmd = 'apt-get update && apt-get install -y postgresql-client'
+                        app.logger.info("Running as root, installing PostgreSQL client tools without sudo")
+                    else:
+                        # Not root, use sudo
+                        install_cmd = 'sudo apt-get update && sudo apt-get install -y postgresql-client'
+                        app.logger.info("Not running as root, installing PostgreSQL client tools with sudo")
+                    
+                    result = subprocess.run(install_cmd, shell=True, capture_output=True, text=True, timeout=300)
                     
                     if result.returncode == 0:
                         app.logger.info("PostgreSQL client tools installed successfully")
@@ -5231,10 +5311,12 @@ def restore_from_base64_chunks():
                         else:
                             return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
                     else:
-                        return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {result.stderr}. Please install them manually: sudo apt-get install postgresql-client'})
+                        sudo_cmd = 'sudo apt-get install postgresql-client' if not is_root else 'apt-get install postgresql-client'
+                        return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {result.stderr}. Please install them manually: {sudo_cmd}'})
                         
                 except Exception as e:
-                    return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {str(e)}. Please install them manually: sudo apt-get install postgresql-client'})
+                    sudo_cmd = 'sudo apt-get install postgresql-client' if not is_root else 'apt-get install postgresql-client'
+                    return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {str(e)}. Please install them manually: {sudo_cmd}'})
         
         else:
             return jsonify({'success': False, 'error': 'Unsupported database type'})
@@ -5245,8 +5327,8 @@ def restore_from_base64_chunks():
         # Clean up chunks
         shutil.rmtree(chunks_dir, ignore_errors=True)
         
-        return jsonify({
-            'success': True,
+                return jsonify({
+                    'success': True,
             'message': f'Database restored successfully from chunked base64 upload: {filename}',
             'decoded_file': decoded_filename,
             'current_backup': current_backup_name
