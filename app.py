@@ -3905,15 +3905,15 @@ If you received this email, the SMTP credentials are working correctly.
                     'error': f'DNS/Network error: {str(e)}'
                 })
             except Exception as e:
-                        with progress_lock:
-                            if task_id in progress_tracker:
-                                progress_tracker[task_id]['fail_count'] += 1
-                                progress_tracker[task_id]['results'].append({
-                    'email': email,
-                    'status': 'error',
-                    'error': f'Unexpected error: {str(e)}'
-                })
-        
+                with progress_lock:
+                    if task_id in progress_tracker:
+                        progress_tracker[task_id]['fail_count'] += 1
+                        progress_tracker[task_id]['results'].append({
+                            'email': email,
+                            'status': 'error',
+                            'error': f'Unexpected error: {str(e)}'
+                        })
+                
                 # Mark as completed
                 with progress_lock:
                     if task_id in progress_tracker:
@@ -4235,7 +4235,7 @@ def api_refresh_domain_status():
             
             # Count users per domain
             domain_user_counts = {}
-        for user in users:
+            for user in users:
                 email = user.get('primaryEmail', '')
                 if '@' in email:
                     domain = email.split('@')[1]
