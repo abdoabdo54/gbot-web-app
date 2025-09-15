@@ -4289,5 +4289,270 @@ def api_refresh_domain_status():
         app.logger.error(f"Error refreshing domain status: {e}")
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
 
+@app.route('/api/list-backups', methods=['GET'])
+@login_required
+def list_backups():
+    """List all available backup files"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        import os
+        import glob
+        from datetime import datetime
+        
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
+        
+        if not os.path.exists(backup_dir):
+            return jsonify({'success': True, 'backups': []})
+        
+        # Get all backup files
+        backup_files = []
+        for pattern in ['*.sql', '*.db', '*.json', '*.tar.gz']:
+            files = glob.glob(os.path.join(backup_dir, pattern))
+            for file_path in files:
+                filename = os.path.basename(file_path)
+                file_size = os.path.getsize(file_path)
+                file_mtime = os.path.getmtime(file_path)
+                file_date = datetime.fromtimestamp(file_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                
+                # Determine backup type
+                if filename.endswith('.sql'):
+                    backup_type = 'SQL'
+                elif filename.endswith('.db'):
+                    backup_type = 'SQLite'
+                elif filename.endswith('.json'):
+                    backup_type = 'JSON'
+                elif filename.endswith('.tar.gz'):
+                    backup_type = 'Full System'
+                else:
+                    backup_type = 'Unknown'
+                
+                backup_files.append({
+                    'filename': filename,
+                    'filepath': file_path,
+                    'size': file_size,
+                    'size_mb': round(file_size / (1024 * 1024), 2),
+                    'date': file_date,
+                    'type': backup_type,
+                    'readable': True
+                })
+        
+        # Sort by date (newest first)
+        backup_files.sort(key=lambda x: x['date'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'backups': backup_files,
+            'backup_dir': backup_dir
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error listing backups: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/restore-backup', methods=['POST'])
+@login_required
+def restore_backup():
+    """Restore database from existing backup file"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        data = request.get_json()
+        backup_filename = data.get('filename')
+        
+        if not backup_filename:
+            return jsonify({'success': False, 'error': 'No backup filename provided'})
+        
+        import os
+        import shutil
+        import subprocess
+        import urllib.parse
+        
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
+        backup_path = os.path.join(backup_dir, backup_filename)
+        
+        if not os.path.exists(backup_path):
+            return jsonify({'success': False, 'error': f'Backup file not found: {backup_filename}'})
+        
+        # Get current database configuration
+        db_url = app.config['SQLALCHEMY_DATABASE_URI']
+        
+        # Create a backup of current database before restore
+        current_backup_name = f"pre_restore_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+        current_backup_path = os.path.join(backup_dir, current_backup_name)
+        
+        if db_url.startswith('sqlite'):
+            # SQLite restore
+            db_path = db_url.replace('sqlite:///', '')
+            shutil.copy2(db_path, current_backup_path)
+            shutil.copy2(backup_path, db_path)
+            
+        elif db_url.startswith('postgresql'):
+            # PostgreSQL restore
+            parsed = urllib.parse.urlparse(db_url)
+            
+            # Create backup of current database
+            pg_dump_cmd = [
+                'pg_dump',
+                f'--host={parsed.hostname}',
+                f'--port={parsed.port}',
+                f'--username={parsed.username}',
+                f'--dbname={parsed.path[1:]}',
+                '--file', current_backup_path
+            ]
+            
+            env = os.environ.copy()
+            if parsed.password:
+                env['PGPASSWORD'] = parsed.password
+            
+            # Create current backup
+            result = subprocess.run(pg_dump_cmd, env=env, capture_output=True, text=True, timeout=300)
+            if result.returncode != 0:
+                return jsonify({'success': False, 'error': f'Failed to create current backup: {result.stderr}'})
+            
+            # Restore from backup
+            if backup_filename.endswith('.sql'):
+                # SQL file restore
+                psql_cmd = [
+                    'psql',
+                    f'--host={parsed.hostname}',
+                    f'--port={parsed.port}',
+                    f'--username={parsed.username}',
+                    f'--dbname={parsed.path[1:]}',
+                    '--file', backup_path
+                ]
+                
+                result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                if result.returncode != 0:
+                    return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+            else:
+                return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
+        
+        else:
+            return jsonify({'success': False, 'error': 'Unsupported database type'})
+        
+        # Clear SQLAlchemy session to force reload
+        db.session.remove()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Database restored successfully from {backup_filename}',
+            'current_backup': current_backup_name
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error restoring backup: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/upload-restore-backup', methods=['POST'])
+@login_required
+def upload_restore_backup():
+    """Upload and restore a backup file"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        if 'backup_file' not in request.files:
+            return jsonify({'success': False, 'error': 'No backup file provided'})
+        
+        backup_file = request.files['backup_file']
+        if backup_file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'})
+        
+        # Validate file extension
+        allowed_extensions = {'.sql', '.db', '.json', '.tar.gz'}
+        file_ext = os.path.splitext(backup_file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            return jsonify({'success': False, 'error': f'Invalid file type. Allowed: {", ".join(allowed_extensions)}'})
+        
+        import os
+        import shutil
+        import subprocess
+        import urllib.parse
+        
+        # Save uploaded file
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Generate unique filename
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        uploaded_filename = f"uploaded_backup_{timestamp}{file_ext}"
+        uploaded_path = os.path.join(backup_dir, uploaded_filename)
+        
+        backup_file.save(uploaded_path)
+        
+        # Get current database configuration
+        db_url = app.config['SQLALCHEMY_DATABASE_URI']
+        
+        # Create a backup of current database before restore
+        current_backup_name = f"pre_restore_backup_{timestamp}.db"
+        current_backup_path = os.path.join(backup_dir, current_backup_name)
+        
+        if db_url.startswith('sqlite'):
+            # SQLite restore
+            db_path = db_url.replace('sqlite:///', '')
+            shutil.copy2(db_path, current_backup_path)
+            shutil.copy2(uploaded_path, db_path)
+            
+        elif db_url.startswith('postgresql'):
+            # PostgreSQL restore
+            parsed = urllib.parse.urlparse(db_url)
+            
+            # Create backup of current database
+            pg_dump_cmd = [
+                'pg_dump',
+                f'--host={parsed.hostname}',
+                f'--port={parsed.port}',
+                f'--username={parsed.username}',
+                f'--dbname={parsed.path[1:]}',
+                '--file', current_backup_path
+            ]
+            
+            env = os.environ.copy()
+            if parsed.password:
+                env['PGPASSWORD'] = parsed.password
+            
+            # Create current backup
+            result = subprocess.run(pg_dump_cmd, env=env, capture_output=True, text=True, timeout=300)
+            if result.returncode != 0:
+                return jsonify({'success': False, 'error': f'Failed to create current backup: {result.stderr}'})
+            
+            # Restore from uploaded file
+            if file_ext == '.sql':
+                # SQL file restore
+                psql_cmd = [
+                    'psql',
+                    f'--host={parsed.hostname}',
+                    f'--port={parsed.port}',
+                    f'--username={parsed.username}',
+                    f'--dbname={parsed.path[1:]}',
+                    '--file', uploaded_path
+                ]
+                
+                result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                if result.returncode != 0:
+                    return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+            else:
+                return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
+        
+        else:
+            return jsonify({'success': False, 'error': 'Unsupported database type'})
+        
+        # Clear SQLAlchemy session to force reload
+        db.session.remove()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Database restored successfully from uploaded file: {backup_file.filename}',
+            'uploaded_file': uploaded_filename,
+            'current_backup': current_backup_name
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error uploading and restoring backup: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 if __name__ == '__main__':
     app.run(debug=True)

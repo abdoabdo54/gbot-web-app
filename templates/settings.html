@@ -216,6 +216,93 @@
         </div>
     </div>
 
+    <!-- Database Restore Section -->
+    <div class="github-card" style="margin-bottom: 24px;">
+        <div class="github-card-header">
+            <h3 class="github-card-title" style="font-size: 18px;">
+                <i class="fas fa-undo"></i>
+                Database Restore
+            </h3>
+        </div>
+        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
+            Restore your database from a previous backup. You can either select from existing backups or upload a new backup file.
+        </p>
+        
+        <!-- Restore Options -->
+        <div style="margin-bottom: 24px;">
+            <div class="form-group-github">
+                <label class="form-label-github">
+                    <i class="fas fa-list"></i> Restore Method
+                </label>
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="restore_method" value="existing" checked style="margin-right: 8px;">
+                        <span>Select from existing backups</span>
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="restore_method" value="upload" style="margin-right: 8px;">
+                        <span>Upload backup file</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Existing Backup Selection -->
+        <div id="existing-backup-section">
+            <div class="form-group-github">
+                <label for="backup_select" class="form-label-github">
+                    <i class="fas fa-archive"></i> Select Backup File
+                </label>
+                <select class="form-control-github" id="backup_select">
+                    <option value="">Loading backup files...</option>
+                </select>
+                <small style="color: #656d76; font-size: 12px;">
+                    Choose a backup file to restore from
+                </small>
+            </div>
+        </div>
+        
+        <!-- Upload Backup Section -->
+        <div id="upload-backup-section" style="display: none;">
+            <div class="form-group-github">
+                <label for="backup_file" class="form-label-github">
+                    <i class="fas fa-upload"></i> Upload Backup File
+                </label>
+                <input type="file" class="form-control-github" id="backup_file" accept=".sql,.db,.json,.tar.gz">
+                <small style="color: #656d76; font-size: 12px;">
+                    Supported formats: .sql, .db, .json, .tar.gz
+                </small>
+            </div>
+        </div>
+        
+        <!-- Restore Progress -->
+        <div id="restore-progress" style="display: none; margin-bottom: 24px;">
+            <div class="status-info" style="background: #fff3cd; border-color: #ffeaa7;">
+                <p><strong>🔄 Restoring Database</strong></p>
+                <p id="restore-progress-text">Preparing restore...</p>
+                <div style="background: #f6f8fa; border-radius: 6px; height: 8px; margin-top: 8px; overflow: hidden;">
+                    <div id="restore-progress-bar" style="background: #0969da; height: 100%; width: 0%; transition: width 0.3s; border-radius: 6px;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Restore Actions -->
+        <div style="display: flex; gap: 16px; justify-content: center; margin-bottom: 24px;">
+            <button type="button" class="btn-github btn-github-warning" onclick="restoreDatabase()">
+                <i class="fas fa-undo"></i> Restore Database
+            </button>
+            <button type="button" class="btn-github" onclick="refreshBackupList()">
+                <i class="fas fa-sync-alt"></i> Refresh Backup List
+            </button>
+        </div>
+        
+        <!-- Warning Message -->
+        <div class="status-warning" style="margin-bottom: 24px;">
+            <p><strong>⚠️ Important Warning</strong></p>
+            <p>Restoring a database will completely replace your current database with the backup data. This action cannot be undone. A backup of your current database will be created automatically before the restore process begins.</p>
+        </div>
+    </div>
+
     <!-- Bulk Account Upload Section -->
     <div class="github-card" style="margin-bottom: 24px;">
         <div class="github-card-header">
@@ -346,6 +433,21 @@ $(document).ready(function() {
     
     // Load backup files
     loadBackupFiles();
+    
+    // Load backup list for restore
+    loadBackupList();
+    
+    // Restore method toggle
+    $('input[name="restore_method"]').change(function() {
+        const method = $(this).val();
+        if (method === 'existing') {
+            $('#existing-backup-section').show();
+            $('#upload-backup-section').hide();
+        } else {
+            $('#existing-backup-section').hide();
+            $('#upload-backup-section').show();
+        }
+    });
 });
 
 function loadCurrentConfiguration() {
@@ -1205,6 +1307,139 @@ function cleanupOldBackups() {
         console.error('Error cleaning up old backups:', error);
         showStatus(`❌ Failed to cleanup old backups: ${error.message}`, 'error');
     });
+}
+
+// Restore functionality functions
+function loadBackupList() {
+    console.log('Loading backup list for restore...');
+    
+    fetch('/api/list-backups', {
+        method: 'GET',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        const select = $('#backup_select');
+        select.empty();
+        
+        if (data.success && data.backups && data.backups.length > 0) {
+            select.append('<option value="">Select a backup file...</option>');
+            data.backups.forEach(backup => {
+                const fileSize = backup.size ? formatFileSize(backup.size) : 'Unknown size';
+                const modifiedDate = backup.modified ? new Date(backup.modified).toLocaleString() : 'Unknown date';
+                select.append(`<option value="${backup.name}">${backup.name} (${fileSize}, ${modifiedDate})</option>`);
+            });
+        } else {
+            select.append('<option value="">No backup files found</option>');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading backup list:', error);
+        const select = $('#backup_select');
+        select.empty();
+        select.append('<option value="">Error loading backup list</option>');
+    });
+}
+
+function restoreDatabase() {
+    const method = $('input[name="restore_method"]:checked').val();
+    
+    if (method === 'existing') {
+        const selectedBackup = $('#backup_select').val();
+        if (!selectedBackup) {
+            showStatus('Please select a backup file to restore', 'error');
+            return;
+        }
+        
+        // Show progress
+        $('#restore-progress').show();
+        $('#restore-progress-text').text('Restoring from existing backup...');
+        $('#restore-progress-bar').css('width', '20%');
+        
+        // Call restore API
+        fetch('/api/restore-backup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                backup_file: selectedBackup
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            $('#restore-progress-bar').css('width', '100%');
+            $('#restore-progress-text').text('Restore completed!');
+            
+            setTimeout(() => {
+                $('#restore-progress').hide();
+                if (data.success) {
+                    showStatus('✅ Database restored successfully!', 'success');
+                    // Refresh backup list
+                    loadBackupList();
+                } else {
+                    showStatus('❌ Restore failed: ' + data.error, 'error');
+                }
+            }, 1000);
+        })
+        .catch(error => {
+            $('#restore-progress').hide();
+            console.error('Error restoring database:', error);
+            showStatus('❌ Network error during restore: ' + error.message, 'error');
+        });
+        
+    } else if (method === 'upload') {
+        const fileInput = document.getElementById('backup_file');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            showStatus('Please select a backup file to upload', 'error');
+            return;
+        }
+        
+        // Show progress
+        $('#restore-progress').show();
+        $('#restore-progress-text').text('Uploading and restoring backup...');
+        $('#restore-progress-bar').css('width', '20%');
+        
+        // Create form data
+        const formData = new FormData();
+        formData.append('backup_file', file);
+        
+        // Call upload restore API
+        fetch('/api/upload-restore-backup', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            $('#restore-progress-bar').css('width', '100%');
+            $('#restore-progress-text').text('Upload and restore completed!');
+            
+            setTimeout(() => {
+                $('#restore-progress').hide();
+                if (data.success) {
+                    showStatus('✅ Backup uploaded and database restored successfully!', 'success');
+                    // Clear file input
+                    fileInput.value = '';
+                    // Refresh backup list
+                    loadBackupList();
+                } else {
+                    showStatus('❌ Upload/restore failed: ' + data.error, 'error');
+                }
+            }, 1000);
+        })
+        .catch(error => {
+            $('#restore-progress').hide();
+            console.error('Error uploading/restoring database:', error);
+            showStatus('❌ Network error during upload/restore: ' + error.message, 'error');
+        });
+    }
+}
+
+function refreshBackupList() {
+    loadBackupList();
+    showStatus('🔄 Backup list refreshed', 'info');
 }
 </script>
 {% endblock %}
