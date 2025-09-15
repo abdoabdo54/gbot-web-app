@@ -4825,8 +4825,44 @@ def restore_from_base64():
         if db_url.startswith('sqlite'):
             # SQLite restore
             db_path = db_url.replace('sqlite:///', '')
+            
+            # Handle Windows paths
+            if db_path.startswith('/'):
+                # Convert Unix-style path to Windows path
+                db_path = db_path[1:]  # Remove leading slash
+                db_path = db_path.replace('/', '\\')  # Convert to Windows separators
+            
+            app.logger.info(f"SQLite database path: {db_path}")
+            app.logger.info(f"Decoded file path: {decoded_path}")
+            
+            # Check if database file exists
+            if not os.path.exists(db_path):
+                return jsonify({'success': False, 'error': f'Database file not found: {db_path}'})
+            
+            # Create backup of current database
             shutil.copy2(db_path, current_backup_path)
-            shutil.copy2(decoded_path, db_path)
+            app.logger.info(f"Current database backed up to: {current_backup_name}")
+            
+            # Restore from decoded file
+            if file_ext == '.db':
+                # Direct SQLite database file
+                shutil.copy2(decoded_path, db_path)
+                app.logger.info(f"SQLite database restored from: {decoded_filename}")
+            elif file_ext == '.sql':
+                # SQL dump file - need to recreate database
+                # First, remove the current database
+                os.remove(db_path)
+                
+                # Create new database and import SQL
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                with open(decoded_path, 'r', encoding='utf-8') as f:
+                    sql_content = f.read()
+                    conn.executescript(sql_content)
+                conn.close()
+                app.logger.info(f"SQLite database recreated from SQL dump: {decoded_filename}")
+            else:
+                return jsonify({'success': False, 'error': f'Unsupported backup format for SQLite: {file_ext}'})
             
         elif db_url.startswith('postgresql'):
             # PostgreSQL restore
@@ -4999,8 +5035,44 @@ def restore_from_base64_chunks():
         if db_url.startswith('sqlite'):
             # SQLite restore
             db_path = db_url.replace('sqlite:///', '')
+            
+            # Handle Windows paths
+            if db_path.startswith('/'):
+                # Convert Unix-style path to Windows path
+                db_path = db_path[1:]  # Remove leading slash
+                db_path = db_path.replace('/', '\\')  # Convert to Windows separators
+            
+            app.logger.info(f"SQLite database path: {db_path}")
+            app.logger.info(f"Decoded file path: {decoded_path}")
+            
+            # Check if database file exists
+            if not os.path.exists(db_path):
+                return jsonify({'success': False, 'error': f'Database file not found: {db_path}'})
+            
+            # Create backup of current database
             shutil.copy2(db_path, current_backup_path)
-            shutil.copy2(decoded_path, db_path)
+            app.logger.info(f"Current database backed up to: {current_backup_name}")
+            
+            # Restore from decoded file
+            if file_ext == '.db':
+                # Direct SQLite database file
+                shutil.copy2(decoded_path, db_path)
+                app.logger.info(f"SQLite database restored from: {decoded_filename}")
+            elif file_ext == '.sql':
+                # SQL dump file - need to recreate database
+                # First, remove the current database
+                os.remove(db_path)
+                
+                # Create new database and import SQL
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                with open(decoded_path, 'r', encoding='utf-8') as f:
+                    sql_content = f.read()
+                    conn.executescript(sql_content)
+                conn.close()
+                app.logger.info(f"SQLite database recreated from SQL dump: {decoded_filename}")
+            else:
+                return jsonify({'success': False, 'error': f'Unsupported backup format for SQLite: {file_ext}'})
             
         elif db_url.startswith('postgresql'):
             # PostgreSQL restore
