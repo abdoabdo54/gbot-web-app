@@ -4479,6 +4479,12 @@ def upload_restore_backup():
             app.logger.error("Empty filename")
             return jsonify({'success': False, 'error': 'No file selected'})
         
+        # Import required modules first
+        import os
+        import shutil
+        import subprocess
+        import urllib.parse
+        
         # Validate file extension
         allowed_extensions = {'.sql', '.db', '.json', '.tar.gz'}
         filename = backup_file.filename.lower()
@@ -4495,11 +4501,6 @@ def upload_restore_backup():
         if file_ext not in allowed_extensions:
             app.logger.error(f"Invalid file extension: {file_ext}")
             return jsonify({'success': False, 'error': f'Invalid file type. Allowed: {", ".join(allowed_extensions)}'})
-        
-        import os
-        import shutil
-        import subprocess
-        import urllib.parse
         
         # Save uploaded file
         backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
