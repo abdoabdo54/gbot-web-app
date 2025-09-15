@@ -4357,13 +4357,13 @@ function testMegaUpgrade() {
         updatePasswords: document.getElementById('feature-update-passwords').checked
     };
     
-    logBulkDomain('🧪 Starting Test Mega Upgrade (No Threading)...');
+    logBulkDomain('🧪 Starting SIMPLE Test Mega Upgrade...');
     logBulkDomain(`📊 Testing ${accounts.length} accounts with selected features`);
     logBulkDomain(`🔧 Features: ${Object.keys(features).filter(k => features[k]).join(', ')}`);
     logBulkDomain('─'.repeat(50));
     
-    // Test the simple endpoint
-    fetch('/api/test-mega-upgrade', {
+    // Test the NEW simple endpoint
+    fetch('/api/test-simple-mega', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -4374,21 +4374,19 @@ function testMegaUpgrade() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            logBulkDomain(`✅ Test completed successfully: ${data.message}`);
-            if (data.results && data.results.length > 0) {
-                const display = document.getElementById('app-passwords-display');
-                display.value = data.results.join('\n');
-                logBulkDomain(`📋 ${data.results.length} test results displayed`);
-            }
+            logBulkDomain(`✅ SIMPLE Test completed successfully: ${data.message}`);
+            logBulkDomain(`📊 Received accounts: ${data.received_accounts.join(', ')}`);
+            logBulkDomain(`🔧 Received features: ${JSON.stringify(data.received_features)}`);
+            logBulkDomain(`📋 Total accounts: ${data.total_accounts}`);
             logBulkDomain('─'.repeat(50));
-            logBulkDomain('🎉 Test completed - Basic functionality works!');
+            logBulkDomain('🎉 SIMPLE Test completed - Basic communication works!');
         } else {
-            logBulkDomain(`❌ Test failed: ${data.error}`);
+            logBulkDomain(`❌ SIMPLE Test failed: ${data.error}`);
         }
     })
     .catch(error => {
-        logBulkDomain(`❌ Test error: ${error.message}`);
-        console.error('Test Error:', error);
+        logBulkDomain(`❌ SIMPLE Test error: ${error.message}`);
+        console.error('SIMPLE Test Error:', error);
     });
 }
 

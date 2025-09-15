@@ -3941,6 +3941,31 @@ If you received this email, the SMTP credentials are working correctly.
         app.logger.error(f"Error starting SMTP testing: {e}")
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
 
+@app.route('/api/test-simple-mega', methods=['POST'])
+@login_required
+def test_simple_mega():
+    """Simple test endpoint to verify basic functionality"""
+    try:
+        data = request.get_json()
+        accounts = data.get('accounts', [])
+        features = data.get('features', {})
+        
+        app.logger.info(f"TEST: Received {len(accounts)} accounts")
+        app.logger.info(f"TEST: Features: {features}")
+        
+        # Just return what we received for testing
+        return jsonify({
+            'success': True,
+            'message': 'Test endpoint working',
+            'received_accounts': accounts,
+            'received_features': features,
+            'total_accounts': len(accounts)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"TEST ERROR: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/mega-upgrade', methods=['POST'])
 @login_required
 def mega_upgrade():
