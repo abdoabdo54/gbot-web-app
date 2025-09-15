@@ -3988,11 +3988,15 @@ def mega_upgrade():
                     google_account = GoogleAccount.query.filter_by(account_name=account_email).first()
                     if not google_account:
                         app.logger.warning(f"Account {account_email} not found in database")
+                        app.logger.info(f"Available accounts in database:")
+                        all_accounts = GoogleAccount.query.all()
+                        for acc in all_accounts:
+                            app.logger.info(f"  - {acc.account_name}")
                         failed_accounts += 1
                         failed_details.append({
                             'account': account_email,
                             'step': 'authentication',
-                            'error': 'Account not found in database'
+                            'error': f'Account not found in database. Available accounts: {[acc.account_name for acc in all_accounts]}'
                         })
                         continue
                     
