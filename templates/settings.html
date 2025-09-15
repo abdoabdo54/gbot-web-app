@@ -536,13 +536,23 @@ function testServerConnection() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(config)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         clearInterval(progressInterval);
         progressBar.css('width', '100%');
         
         setTimeout(() => {
-            modal.hide();
+            try {
+                modal.hide();
+            } catch (e) {
+                console.warn('Modal hide failed, forcing close:', e);
+                window.forceCloseAllModals();
+            }
             
             if (data.success) {
                 showStatus('✅ ' + data.message, 'success');
@@ -554,9 +564,14 @@ function testServerConnection() {
     })
     .catch(error => {
         clearInterval(progressInterval);
-        modal.hide();
+        try {
+            modal.hide();
+        } catch (e) {
+            console.warn('Modal hide failed, forcing close:', e);
+            window.forceCloseAllModals();
+        }
         console.error('Error testing connection:', error);
-        showStatus('❌ Network error: ' + error, 'error');
+        showStatus('❌ Network error: ' + error.message, 'error');
     });
 }
 

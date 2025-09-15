@@ -1728,10 +1728,79 @@
                     setTheme(e.matches ? 'dark' : 'light');
                 }
             });
+            
+            // Force close any stuck modals on page load
+            setTimeout(function() {
+                // Close Bootstrap modals
+                const bootstrapModals = document.querySelectorAll('.modal.show');
+                bootstrapModals.forEach(function(modal) {
+                    const modalInstance = bootstrap.Modal.getInstance(modal);
+                    if (modalInstance) {
+                        modalInstance.hide();
+                    }
+                });
+                
+                // Remove modal backdrops
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(function(backdrop) {
+                    backdrop.remove();
+                });
+                
+                // Force hide any modals with display: block
+                const stuckModals = document.querySelectorAll('.modal[style*="display: block"]');
+                stuckModals.forEach(function(modal) {
+                    modal.style.display = 'none';
+                });
+                
+                // Remove any body classes that might be stuck
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+                
+                console.log('Cleared stuck modals on page load');
+            }, 100);
         });
 
         // Make toggleTheme globally available
         window.toggleTheme = toggleTheme;
+        
+        // Global function to force close all modals
+        window.forceCloseAllModals = function() {
+            // Close Bootstrap modals
+            const bootstrapModals = document.querySelectorAll('.modal.show');
+            bootstrapModals.forEach(function(modal) {
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            });
+            
+            // Remove modal backdrops
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(function(backdrop) {
+                backdrop.remove();
+            });
+            
+            // Force hide any modals with display: block
+            const stuckModals = document.querySelectorAll('.modal[style*="display: block"]');
+            stuckModals.forEach(function(modal) {
+                modal.style.display = 'none';
+            });
+            
+            // Remove any body classes that might be stuck
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            
+            console.log('Force closed all modals');
+        };
+        
+        // Add keyboard shortcut to force close modals (Escape key)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                window.forceCloseAllModals();
+            }
+        });
     </script>
     
     {% block scripts %}{% endblock %}

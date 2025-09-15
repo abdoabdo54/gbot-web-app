@@ -283,9 +283,17 @@
             e.preventDefault();
             e.stopPropagation();
             console.log('Cancel button clicked');
-            var modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
-            if (modal) {
-                modal.hide();
+            try {
+                var modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+                if (modal) {
+                    modal.hide();
+                } else {
+                    // Fallback: force close all modals
+                    window.forceCloseAllModals();
+                }
+            } catch (error) {
+                console.warn('Modal hide failed, forcing close:', error);
+                window.forceCloseAllModals();
             }
         });
 
@@ -294,9 +302,17 @@
             e.preventDefault();
             e.stopPropagation();
             console.log('Close button clicked');
-            var modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
-            if (modal) {
-                modal.hide();
+            try {
+                var modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+                if (modal) {
+                    modal.hide();
+                } else {
+                    // Fallback: force close all modals
+                    window.forceCloseAllModals();
+                }
+            } catch (error) {
+                console.warn('Modal hide failed, forcing close:', error);
+                window.forceCloseAllModals();
             }
         });
     });
