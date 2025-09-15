@@ -4770,5 +4770,120 @@ def restore_from_chunks():
         app.logger.error(f"Error restoring from chunks: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/restore-from-base64', methods=['POST'])
+@login_required
+def restore_from_base64():
+    """Restore database from base64 encoded file content"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        base64_content = data.get('content')
+        file_size = data.get('size')
+        
+        if not filename or not base64_content:
+            return jsonify({'success': False, 'error': 'Missing filename or content'})
+        
+        # Import required modules
+        import os
+        import shutil
+        import subprocess
+        import urllib.parse
+        import base64
+        
+        # Decode base64 content
+        try:
+            file_content = base64.b64decode(base64_content)
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Failed to decode base64 content: {e}'})
+        
+        # Save decoded file
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        decoded_filename = f"base64_backup_{timestamp}_{filename}"
+        decoded_path = os.path.join(backup_dir, decoded_filename)
+        
+        with open(decoded_path, 'wb') as f:
+            f.write(file_content)
+        
+        app.logger.info(f"Base64 file decoded and saved: {decoded_filename}")
+        
+        # Get file extension
+        file_ext = os.path.splitext(filename)[1].lower()
+        
+        # Get current database configuration
+        db_url = app.config['SQLALCHEMY_DATABASE_URI']
+        
+        # Create a backup of current database before restore
+        current_backup_name = f"pre_restore_backup_{timestamp}.db"
+        current_backup_path = os.path.join(backup_dir, current_backup_name)
+        
+        if db_url.startswith('sqlite'):
+            # SQLite restore
+            db_path = db_url.replace('sqlite:///', '')
+            shutil.copy2(db_path, current_backup_path)
+            shutil.copy2(decoded_path, db_path)
+            
+        elif db_url.startswith('postgresql'):
+            # PostgreSQL restore
+            parsed = urllib.parse.urlparse(db_url)
+            
+            # Create backup of current database
+            pg_dump_cmd = [
+                'pg_dump',
+                f'--host={parsed.hostname}',
+                f'--port={parsed.port}',
+                f'--username={parsed.username}',
+                f'--dbname={parsed.path[1:]}',
+                '--file', current_backup_path
+            ]
+            
+            env = os.environ.copy()
+            if parsed.password:
+                env['PGPASSWORD'] = parsed.password
+            
+            # Create current backup
+            result = subprocess.run(pg_dump_cmd, env=env, capture_output=True, text=True, timeout=300)
+            if result.returncode != 0:
+                return jsonify({'success': False, 'error': f'Failed to create current backup: {result.stderr}'})
+            
+            # Restore from decoded file
+            if file_ext == '.sql':
+                psql_cmd = [
+                    'psql',
+                    f'--host={parsed.hostname}',
+                    f'--port={parsed.port}',
+                    f'--username={parsed.username}',
+                    f'--dbname={parsed.path[1:]}',
+                    '--file', decoded_path
+                ]
+                
+                result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                if result.returncode != 0:
+                    return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+            else:
+                return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
+        
+        else:
+            return jsonify({'success': False, 'error': 'Unsupported database type'})
+        
+        # Clear SQLAlchemy session to force reload
+        db.session.remove()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Database restored successfully from base64 upload: {filename}',
+            'decoded_file': decoded_filename,
+            'current_backup': current_backup_name
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error restoring from base64: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 if __name__ == '__main__':
     app.run(debug=True)
