@@ -4874,26 +4874,47 @@ def restore_from_base64():
             psql_path = None
             
             try:
-                # Simple detection - just try to run the commands
-                try:
-                    result = subprocess.run(['pg_dump', '--version'], capture_output=True, text=True, timeout=5)
-                    if result.returncode == 0:
-                        pg_dump_path = 'pg_dump'
-                        app.logger.info(f"pg_dump found: {result.stdout.strip()}")
-                    else:
-                        app.logger.warning(f"pg_dump failed with return code {result.returncode}")
-                except Exception as e:
-                    app.logger.warning(f"pg_dump not available: {e}")
+                # Enhanced detection - check multiple common paths
+                common_paths = [
+                    '/usr/bin/pg_dump',
+                    '/usr/local/bin/pg_dump',
+                    '/opt/postgresql/bin/pg_dump',
+                    'pg_dump'  # Try PATH
+                ]
                 
-                try:
-                    result = subprocess.run(['psql', '--version'], capture_output=True, text=True, timeout=5)
-                    if result.returncode == 0:
-                        psql_path = 'psql'
-                        app.logger.info(f"psql found: {result.stdout.strip()}")
-                    else:
-                        app.logger.warning(f"psql failed with return code {result.returncode}")
-                except Exception as e:
-                    app.logger.warning(f"psql not available: {e}")
+                for path in common_paths:
+                    try:
+                        result = subprocess.run([path, '--version'], capture_output=True, text=True, timeout=5)
+                        if result.returncode == 0:
+                            pg_dump_path = path
+                            app.logger.info(f"pg_dump found at {path}: {result.stdout.strip()}")
+                            break
+                    except Exception as e:
+                        app.logger.debug(f"pg_dump not found at {path}: {e}")
+                
+                if not pg_dump_path:
+                    app.logger.warning("pg_dump not found in any common location")
+                
+                # Check for psql
+                common_paths = [
+                    '/usr/bin/psql',
+                    '/usr/local/bin/psql',
+                    '/opt/postgresql/bin/psql',
+                    'psql'  # Try PATH
+                ]
+                
+                for path in common_paths:
+                    try:
+                        result = subprocess.run([path, '--version'], capture_output=True, text=True, timeout=5)
+                        if result.returncode == 0:
+                            psql_path = path
+                            app.logger.info(f"psql found at {path}: {result.stdout.strip()}")
+                            break
+                    except Exception as e:
+                        app.logger.debug(f"psql not found at {path}: {e}")
+                
+                if not psql_path:
+                    app.logger.warning("psql not found in any common location")
                 
                 if pg_dump_path and psql_path:
                     pg_tools_available = True
@@ -5000,11 +5021,11 @@ def restore_from_base64():
                             return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
                     else:
                         sudo_cmd = 'sudo apt-get install postgresql-client' if not is_root else 'apt-get install postgresql-client'
-                        return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {result.stderr}. Please install them manually: {sudo_cmd}'})
+                        return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {result.stderr}. PostgreSQL client tools are installed but not detected. Please check PATH or install manually: sudo apt-get install postgresql-client'})
                         
                 except Exception as e:
                     sudo_cmd = 'sudo apt-get install postgresql-client' if not is_root else 'apt-get install postgresql-client'
-                    return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {str(e)}. Please install them manually: {sudo_cmd}'})
+                    return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {str(e)}. PostgreSQL client tools are installed but not detected. Please check PATH or install manually: sudo apt-get install postgresql-client'})
         
         else:
             return jsonify({'success': False, 'error': 'Unsupported database type'})
@@ -5143,26 +5164,47 @@ def restore_from_base64_chunks():
             psql_path = None
             
             try:
-                # Simple detection - just try to run the commands
-                try:
-                    result = subprocess.run(['pg_dump', '--version'], capture_output=True, text=True, timeout=5)
-                    if result.returncode == 0:
-                        pg_dump_path = 'pg_dump'
-                        app.logger.info(f"pg_dump found: {result.stdout.strip()}")
-                    else:
-                        app.logger.warning(f"pg_dump failed with return code {result.returncode}")
-                except Exception as e:
-                    app.logger.warning(f"pg_dump not available: {e}")
+                # Enhanced detection - check multiple common paths
+                common_paths = [
+                    '/usr/bin/pg_dump',
+                    '/usr/local/bin/pg_dump',
+                    '/opt/postgresql/bin/pg_dump',
+                    'pg_dump'  # Try PATH
+                ]
                 
-                try:
-                    result = subprocess.run(['psql', '--version'], capture_output=True, text=True, timeout=5)
-                    if result.returncode == 0:
-                        psql_path = 'psql'
-                        app.logger.info(f"psql found: {result.stdout.strip()}")
-                    else:
-                        app.logger.warning(f"psql failed with return code {result.returncode}")
-                except Exception as e:
-                    app.logger.warning(f"psql not available: {e}")
+                for path in common_paths:
+                    try:
+                        result = subprocess.run([path, '--version'], capture_output=True, text=True, timeout=5)
+                        if result.returncode == 0:
+                            pg_dump_path = path
+                            app.logger.info(f"pg_dump found at {path}: {result.stdout.strip()}")
+                            break
+                    except Exception as e:
+                        app.logger.debug(f"pg_dump not found at {path}: {e}")
+                
+                if not pg_dump_path:
+                    app.logger.warning("pg_dump not found in any common location")
+                
+                # Check for psql
+                common_paths = [
+                    '/usr/bin/psql',
+                    '/usr/local/bin/psql',
+                    '/opt/postgresql/bin/psql',
+                    'psql'  # Try PATH
+                ]
+                
+                for path in common_paths:
+                    try:
+                        result = subprocess.run([path, '--version'], capture_output=True, text=True, timeout=5)
+                        if result.returncode == 0:
+                            psql_path = path
+                            app.logger.info(f"psql found at {path}: {result.stdout.strip()}")
+                            break
+                    except Exception as e:
+                        app.logger.debug(f"psql not found at {path}: {e}")
+                
+                if not psql_path:
+                    app.logger.warning("psql not found in any common location")
                 
                 if pg_dump_path and psql_path:
                     pg_tools_available = True
@@ -5269,11 +5311,11 @@ def restore_from_base64_chunks():
                             return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
                     else:
                         sudo_cmd = 'sudo apt-get install postgresql-client' if not is_root else 'apt-get install postgresql-client'
-                        return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {result.stderr}. Please install them manually: {sudo_cmd}'})
+                        return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {result.stderr}. PostgreSQL client tools are installed but not detected. Please check PATH or install manually: sudo apt-get install postgresql-client'})
                         
                 except Exception as e:
                     sudo_cmd = 'sudo apt-get install postgresql-client' if not is_root else 'apt-get install postgresql-client'
-                    return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {str(e)}. Please install them manually: {sudo_cmd}'})
+                    return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {str(e)}. PostgreSQL client tools are installed but not detected. Please check PATH or install manually: sudo apt-get install postgresql-client'})
         
         else:
             return jsonify({'success': False, 'error': 'Unsupported database type'})
