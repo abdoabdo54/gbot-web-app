@@ -4868,41 +4868,102 @@ def restore_from_base64():
             # PostgreSQL restore
             parsed = urllib.parse.urlparse(db_url)
             
-            # Create backup of current database
-            pg_dump_cmd = [
-                'pg_dump',
-                f'--host={parsed.hostname}',
-                f'--port={parsed.port}',
-                f'--username={parsed.username}',
-                f'--dbname={parsed.path[1:]}',
-                '--file', current_backup_path
-            ]
+            # Check if PostgreSQL tools are available
+            try:
+                subprocess.run(['pg_dump', '--version'], capture_output=True, check=True)
+                subprocess.run(['psql', '--version'], capture_output=True, check=True)
+                pg_tools_available = True
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                pg_tools_available = False
+                app.logger.warning("PostgreSQL tools (pg_dump, psql) not available, using Python-based restore")
             
-            env = os.environ.copy()
-            if parsed.password:
-                env['PGPASSWORD'] = parsed.password
-            
-            # Create current backup
-            result = subprocess.run(pg_dump_cmd, env=env, capture_output=True, text=True, timeout=300)
-            if result.returncode != 0:
-                return jsonify({'success': False, 'error': f'Failed to create current backup: {result.stderr}'})
-            
-            # Restore from decoded file
-            if file_ext == '.sql':
-                psql_cmd = [
-                    'psql',
+            if pg_tools_available:
+                # Use PostgreSQL command-line tools
+                # Create backup of current database
+                pg_dump_cmd = [
+                    'pg_dump',
                     f'--host={parsed.hostname}',
                     f'--port={parsed.port}',
                     f'--username={parsed.username}',
                     f'--dbname={parsed.path[1:]}',
-                    '--file', decoded_path
+                    '--file', current_backup_path
                 ]
                 
-                result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                env = os.environ.copy()
+                if parsed.password:
+                    env['PGPASSWORD'] = parsed.password
+                
+                # Create current backup
+                result = subprocess.run(pg_dump_cmd, env=env, capture_output=True, text=True, timeout=300)
                 if result.returncode != 0:
-                    return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+                    return jsonify({'success': False, 'error': f'Failed to create current backup: {result.stderr}'})
+                
+                # Restore from decoded file
+                if file_ext == '.sql':
+                    psql_cmd = [
+                        'psql',
+                        f'--host={parsed.hostname}',
+                        f'--port={parsed.port}',
+                        f'--username={parsed.username}',
+                        f'--dbname={parsed.path[1:]}',
+                        '--file', decoded_path
+                    ]
+                    
+                    result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                    if result.returncode != 0:
+                        return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+                else:
+                    return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
             else:
-                return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
+                # PostgreSQL tools not available - try to install them
+                app.logger.info("PostgreSQL client tools not found, attempting to install...")
+                try:
+                    # Try to install PostgreSQL client tools
+                    install_cmd = ['sudo', 'apt-get', 'update', '&&', 'sudo', 'apt-get', 'install', '-y', 'postgresql-client']
+                    result = subprocess.run(' '.join(install_cmd), shell=True, capture_output=True, text=True, timeout=300)
+                    
+                    if result.returncode == 0:
+                        app.logger.info("PostgreSQL client tools installed successfully")
+                        # Retry with command-line tools
+                        pg_dump_cmd = [
+                            'pg_dump',
+                            f'--host={parsed.hostname}',
+                            f'--port={parsed.port}',
+                            f'--username={parsed.username}',
+                            f'--dbname={parsed.path[1:]}',
+                            '--file', current_backup_path
+                        ]
+                        
+                        env = os.environ.copy()
+                        if parsed.password:
+                            env['PGPASSWORD'] = parsed.password
+                        
+                        # Create current backup
+                        result = subprocess.run(pg_dump_cmd, env=env, capture_output=True, text=True, timeout=300)
+                        if result.returncode != 0:
+                            return jsonify({'success': False, 'error': f'Failed to create current backup: {result.stderr}'})
+                        
+                        # Restore from decoded file
+                        if file_ext == '.sql':
+                            psql_cmd = [
+                                'psql',
+                                f'--host={parsed.hostname}',
+                                f'--port={parsed.port}',
+                                f'--username={parsed.username}',
+                                f'--dbname={parsed.path[1:]}',
+                                '--file', decoded_path
+                            ]
+                            
+                            result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                            if result.returncode != 0:
+                                return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+                        else:
+                            return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
+                    else:
+                        return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {result.stderr}. Please install them manually: sudo apt-get install postgresql-client'})
+                        
+                except Exception as e:
+                    return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {str(e)}. Please install them manually: sudo apt-get install postgresql-client'})
         
         else:
             return jsonify({'success': False, 'error': 'Unsupported database type'})
@@ -5078,41 +5139,102 @@ def restore_from_base64_chunks():
             # PostgreSQL restore
             parsed = urllib.parse.urlparse(db_url)
             
-            # Create backup of current database
-            pg_dump_cmd = [
-                'pg_dump',
-                f'--host={parsed.hostname}',
-                f'--port={parsed.port}',
-                f'--username={parsed.username}',
-                f'--dbname={parsed.path[1:]}',
-                '--file', current_backup_path
-            ]
+            # Check if PostgreSQL tools are available
+            try:
+                subprocess.run(['pg_dump', '--version'], capture_output=True, check=True)
+                subprocess.run(['psql', '--version'], capture_output=True, check=True)
+                pg_tools_available = True
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                pg_tools_available = False
+                app.logger.warning("PostgreSQL tools (pg_dump, psql) not available, using Python-based restore")
             
-            env = os.environ.copy()
-            if parsed.password:
-                env['PGPASSWORD'] = parsed.password
-            
-            # Create current backup
-            result = subprocess.run(pg_dump_cmd, env=env, capture_output=True, text=True, timeout=300)
-            if result.returncode != 0:
-                return jsonify({'success': False, 'error': f'Failed to create current backup: {result.stderr}'})
-            
-            # Restore from decoded file
-            if file_ext == '.sql':
-                psql_cmd = [
-                    'psql',
+            if pg_tools_available:
+                # Use PostgreSQL command-line tools
+                # Create backup of current database
+                pg_dump_cmd = [
+                    'pg_dump',
                     f'--host={parsed.hostname}',
                     f'--port={parsed.port}',
                     f'--username={parsed.username}',
                     f'--dbname={parsed.path[1:]}',
-                    '--file', decoded_path
+                    '--file', current_backup_path
                 ]
                 
-                result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                env = os.environ.copy()
+                if parsed.password:
+                    env['PGPASSWORD'] = parsed.password
+                
+                # Create current backup
+                result = subprocess.run(pg_dump_cmd, env=env, capture_output=True, text=True, timeout=300)
                 if result.returncode != 0:
-                    return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+                    return jsonify({'success': False, 'error': f'Failed to create current backup: {result.stderr}'})
+                
+                # Restore from decoded file
+                if file_ext == '.sql':
+                    psql_cmd = [
+                        'psql',
+                        f'--host={parsed.hostname}',
+                        f'--port={parsed.port}',
+                        f'--username={parsed.username}',
+                        f'--dbname={parsed.path[1:]}',
+                        '--file', decoded_path
+                    ]
+                    
+                    result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                    if result.returncode != 0:
+                        return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+                else:
+                    return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
             else:
-                return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
+                # PostgreSQL tools not available - try to install them
+                app.logger.info("PostgreSQL client tools not found, attempting to install...")
+                try:
+                    # Try to install PostgreSQL client tools
+                    install_cmd = ['sudo', 'apt-get', 'update', '&&', 'sudo', 'apt-get', 'install', '-y', 'postgresql-client']
+                    result = subprocess.run(' '.join(install_cmd), shell=True, capture_output=True, text=True, timeout=300)
+                    
+                    if result.returncode == 0:
+                        app.logger.info("PostgreSQL client tools installed successfully")
+                        # Retry with command-line tools
+                        pg_dump_cmd = [
+                            'pg_dump',
+                            f'--host={parsed.hostname}',
+                            f'--port={parsed.port}',
+                            f'--username={parsed.username}',
+                            f'--dbname={parsed.path[1:]}',
+                            '--file', current_backup_path
+                        ]
+                        
+                        env = os.environ.copy()
+                        if parsed.password:
+                            env['PGPASSWORD'] = parsed.password
+                        
+                        # Create current backup
+                        result = subprocess.run(pg_dump_cmd, env=env, capture_output=True, text=True, timeout=300)
+                        if result.returncode != 0:
+                            return jsonify({'success': False, 'error': f'Failed to create current backup: {result.stderr}'})
+                        
+                        # Restore from decoded file
+                        if file_ext == '.sql':
+                            psql_cmd = [
+                                'psql',
+                                f'--host={parsed.hostname}',
+                                f'--port={parsed.port}',
+                                f'--username={parsed.username}',
+                                f'--dbname={parsed.path[1:]}',
+                                '--file', decoded_path
+                            ]
+                            
+                            result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                            if result.returncode != 0:
+                                return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+                        else:
+                            return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
+                    else:
+                        return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {result.stderr}. Please install them manually: sudo apt-get install postgresql-client'})
+                        
+                except Exception as e:
+                    return jsonify({'success': False, 'error': f'Failed to install PostgreSQL client tools: {str(e)}. Please install them manually: sudo apt-get install postgresql-client'})
         
         else:
             return jsonify({'success': False, 'error': 'Unsupported database type'})
