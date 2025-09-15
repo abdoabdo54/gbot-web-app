@@ -4400,10 +4400,10 @@ def restore_backup():
             # Create backup of current database
             pg_dump_cmd = [
                 'pg_dump',
-                f'--host={parsed.hostname}',
-                f'--port={parsed.port}',
-                f'--username={parsed.username}',
-                f'--dbname={parsed.path[1:]}',
+                f'--host={parsed.hostname or "localhost"}',
+                f'--port={parsed.port or 5432}',
+                f'--username={parsed.username or "postgres"}',
+                f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                 '--file', current_backup_path
             ]
             
@@ -4421,10 +4421,10 @@ def restore_backup():
                 # SQL file restore
                 psql_cmd = [
                     psql_path,
-                    f'--host={parsed.hostname}',
-                    f'--port={parsed.port}',
-                    f'--username={parsed.username}',
-                    f'--dbname={parsed.path[1:]}',
+                    f'--host={parsed.hostname or "localhost"}',
+                    f'--port={parsed.port or 5432}',
+                    f'--username={parsed.username or "postgres"}',
+                    f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                     '--file', backup_path
                 ]
                 
@@ -4542,10 +4542,10 @@ def upload_restore_backup():
             # Create backup of current database
             pg_dump_cmd = [
                 'pg_dump',
-                f'--host={parsed.hostname}',
-                f'--port={parsed.port}',
-                f'--username={parsed.username}',
-                f'--dbname={parsed.path[1:]}',
+                f'--host={parsed.hostname or "localhost"}',
+                f'--port={parsed.port or 5432}',
+                f'--username={parsed.username or "postgres"}',
+                f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                 '--file', current_backup_path
             ]
             
@@ -4563,10 +4563,10 @@ def upload_restore_backup():
                 # SQL file restore
                 psql_cmd = [
                     psql_path,
-                    f'--host={parsed.hostname}',
-                    f'--port={parsed.port}',
-                    f'--username={parsed.username}',
-                    f'--dbname={parsed.path[1:]}',
+                    f'--host={parsed.hostname or "localhost"}',
+                    f'--port={parsed.port or 5432}',
+                    f'--username={parsed.username or "postgres"}',
+                    f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                     '--file', uploaded_path
                 ]
                 
@@ -4717,10 +4717,10 @@ def restore_from_chunks():
             # Create backup of current database
             pg_dump_cmd = [
                 'pg_dump',
-                f'--host={parsed.hostname}',
-                f'--port={parsed.port}',
-                f'--username={parsed.username}',
-                f'--dbname={parsed.path[1:]}',
+                f'--host={parsed.hostname or "localhost"}',
+                f'--port={parsed.port or 5432}',
+                f'--username={parsed.username or "postgres"}',
+                f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                 '--file', current_backup_path
             ]
             
@@ -4737,10 +4737,10 @@ def restore_from_chunks():
             if file_ext == '.sql':
                 psql_cmd = [
                     psql_path,
-                    f'--host={parsed.hostname}',
-                    f'--port={parsed.port}',
-                    f'--username={parsed.username}',
-                    f'--dbname={parsed.path[1:]}',
+                    f'--host={parsed.hostname or "localhost"}',
+                    f'--port={parsed.port or 5432}',
+                    f'--username={parsed.username or "postgres"}',
+                    f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                     '--file', reassembled_path
                 ]
                 
@@ -4970,10 +4970,10 @@ def restore_from_base64():
                 # Create backup of current database
                 pg_dump_cmd = [
                     pg_dump_path,
-                    f'--host={parsed.hostname}',
-                    f'--port={parsed.port}',
-                    f'--username={parsed.username}',
-                    f'--dbname={parsed.path[1:]}',
+                    f'--host={parsed.hostname or "localhost"}',
+                    f'--port={parsed.port or 5432}',
+                    f'--username={parsed.username or "postgres"}',
+                    f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                     '--file', current_backup_path
                 ]
                 
@@ -4990,10 +4990,10 @@ def restore_from_base64():
                 if file_ext == '.sql':
                     psql_cmd = [
                         psql_path,
-                        f'--host={parsed.hostname}',
-                        f'--port={parsed.port}',
-                        f'--username={parsed.username}',
-                        f'--dbname={parsed.path[1:]}',
+                        f'--host={parsed.hostname or "localhost"}',
+                        f'--port={parsed.port or 5432}',
+                        f'--username={parsed.username or "postgres"}',
+                        f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                         '--file', decoded_path
                     ]
                     
@@ -5026,10 +5026,10 @@ def restore_from_base64():
                         # Retry with command-line tools
                         pg_dump_cmd = [
                             'pg_dump',
-                            f'--host={parsed.hostname}',
-                            f'--port={parsed.port}',
-                            f'--username={parsed.username}',
-                            f'--dbname={parsed.path[1:]}',
+                            f'--host={parsed.hostname or "localhost"}',
+                            f'--port={parsed.port or 5432}',
+                            f'--username={parsed.username or "postgres"}',
+                            f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                             '--file', current_backup_path
                         ]
                         
@@ -5046,10 +5046,10 @@ def restore_from_base64():
                         if file_ext == '.sql':
                             psql_cmd = [
                                 'psql',
-                                f'--host={parsed.hostname}',
-                                f'--port={parsed.port}',
-                                f'--username={parsed.username}',
-                                f'--dbname={parsed.path[1:]}',
+                                f'--host={parsed.hostname or "localhost"}',
+                                f'--port={parsed.port or 5432}',
+                                f'--username={parsed.username or "postgres"}',
+                                f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                                 '--file', decoded_path
                             ]
                             
@@ -5299,10 +5299,10 @@ def restore_from_base64_chunks():
                 # Create backup of current database
                 pg_dump_cmd = [
                     pg_dump_path,
-                    f'--host={parsed.hostname}',
-                    f'--port={parsed.port}',
-                    f'--username={parsed.username}',
-                    f'--dbname={parsed.path[1:]}',
+                    f'--host={parsed.hostname or "localhost"}',
+                    f'--port={parsed.port or 5432}',
+                    f'--username={parsed.username or "postgres"}',
+                    f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                     '--file', current_backup_path
                 ]
                 
@@ -5319,10 +5319,10 @@ def restore_from_base64_chunks():
                 if file_ext == '.sql':
                     psql_cmd = [
                         psql_path,
-                        f'--host={parsed.hostname}',
-                        f'--port={parsed.port}',
-                        f'--username={parsed.username}',
-                        f'--dbname={parsed.path[1:]}',
+                        f'--host={parsed.hostname or "localhost"}',
+                        f'--port={parsed.port or 5432}',
+                        f'--username={parsed.username or "postgres"}',
+                        f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                         '--file', decoded_path
                     ]
                     
@@ -5355,10 +5355,10 @@ def restore_from_base64_chunks():
                         # Retry with command-line tools
                         pg_dump_cmd = [
                             'pg_dump',
-                            f'--host={parsed.hostname}',
-                            f'--port={parsed.port}',
-                            f'--username={parsed.username}',
-                            f'--dbname={parsed.path[1:]}',
+                            f'--host={parsed.hostname or "localhost"}',
+                            f'--port={parsed.port or 5432}',
+                            f'--username={parsed.username or "postgres"}',
+                            f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                             '--file', current_backup_path
                         ]
                         
@@ -5375,10 +5375,10 @@ def restore_from_base64_chunks():
                         if file_ext == '.sql':
                             psql_cmd = [
                                 'psql',
-                                f'--host={parsed.hostname}',
-                                f'--port={parsed.port}',
-                                f'--username={parsed.username}',
-                                f'--dbname={parsed.path[1:]}',
+                                f'--host={parsed.hostname or "localhost"}',
+                                f'--port={parsed.port or 5432}',
+                                f'--username={parsed.username or "postgres"}',
+                                f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                                 '--file', decoded_path
                             ]
                             
