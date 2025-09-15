@@ -270,7 +270,8 @@
                 </label>
                 <input type="file" class="form-control-github" id="backup_file" accept=".sql,.db,.json,.tar.gz">
                 <small style="color: #656d76; font-size: 12px;">
-                    Supported formats: .sql, .db, .json, .tar.gz
+                    Supported formats: .sql, .db, .json, .tar.gz<br>
+                    <strong>Maximum file size: 500MB</strong> - Large files will be rejected automatically
                 </small>
             </div>
         </div>
@@ -1400,6 +1401,13 @@ function restoreDatabase() {
             return;
         }
         
+        // Check file size (500MB limit)
+        const maxSize = 500 * 1024 * 1024; // 500MB in bytes
+        if (file.size > maxSize) {
+            showStatus('❌ File too large. Maximum file size is 500MB. Please compress your backup file or use a smaller backup.', 'error');
+            return;
+        }
+        
         // Show progress
         $('#restore-progress').show();
         $('#restore-progress-text').text('Uploading and restoring backup...');
@@ -1419,6 +1427,9 @@ function restoreDatabase() {
             console.log('Response headers:', response.headers);
             
             if (!response.ok) {
+                if (response.status === 413) {
+                    throw new Error('File too large. Maximum file size is 500MB. Please compress your backup file or use a smaller backup.');
+                }
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
@@ -1471,6 +1482,13 @@ function testUpload() {
         return;
     }
     
+    // Check file size (500MB limit)
+    const maxSize = 500 * 1024 * 1024; // 500MB in bytes
+    if (file.size > maxSize) {
+        showStatus('❌ File too large. Maximum file size is 500MB. Please compress your backup file or use a smaller backup.', 'error');
+        return;
+    }
+    
     console.log('Testing upload with file:', file.name, 'Size:', file.size, 'Type:', file.type);
     
     // Create form data
@@ -1487,6 +1505,9 @@ function testUpload() {
         console.log('Test response headers:', response.headers);
         
         if (!response.ok) {
+            if (response.status === 413) {
+                throw new Error('File too large. Maximum file size is 500MB. Please compress your backup file or use a smaller backup.');
+            }
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         

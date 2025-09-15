@@ -113,7 +113,20 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
 
+# Configure file upload settings
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
+app.config['UPLOAD_FOLDER'] = 'backups'
+
 db.init_app(app)
+
+# Custom error handler for file size limit exceeded
+@app.errorhandler(413)
+def too_large(e):
+    app.logger.warning(f"File upload too large from {request.remote_addr}")
+    return jsonify({
+        'success': False, 
+        'error': 'File too large. Maximum file size is 500MB. Please compress your backup file or use a smaller backup.'
+    }), 413
 
 # Production logging configuration
 if not app.debug:
