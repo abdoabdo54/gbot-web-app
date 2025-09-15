@@ -270,8 +270,7 @@
                 </label>
                 <input type="file" class="form-control-github" id="backup_file" accept=".sql,.db,.json,.tar.gz">
                 <small style="color: #656d76; font-size: 12px;">
-                    Supported formats: .sql, .db, .json, .tar.gz<br>
-                    <strong>Maximum file size: 1GB</strong> - Large files will be rejected automatically
+                    Supported formats: .sql, .db, .json, .tar.gz
                 </small>
             </div>
         </div>
@@ -1425,9 +1424,6 @@ function restoreDatabase() {
             console.log('Response headers:', response.headers);
             
             if (!response.ok) {
-                if (response.status === 413) {
-                    throw new Error('File too large. Maximum file size is 1GB. Please compress your backup file or use a smaller backup.');
-                }
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
