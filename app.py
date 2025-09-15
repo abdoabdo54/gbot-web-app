@@ -4232,18 +4232,18 @@ def api_refresh_domain_status():
         # Get all domains from database
         domains = UsedDomain.query.all()
         domain_dict = {domain.domain_name: domain for domain in domains}
-            
-            # Count users per domain
-            domain_user_counts = {}
-            for user in users:
-                email = user.get('primaryEmail', '')
-                if '@' in email:
-                    domain = email.split('@')[1]
-                    domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+        
+        # Count users per domain
+        domain_user_counts = {}
+        for user in users:
+            email = user.get('primaryEmail', '')
+            if '@' in email:
+                domain = email.split('@')[1]
+                domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
             
         # Update domain statuses
-            updated_domains = []
-            for domain_name, user_count in domain_user_counts.items():
+        updated_domains = []
+        for domain_name, user_count in domain_user_counts.items():
             if domain_name in domain_dict:
                 domain = domain_dict[domain_name]
                 old_count = domain.user_count
@@ -4254,14 +4254,14 @@ def api_refresh_domain_status():
                     'old_count': old_count,
                     'new_count': user_count
                 })
-                    else:
+            else:
                 # Create new domain entry
-                        new_domain = UsedDomain(
-                            domain_name=domain_name,
-                            user_count=user_count,
+                new_domain = UsedDomain(
+                    domain_name=domain_name,
+                    user_count=user_count,
                     ever_used=True
-                        )
-                        db.session.add(new_domain)
+                )
+                db.session.add(new_domain)
                 updated_domains.append({
                     'domain': domain_name,
                     'old_count': 0,
@@ -4431,7 +4431,7 @@ def restore_backup():
                 result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
                 if result.returncode != 0:
                     return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
-        else:
+            else:
                 return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
         
         else:
@@ -4880,7 +4880,7 @@ def restore_from_base64():
                     if result.returncode == 0:
                         pg_dump_path = 'pg_dump'
                         app.logger.info(f"pg_dump found: {result.stdout.strip()}")
-                else:
+                    else:
                         app.logger.warning(f"pg_dump failed with return code {result.returncode}")
                 except Exception as e:
                     app.logger.warning(f"pg_dump not available: {e}")
@@ -4890,7 +4890,7 @@ def restore_from_base64():
                     if result.returncode == 0:
                         psql_path = 'psql'
                         app.logger.info(f"psql found: {result.stdout.strip()}")
-                else:
+                    else:
                         app.logger.warning(f"psql failed with return code {result.returncode}")
                 except Exception as e:
                     app.logger.warning(f"psql not available: {e}")
@@ -5012,8 +5012,8 @@ def restore_from_base64():
         # Clear SQLAlchemy session to force reload
         db.session.remove()
         
-            return jsonify({
-                'success': True,
+        return jsonify({
+            'success': True,
             'message': f'Database restored successfully from base64 upload: {filename}',
             'decoded_file': decoded_filename,
             'current_backup': current_backup_name
@@ -5021,49 +5021,6 @@ def restore_from_base64():
         
     except Exception as e:
         app.logger.error(f"Error restoring from base64: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/upload-base64-chunk', methods=['POST'])
-@login_required
-def upload_base64_chunk():
-    """Upload a base64 chunk for chunked base64 upload"""
-    if session.get('role') != 'admin':
-        return jsonify({'success': False, 'error': 'Admin privileges required'})
-    
-    try:
-        data = request.get_json()
-        upload_id = data.get('upload_id')
-        chunk_index = data.get('chunk_index')
-        total_chunks = data.get('total_chunks')
-        filename = data.get('filename')
-        chunk_content = data.get('chunk_content')
-        
-        if not all([upload_id, chunk_index is not None, total_chunks, filename, chunk_content]):
-            return jsonify({'success': False, 'error': 'Missing required fields'})
-        
-        # Import required modules
-        import os
-        
-        # Create chunks directory
-        chunks_dir = os.path.join(os.path.dirname(__file__), 'chunks', upload_id)
-        os.makedirs(chunks_dir, exist_ok=True)
-        
-        # Save chunk
-        chunk_path = os.path.join(chunks_dir, f'base64_chunk_{chunk_index}')
-        with open(chunk_path, 'w') as f:
-            f.write(chunk_content)
-        
-        app.logger.info(f"Base64 chunk {chunk_index + 1}/{total_chunks} uploaded for {filename}")
-        
-        return jsonify({
-            'success': True,
-            'message': f'Base64 chunk {chunk_index + 1}/{total_chunks} uploaded',
-            'chunk_index': chunk_index,
-            'total_chunks': total_chunks
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error uploading base64 chunk: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/restore-from-base64-chunks', methods=['POST'])
@@ -5327,8 +5284,8 @@ def restore_from_base64_chunks():
         # Clean up chunks
         shutil.rmtree(chunks_dir, ignore_errors=True)
         
-                return jsonify({
-                    'success': True,
+        return jsonify({
+            'success': True,
             'message': f'Database restored successfully from chunked base64 upload: {filename}',
             'decoded_file': decoded_filename,
             'current_backup': current_backup_name
