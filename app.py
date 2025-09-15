@@ -4446,6 +4446,30 @@ def restore_backup():
         app.logger.error(f"Error restoring backup: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/test-upload', methods=['POST'])
+@login_required
+def test_upload():
+    """Test endpoint to debug upload issues"""
+    try:
+        app.logger.info(f"Test upload request received from {request.remote_addr}")
+        app.logger.info(f"Request files: {list(request.files.keys())}")
+        app.logger.info(f"Request content type: {request.content_type}")
+        
+        if 'backup_file' in request.files:
+            backup_file = request.files['backup_file']
+            app.logger.info(f"Test file received: {backup_file.filename}")
+            return jsonify({
+                'success': True,
+                'message': 'Test upload successful',
+                'filename': backup_file.filename,
+                'content_type': backup_file.content_type
+            })
+        else:
+            return jsonify({'success': False, 'error': 'No file in request'})
+    except Exception as e:
+        app.logger.error(f"Test upload error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/upload-restore-backup', methods=['POST'])
 @login_required
 def upload_restore_backup():
@@ -4454,17 +4478,36 @@ def upload_restore_backup():
         return jsonify({'success': False, 'error': 'Admin privileges required'})
     
     try:
+        app.logger.info(f"Upload restore backup request received from {request.remote_addr}")
+        app.logger.info(f"Request files: {list(request.files.keys())}")
+        app.logger.info(f"Request content type: {request.content_type}")
+        
         if 'backup_file' not in request.files:
+            app.logger.error("No backup_file in request.files")
             return jsonify({'success': False, 'error': 'No backup file provided'})
         
         backup_file = request.files['backup_file']
+        app.logger.info(f"Backup file received: {backup_file.filename}")
+        
         if backup_file.filename == '':
+            app.logger.error("Empty filename")
             return jsonify({'success': False, 'error': 'No file selected'})
         
         # Validate file extension
         allowed_extensions = {'.sql', '.db', '.json', '.tar.gz'}
-        file_ext = os.path.splitext(backup_file.filename)[1].lower()
+        filename = backup_file.filename.lower()
+        
+        # Check for .tar.gz first (special case)
+        if filename.endswith('.tar.gz'):
+            file_ext = '.tar.gz'
+        else:
+            file_ext = os.path.splitext(filename)[1]
+        
+        app.logger.info(f"Original filename: {backup_file.filename}")
+        app.logger.info(f"Detected extension: {file_ext}, Allowed: {allowed_extensions}")
+        
         if file_ext not in allowed_extensions:
+            app.logger.error(f"Invalid file extension: {file_ext}")
             return jsonify({'success': False, 'error': f'Invalid file type. Allowed: {", ".join(allowed_extensions)}'})
         
         import os
@@ -4482,6 +4525,15 @@ def upload_restore_backup():
         uploaded_path = os.path.join(backup_dir, uploaded_filename)
         
         backup_file.save(uploaded_path)
+        app.logger.info(f"File saved to: {uploaded_path}")
+        
+        # Verify file was saved
+        if not os.path.exists(uploaded_path):
+            app.logger.error(f"File was not saved successfully: {uploaded_path}")
+            return jsonify({'success': False, 'error': 'Failed to save uploaded file'})
+        
+        file_size = os.path.getsize(uploaded_path)
+        app.logger.info(f"Uploaded file size: {file_size} bytes")
         
         # Get current database configuration
         db_url = app.config['SQLALCHEMY_DATABASE_URI']
