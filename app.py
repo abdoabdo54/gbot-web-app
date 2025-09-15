@@ -4593,5 +4593,167 @@ def upload_restore_backup():
         app.logger.error(f"Error uploading and restoring backup: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/upload-chunk', methods=['POST'])
+@login_required
+def upload_chunk():
+    """Upload a file chunk for chunked upload"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        upload_id = request.form.get('upload_id')
+        chunk_index = int(request.form.get('chunk_index'))
+        total_chunks = int(request.form.get('total_chunks'))
+        filename = request.form.get('filename')
+        
+        if 'chunk' not in request.files:
+            return jsonify({'success': False, 'error': 'No chunk provided'})
+        
+        chunk = request.files['chunk']
+        
+        # Import required modules
+        import os
+        
+        # Create chunks directory
+        chunks_dir = os.path.join(os.path.dirname(__file__), 'chunks', upload_id)
+        os.makedirs(chunks_dir, exist_ok=True)
+        
+        # Save chunk
+        chunk_path = os.path.join(chunks_dir, f'chunk_{chunk_index}')
+        chunk.save(chunk_path)
+        
+        app.logger.info(f"Chunk {chunk_index + 1}/{total_chunks} uploaded for {filename}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Chunk {chunk_index + 1}/{total_chunks} uploaded',
+            'chunk_index': chunk_index,
+            'total_chunks': total_chunks
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error uploading chunk: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/restore-from-chunks', methods=['POST'])
+@login_required
+def restore_from_chunks():
+    """Restore database from uploaded chunks"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        data = request.get_json()
+        upload_id = data.get('upload_id')
+        filename = data.get('filename')
+        total_chunks = data.get('total_chunks')
+        
+        # Import required modules
+        import os
+        import shutil
+        import subprocess
+        import urllib.parse
+        
+        # Create chunks directory path
+        chunks_dir = os.path.join(os.path.dirname(__file__), 'chunks', upload_id)
+        
+        # Verify all chunks exist
+        for i in range(total_chunks):
+            chunk_path = os.path.join(chunks_dir, f'chunk_{i}')
+            if not os.path.exists(chunk_path):
+                return jsonify({'success': False, 'error': f'Chunk {i} not found'})
+        
+        # Reassemble file
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        reassembled_filename = f"chunked_backup_{timestamp}_{filename}"
+        reassembled_path = os.path.join(backup_dir, reassembled_filename)
+        
+        with open(reassembled_path, 'wb') as output_file:
+            for i in range(total_chunks):
+                chunk_path = os.path.join(chunks_dir, f'chunk_{i}')
+                with open(chunk_path, 'rb') as chunk_file:
+                    output_file.write(chunk_file.read())
+        
+        app.logger.info(f"File reassembled: {reassembled_filename}")
+        
+        # Get file extension
+        file_ext = os.path.splitext(filename)[1].lower()
+        
+        # Get current database configuration
+        db_url = app.config['SQLALCHEMY_DATABASE_URI']
+        
+        # Create a backup of current database before restore
+        current_backup_name = f"pre_restore_backup_{timestamp}.db"
+        current_backup_path = os.path.join(backup_dir, current_backup_name)
+        
+        if db_url.startswith('sqlite'):
+            # SQLite restore
+            db_path = db_url.replace('sqlite:///', '')
+            shutil.copy2(db_path, current_backup_path)
+            shutil.copy2(reassembled_path, db_path)
+            
+        elif db_url.startswith('postgresql'):
+            # PostgreSQL restore
+            parsed = urllib.parse.urlparse(db_url)
+            
+            # Create backup of current database
+            pg_dump_cmd = [
+                'pg_dump',
+                f'--host={parsed.hostname}',
+                f'--port={parsed.port}',
+                f'--username={parsed.username}',
+                f'--dbname={parsed.path[1:]}',
+                '--file', current_backup_path
+            ]
+            
+            env = os.environ.copy()
+            if parsed.password:
+                env['PGPASSWORD'] = parsed.password
+            
+            # Create current backup
+            result = subprocess.run(pg_dump_cmd, env=env, capture_output=True, text=True, timeout=300)
+            if result.returncode != 0:
+                return jsonify({'success': False, 'error': f'Failed to create current backup: {result.stderr}'})
+            
+            # Restore from reassembled file
+            if file_ext == '.sql':
+                psql_cmd = [
+                    'psql',
+                    f'--host={parsed.hostname}',
+                    f'--port={parsed.port}',
+                    f'--username={parsed.username}',
+                    f'--dbname={parsed.path[1:]}',
+                    '--file', reassembled_path
+                ]
+                
+                result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                if result.returncode != 0:
+                    return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+            else:
+                return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
+        
+        else:
+            return jsonify({'success': False, 'error': 'Unsupported database type'})
+        
+        # Clear SQLAlchemy session to force reload
+        db.session.remove()
+        
+        # Clean up chunks
+        shutil.rmtree(chunks_dir, ignore_errors=True)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Database restored successfully from chunked upload: {filename}',
+            'reassembled_file': reassembled_filename,
+            'current_backup': current_backup_name
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error restoring from chunks: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 if __name__ == '__main__':
     app.run(debug=True)

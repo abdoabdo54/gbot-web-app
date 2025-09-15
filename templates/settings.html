@@ -1410,9 +1410,22 @@ function restoreDatabase() {
         $('#restore-progress-text').text('Uploading and restoring backup...');
         $('#restore-progress-bar').css('width', '20%');
         
-        // Create form data
+        // Create form data with chunked upload approach
         const formData = new FormData();
-        formData.append('backup_file', file);
+        
+        // Split file into smaller chunks to avoid HTTP 413
+        const chunkSize = 1024 * 1024; // 1MB chunks
+        const totalChunks = Math.ceil(file.size / chunkSize);
+        
+        if (totalChunks > 1) {
+            // For larger files, use chunked upload
+            showStatus(`📤 Uploading file in ${totalChunks} chunks to avoid size limits...`, 'info');
+            uploadFileInChunks(file, chunkSize, totalChunks);
+            return;
+        } else {
+            // For small files, try direct upload first
+            formData.append('backup_file', file);
+        }
         
         // Call upload restore API
         fetch('/api/upload-restore-backup', {
@@ -1455,9 +1468,16 @@ function restoreDatabase() {
             }, 1000);
         })
         .catch(error => {
-            $('#restore-progress').hide();
-            console.error('Error uploading/restoring database:', error);
-            showStatus('❌ Network error during upload/restore: ' + error.message, 'error');
+            console.error('Direct upload failed:', error);
+            
+            // If direct upload fails with 413, try chunked upload as fallback
+            if (error.message.includes('413') || error.message.includes('Request Entity Too Large')) {
+                showStatus('📤 Direct upload failed, trying chunked upload...', 'info');
+                uploadFileInChunks(file, 512 * 1024, Math.ceil(file.size / (512 * 1024))); // 512KB chunks
+            } else {
+                $('#restore-progress').hide();
+                showStatus('❌ Network error during upload/restore: ' + error.message, 'error');
+            }
         });
     }
 }
@@ -1465,6 +1485,92 @@ function restoreDatabase() {
 function refreshBackupList() {
     loadBackupList();
     showStatus('🔄 Backup list refreshed', 'info');
+}
+
+function uploadFileInChunks(file, chunkSize, totalChunks) {
+    let currentChunk = 0;
+    const uploadId = 'upload_' + Date.now();
+    
+    function uploadNextChunk() {
+        if (currentChunk >= totalChunks) {
+            // All chunks uploaded, now restore
+            $('#restore-progress-text').text('All chunks uploaded, restoring database...');
+            $('#restore-progress-bar').css('width', '90%');
+            
+            // Call restore API with upload ID
+            fetch('/api/restore-from-chunks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    upload_id: uploadId,
+                    filename: file.name,
+                    total_chunks: totalChunks
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                $('#restore-progress-bar').css('width', '100%');
+                $('#restore-progress-text').text('Restore completed!');
+                
+                setTimeout(() => {
+                    $('#restore-progress').hide();
+                    if (data.success) {
+                        showStatus('✅ Database restored successfully from chunked upload!', 'success');
+                        // Clear file input
+                        document.getElementById('backup_file').value = '';
+                        // Refresh backup list
+                        loadBackupList();
+                    } else {
+                        showStatus('❌ Restore failed: ' + data.error, 'error');
+                    }
+                }, 1000);
+            })
+            .catch(error => {
+                $('#restore-progress').hide();
+                console.error('Error restoring from chunks:', error);
+                showStatus('❌ Restore failed: ' + error.message, 'error');
+            });
+            return;
+        }
+        
+        const start = currentChunk * chunkSize;
+        const end = Math.min(start + chunkSize, file.size);
+        const chunk = file.slice(start, end);
+        
+        const formData = new FormData();
+        formData.append('chunk', chunk);
+        formData.append('upload_id', uploadId);
+        formData.append('chunk_index', currentChunk);
+        formData.append('total_chunks', totalChunks);
+        formData.append('filename', file.name);
+        
+        const progress = ((currentChunk + 1) / totalChunks) * 80; // 80% for upload, 20% for restore
+        $('#restore-progress-bar').css('width', progress + '%');
+        $('#restore-progress-text').text(`Uploading chunk ${currentChunk + 1} of ${totalChunks}...`);
+        
+        fetch('/api/upload-chunk', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentChunk++;
+                uploadNextChunk();
+            } else {
+                throw new Error(data.error);
+            }
+        })
+        .catch(error => {
+            $('#restore-progress').hide();
+            console.error('Error uploading chunk:', error);
+            showStatus('❌ Chunked upload failed: ' + error.message, 'error');
+        });
+    }
+    
+    uploadNextChunk();
 }
 </script>
 {% endblock %}
