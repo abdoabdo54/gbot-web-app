@@ -4593,6 +4593,21 @@ def upload_restore_backup():
         app.logger.error(f"Error uploading and restoring backup: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/test-chunked-upload', methods=['POST'])
+@login_required
+def test_chunked_upload():
+    """Test endpoint to verify chunked upload system is working"""
+    try:
+        app.logger.info("Test chunked upload endpoint called")
+        return jsonify({
+            'success': True,
+            'message': 'Chunked upload system is working',
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        app.logger.error(f"Test chunked upload error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/upload-chunk', methods=['POST'])
 @login_required
 def upload_chunk():

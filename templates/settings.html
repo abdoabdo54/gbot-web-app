@@ -294,6 +294,9 @@
             <button type="button" class="btn-github" onclick="refreshBackupList()">
                 <i class="fas fa-sync-alt"></i> Refresh Backup List
             </button>
+            <button type="button" class="btn-github" onclick="testChunkedUpload()" style="background: #6f42c1;">
+                <i class="fas fa-bug"></i> Test Chunked Upload
+            </button>
         </div>
         
         <!-- Warning Message -->
@@ -1487,6 +1490,43 @@ function refreshBackupList() {
     showStatus('🔄 Backup list refreshed', 'info');
 }
 
+function testChunkedUpload() {
+    console.log('Testing chunked upload system...');
+    
+    fetch('/api/test-chunked-upload', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        console.log('Test response status:', response.status);
+        console.log('Test response headers:', response.headers);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            return response.text().then(text => {
+                console.error('Test chunked upload - Non-JSON response:', text);
+                throw new Error('Server returned non-JSON response. This might be an error page.');
+            });
+        }
+        
+        return response.json();
+    })
+    .then(data => {
+        console.log('Test chunked upload success:', data);
+        showStatus('✅ Chunked upload system is working: ' + data.message, 'success');
+    })
+    .catch(error => {
+        console.error('Test chunked upload error:', error);
+        showStatus('❌ Chunked upload system test failed: ' + error.message, 'error');
+    });
+}
+
 function uploadFileInChunks(file, chunkSize, totalChunks) {
     let currentChunk = 0;
     const uploadId = 'upload_' + Date.now();
@@ -1509,7 +1549,24 @@ function uploadFileInChunks(file, chunkSize, totalChunks) {
                     total_chunks: totalChunks
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Restore from chunks response status:', response.status);
+                console.log('Restore from chunks response headers:', response.headers);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    return response.text().then(text => {
+                        console.error('Restore from chunks - Non-JSON response:', text);
+                        throw new Error('Server returned non-JSON response for restore. This might be an error page.');
+                    });
+                }
+                
+                return response.json();
+            })
             .then(data => {
                 $('#restore-progress-bar').css('width', '100%');
                 $('#restore-progress-text').text('Restore completed!');
@@ -1554,7 +1611,24 @@ function uploadFileInChunks(file, chunkSize, totalChunks) {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Chunk upload response status:', response.status);
+            console.log('Chunk upload response headers:', response.headers);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                return response.text().then(text => {
+                    console.error('Chunk upload - Non-JSON response:', text);
+                    throw new Error('Server returned non-JSON response for chunk upload. This might be an error page.');
+                });
+            }
+            
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 currentChunk++;
