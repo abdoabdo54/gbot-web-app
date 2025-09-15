@@ -4885,5 +4885,182 @@ def restore_from_base64():
         app.logger.error(f"Error restoring from base64: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/upload-base64-chunk', methods=['POST'])
+@login_required
+def upload_base64_chunk():
+    """Upload a base64 chunk for chunked base64 upload"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        data = request.get_json()
+        upload_id = data.get('upload_id')
+        chunk_index = data.get('chunk_index')
+        total_chunks = data.get('total_chunks')
+        filename = data.get('filename')
+        chunk_content = data.get('chunk_content')
+        
+        if not all([upload_id, chunk_index is not None, total_chunks, filename, chunk_content]):
+            return jsonify({'success': False, 'error': 'Missing required fields'})
+        
+        # Import required modules
+        import os
+        
+        # Create chunks directory
+        chunks_dir = os.path.join(os.path.dirname(__file__), 'chunks', upload_id)
+        os.makedirs(chunks_dir, exist_ok=True)
+        
+        # Save chunk
+        chunk_path = os.path.join(chunks_dir, f'base64_chunk_{chunk_index}')
+        with open(chunk_path, 'w') as f:
+            f.write(chunk_content)
+        
+        app.logger.info(f"Base64 chunk {chunk_index + 1}/{total_chunks} uploaded for {filename}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Base64 chunk {chunk_index + 1}/{total_chunks} uploaded',
+            'chunk_index': chunk_index,
+            'total_chunks': total_chunks
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error uploading base64 chunk: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/restore-from-base64-chunks', methods=['POST'])
+@login_required
+def restore_from_base64_chunks():
+    """Restore database from uploaded base64 chunks"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        data = request.get_json()
+        upload_id = data.get('upload_id')
+        filename = data.get('filename')
+        total_chunks = data.get('total_chunks')
+        file_size = data.get('file_size')
+        
+        # Import required modules
+        import os
+        import shutil
+        import subprocess
+        import urllib.parse
+        import base64
+        
+        # Create chunks directory path
+        chunks_dir = os.path.join(os.path.dirname(__file__), 'chunks', upload_id)
+        
+        # Verify all chunks exist
+        for i in range(total_chunks):
+            chunk_path = os.path.join(chunks_dir, f'base64_chunk_{i}')
+            if not os.path.exists(chunk_path):
+                return jsonify({'success': False, 'error': f'Base64 chunk {i} not found'})
+        
+        # Reassemble base64 content
+        base64_content = ''
+        for i in range(total_chunks):
+            chunk_path = os.path.join(chunks_dir, f'base64_chunk_{i}')
+            with open(chunk_path, 'r') as f:
+                base64_content += f.read()
+        
+        app.logger.info(f"Base64 content reassembled, length: {len(base64_content)}")
+        
+        # Decode base64 content
+        try:
+            file_content = base64.b64decode(base64_content)
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Failed to decode base64 content: {e}'})
+        
+        # Save decoded file
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        decoded_filename = f"chunked_base64_backup_{timestamp}_{filename}"
+        decoded_path = os.path.join(backup_dir, decoded_filename)
+        
+        with open(decoded_path, 'wb') as f:
+            f.write(file_content)
+        
+        app.logger.info(f"Chunked base64 file decoded and saved: {decoded_filename}")
+        
+        # Get file extension
+        file_ext = os.path.splitext(filename)[1].lower()
+        
+        # Get current database configuration
+        db_url = app.config['SQLALCHEMY_DATABASE_URI']
+        
+        # Create a backup of current database before restore
+        current_backup_name = f"pre_restore_backup_{timestamp}.db"
+        current_backup_path = os.path.join(backup_dir, current_backup_name)
+        
+        if db_url.startswith('sqlite'):
+            # SQLite restore
+            db_path = db_url.replace('sqlite:///', '')
+            shutil.copy2(db_path, current_backup_path)
+            shutil.copy2(decoded_path, db_path)
+            
+        elif db_url.startswith('postgresql'):
+            # PostgreSQL restore
+            parsed = urllib.parse.urlparse(db_url)
+            
+            # Create backup of current database
+            pg_dump_cmd = [
+                'pg_dump',
+                f'--host={parsed.hostname}',
+                f'--port={parsed.port}',
+                f'--username={parsed.username}',
+                f'--dbname={parsed.path[1:]}',
+                '--file', current_backup_path
+            ]
+            
+            env = os.environ.copy()
+            if parsed.password:
+                env['PGPASSWORD'] = parsed.password
+            
+            # Create current backup
+            result = subprocess.run(pg_dump_cmd, env=env, capture_output=True, text=True, timeout=300)
+            if result.returncode != 0:
+                return jsonify({'success': False, 'error': f'Failed to create current backup: {result.stderr}'})
+            
+            # Restore from decoded file
+            if file_ext == '.sql':
+                psql_cmd = [
+                    'psql',
+                    f'--host={parsed.hostname}',
+                    f'--port={parsed.port}',
+                    f'--username={parsed.username}',
+                    f'--dbname={parsed.path[1:]}',
+                    '--file', decoded_path
+                ]
+                
+                result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                if result.returncode != 0:
+                    return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+            else:
+                return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
+        
+        else:
+            return jsonify({'success': False, 'error': 'Unsupported database type'})
+        
+        # Clear SQLAlchemy session to force reload
+        db.session.remove()
+        
+        # Clean up chunks
+        shutil.rmtree(chunks_dir, ignore_errors=True)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Database restored successfully from chunked base64 upload: {filename}',
+            'decoded_file': decoded_filename,
+            'current_backup': current_backup_name
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error restoring from base64 chunks: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1413,66 +1413,21 @@ function restoreDatabase() {
         $('#restore-progress-text').text('Converting file to text format...');
         $('#restore-progress-bar').css('width', '10%');
         
-        // Use base64 encoding to bypass file upload limits entirely
+        // Use chunked base64 encoding to bypass file upload limits entirely
         const reader = new FileReader();
         reader.onload = function(e) {
             const base64Content = e.target.result.split(',')[1]; // Remove data:application/octet-stream;base64, prefix
             
-            $('#restore-progress-text').text('Uploading file as text...');
-            $('#restore-progress-bar').css('width', '30%');
+            $('#restore-progress-text').text('Preparing chunked upload...');
+            $('#restore-progress-bar').css('width', '20%');
             
-            // Send as JSON to avoid file upload limits
-            fetch('/api/restore-from-base64', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    filename: file.name,
-                    content: base64Content,
-                    size: file.size
-                })
-            })
-            .then(response => {
-                console.log('Base64 upload response status:', response.status);
-                console.log('Base64 upload response headers:', response.headers);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    return response.text().then(text => {
-                        console.error('Base64 upload - Non-JSON response:', text);
-                        throw new Error('Server returned non-JSON response. This might be an error page.');
-                    });
-                }
-                
-                return response.json();
-            })
-            .then(data => {
-                $('#restore-progress-bar').css('width', '100%');
-                $('#restore-progress-text').text('Restore completed!');
-                
-                setTimeout(() => {
-                    $('#restore-progress').hide();
-                    if (data.success) {
-                        showStatus('✅ Database restored successfully from base64 upload!', 'success');
-                        // Clear file input
-                        document.getElementById('backup_file').value = '';
-                        // Refresh backup list
-                        loadBackupList();
-                    } else {
-                        showStatus('❌ Restore failed: ' + data.error, 'error');
-                    }
-                }, 1000);
-            })
-            .catch(error => {
-                $('#restore-progress').hide();
-                console.error('Error with base64 upload:', error);
-                showStatus('❌ Base64 upload failed: ' + error.message, 'error');
-            });
+            // Split base64 content into smaller chunks (500KB each)
+            const chunkSize = 500 * 1024; // 500KB chunks
+            const totalChunks = Math.ceil(base64Content.length / chunkSize);
+            
+            console.log(`Base64 content length: ${base64Content.length}, Total chunks: ${totalChunks}`);
+            
+            uploadBase64InChunks(base64Content, file.name, file.size, chunkSize, totalChunks);
         };
         
         reader.onerror = function() {
@@ -1578,6 +1533,129 @@ function testChunkedUpload() {
         console.error('Test chunked upload error:', error);
         showStatus('❌ Chunked upload system test failed: ' + error.message, 'error');
     });
+}
+
+function uploadBase64InChunks(base64Content, filename, fileSize, chunkSize, totalChunks) {
+    let currentChunk = 0;
+    const uploadId = 'base64_upload_' + Date.now();
+    
+    function uploadNextChunk() {
+        if (currentChunk >= totalChunks) {
+            // All chunks uploaded, now restore
+            $('#restore-progress-text').text('All chunks uploaded, restoring database...');
+            $('#restore-progress-bar').css('width', '90%');
+            
+            // Call restore API with upload ID
+            fetch('/api/restore-from-base64-chunks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    upload_id: uploadId,
+                    filename: filename,
+                    total_chunks: totalChunks,
+                    file_size: fileSize
+                })
+            })
+            .then(response => {
+                console.log('Restore from base64 chunks response status:', response.status);
+                console.log('Restore from base64 chunks response headers:', response.headers);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    return response.text().then(text => {
+                        console.error('Restore from base64 chunks - Non-JSON response:', text);
+                        throw new Error('Server returned non-JSON response for restore. This might be an error page.');
+                    });
+                }
+                
+                return response.json();
+            })
+            .then(data => {
+                $('#restore-progress-bar').css('width', '100%');
+                $('#restore-progress-text').text('Restore completed!');
+                
+                setTimeout(() => {
+                    $('#restore-progress').hide();
+                    if (data.success) {
+                        showStatus('✅ Database restored successfully from chunked base64 upload!', 'success');
+                        // Clear file input
+                        document.getElementById('backup_file').value = '';
+                        // Refresh backup list
+                        loadBackupList();
+                    } else {
+                        showStatus('❌ Restore failed: ' + data.error, 'error');
+                    }
+                }, 1000);
+            })
+            .catch(error => {
+                $('#restore-progress').hide();
+                console.error('Error restoring from base64 chunks:', error);
+                showStatus('❌ Restore failed: ' + error.message, 'error');
+            });
+            return;
+        }
+        
+        const start = currentChunk * chunkSize;
+        const end = Math.min(start + chunkSize, base64Content.length);
+        const chunk = base64Content.substring(start, end);
+        
+        const progress = ((currentChunk + 1) / totalChunks) * 80; // 80% for upload, 20% for restore
+        $('#restore-progress-bar').css('width', progress + '%');
+        $('#restore-progress-text').text(`Uploading base64 chunk ${currentChunk + 1} of ${totalChunks}...`);
+        
+        fetch('/api/upload-base64-chunk', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                upload_id: uploadId,
+                chunk_index: currentChunk,
+                total_chunks: totalChunks,
+                filename: filename,
+                chunk_content: chunk
+            })
+        })
+        .then(response => {
+            console.log('Base64 chunk upload response status:', response.status);
+            console.log('Base64 chunk upload response headers:', response.headers);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                return response.text().then(text => {
+                    console.error('Base64 chunk upload - Non-JSON response:', text);
+                    throw new Error('Server returned non-JSON response for chunk upload. This might be an error page.');
+                });
+            }
+            
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                currentChunk++;
+                uploadNextChunk();
+            } else {
+                throw new Error(data.error);
+            }
+        })
+        .catch(error => {
+            $('#restore-progress').hide();
+            console.error('Error uploading base64 chunk:', error);
+            showStatus('❌ Chunked base64 upload failed: ' + error.message, 'error');
+        });
+    }
+    
+    uploadNextChunk();
 }
 
 function uploadFileInChunks(file, chunkSize, totalChunks) {
