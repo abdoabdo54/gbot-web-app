@@ -17,6 +17,55 @@
     <!-- Bootstrap JS (for modal compatibility) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
+    <!-- EMERGENCY MODAL FIX - Run immediately -->
+    <script>
+        // Run this immediately, before any other scripts
+        (function() {
+            console.log('Emergency modal fix running immediately...');
+            
+            // Force hide problematic modals immediately
+            function emergencyHideModals() {
+                const problematicModals = ['testConnectionModal', 'deleteConfirmModal'];
+                problematicModals.forEach(function(modalId) {
+                    const modal = document.getElementById(modalId);
+                    if (modal) {
+                        modal.style.display = 'none';
+                        modal.style.visibility = 'hidden';
+                        modal.style.opacity = '0';
+                        modal.style.pointerEvents = 'none';
+                        modal.classList.remove('show');
+                    }
+                });
+                
+                // Remove modal backdrops
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(function(backdrop) {
+                    backdrop.remove();
+                });
+                
+                // Fix body
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+                
+                console.log('Emergency modal fix applied');
+            }
+            
+            // Run immediately
+            emergencyHideModals();
+            
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', emergencyHideModals);
+            } else {
+                emergencyHideModals();
+            }
+            
+            // Run periodically to catch any modals that try to show
+            setInterval(emergencyHideModals, 100);
+        })();
+    </script>
+    
     <!-- Professional GitHub Theme -->
     <style>
         :root {
@@ -386,6 +435,26 @@
         [data-color-mode="dark"] [style] {
             background-color: var(--color-canvas-default) !important;
             color: var(--color-fg-default) !important;
+        }
+
+        /* EMERGENCY FIX: Completely disable problematic modals */
+        #testConnectionModal,
+        #deleteConfirmModal {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+        
+        /* Hide modal backdrops */
+        .modal-backdrop {
+            display: none !important;
+        }
+        
+        /* Ensure body is not locked */
+        body.modal-open {
+            overflow: auto !important;
+            padding-right: 0 !important;
         }
 
         /* Button colors are preserved through specific selectors below */
@@ -1729,8 +1798,8 @@
                 }
             });
             
-            // Force close any stuck modals on page load
-            setTimeout(function() {
+            // IMMEDIATELY force close any stuck modals on page load
+            function forceCloseAllModalsImmediate() {
                 // Close Bootstrap modals
                 const bootstrapModals = document.querySelectorAll('.modal.show');
                 bootstrapModals.forEach(function(modal) {
@@ -1757,8 +1826,17 @@
                 document.body.style.overflow = '';
                 document.body.style.paddingRight = '';
                 
-                console.log('Cleared stuck modals on page load');
-            }, 100);
+                console.log('IMMEDIATELY cleared stuck modals on page load');
+            }
+            
+            // Run immediately
+            forceCloseAllModalsImmediate();
+            
+            // Run again after a short delay
+            setTimeout(forceCloseAllModalsImmediate, 50);
+            setTimeout(forceCloseAllModalsImmediate, 100);
+            setTimeout(forceCloseAllModalsImmediate, 200);
+            setTimeout(forceCloseAllModalsImmediate, 500);
         });
 
         // Make toggleTheme globally available
@@ -1800,6 +1878,56 @@
             if (e.key === 'Escape') {
                 window.forceCloseAllModals();
             }
+        });
+        
+        // EMERGENCY FIX: Completely disable problematic modals
+        document.addEventListener('DOMContentLoaded', function() {
+            // Override Bootstrap Modal functions to prevent showing
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                const originalShow = bootstrap.Modal.prototype.show;
+                bootstrap.Modal.prototype.show = function() {
+                    console.log('Modal show attempt blocked for:', this._element.id);
+                    // Don't show the modal
+                    return;
+                };
+                
+                const originalHide = bootstrap.Modal.prototype.hide;
+                bootstrap.Modal.prototype.hide = function() {
+                    console.log('Modal hide called for:', this._element.id);
+                    // Force hide
+                    this._element.style.display = 'none';
+                    this._element.classList.remove('show');
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                    
+                    // Remove backdrop
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    backdrops.forEach(backdrop => backdrop.remove());
+                };
+            }
+            
+            // Override jQuery modal functions if they exist
+            if (typeof $ !== 'undefined' && $.fn.modal) {
+                $.fn.modal = function() {
+                    console.log('jQuery modal call blocked');
+                    return this;
+                };
+            }
+            
+            // Force hide specific problematic modals
+            const problematicModals = ['testConnectionModal', 'deleteConfirmModal'];
+            problematicModals.forEach(function(modalId) {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.style.display = 'none';
+                    modal.style.visibility = 'hidden';
+                    modal.style.opacity = '0';
+                    modal.style.pointerEvents = 'none';
+                }
+            });
+            
+            console.log('Emergency modal blocking activated');
         });
     </script>
     
