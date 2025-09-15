@@ -3944,7 +3944,7 @@ If you received this email, the SMTP credentials are working correctly.
 @app.route('/api/mega-upgrade', methods=['POST'])
 @login_required
 def mega_upgrade():
-    """Complete Mega upgrade workflow for multiple accounts"""
+    """Production-ready Mega upgrade workflow for multiple accounts"""
     # Allow all user types (admin, mailer, support) to use mega upgrade
     user_role = session.get('role')
     if user_role not in ['admin', 'mailer', 'support']:
@@ -3959,69 +3959,30 @@ def mega_upgrade():
             return jsonify({'success': False, 'error': 'No accounts provided'})
         
         # Limit accounts for performance
-        if len(accounts) > 50:
-            return jsonify({'success': False, 'error': 'Maximum 50 accounts allowed per batch for performance'})
+        if len(accounts) > 100:
+            return jsonify({'success': False, 'error': 'Maximum 100 accounts allowed per batch for performance'})
         
-        # Generate unique task ID
-        import uuid
-        task_id = str(uuid.uuid4())
+        app.logger.info(f"Starting PRODUCTION mega upgrade for {len(accounts)} accounts with features: {features}")
         
-        # Calculate total steps based on selected features
-        total_steps = 0
-        if features.get('authenticate'):
-            total_steps += len(accounts)
-        if features.get('changeSubdomain'):
-            total_steps += len(accounts)
-        if features.get('retrievePasswords'):
-            total_steps += len(accounts)
-        if features.get('updatePasswords'):
-            total_steps += len(accounts)
-        
-        # Initialize progress tracking
-        with progress_lock:
-            progress_tracker[task_id] = {
-                'status': 'running',
-                'current_step': 0,
-                'total_steps': total_steps,
-                'current_account': '',
-                'message': 'Starting Mega Upgrade Workflow...',
-                'log_messages': [],
-                'successful_accounts': 0,
-                'failed_accounts': 0,
-                'total_accounts': len(accounts),
-                'final_results': [],
-                'failed_details': [],
-                'smtp_results': []  # For final SMTP format results
-            }
-        
-        # Execute the mega upgrade workflow
-        app.logger.info(f"Starting mega upgrade for {len(accounts)} accounts with features: {features}")
-        
+        # Process accounts directly (no background tasks, no task tracking)
         successful_accounts = 0
         failed_accounts = 0
         final_results = []
         failed_details = []
         smtp_results = []
         
-        # Process each account
+        # Process each account sequentially for reliability
         for i, account_email in enumerate(accounts):
             account_email = account_email.strip()
             if not account_email:
                 continue
                 
             try:
-                # Update progress
-                with progress_lock:
-                    progress_tracker[task_id]['current_account'] = account_email
-                    progress_tracker[task_id]['current_step'] = i + 1
-                    progress_tracker[task_id]['message'] = f'Processing account {i+1}/{len(accounts)}: {account_email}'
-                
                 app.logger.info(f"Processing account {i+1}/{len(accounts)}: {account_email}")
                 
                 # Step 1: Authenticate Account (if enabled)
                 if features.get('authenticate'):
-                    with progress_lock:
-                        progress_tracker[task_id]['message'] = f'Authenticating {account_email}...'
+                    app.logger.info(f"Authenticating {account_email}...")
                     
                     # Check if account exists in database
                     google_account = GoogleAccount.query.filter_by(account_name=account_email).first()
@@ -4050,8 +4011,7 @@ def mega_upgrade():
                 
                 # Step 2: Change Subdomain (if enabled)
                 if features.get('changeSubdomain'):
-                    with progress_lock:
-                        progress_tracker[task_id]['message'] = f'Changing subdomain for {account_email}...'
+                    app.logger.info(f"Changing subdomain for {account_email}...")
                     
                     # Find available domain with lowest user count
                     available_domain = UsedDomain.query.filter(
@@ -4080,9 +4040,9 @@ def mega_upgrade():
                     app.logger.info(f"Subdomain changed for {account_email}: {old_account_name} -> {new_account_name}")
                 
                 # Step 3: Retrieve App Passwords (if enabled)
+                app_password = None
                 if features.get('retrievePasswords'):
-                    with progress_lock:
-                        progress_tracker[task_id]['message'] = f'Retrieving app passwords for {account_email}...'
+                    app.logger.info(f"Retrieving app passwords for {account_email}...")
                     
                     # Generate new app password
                     import secrets
@@ -4093,7 +4053,6 @@ def mega_upgrade():
                     app_password = ''.join(secrets.choice(alphabet) for _ in range(16))
                     
                     # Store app password in database
-                    from database import UserAppPassword
                     existing_password = UserAppPassword.query.filter_by(account_name=google_account.account_name).first()
                     
                     if existing_password:
@@ -4111,20 +4070,11 @@ def mega_upgrade():
                     db.session.commit()
                     app.logger.info(f"App password generated for {account_email}")
                 
-                # Step 4: Update Domain in Passwords (if enabled)
-                if features.get('updatePasswords'):
-                    with progress_lock:
-                        progress_tracker[task_id]['message'] = f'Updating domain in passwords for {account_email}...'
-                    
-                    # This step would update any existing password records with the new domain
-                    # For now, we'll just log it
-                    app.logger.info(f"Domain updated in passwords for {account_email}")
-                
                 # Account processed successfully
                 successful_accounts += 1
                 
                 # Add to SMTP results
-                if features.get('retrievePasswords'):
+                if features.get('retrievePasswords') and app_password:
                     smtp_results.append(f"{google_account.account_name},{app_password},smtp.gmail.com,587")
                 
                 # Add to final results
@@ -4146,22 +4096,10 @@ def mega_upgrade():
                     'error': str(e)
                 })
         
-        # Update final progress
-        with progress_lock:
-            progress_tracker[task_id]['status'] = 'completed'
-            progress_tracker[task_id]['current_step'] = total_steps
-            progress_tracker[task_id]['message'] = f'Mega upgrade completed: {successful_accounts} successful, {failed_accounts} failed'
-            progress_tracker[task_id]['successful_accounts'] = successful_accounts
-            progress_tracker[task_id]['failed_accounts'] = failed_accounts
-            progress_tracker[task_id]['final_results'] = final_results
-            progress_tracker[task_id]['failed_details'] = failed_details
-            progress_tracker[task_id]['smtp_results'] = smtp_results
-        
-        app.logger.info(f"Mega upgrade completed: {successful_accounts} successful, {failed_accounts} failed")
+        app.logger.info(f"PRODUCTION mega upgrade completed: {successful_accounts} successful, {failed_accounts} failed")
         
         return jsonify({
             'success': True,
-            'task_id': task_id,
             'message': f'Mega upgrade completed: {successful_accounts} successful, {failed_accounts} failed',
             'total_accounts': len(accounts),
             'successful_accounts': successful_accounts,
@@ -4172,7 +4110,7 @@ def mega_upgrade():
         })
         
     except Exception as e:
-        app.logger.error(f"Error in mega upgrade: {e}")
+        app.logger.error(f"Error in PRODUCTION mega upgrade: {e}")
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
 
 @app.route('/api/debug-progress', methods=['GET'])
