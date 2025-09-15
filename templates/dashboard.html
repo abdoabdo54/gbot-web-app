@@ -4398,6 +4398,9 @@ function runMegaUpgradeWorkflow(accounts, features) {
     logBulkDomain(`🔧 Features: ${Object.keys(features).filter(k => features[k]).join(', ')}`);
     logBulkDomain('─'.repeat(50));
     
+    // Show processing message
+    logBulkDomain('⏳ Processing accounts... Please wait...');
+    
     // Start the mega upgrade process
     fetch('/api/mega-upgrade', {
         method: 'POST',
@@ -4410,8 +4413,9 @@ function runMegaUpgradeWorkflow(accounts, features) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const taskId = data.task_id;
-            logBulkDomain(`📋 Mega upgrade started with task ID: ${taskId}`);
+            logBulkDomain(`✅ Mega upgrade completed successfully!`);
+            logBulkDomain(`📊 Results: ${data.successful_accounts} successful, ${data.failed_accounts} failed`);
+            logBulkDomain(`📋 Total accounts processed: ${data.total_accounts}`);
             
             // Poll for progress updates with enhanced error handling
             const progressInterval = setInterval(() => {
@@ -4504,7 +4508,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
         } else {
             document.getElementById('megaStartBtn').style.display = 'inline-block';
             document.getElementById('megaStopBtn').style.display = 'none';
-            logBulkDomain(`❌ Failed to start mega upgrade: ${data.error}`);
+            logBulkDomain(`❌ Mega upgrade failed: ${data.error}`);
         }
     })
     .catch(error => {
