@@ -3848,8 +3848,8 @@ def test_smtp_credentials_progress():
                         msg['From'] = email
                         msg['To'] = recipient_email
                         msg['Subject'] = f"SMTP Test from {email}"
-                
-                body = f"""
+                        
+                        body = f"""
 This is a test email sent from {email} using the GBot Web Application SMTP tester.
 
 Test Details:
@@ -3859,25 +3859,25 @@ Test Details:
 
 If you received this email, the SMTP credentials are working correctly.
 """
-                msg.attach(MIMEText(body, 'plain'))
-                
-                # Connect and send
-                server = smtplib.SMTP(smtp_server, smtp_port)
-                server.starttls()  # Enable encryption
-                server.login(email, password)
-                server.send_message(msg)
-                server.quit()
-                
+                        msg.attach(MIMEText(body, 'plain'))
+                        
+                        # Connect and send
+                        server = smtplib.SMTP(smtp_server, smtp_port)
+                        server.starttls()  # Enable encryption
+                        server.login(email, password)
+                        server.send_message(msg)
+                        server.quit()
+                        
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['success_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                    'email': email,
-                    'status': 'success',
-                    'message': f'Test email sent successfully to {recipient_email}'
-                })
-                
-            except smtplib.SMTPAuthenticationError as e:
+                                    'email': email,
+                                    'status': 'success',
+                                    'message': f'Test email sent successfully to {recipient_email}'
+                                })
+                        
+                    except smtplib.SMTPAuthenticationError as e:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
