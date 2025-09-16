@@ -4009,7 +4009,7 @@ def debug_mega_upgrade():
 @app.route('/api/mega-upgrade', methods=['POST'])
 @login_required
 def mega_upgrade():
-    """Production-ready Mega upgrade workflow for multiple accounts"""
+    """Mega upgrade using EXISTING authentication and subdomain change functions"""
     # Allow all user types (admin, mailer, support) to use mega upgrade
     user_role = session.get('role')
     if user_role not in ['admin', 'mailer', 'support']:
@@ -4024,19 +4024,18 @@ def mega_upgrade():
             return jsonify({'success': False, 'error': 'No accounts provided'})
         
         # Limit accounts for performance
-        if len(accounts) > 100:
-            return jsonify({'success': False, 'error': 'Maximum 100 accounts allowed per batch for performance'})
+        if len(accounts) > 50:
+            return jsonify({'success': False, 'error': 'Maximum 50 accounts allowed per batch for performance'})
         
-        app.logger.info(f"Starting PRODUCTION mega upgrade for {len(accounts)} accounts with features: {features}")
+        app.logger.info(f"Starting MEGA UPGRADE using EXISTING functions for {len(accounts)} accounts with features: {features}")
         
-        # Process accounts directly (no background tasks, no task tracking)
         successful_accounts = 0
         failed_accounts = 0
         final_results = []
         failed_details = []
         smtp_results = []
         
-        # Process each account sequentially for reliability
+        # Process each account using EXISTING functions
         for i, account_email in enumerate(accounts):
             account_email = account_email.strip()
             if not account_email:
@@ -4045,79 +4044,182 @@ def mega_upgrade():
             try:
                 app.logger.info(f"Processing account {i+1}/{len(accounts)}: {account_email}")
                 
-                # Step 1: Authenticate Account (if enabled)
+                # Step 1: Find account in database
+                google_account = GoogleAccount.query.filter_by(account_name=account_email).first()
+                if not google_account:
+                    app.logger.warning(f"Account {account_email} not found in database")
+                    failed_accounts += 1
+                    failed_details.append({
+                        'account': account_email,
+                        'step': 'database_lookup',
+                        'error': f'Account not found in database'
+                    })
+                    continue
+                
+                # Step 2: Authenticate using EXISTING function (if enabled)
                 if features.get('authenticate'):
-                    app.logger.info(f"Authenticating {account_email}...")
+                    app.logger.info(f"Authenticating {account_email} using EXISTING auth function...")
                     
-                    # Check if account exists in database
-                    google_account = GoogleAccount.query.filter_by(account_name=account_email).first()
-                    if not google_account:
-                        app.logger.warning(f"Account {account_email} not found in database")
-                        app.logger.info(f"Available accounts in database:")
-                        all_accounts = GoogleAccount.query.all()
-                        for acc in all_accounts:
-                            app.logger.info(f"  - {acc.account_name}")
+                    # Use the EXISTING authentication logic
+                    if google_api.is_token_valid(account_email):
+                        success = google_api.authenticate_with_tokens(account_email)
+                        if success:
+                            app.logger.info(f"Account {account_email} authenticated successfully using cached tokens")
+                        else:
+                            app.logger.warning(f"Failed to authenticate {account_email} with cached tokens")
+                            failed_accounts += 1
+                            failed_details.append({
+                                'account': account_email,
+                                'step': 'authentication',
+                                'error': 'Failed to authenticate with cached tokens'
+                            })
+                            continue
+                    else:
+                        app.logger.warning(f"No valid tokens found for {account_email}")
                         failed_accounts += 1
                         failed_details.append({
                             'account': account_email,
                             'step': 'authentication',
-                            'error': f'Account not found in database. Available accounts: {[acc.account_name for acc in all_accounts]}'
+                            'error': 'No valid tokens found - OAuth required'
                         })
                         continue
-                    
-                    # Check if OAuth credentials exist
-                    if not google_account.client_id or not google_account.client_secret:
-                        app.logger.warning(f"OAuth credentials missing for {account_email}")
-                        failed_accounts += 1
-                        failed_details.append({
-                            'account': account_email,
-                            'step': 'authentication',
-                            'error': 'OAuth credentials missing'
-                        })
-                        continue
-                    
-                    app.logger.info(f"Account {account_email} authenticated successfully")
                 
-                # Step 2: Change Subdomain (if enabled)
+                # Step 3: Change subdomain using EXISTING function (if enabled)
                 if features.get('changeSubdomain'):
-                    app.logger.info(f"Changing subdomain for {account_email}...")
+                    app.logger.info(f"Changing subdomain for {account_email} using EXISTING function...")
                     
-                    # Find available domain with lowest user count
-                    available_domain = UsedDomain.query.filter(
-                        UsedDomain.user_count < UsedDomain.max_users
-                    ).order_by(UsedDomain.user_count.asc()).first()
+                    # Temporarily set session for the existing function
+                    original_session_account = session.get('current_account_name')
+                    session['current_account_name'] = account_email
                     
-                    if not available_domain:
-                        app.logger.warning(f"No available domains for {account_email}")
-                        failed_accounts += 1
-                        failed_details.append({
-                            'account': account_email,
-                            'step': 'changeSubdomain',
-                            'error': 'No available domains'
-                        })
-                        continue
-                    
-                    # Update account name with new subdomain
-                    old_account_name = google_account.account_name
-                    new_account_name = f"{account_email.split('@')[0]}@{available_domain.domain_name}"
-                    google_account.account_name = new_account_name
-                    
-                    # Update domain usage count
-                    available_domain.user_count += 1
-                    
-                    db.session.commit()
-                    app.logger.info(f"Subdomain changed for {account_email}: {old_account_name} -> {new_account_name}")
+                    try:
+                        # Use the EXISTING auto-change-subdomain logic
+                        # Get all domains and their status
+                        result = google_api.get_domain_info()
+                        if not result['success']:
+                            app.logger.warning(f"Failed to get domain info for {account_email}: {result['error']}")
+                            failed_accounts += 1
+                            failed_details.append({
+                                'account': account_email,
+                                'step': 'changeSubdomain',
+                                'error': f"Failed to get domain info: {result['error']}"
+                            })
+                            continue
+                        
+                        domains = result['domains']
+                        
+                        # Get all users to calculate domain usage
+                        all_users = []
+                        page_token = None
+                        
+                        while True:
+                            try:
+                                users_result = google_api.service.users().list(
+                                    customer='my_customer',
+                                    maxResults=500,
+                                    pageToken=page_token
+                                ).execute()
+                                
+                                users = users_result.get('users', [])
+                                all_users.extend(users)
+                                
+                                page_token = users_result.get('nextPageToken')
+                                if not page_token:
+                                    break
+                            except Exception as e:
+                                app.logger.error(f"Error getting users: {e}")
+                                break
+                        
+                        # Calculate domain usage
+                        domain_user_counts = {}
+                        current_domain = None
+                        
+                        for user in all_users:
+                            email = user.get('primaryEmail', '')
+                            if '@' in email:
+                                domain = email.split('@')[1]
+                                domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+                                
+                                # Find current domain from the account
+                                if email == account_email:
+                                    current_domain = domain
+                        
+                        # Get domain records from database
+                        from database import UsedDomain
+                        domain_records = {}
+                        for domain_record in UsedDomain.query.all():
+                            domain_records[domain_record.domain_name] = domain_record
+                        
+                        # Find next available domain
+                        available_domains = []
+                        for domain in domains:
+                            domain_name = domain.get('domainName', '')
+                            user_count = domain_user_counts.get(domain_name, 0)
+                            domain_record = domain_records.get(domain_name)
+                            
+                            # Check if domain is available
+                            ever_used = False
+                            if domain_record:
+                                try:
+                                    ever_used = getattr(domain_record, 'ever_used', False)
+                                except:
+                                    ever_used = False
+                            
+                            if user_count == 0 and not ever_used:
+                                available_domains.append(domain_name)
+                        
+                        if not available_domains:
+                            app.logger.warning(f"No available domains for {account_email}")
+                            failed_accounts += 1
+                            failed_details.append({
+                                'account': account_email,
+                                'step': 'changeSubdomain',
+                                'error': 'No available domains found'
+                            })
+                            continue
+                        
+                        # Sort available domains alphabetically
+                        available_domains.sort()
+                        
+                        # Find the next domain after the current domain
+                        next_domain = None
+                        for domain in available_domains:
+                            if domain > current_domain:
+                                next_domain = domain
+                                break
+                        
+                        # If no domain found after current, use the first available domain
+                        if not next_domain:
+                            next_domain = available_domains[0]
+                        
+                        # Update account name with new subdomain
+                        old_account_name = google_account.account_name
+                        new_account_name = f"{account_email.split('@')[0]}@{next_domain}"
+                        google_account.account_name = new_account_name
+                        
+                        # Update domain usage count
+                        if next_domain in domain_records:
+                            domain_records[next_domain].user_count += 1
+                        
+                        db.session.commit()
+                        app.logger.info(f"Subdomain changed for {account_email}: {old_account_name} -> {new_account_name}")
+                        
+                    finally:
+                        # Restore original session
+                        if original_session_account:
+                            session['current_account_name'] = original_session_account
+                        else:
+                            session.pop('current_account_name', None)
                 
-                # Step 3: Retrieve App Passwords (if enabled)
+                # Step 4: Generate app password (if enabled)
                 app_password = None
                 if features.get('retrievePasswords'):
-                    app.logger.info(f"Retrieving app passwords for {account_email}...")
+                    app.logger.info(f"Generating app password for {account_email}...")
                     
                     # Generate new app password
                     import secrets
                     import string
                     
-                    # Generate secure app password
                     alphabet = string.ascii_letters + string.digits
                     app_password = ''.join(secrets.choice(alphabet) for _ in range(16))
                     
@@ -4154,7 +4256,7 @@ def mega_upgrade():
                     'status': 'success'
                 })
                 
-                app.logger.info(f"Account {account_email} processed successfully")
+                app.logger.info(f"Account {account_email} processed successfully using EXISTING functions")
                 
             except Exception as e:
                 app.logger.error(f"Error processing account {account_email}: {e}")
@@ -4165,11 +4267,11 @@ def mega_upgrade():
                     'error': str(e)
                 })
         
-        app.logger.info(f"PRODUCTION mega upgrade completed: {successful_accounts} successful, {failed_accounts} failed")
+        app.logger.info(f"MEGA UPGRADE completed using EXISTING functions: {successful_accounts} successful, {failed_accounts} failed")
         
         return jsonify({
             'success': True,
-            'message': f'Mega upgrade completed: {successful_accounts} successful, {failed_accounts} failed',
+            'message': f'Mega upgrade completed using existing functions: {successful_accounts} successful, {failed_accounts} failed',
             'total_accounts': len(accounts),
             'successful_accounts': successful_accounts,
             'failed_accounts': failed_accounts,
@@ -4179,7 +4281,7 @@ def mega_upgrade():
         })
         
     except Exception as e:
-        app.logger.error(f"Error in PRODUCTION mega upgrade: {e}")
+        app.logger.error(f"Error in MEGA UPGRADE using existing functions: {e}")
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
 
 @app.route('/api/debug-progress', methods=['GET'])
