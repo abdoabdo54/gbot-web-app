@@ -3966,6 +3966,46 @@ def test_simple_mega():
         app.logger.error(f"TEST ERROR: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/debug-mega-upgrade', methods=['POST'])
+@login_required
+def debug_mega_upgrade():
+    """Debug endpoint to test mega upgrade without complex processing"""
+    try:
+        app.logger.info("DEBUG: Debug mega upgrade endpoint called")
+        
+        data = request.get_json()
+        app.logger.info(f"DEBUG: Received data: {data}")
+        
+        accounts = data.get('accounts', [])
+        features = data.get('features', {})
+        
+        app.logger.info(f"DEBUG: Accounts: {accounts}")
+        app.logger.info(f"DEBUG: Features: {features}")
+        
+        # Test database connection
+        try:
+            from models import GoogleAccount
+            account_count = GoogleAccount.query.count()
+            app.logger.info(f"DEBUG: Database connection OK, {account_count} accounts found")
+        except Exception as db_error:
+            app.logger.error(f"DEBUG: Database error: {db_error}")
+            return jsonify({'success': False, 'error': f'Database error: {str(db_error)}'})
+        
+        return jsonify({
+            'success': True,
+            'message': 'Debug endpoint working',
+            'accounts_received': len(accounts),
+            'features_received': features,
+            'database_accounts': account_count,
+            'debug_info': 'All systems operational'
+        })
+        
+    except Exception as e:
+        app.logger.error(f"DEBUG ERROR: {e}")
+        import traceback
+        app.logger.error(f"DEBUG TRACEBACK: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e), 'traceback': traceback.format_exc()})
+
 @app.route('/api/mega-upgrade', methods=['POST'])
 @login_required
 def mega_upgrade():

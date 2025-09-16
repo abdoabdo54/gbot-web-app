@@ -4390,6 +4390,73 @@ function testMegaUpgrade() {
     });
 }
 
+function debugMegaUpgrade() {
+    const accountsText = document.getElementById('mega-accounts-list').value.trim();
+    
+    if (!accountsText) {
+        alert('Please enter at least one account');
+        return;
+    }
+    
+    // Parse accounts from textarea (one per line)
+    const accounts = accountsText.split('\n')
+        .map(line => line.trim())
+        .filter(line => line && line.includes('@')); // Filter out empty lines and invalid emails
+    
+    if (accounts.length === 0) {
+        alert('Please enter valid email addresses (one per line)');
+        return;
+    }
+    
+    // Get selected features
+    const features = {
+        authenticate: document.getElementById('feature-authenticate').checked,
+        changeSubdomain: document.getElementById('feature-change-subdomain').checked,
+        retrievePasswords: document.getElementById('feature-retrieve-passwords').checked,
+        updatePasswords: document.getElementById('feature-update-passwords').checked
+    };
+    
+    logBulkDomain('🐛 Starting DEBUG Mega Upgrade...');
+    logBulkDomain(`📊 Debugging ${accounts.length} accounts with selected features`);
+    logBulkDomain(`🔧 Features: ${Object.keys(features).filter(k => features[k]).join(', ')}`);
+    logBulkDomain('─'.repeat(50));
+    
+    // Test the debug endpoint
+    fetch('/api/debug-mega-upgrade', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            accounts: accounts,
+            features: features
+        })
+    })
+    .then(response => {
+        logBulkDomain(`🔍 Response status: ${response.status}`);
+        logBulkDomain(`🔍 Response headers: ${JSON.stringify(Object.fromEntries(response.headers))}`);
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            logBulkDomain(`✅ DEBUG completed successfully: ${data.message}`);
+            logBulkDomain(`📊 Accounts received: ${data.accounts_received}`);
+            logBulkDomain(`🔧 Features received: ${JSON.stringify(data.features_received)}`);
+            logBulkDomain(`🗄️ Database accounts: ${data.database_accounts}`);
+            logBulkDomain(`🔍 Debug info: ${data.debug_info}`);
+            logBulkDomain('─'.repeat(50));
+            logBulkDomain('🎉 DEBUG completed - All systems operational!');
+        } else {
+            logBulkDomain(`❌ DEBUG failed: ${data.error}`);
+            if (data.traceback) {
+                logBulkDomain(`🔍 Traceback: ${data.traceback}`);
+            }
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ DEBUG error: ${error.message}`);
+        console.error('DEBUG Error:', error);
+    });
+}
+
 function runMegaUpgradeWorkflow(accounts, features) {
     logBulkDomain('🚀 Starting Mega Upgrade Workflow...');
     logBulkDomain(`📊 Processing ${accounts.length} accounts with selected features`);
@@ -4598,6 +4665,9 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 </button>
                 <button onclick="testMegaUpgrade()" class="btn-github" style="background-color: #28a745; border-color: #28a745; color: white;">
                     <i class="fas fa-vial"></i> Test (No Threading)
+                </button>
+                <button onclick="debugMegaUpgrade()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
+                    <i class="fas fa-bug"></i> Debug Mega Upgrade
                 </button>
                 <button onclick="stopMegaUpgrade()" class="btn-github" style="background-color: #d73a49; border-color: #d73a49; color: white;" id="megaStopBtn" style="display: none;">
                     <i class="fas fa-stop"></i> Stop Process
