@@ -4463,8 +4463,19 @@ function runMegaUpgradeWorkflow(accounts, features) {
     logBulkDomain(`🔧 Features: ${Object.keys(features).filter(k => features[k]).join(', ')}`);
     logBulkDomain('─'.repeat(50));
     
-    // Show processing message
-    logBulkDomain('⏳ Processing accounts... Please wait...');
+    // Show detailed processing for each account
+    accounts.forEach((account, index) => {
+        logBulkDomain(`📧 Account ${index + 1}: ${account}`);
+    });
+    logBulkDomain('─'.repeat(50));
+    
+    // Show processing message with more detail
+    logBulkDomain('⏳ Starting automated processing...');
+    logBulkDomain('🔍 Step 1: Looking up accounts in database...');
+    logBulkDomain('🔐 Step 2: Authenticating accounts...');
+    logBulkDomain('🔄 Step 3: Changing subdomains...');
+    logBulkDomain('🔑 Step 4: Generating app passwords...');
+    logBulkDomain('─'.repeat(50));
     
     // Start the mega upgrade process
     fetch('/api/mega-upgrade', {
@@ -4475,111 +4486,71 @@ function runMegaUpgradeWorkflow(accounts, features) {
             features: features
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        logBulkDomain(`📡 Response received: ${response.status} ${response.statusText}`);
+        return response.json();
+    })
     .then(data => {
+        logBulkDomain('─'.repeat(50));
+        logBulkDomain('📋 PROCESSING RESULTS:');
+        
         if (data.success) {
             logBulkDomain(`✅ Mega upgrade completed successfully!`);
             logBulkDomain(`📊 Results: ${data.successful_accounts} successful, ${data.failed_accounts} failed`);
             logBulkDomain(`📋 Total accounts processed: ${data.total_accounts}`);
             
-            // Poll for progress updates with enhanced error handling
-            const progressInterval = setInterval(() => {
-                fetch(`/api/mega-upgrade-progress/${taskId}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(progressData => {
-                    if (progressData.success) {
-                        const progress = progressData.progress;
-                        
-                        // Update progress bar
-                        const progressBar = document.getElementById('megaProgressBar');
-                        const progressText = document.getElementById('megaProgressText');
-                        const progressPercent = document.getElementById('megaProgressPercent');
-                        
-                        const percentage = Math.round((progress.current_step / progress.total_steps) * 100);
-                        progressBar.style.width = `${percentage}%`;
-                        progressPercent.textContent = `${percentage}%`;
-                        progressText.textContent = progress.message;
-                        
-                        // Log progress updates with enhanced live visibility
-                        if (progress.log_messages && progress.log_messages.length > 0) {
-                            // Only log new messages to avoid duplicates
-                            const lastLoggedCount = window.lastLoggedCount || 0;
-                            const newMessages = progress.log_messages.slice(lastLoggedCount);
-                            newMessages.forEach(msg => {
-                                logBulkDomain(msg);
-                            });
-                            window.lastLoggedCount = progress.log_messages.length;
-                        }
-                        
-                        // Check if completed
-                        if (progress.status === 'completed') {
-                            clearInterval(progressInterval);
-                            document.getElementById('megaStartBtn').style.display = 'inline-block';
-                            document.getElementById('megaStopBtn').style.display = 'none';
-                            
-                            // Display results in App Passwords Display
-                            if (progress.final_results && progress.final_results.length > 0) {
-                                const display = document.getElementById('app-passwords-display');
-                                display.value = progress.final_results.join('\n');
-                                logBulkDomain(`📋 ${progress.final_results.length} accounts processed successfully`);
-                            }
-                            
-                            // Show summary
-                            logBulkDomain('─'.repeat(50));
-                            logBulkDomain(`📈 Mega Upgrade Summary:`);
-                            logBulkDomain(`✅ Successful: ${progress.successful_accounts || 0}`);
-                            logBulkDomain(`❌ Failed: ${progress.failed_accounts || 0}`);
-                            logBulkDomain(`📊 Total Processed: ${progress.total_accounts || 0}`);
-                            
-                            // Show failed accounts details if any
-                            if (progress.failed_details && progress.failed_details.length > 0) {
-                                logBulkDomain('─'.repeat(50));
-                                logBulkDomain('❌ Failed Accounts Details:');
-                                progress.failed_details.forEach(failed => {
-                                    logBulkDomain(`   • ${failed.account}: ${failed.error}`);
-                                });
-                            }
-                            
-                        } else if (progress.status === 'error') {
-                            clearInterval(progressInterval);
-                            document.getElementById('megaStartBtn').style.display = 'inline-block';
-                            document.getElementById('megaStopBtn').style.display = 'none';
-                            logBulkDomain(`❌ Mega upgrade failed: ${progress.message}`);
-                        }
-                    } else {
-                        // Handle specific error cases
-                        if (progressData.error === 'Task not found or expired') {
-                            logBulkDomain(`⚠️ Task expired or not found. This might be due to server restart.`);
-                            clearInterval(progressInterval);
-                            document.getElementById('megaStartBtn').style.display = 'inline-block';
-                            document.getElementById('megaStopBtn').style.display = 'none';
-                        } else {
-                            logBulkDomain(`❌ Progress tracking failed: ${progressData.error}`);
-                        }
-                    }
-                })
-                .catch(error => {
-                    logBulkDomain(`❌ Progress check error: ${error.message}`);
-                    // Don't stop the interval on network errors, keep trying
-                    console.error('Progress check error:', error);
+            // Display detailed results for each account
+            if (data.final_results && data.final_results.length > 0) {
+                logBulkDomain('─'.repeat(50));
+                logBulkDomain('✅ SUCCESSFUL ACCOUNTS:');
+                data.final_results.forEach((result, index) => {
+                    logBulkDomain(`  ${index + 1}. Account: ${result.account}`);
+                    logBulkDomain(`     New Name: ${result.new_account_name}`);
+                    logBulkDomain(`     App Password: ${result.app_password}`);
+                    logBulkDomain(`     Status: ${result.status}`);
                 });
-            }, 1000); // Check every 1 second for faster updates
-            
+            }
+
+            // Display SMTP results if available
+            if (data.smtp_results && data.smtp_results.length > 0) {
+                logBulkDomain('─'.repeat(50));
+                logBulkDomain('📧 SMTP CONFIGURATION RESULTS:');
+                data.smtp_results.forEach((smtp, index) => {
+                    logBulkDomain(`  ${index + 1}. ${smtp}`);
+                });
+                
+                const display = document.getElementById('app-passwords-display');
+                display.value = data.smtp_results.join('\n');
+                logBulkDomain(`📋 ${data.smtp_results.length} SMTP results displayed in textarea`);
+            }
+
+            // Display failed details if any
+            if (data.failed_details && data.failed_details.length > 0) {
+                logBulkDomain('─'.repeat(50));
+                logBulkDomain('❌ FAILED ACCOUNTS DETAILS:');
+                data.failed_details.forEach((detail, index) => {
+                    logBulkDomain(`  ${index + 1}. Account: ${detail.account}`);
+                    logBulkDomain(`     Step: ${detail.step}`);
+                    logBulkDomain(`     Error: ${detail.error}`);
+                });
+            }
+
+            logBulkDomain('─'.repeat(50));
+            logBulkDomain('🎉 Mega Upgrade Workflow Finished!');
         } else {
             document.getElementById('megaStartBtn').style.display = 'inline-block';
             document.getElementById('megaStopBtn').style.display = 'none';
             logBulkDomain(`❌ Mega upgrade failed: ${data.error}`);
+            logBulkDomain('─'.repeat(50));
+            logBulkDomain('🔍 Check server logs for more details');
         }
     })
     .catch(error => {
         document.getElementById('megaStartBtn').style.display = 'inline-block';
         document.getElementById('megaStopBtn').style.display = 'none';
-        logBulkDomain(`❌ Error: ${error.message}`);
+        logBulkDomain(`❌ Network Error: ${error.message}`);
+        logBulkDomain('─'.repeat(50));
+        logBulkDomain('🔍 Check server connection and logs');
         console.error('Mega Upgrade Error:', error);
     });
 }
