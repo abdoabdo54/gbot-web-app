@@ -157,7 +157,7 @@ with app.app_context():
             # Update existing records
             db.session.execute(text("UPDATE used_domain SET ever_used = TRUE WHERE user_count > 0"))
             db.session.commit()
-            logging.info("SUCCESS: Successfully added 'ever_used' column!")
+            logging.info("✅ Successfully added 'ever_used' column!")
         else:
             logging.debug("Column 'ever_used' already exists")
             
@@ -1034,10 +1034,10 @@ def oauth_callback():
         
         return f"""
         <html>
-        <head><title>SUCCESS: Authentication Code Ready</title></head>
+        <head><title>✅ Authentication Code Ready</title></head>
         <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5;">
             <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <h2 style="color: #28a745;">SUCCESS: Authentication Successful!</h2>
+                <h2 style="color: #28a745;">✅ Authentication Successful!</h2>
                 <p style="font-size: 18px; margin: 20px 0;">Copy this authorization code:</p>
                 
                 <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border: 2px dashed #28a745; margin: 20px 0;">
@@ -1055,7 +1055,7 @@ def oauth_callback():
                 
                 <div style="margin-top: 30px;">
                     <button onclick="copyCode()" style="background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
-                        Copy Code
+                        📋 Copy Code
                     </button>
                 </div>
             </div>
@@ -1065,7 +1065,7 @@ def oauth_callback():
                     const input = document.querySelector('input');
                     input.select();
                     document.execCommand('copy');
-                    alert('SUCCESS: Code copied to clipboard!');
+                    alert('✅ Code copied to clipboard!');
                 }}
             </script>
         </body>
@@ -1896,7 +1896,7 @@ def api_change_domain_all_users():
                     db.session.add(new_domain_record)
                 
                 db.session.commit()
-                logging.info(f"SUCCESS: Domain status pre-updated: {current_domain} (USED) -> {new_domain} (IN USE)")
+                logging.info(f"✅ Domain status pre-updated: {current_domain} (USED) → {new_domain} (IN USE)")
                 
             except Exception as db_error:
                 logging.error(f"ERROR: Failed to pre-update domain status: {db_error}")
@@ -1958,7 +1958,7 @@ def api_change_domain_all_users():
                         'new_email': new_email
                     })
                     
-                    logging.info(f"SUCCESS: Successfully updated user {i+1}/{total_users}: {email} -> {new_email}")
+                    logging.info(f"✅ Successfully updated user {i+1}/{total_users}: {email} → {new_email}")
                     
                     # Add small delay between API calls to avoid rate limiting
                     import time
@@ -1983,7 +1983,7 @@ def api_change_domain_all_users():
                 if new_domain_record:
                     new_domain_record.user_count = successful
                     db.session.commit()
-                    logging.info(f"SUCCESS: Updated final user count: {new_domain} = {successful} users")
+                    logging.info(f"✅ Updated final user count: {new_domain} = {successful} users")
             except Exception as db_error:
                 logging.warning(f"Failed to update final user count: {db_error}")
                 try:
@@ -2079,7 +2079,7 @@ def api_change_domain():
                         'new_email': new_email
                     })
                     
-                    logging.info(f"SUCCESS: Changed domain for user: {email} -> {new_email}")
+                    logging.info(f"✅ Changed domain for user: {email} → {new_email}")
                     
                     # Add small delay to avoid API rate limits
                     import time
@@ -2565,7 +2565,7 @@ def test_server_connection():
                 
                 if valid_accounts:
                     return jsonify({
-                    'success': True,
+                        'success': True,
                         'message': f'Connection successful. Found {len(valid_accounts)} account(s) with JSON files in {len(account_dirs)} total directories.',
                         'accounts_count': len(valid_accounts),
                         'total_dirs': len(account_dirs),
@@ -3311,7 +3311,7 @@ def api_auto_change_subdomain():
                 ).execute()
                 
                 successful_changes += 1
-                logging.info(f"SUCCESS: Successfully changed {email} -> {new_email} ({i+1}/{total_users})")
+                logging.info(f"✅ Successfully changed {email} → {new_email} ({i+1}/{total_users})")
                 
             except Exception as e:
                 failed_changes.append({'email': email, 'error': str(e)})
@@ -3341,13 +3341,13 @@ def api_auto_change_subdomain():
                 db.session.add(new_domain_record)
             
             db.session.commit()
-            logging.info(f"Updated domain usage: {current_domain} (-{successful_changes}) -> {next_domain} (+{successful_changes})")
+            logging.info(f"Updated domain usage: {current_domain} (-{successful_changes}) → {next_domain} (+{successful_changes})")
             
         except Exception as db_error:
             logging.warning(f"Failed to update domain usage in database: {db_error}")
         
         # Prepare response
-        message = f"Automated subdomain change completed: {current_domain} -> {next_domain}"
+        message = f"Automated subdomain change completed: {current_domain} → {next_domain}"
         if failed_changes:
             message += f". {len(failed_changes)} users failed to change."
         
@@ -3918,38 +3918,38 @@ If you received this email, the SMTP credentials are working correctly.
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'error',
-                                    'error': f'Authentication failed: {str(e)}'
-                                })
-                    except smtplib.SMTPException as e:
+                    'email': email,
+                    'status': 'error',
+                    'error': f'Authentication failed: {str(e)}'
+                })
+            except smtplib.SMTPException as e:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'error',
-                                    'error': f'SMTP error: {str(e)}'
-                                })
-                    except socket.gaierror as e:
+                    'email': email,
+                    'status': 'error',
+                    'error': f'SMTP error: {str(e)}'
+                })
+            except socket.gaierror as e:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'error',
-                                    'error': f'DNS/Network error: {str(e)}'
-                                })
-                    except Exception as e:
-                        with progress_lock:
-                            if task_id in progress_tracker:
-                                progress_tracker[task_id]['fail_count'] += 1
-                                progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'error',
-                                    'error': f'Unexpected error: {str(e)}'
-                                })
-        
+                    'email': email,
+                    'status': 'error',
+                    'error': f'DNS/Network error: {str(e)}'
+                })
+            except Exception as e:
+                with progress_lock:
+                    if task_id in progress_tracker:
+                        progress_tracker[task_id]['fail_count'] += 1
+                        progress_tracker[task_id]['results'].append({
+                            'email': email,
+                            'status': 'error',
+                            'error': f'Unexpected error: {str(e)}'
+                        })
+                
                 # Mark as completed
                 with progress_lock:
                     if task_id in progress_tracker:
@@ -4379,109 +4379,72 @@ def mega_upgrade():
                         new_domain_users = domain_users
                         app.logger.info(f"Using {len(new_domain_users)} users from original domains")
                     
-                    # Generate app passwords for ALL users with batch processing
+                    # Generate app passwords for ALL users with retry mechanism
                     successful_passwords = 0
                     failed_passwords = []
-                    batch_size = 50  # Process in batches to avoid timeouts
                     
-                    app.logger.info(f"PROCESSING: Processing {len(new_domain_users)} users in batches of {batch_size}")
-                    
-                    for batch_start in range(0, len(new_domain_users), batch_size):
-                        batch_end = min(batch_start + batch_size, len(new_domain_users))
-                        batch_users = new_domain_users[batch_start:batch_end]
-                        
-                        app.logger.info(f"BATCH: Processing batch {batch_start//batch_size + 1}: users {batch_start+1}-{batch_end}")
-                        
-                        for i, user_email in enumerate(batch_users):
+                    for i, user_email in enumerate(new_domain_users):
+                        try:
+                            app.logger.info(f"Generating app password for user {i+1}/{len(new_domain_users)}: {user_email}")
+                            
+                            # Generate new app password
+                            import secrets
+                            import string
+                            
+                            alphabet = string.ascii_letters + string.digits
+                            app_password = ''.join(secrets.choice(alphabet) for _ in range(16))
+                            
+                            # Split user email into username and domain
+                            username, domain = user_email.split('@', 1)
+                            
+                            # Store app password in database with UPSERT logic
                             try:
-                                app.logger.info(f"Generating app password for user {batch_start+i+1}/{len(new_domain_users)}: {user_email}")
+                                existing_password = UserAppPassword.query.filter_by(
+                                    username=username, 
+                                    domain=domain
+                                ).first()
                                 
-                                # Generate new app password
-                                import secrets
-                                import string
+                                if existing_password:
+                                    # Update existing password
+                                    existing_password.app_password = app_password
+                                    existing_password.updated_at = datetime.utcnow()
+                                    app.logger.info(f"Updated existing app password for {user_email}")
+                                else:
+                                    # Create new password
+                                    new_password = UserAppPassword(
+                                        username=username,
+                                        domain=domain,
+                                        app_password=app_password
+                                    )
+                                    db.session.add(new_password)
+                                    app.logger.info(f"Created new app password for {user_email}")
                                 
-                                alphabet = string.ascii_letters + string.digits
-                                app_password = ''.join(secrets.choice(alphabet) for _ in range(16))
+                                # Commit after each user to avoid bulk conflicts
+                                db.session.commit()
                                 
-                                # Split user email into username and domain
-                                username, domain = user_email.split('@', 1)
-                                
-                                # Store app password in database with UPSERT logic
-                                try:
-                                    existing_password = UserAppPassword.query.filter_by(
-                                        username=username, 
-                                        domain=domain
-                                    ).first()
-                                    
-                                    if existing_password:
-                                        # Update existing password
-                                        existing_password.app_password = app_password
-                                        existing_password.updated_at = datetime.utcnow()
-                                        app.logger.info(f"Updated existing app password for {user_email}")
-                                    else:
-                                        # Create new password
-                                        new_password = UserAppPassword(
-                                            username=username,
-                                            domain=domain,
-                                            app_password=app_password
-                                        )
-                                        db.session.add(new_password)
-                                        app.logger.info(f"Created new app password for {user_email}")
-                                    
-                                    # Commit after each user to avoid bulk conflicts
-                                    db.session.commit()
-                                    
-                                except Exception as db_error:
-                                    app.logger.error(f"Database error for {user_email}: {db_error}")
-                                    # Rollback and continue with next user
-                                    db.session.rollback()
-                                    continue
-                                
-                                # Add to SMTP results
-                                smtp_results.append(f"{user_email},{app_password},smtp.gmail.com,587")
-                                successful_passwords += 1
-                                app.logger.info(f"SUCCESS: Generated app password for {user_email}")
-                                
-                                # Small delay between users to avoid rate limiting
-                                if i < len(batch_users) - 1:  # Don't delay after last user in batch
-                                    time.sleep(0.05)  # Even smaller delay for batch processing
-                                
-                            except Exception as e:
-                                app.logger.error(f"ERROR: Failed to generate app password for {user_email}: {e}")
-                                failed_passwords.append(f"{user_email}: {str(e)}")
-                        
-                        # Log batch completion
-                        app.logger.info(f"✅ Completed batch {batch_start//batch_size + 1}: {len(batch_users)} users processed")
+                            except Exception as db_error:
+                                app.logger.error(f"Database error for {user_email}: {db_error}")
+                                # Rollback and continue with next user
+                                db.session.rollback()
+                                continue
+                            
+                            # Add to SMTP results
+                            smtp_results.append(f"{user_email},{app_password},smtp.gmail.com,587")
+                            successful_passwords += 1
+                            app.logger.info(f"✅ Generated app password for {user_email}")
+                            
+                            # Small delay between users to avoid rate limiting
+                            if i < len(new_domain_users) - 1:  # Don't delay after last user
+                                time.sleep(0.1)  # Reduced from 0.5 to 0.1 seconds
+                            
+                        except Exception as e:
+                            app.logger.error(f"❌ Failed to generate app password for {user_email}: {e}")
+                            failed_passwords.append(f"{user_email}: {str(e)}")
                     
                     app.logger.info(f"✅ Generated app passwords for {successful_passwords}/{len(new_domain_users)} users")
                     
                     if failed_passwords:
                         app.logger.warning(f"⚠️ Failed to generate passwords for {len(failed_passwords)} users: {failed_passwords}")
-                    
-                    # Automatically retrieve and display app passwords (like Update & Optimize button)
-                    app.logger.info("🔄 Automatically retrieving app passwords for display...")
-                    try:
-                        # Get all app passwords for the new domain
-                        domain_app_passwords = UserAppPassword.query.filter_by(domain=new_domain).all()
-                        
-                        if domain_app_passwords:
-                            app.logger.info(f"📋 Found {len(domain_app_passwords)} app passwords for {new_domain}")
-                            
-                            # Format for SMTP display
-                            smtp_display = []
-                            for password_record in domain_app_passwords:
-                                user_email = f"{password_record.username}@{password_record.domain}"
-                                smtp_line = f"{user_email},{password_record.app_password},smtp.gmail.com,587"
-                                smtp_display.append(smtp_line)
-                            
-                            # Update SMTP results with formatted display
-                            smtp_results = smtp_display
-                            app.logger.info(f"✅ Retrieved {len(smtp_display)} app passwords for display")
-                        else:
-                            app.logger.warning(f"⚠️ No app passwords found for domain {new_domain}")
-                            
-                    except Exception as e:
-                        app.logger.error(f"❌ Failed to retrieve app passwords for display: {e}")
                 
                 # Account processed successfully
                 successful_accounts += 1
@@ -4798,7 +4761,7 @@ def api_refresh_domain_status():
             if '@' in email:
                 domain = email.split('@')[1]
                 domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
-        
+            
         # Update domain statuses
         updated_domains = []
         for domain_name, user_count in domain_user_counts.items():
@@ -6005,8 +5968,8 @@ def upload_base64_chunk():
         
         app.logger.info(f"Base64 chunk {chunk_index + 1}/{total_chunks} uploaded for {filename}")
         
-                return jsonify({
-                    'success': True,
+        return jsonify({
+            'success': True,
             'message': f'Base64 chunk {chunk_index + 1}/{total_chunks} uploaded',
             'chunk_index': chunk_index,
             'total_chunks': total_chunks
