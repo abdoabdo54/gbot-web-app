@@ -1174,8 +1174,15 @@ def api_create_random_users():
 
         # Clean domain name
         domain = domain.strip().lower()
-        if not domain.endswith('.com') and not domain.endswith('.org') and not domain.endswith('.net'):
+        
+        # Basic domain validation - check if it has at least one dot and valid characters
+        if '.' not in domain or len(domain.split('.')) < 2:
             return jsonify({'success': False, 'error': 'Domain must be a valid domain (e.g., example.com)'})
+        
+        # Check for valid domain characters (letters, numbers, dots, hyphens)
+        import re
+        if not re.match(r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', domain):
+            return jsonify({'success': False, 'error': 'Domain contains invalid characters'})
 
         result = google_api.create_random_users(num_users, domain)
         return jsonify(result)
