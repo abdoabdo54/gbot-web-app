@@ -27,10 +27,6 @@ from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleT
 progress_tracker = {}
 progress_lock = threading.Lock()
 
-# Global variables to store mega upgrade results
-mega_upgrade_results = {}
-mega_upgrade_lock = threading.Lock()
-
 def update_progress(task_id, current, total, status="processing", message=""):
     """Update progress for a task"""
     with progress_lock:
@@ -2531,7 +2527,7 @@ def test_server_connection():
                         account_files = sftp.listdir(account_path)
                         
                         # Look for JSON files
-                        import fnmatch
+                import fnmatch
                         json_files = [f for f in account_files if fnmatch.fnmatch(f, '*.json')]
                         
                         if json_files:
@@ -2540,8 +2536,8 @@ def test_server_connection():
                             file_path = f"{account_path}/{json_filename}"
                             
                             try:
-                                with sftp.open(file_path, 'r') as f:
-                                    content = f.read()
+                        with sftp.open(file_path, 'r') as f:
+                            content = f.read()
                                     json_data = json.loads(content)
                                 
                                 # Validate JSON structure
@@ -2557,7 +2553,7 @@ def test_server_connection():
                                         'json_file': json_filename,
                                         'has_credentials': False
                                     })
-                            except Exception as e:
+                    except Exception as e:
                                 app.logger.warning(f"Invalid JSON file {file_path}: {e}")
                                 continue
                     
@@ -2568,8 +2564,8 @@ def test_server_connection():
                 ssh.close()
                 
                 if valid_accounts:
-                    return jsonify({
-                        'success': True,
+                return jsonify({
+                    'success': True,
                         'message': f'Connection successful. Found {len(valid_accounts)} account(s) with JSON files in {len(account_dirs)} total directories.',
                         'accounts_count': len(valid_accounts),
                         'total_dirs': len(account_dirs),
@@ -3851,45 +3847,45 @@ def test_smtp_credentials_progress():
                         progress_tracker[task_id]['progress'] = i
                         progress_tracker[task_id]['message'] = f'Testing credential {i}/{len(credentials_lines)}...'
                     
-                    if ':' not in line:
+            if ':' not in line:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': line,
-                                    'status': 'error',
-                                    'error': 'Invalid format - use email:password'
-                                })
-                        continue
-                    
-                    try:
-                        email, password = line.split(':', 1)
-                        email = email.strip()
-                        password = password.strip()
-                        
-                        if not email or not password:
+                    'email': line,
+                    'status': 'error',
+                    'error': 'Invalid format - use email:password'
+                })
+                continue
+            
+            try:
+                email, password = line.split(':', 1)
+                email = email.strip()
+                password = password.strip()
+                
+                if not email or not password:
                             with progress_lock:
                                 if task_id in progress_tracker:
                                     progress_tracker[task_id]['fail_count'] += 1
                                     progress_tracker[task_id]['results'].append({
-                                        'email': email or 'unknown',
-                                        'status': 'error',
-                                        'error': 'Empty email or password'
-                                    })
-                            continue
-                        
+                        'email': email or 'unknown',
+                        'status': 'error',
+                        'error': 'Empty email or password'
+                    })
+                    continue
+                
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['current_email'] = email
                                 progress_tracker[task_id]['message'] = f'Testing {email}...'
-                        
-                        # Create message
-                        msg = MIMEMultipart()
-                        msg['From'] = email
-                        msg['To'] = recipient_email
-                        msg['Subject'] = f"SMTP Test from {email}"
-                        
-                        body = f"""
+                
+                # Create message
+                msg = MIMEMultipart()
+                msg['From'] = email
+                msg['To'] = recipient_email
+                msg['Subject'] = f"SMTP Test from {email}"
+                
+                body = f"""
 This is a test email sent from {email} using the GBot Web Application SMTP tester.
 
 Test Details:
@@ -3899,25 +3895,25 @@ Test Details:
 
 If you received this email, the SMTP credentials are working correctly.
 """
-                        msg.attach(MIMEText(body, 'plain'))
-                        
-                        # Connect and send
-                        server = smtplib.SMTP(smtp_server, smtp_port)
-                        server.starttls()  # Enable encryption
-                        server.login(email, password)
-                        server.send_message(msg)
-                        server.quit()
-                        
+                msg.attach(MIMEText(body, 'plain'))
+                
+                # Connect and send
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()  # Enable encryption
+                server.login(email, password)
+                server.send_message(msg)
+                server.quit()
+                
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['success_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'success',
-                                    'message': f'Test email sent successfully to {recipient_email}'
-                                })
-                        
-                    except smtplib.SMTPAuthenticationError as e:
+                    'email': email,
+                    'status': 'success',
+                    'message': f'Test email sent successfully to {recipient_email}'
+                })
+                
+            except smtplib.SMTPAuthenticationError as e:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
@@ -3949,11 +3945,11 @@ If you received this email, the SMTP credentials are working correctly.
                     if task_id in progress_tracker:
                         progress_tracker[task_id]['fail_count'] += 1
                         progress_tracker[task_id]['results'].append({
-                            'email': email,
-                            'status': 'error',
-                            'error': f'Unexpected error: {str(e)}'
-                        })
-                
+                    'email': email,
+                    'status': 'error',
+                    'error': f'Unexpected error: {str(e)}'
+                })
+        
                 # Mark as completed
                 with progress_lock:
                     if task_id in progress_tracker:
@@ -4060,62 +4056,15 @@ def mega_upgrade():
         return jsonify({'success': False, 'error': 'Access denied. Valid user role required.'})
     
     try:
-        # Start the mega upgrade in a separate thread to avoid timeout
-        import time
+        # Set longer timeout for this endpoint (5 minutes)
+        import signal
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Mega upgrade timeout")
         
-        def run_mega_upgrade_async():
-            """Run mega upgrade in background thread"""
-            try:
-                with mega_upgrade_lock:
-                    mega_upgrade_results['status'] = 'running'
-                    mega_upgrade_results['progress'] = 0
-                    mega_upgrade_results['message'] = 'Starting mega upgrade...'
-                
-                # Call the actual mega upgrade function
-                result = mega_upgrade_worker()
-                
-                with mega_upgrade_lock:
-                    mega_upgrade_results.update(result)
-                    mega_upgrade_results['status'] = 'completed'
-                    
-            except Exception as e:
-                with mega_upgrade_lock:
-                    mega_upgrade_results['status'] = 'error'
-                    mega_upgrade_results['error'] = str(e)
+        # Set timeout to 10 minutes (600 seconds) for large user bases
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(600)
         
-        # Start the background thread
-        thread = threading.Thread(target=run_mega_upgrade_async)
-        thread.daemon = True
-        thread.start()
-        
-        # Return immediately with a task ID
-        return jsonify({
-            'success': True,
-            'message': 'Mega upgrade started in background',
-            'task_id': 'mega_upgrade_' + str(int(time.time())),
-            'status': 'started'
-        })
-        
-    except Exception as e:
-        app.logger.error(f"MEGA UPGRADE ERROR: {e}")
-        import traceback
-        app.logger.error(f"MEGA UPGRADE TRACEBACK: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e), 'traceback': traceback.format_exc()})
-
-@app.route('/api/mega-upgrade-status', methods=['GET'])
-@login_required
-def mega_upgrade_status():
-    """Get the status of the running mega upgrade"""
-    try:
-        # Return the current status
-        with mega_upgrade_lock:
-            return jsonify(mega_upgrade_results)
-    except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)})
-
-def mega_upgrade_worker():
-    """The actual mega upgrade worker function"""
-    try:
         data = request.get_json()
         accounts = data.get('accounts', [])
         features = data.get('features', {})
@@ -4554,7 +4503,7 @@ def mega_upgrade_worker():
                 
                 app.logger.info(f"Account {account_email} processed successfully - account name unchanged: {original_account_name}")
                 
-            except Exception as e:
+    except Exception as e:
                 app.logger.error(f"Error processing account {account_email}: {e}")
                 failed_accounts += 1
                 failed_details.append({
@@ -4841,18 +4790,18 @@ def api_refresh_domain_status():
         # Get all domains from database
         domains = UsedDomain.query.all()
         domain_dict = {domain.domain_name: domain for domain in domains}
-        
-        # Count users per domain
-        domain_user_counts = {}
+            
+            # Count users per domain
+            domain_user_counts = {}
         for user in users:
-            email = user.get('primaryEmail', '')
-            if '@' in email:
-                domain = email.split('@')[1]
-                domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+                email = user.get('primaryEmail', '')
+                if '@' in email:
+                    domain = email.split('@')[1]
+                    domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
             
         # Update domain statuses
-        updated_domains = []
-        for domain_name, user_count in domain_user_counts.items():
+            updated_domains = []
+            for domain_name, user_count in domain_user_counts.items():
             if domain_name in domain_dict:
                 domain = domain_dict[domain_name]
                 old_count = domain.user_count
@@ -4863,14 +4812,14 @@ def api_refresh_domain_status():
                     'old_count': old_count,
                     'new_count': user_count
                 })
-            else:
+                    else:
                 # Create new domain entry
-                new_domain = UsedDomain(
-                    domain_name=domain_name,
-                    user_count=user_count,
+                        new_domain = UsedDomain(
+                            domain_name=domain_name,
+                            user_count=user_count,
                     ever_used=True
-                )
-                db.session.add(new_domain)
+                        )
+                        db.session.add(new_domain)
                 updated_domains.append({
                     'domain': domain_name,
                     'old_count': 0,
@@ -5040,7 +4989,7 @@ def restore_backup():
                 result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
                 if result.returncode != 0:
                     return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
-            else:
+        else:
                 return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
         
         else:
@@ -5509,7 +5458,7 @@ def restore_from_base64():
                             pg_dump_path = path
                             app.logger.info(f"✅ pg_dump found at {path}: {result.stdout.strip()}")
                             break
-                        else:
+                else:
                             app.logger.debug(f"pg_dump at {path} returned code {result.returncode}")
                     except Exception as e:
                         app.logger.debug(f"pg_dump not found at {path}: {e}")
@@ -5548,7 +5497,7 @@ def restore_from_base64():
                             psql_path = path
                             app.logger.info(f"✅ psql found at {path}: {result.stdout.strip()}")
                             break
-                        else:
+                else:
                             app.logger.debug(f"psql at {path} returned code {result.returncode}")
                     except Exception as e:
                         app.logger.debug(f"psql not found at {path}: {e}")
@@ -5681,8 +5630,8 @@ def restore_from_base64():
         # Clear SQLAlchemy session to force reload
         db.session.remove()
         
-        return jsonify({
-            'success': True,
+            return jsonify({
+                'success': True,
             'message': f'Database restored successfully from base64 upload: {filename}',
             'decoded_file': decoded_filename,
             'current_backup': current_backup_name
@@ -6056,8 +6005,8 @@ def upload_base64_chunk():
         
         app.logger.info(f"Base64 chunk {chunk_index + 1}/{total_chunks} uploaded for {filename}")
         
-        return jsonify({
-            'success': True,
+                return jsonify({
+                    'success': True,
             'message': f'Base64 chunk {chunk_index + 1}/{total_chunks} uploaded',
             'chunk_index': chunk_index,
             'total_chunks': total_chunks
