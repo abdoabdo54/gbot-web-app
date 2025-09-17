@@ -3868,24 +3868,24 @@ def test_smtp_credentials_progress():
                                 if task_id in progress_tracker:
                                     progress_tracker[task_id]['fail_count'] += 1
                                     progress_tracker[task_id]['results'].append({
-                        'email': email or 'unknown',
-                        'status': 'error',
-                        'error': 'Empty email or password'
-                    })
-                    continue
-                
+                                        'email': email or 'unknown',
+                                        'status': 'error',
+                                        'error': 'Empty email or password'
+                                    })
+                            continue
+                        
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['current_email'] = email
                                 progress_tracker[task_id]['message'] = f'Testing {email}...'
-                
-                # Create message
-                msg = MIMEMultipart()
-                msg['From'] = email
-                msg['To'] = recipient_email
-                msg['Subject'] = f"SMTP Test from {email}"
-                
-                body = f"""
+                        
+                        # Create message
+                        msg = MIMEMultipart()
+                        msg['From'] = email
+                        msg['To'] = recipient_email
+                        msg['Subject'] = f"SMTP Test from {email}"
+                        
+                        body = f"""
 This is a test email sent from {email} using the GBot Web Application SMTP tester.
 
 Test Details:
@@ -3895,60 +3895,60 @@ Test Details:
 
 If you received this email, the SMTP credentials are working correctly.
 """
-                msg.attach(MIMEText(body, 'plain'))
-                
-                # Connect and send
-                server = smtplib.SMTP(smtp_server, smtp_port)
-                server.starttls()  # Enable encryption
-                server.login(email, password)
-                server.send_message(msg)
-                server.quit()
-                
+                        msg.attach(MIMEText(body, 'plain'))
+                        
+                        # Connect and send
+                        server = smtplib.SMTP(smtp_server, smtp_port)
+                        server.starttls()  # Enable encryption
+                        server.login(email, password)
+                        server.send_message(msg)
+                        server.quit()
+                        
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['success_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                    'email': email,
-                    'status': 'success',
-                    'message': f'Test email sent successfully to {recipient_email}'
-                })
-                
-            except smtplib.SMTPAuthenticationError as e:
+                                    'email': email,
+                                    'status': 'success',
+                                    'message': f'Test email sent successfully to {recipient_email}'
+                                })
+                        
+                    except smtplib.SMTPAuthenticationError as e:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                    'email': email,
-                    'status': 'error',
-                    'error': f'Authentication failed: {str(e)}'
-                })
-            except smtplib.SMTPException as e:
+                                    'email': email,
+                                    'status': 'error',
+                                    'error': f'Authentication failed: {str(e)}'
+                                })
+                    except smtplib.SMTPException as e:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                    'email': email,
-                    'status': 'error',
-                    'error': f'SMTP error: {str(e)}'
-                })
-            except socket.gaierror as e:
+                                    'email': email,
+                                    'status': 'error',
+                                    'error': f'SMTP error: {str(e)}'
+                                })
+                    except socket.gaierror as e:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                    'email': email,
-                    'status': 'error',
-                    'error': f'DNS/Network error: {str(e)}'
-                })
-            except Exception as e:
-                with progress_lock:
-                    if task_id in progress_tracker:
-                        progress_tracker[task_id]['fail_count'] += 1
-                        progress_tracker[task_id]['results'].append({
-                    'email': email,
-                    'status': 'error',
-                    'error': f'Unexpected error: {str(e)}'
-                })
+                                    'email': email,
+                                    'status': 'error',
+                                    'error': f'DNS/Network error: {str(e)}'
+                                })
+                    except Exception as e:
+                        with progress_lock:
+                            if task_id in progress_tracker:
+                                progress_tracker[task_id]['fail_count'] += 1
+                                progress_tracker[task_id]['results'].append({
+                                    'email': email,
+                                    'status': 'error',
+                                    'error': f'Unexpected error: {str(e)}'
+                                })
         
                 # Mark as completed
                 with progress_lock:
@@ -4503,7 +4503,7 @@ def mega_upgrade():
                 
                 app.logger.info(f"Account {account_email} processed successfully - account name unchanged: {original_account_name}")
                 
-    except Exception as e:
+            except Exception as e:
                 app.logger.error(f"Error processing account {account_email}: {e}")
                 failed_accounts += 1
                 failed_details.append({
