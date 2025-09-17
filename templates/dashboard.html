@@ -2730,25 +2730,58 @@ function createRandomUsers() {
             domain: domain
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             logResult(`✅ Random user creation completed. Password: ${data.password}`);
             if (data.results) {
+                let successCount = 0;
+                let failureCount = 0;
+                
                 data.results.forEach(result => {
                     if (result.result.success) {
                         logResult(`✅ Created: ${result.email}`);
+                        successCount++;
                     } else {
-                        logResult(`❌ Failed: ${result.email} - ${result.result.error}`);
+                        // Handle different error types for random users
+                        if (result.result.error_type === 'domain_limit') {
+                            logResult(`🚫 DOMAIN LIMIT: ${result.email} - ${result.result.error}`);
+                            logResult(`💡 Solution: Upgrade to paid Google Workspace subscription`);
+                        } else if (result.result.error_type === 'duplicate_user') {
+                            logResult(`👤 DUPLICATE: ${result.email} - ${result.result.error}`);
+                            logResult(`💡 Solution: User already exists, skipping`);
+                        } else {
+                            logResult(`❌ Failed: ${result.email} - ${result.result.error}`);
+                        }
+                        failureCount++;
                     }
                 });
+                
+                logResult(`📊 Summary: ${successCount} successful, ${failureCount} failed`);
+                
+                if (failureCount > 0) {
+                    logResult(`💡 Note: Some users failed due to domain limits or duplicates`);
+                }
             }
         } else {
-            logResult(`❌ Random user creation failed: ${data.error}`);
+            // Handle overall failure
+            if (data.error_type === 'domain_limit') {
+                logResult(`🚫 DOMAIN LIMIT REACHED: ${data.error}`);
+                logResult(`💡 Solution: Upgrade to a paid Google Workspace subscription`);
+                logResult(`📊 Target domain: ${domain}`);
+            } else {
+                logResult(`❌ Random user creation failed: ${data.error}`);
+            }
         }
     })
     .catch(error => {
-        logResult(`❌ Network error: ${error}`);
+        logResult(`❌ Network error: ${error.message}`);
+        logResult(`💡 Solution: Check your internet connection and try again`);
     });
 }
 
@@ -2901,16 +2934,48 @@ function createSingleUser() {
             password: password
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             logResult(`✅ User ${email} created successfully.`);
+            // Clear the form after successful creation
+            document.getElementById('new-user-first-name').value = '';
+            document.getElementById('new-user-last-name').value = '';
+            document.getElementById('new-user-email').value = '';
+            document.getElementById('new-user-password').value = '';
         } else {
-            logResult(`❌ Failed to create user ${email}: ${data.error}`);
+            // Handle different error types with specific messages
+            if (data.error_type === 'domain_limit') {
+                logResult(`🚫 DOMAIN LIMIT REACHED: ${data.error}`);
+                logResult(`💡 Solution: Upgrade to a paid Google Workspace subscription`);
+                logResult(`📊 Current domain: ${email.split('@')[1]}`);
+            } else if (data.error_type === 'auth_error') {
+                logResult(`🔐 AUTHENTICATION ERROR: ${data.error}`);
+                logResult(`💡 Solution: Please re-authenticate your account`);
+            } else if (data.error_type === 'duplicate_user') {
+                logResult(`👤 DUPLICATE USER: ${data.error}`);
+                logResult(`💡 Solution: Use a different email address`);
+            } else if (data.error_type === 'invalid_domain') {
+                logResult(`🌐 INVALID DOMAIN: ${data.error}`);
+                logResult(`💡 Solution: Check the domain name and try again`);
+            } else {
+                logResult(`❌ Failed to create user ${email}: ${data.error}`);
+            }
+            
+            // Show raw error for debugging if available
+            if (data.raw_error) {
+                logResult(`🔍 Technical details: ${data.raw_error}`);
+            }
         }
     })
     .catch(error => {
-        logResult(`❌ Network error: ${error}`);
+        logResult(`❌ Network error: ${error.message}`);
+        logResult(`💡 Solution: Check your internet connection and try again`);
     });
 }
 

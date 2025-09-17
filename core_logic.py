@@ -172,7 +172,53 @@ class WebGoogleAPI:
             user = self.service.users().insert(body=user_body).execute()
             return {"success": True, "user": user}
         except HttpError as e:
-            return {"success": False, "error": str(e)}
+            # Parse specific error types for better user feedback
+            error_message = str(e)
+            
+            # Check for domain user limit error
+            if "Domain user limit reached" in error_message or "limitExceeded" in error_message:
+                return {
+                    "success": False, 
+                    "error": "Domain user limit reached. Please upgrade to a paid Google Workspace subscription to create more users.",
+                    "error_type": "domain_limit",
+                    "raw_error": error_message
+                }
+            
+            # Check for authentication errors
+            elif "Not authenticated" in error_message or "unauthorized" in error_message.lower():
+                return {
+                    "success": False,
+                    "error": "Authentication failed. Please re-authenticate your account.",
+                    "error_type": "auth_error",
+                    "raw_error": error_message
+                }
+            
+            # Check for duplicate user errors
+            elif "already exists" in error_message.lower() or "duplicate" in error_message.lower():
+                return {
+                    "success": False,
+                    "error": f"User {email} already exists in this domain.",
+                    "error_type": "duplicate_user",
+                    "raw_error": error_message
+                }
+            
+            # Check for invalid domain errors
+            elif "invalid domain" in error_message.lower() or "domain not found" in error_message.lower():
+                return {
+                    "success": False,
+                    "error": f"Domain not found or invalid. Please check the domain name.",
+                    "error_type": "invalid_domain",
+                    "raw_error": error_message
+                }
+            
+            # Default error handling
+            else:
+                return {
+                    "success": False, 
+                    "error": f"Failed to create user: {error_message}",
+                    "error_type": "unknown",
+                    "raw_error": error_message
+                }
 
     def get_domain_info(self):
         if not self.service:
