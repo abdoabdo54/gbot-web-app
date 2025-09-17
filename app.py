@@ -2527,7 +2527,7 @@ def test_server_connection():
                         account_files = sftp.listdir(account_path)
                         
                         # Look for JSON files
-                import fnmatch
+                        import fnmatch
                         json_files = [f for f in account_files if fnmatch.fnmatch(f, '*.json')]
                         
                         if json_files:
