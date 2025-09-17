@@ -157,7 +157,7 @@ with app.app_context():
             # Update existing records
             db.session.execute(text("UPDATE used_domain SET ever_used = TRUE WHERE user_count > 0"))
             db.session.commit()
-            logging.info("✅ Successfully added 'ever_used' column!")
+            logging.info("SUCCESS: Successfully added 'ever_used' column!")
         else:
             logging.debug("Column 'ever_used' already exists")
             
@@ -1034,10 +1034,10 @@ def oauth_callback():
         
         return f"""
         <html>
-        <head><title>✅ Authentication Code Ready</title></head>
+        <head><title>SUCCESS: Authentication Code Ready</title></head>
         <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5;">
             <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <h2 style="color: #28a745;">✅ Authentication Successful!</h2>
+                <h2 style="color: #28a745;">SUCCESS: Authentication Successful!</h2>
                 <p style="font-size: 18px; margin: 20px 0;">Copy this authorization code:</p>
                 
                 <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border: 2px dashed #28a745; margin: 20px 0;">
@@ -1055,7 +1055,7 @@ def oauth_callback():
                 
                 <div style="margin-top: 30px;">
                     <button onclick="copyCode()" style="background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
-                        📋 Copy Code
+                        Copy Code
                     </button>
                 </div>
             </div>
@@ -1065,7 +1065,7 @@ def oauth_callback():
                     const input = document.querySelector('input');
                     input.select();
                     document.execCommand('copy');
-                    alert('✅ Code copied to clipboard!');
+                    alert('SUCCESS: Code copied to clipboard!');
                 }}
             </script>
         </body>
@@ -1896,7 +1896,7 @@ def api_change_domain_all_users():
                     db.session.add(new_domain_record)
                 
                 db.session.commit()
-                logging.info(f"✅ Domain status pre-updated: {current_domain} (USED) → {new_domain} (IN USE)")
+                logging.info(f"SUCCESS: Domain status pre-updated: {current_domain} (USED) -> {new_domain} (IN USE)")
                 
             except Exception as db_error:
                 logging.error(f"ERROR: Failed to pre-update domain status: {db_error}")
@@ -1958,7 +1958,7 @@ def api_change_domain_all_users():
                         'new_email': new_email
                     })
                     
-                    logging.info(f"✅ Successfully updated user {i+1}/{total_users}: {email} → {new_email}")
+                    logging.info(f"SUCCESS: Successfully updated user {i+1}/{total_users}: {email} -> {new_email}")
                     
                     # Add small delay between API calls to avoid rate limiting
                     import time
@@ -1983,7 +1983,7 @@ def api_change_domain_all_users():
                 if new_domain_record:
                     new_domain_record.user_count = successful
                     db.session.commit()
-                    logging.info(f"✅ Updated final user count: {new_domain} = {successful} users")
+                    logging.info(f"SUCCESS: Updated final user count: {new_domain} = {successful} users")
             except Exception as db_error:
                 logging.warning(f"Failed to update final user count: {db_error}")
                 try:
@@ -2079,7 +2079,7 @@ def api_change_domain():
                         'new_email': new_email
                     })
                     
-                    logging.info(f"✅ Changed domain for user: {email} → {new_email}")
+                    logging.info(f"SUCCESS: Changed domain for user: {email} -> {new_email}")
                     
                     # Add small delay to avoid API rate limits
                     import time
@@ -3311,7 +3311,7 @@ def api_auto_change_subdomain():
                 ).execute()
                 
                 successful_changes += 1
-                logging.info(f"✅ Successfully changed {email} → {new_email} ({i+1}/{total_users})")
+                logging.info(f"SUCCESS: Successfully changed {email} -> {new_email} ({i+1}/{total_users})")
                 
             except Exception as e:
                 failed_changes.append({'email': email, 'error': str(e)})
@@ -3341,13 +3341,13 @@ def api_auto_change_subdomain():
                 db.session.add(new_domain_record)
             
             db.session.commit()
-            logging.info(f"Updated domain usage: {current_domain} (-{successful_changes}) → {next_domain} (+{successful_changes})")
+            logging.info(f"Updated domain usage: {current_domain} (-{successful_changes}) -> {next_domain} (+{successful_changes})")
             
         except Exception as db_error:
             logging.warning(f"Failed to update domain usage in database: {db_error}")
         
         # Prepare response
-        message = f"Automated subdomain change completed: {current_domain} → {next_domain}"
+        message = f"Automated subdomain change completed: {current_domain} -> {next_domain}"
         if failed_changes:
             message += f". {len(failed_changes)} users failed to change."
         
@@ -4384,13 +4384,13 @@ def mega_upgrade():
                     failed_passwords = []
                     batch_size = 50  # Process in batches to avoid timeouts
                     
-                    app.logger.info(f"🔄 Processing {len(new_domain_users)} users in batches of {batch_size}")
+                    app.logger.info(f"PROCESSING: Processing {len(new_domain_users)} users in batches of {batch_size}")
                     
                     for batch_start in range(0, len(new_domain_users), batch_size):
                         batch_end = min(batch_start + batch_size, len(new_domain_users))
                         batch_users = new_domain_users[batch_start:batch_end]
                         
-                        app.logger.info(f"📦 Processing batch {batch_start//batch_size + 1}: users {batch_start+1}-{batch_end}")
+                        app.logger.info(f"BATCH: Processing batch {batch_start//batch_size + 1}: users {batch_start+1}-{batch_end}")
                         
                         for i, user_email in enumerate(batch_users):
                             try:
@@ -4440,14 +4440,14 @@ def mega_upgrade():
                                 # Add to SMTP results
                                 smtp_results.append(f"{user_email},{app_password},smtp.gmail.com,587")
                                 successful_passwords += 1
-                                app.logger.info(f"✅ Generated app password for {user_email}")
+                                app.logger.info(f"SUCCESS: Generated app password for {user_email}")
                                 
                                 # Small delay between users to avoid rate limiting
                                 if i < len(batch_users) - 1:  # Don't delay after last user in batch
                                     time.sleep(0.05)  # Even smaller delay for batch processing
                                 
                             except Exception as e:
-                                app.logger.error(f"❌ Failed to generate app password for {user_email}: {e}")
+                                app.logger.error(f"ERROR: Failed to generate app password for {user_email}: {e}")
                                 failed_passwords.append(f"{user_email}: {str(e)}")
                         
                         # Log batch completion
@@ -5458,7 +5458,7 @@ def restore_from_base64():
                             pg_dump_path = path
                             app.logger.info(f"✅ pg_dump found at {path}: {result.stdout.strip()}")
                             break
-                else:
+                        else:
                             app.logger.debug(f"pg_dump at {path} returned code {result.returncode}")
                     except Exception as e:
                         app.logger.debug(f"pg_dump not found at {path}: {e}")
@@ -5497,7 +5497,7 @@ def restore_from_base64():
                             psql_path = path
                             app.logger.info(f"✅ psql found at {path}: {result.stdout.strip()}")
                             break
-                else:
+                        else:
                             app.logger.debug(f"psql at {path} returned code {result.returncode}")
                     except Exception as e:
                         app.logger.debug(f"psql not found at {path}: {e}")
@@ -5630,8 +5630,8 @@ def restore_from_base64():
         # Clear SQLAlchemy session to force reload
         db.session.remove()
         
-            return jsonify({
-                'success': True,
+        return jsonify({
+            'success': True,
             'message': f'Database restored successfully from base64 upload: {filename}',
             'decoded_file': decoded_filename,
             'current_backup': current_backup_name
