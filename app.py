@@ -1154,6 +1154,35 @@ def api_create_gsuite_user():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/create-random-users', methods=['POST'])
+@login_required
+def api_create_random_users():
+    try:
+        data = request.get_json()
+        num_users = data.get('num_users')
+        domain = data.get('domain')
+
+        if not num_users or num_users <= 0:
+            return jsonify({'success': False, 'error': 'Number of users must be greater than 0'})
+
+        if not domain or not domain.strip():
+            return jsonify({'success': False, 'error': 'Domain is required'})
+
+        # Limit the number of users for performance
+        if num_users > 50:
+            return jsonify({'success': False, 'error': 'Maximum 50 users allowed per batch'})
+
+        # Clean domain name
+        domain = domain.strip().lower()
+        if not domain.endswith('.com') and not domain.endswith('.org') and not domain.endswith('.net'):
+            return jsonify({'success': False, 'error': 'Domain must be a valid domain (e.g., example.com)'})
+
+        result = google_api.create_random_users(num_users, domain)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/get-domain-info', methods=['GET'])
 @login_required
 def api_get_domain_info():

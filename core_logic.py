@@ -265,4 +265,73 @@ class WebGoogleAPI:
         except HttpError as e:
             return {"success": False, "error": str(e)}
 
+    def create_random_users(self, num_users, domain):
+        """Create multiple random users with generated names and passwords"""
+        if not self.service:
+            raise Exception("Not authenticated or session expired.")
+        
+        import random
+        import string
+        
+        # Generate a random password for all users
+        password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+        
+        # Common first and last names for random generation
+        first_names = [
+            "James", "John", "Robert", "Michael", "William", "David", "Richard", "Charles", "Joseph", "Thomas",
+            "Christopher", "Daniel", "Paul", "Mark", "Donald", "George", "Kenneth", "Steven", "Edward", "Brian",
+            "Ronald", "Anthony", "Kevin", "Jason", "Matthew", "Gary", "Timothy", "Jose", "Larry", "Jeffrey",
+            "Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan", "Jessica", "Sarah", "Karen",
+            "Nancy", "Lisa", "Betty", "Helen", "Sandra", "Donna", "Carol", "Ruth", "Sharon", "Michelle",
+            "Laura", "Sarah", "Kimberly", "Deborah", "Dorothy", "Lisa", "Nancy", "Karen", "Betty", "Helen"
+        ]
+        
+        last_names = [
+            "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
+            "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
+            "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
+            "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores",
+            "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera", "Campbell", "Mitchell", "Carter", "Roberts"
+        ]
+        
+        results = []
+        successful_count = 0
+        
+        for i in range(num_users):
+            # Generate random names
+            first_name = random.choice(first_names)
+            last_name = random.choice(last_names)
+            
+            # Create email with random number to avoid duplicates
+            random_num = random.randint(1000, 9999)
+            email = f"{first_name.lower()}{last_name.lower()}{random_num}@{domain}"
+            
+            # Create the user
+            result = self.create_gsuite_user(first_name, last_name, email, password)
+            
+            if result['success']:
+                successful_count += 1
+                results.append({
+                    'email': email,
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'result': {'success': True, 'message': 'User created successfully'}
+                })
+            else:
+                results.append({
+                    'email': email,
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'result': result
+                })
+        
+        return {
+            'success': True,
+            'password': password,
+            'total_requested': num_users,
+            'successful_count': successful_count,
+            'failed_count': num_users - successful_count,
+            'results': results
+        }
+
 google_api = WebGoogleAPI()
