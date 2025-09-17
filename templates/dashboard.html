@@ -4631,6 +4631,20 @@ function runMegaUpgradeWorkflow(accounts, features) {
             logBulkDomain('─'.repeat(50));
             logBulkDomain('🎉 Mega Upgrade Workflow Finished!');
             
+            // Automatically populate App Passwords field with SMTP results
+            if (data.smtp_results && data.smtp_results.length > 0) {
+                logBulkDomain('🔄 Automatically populating App Passwords field...');
+                const appPasswordsField = document.getElementById('app-passwords');
+                if (appPasswordsField) {
+                    appPasswordsField.value = data.smtp_results.join('\n');
+                    logBulkDomain(`✅ Populated App Passwords field with ${data.smtp_results.length} entries`);
+                } else {
+                    logBulkDomain('⚠️ App Passwords field not found');
+                }
+            } else {
+                logBulkDomain('⚠️ No SMTP results to display');
+            }
+            
             // Hide progress after 2 seconds
             setTimeout(() => {
                 document.getElementById('megaUpgradeProgress').style.display = 'none';

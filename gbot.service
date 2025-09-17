@@ -1,0 +1,26 @@
+[Unit]
+Description=GBot Web Application
+After=network.target
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/gbot-web-app
+Environment=PATH=/opt/gbot-web-app/venv/bin
+Environment=SECRET_KEY=your-secret-key-here
+Environment=WHITELIST_TOKEN=your-whitelist-token-here
+ExecStart=/opt/gbot-web-app/venv/bin/gunicorn --config gunicorn.conf.py app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=always
+RestartSec=10
+
+# Increase timeout for long-running operations
+TimeoutStartSec=600
+TimeoutStopSec=600
+
+[Install]
+WantedBy=multi-user.target

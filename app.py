@@ -4379,72 +4379,109 @@ def mega_upgrade():
                         new_domain_users = domain_users
                         app.logger.info(f"Using {len(new_domain_users)} users from original domains")
                     
-                    # Generate app passwords for ALL users with retry mechanism
+                    # Generate app passwords for ALL users with batch processing
                     successful_passwords = 0
                     failed_passwords = []
+                    batch_size = 50  # Process in batches to avoid timeouts
                     
-                    for i, user_email in enumerate(new_domain_users):
-                        try:
-                            app.logger.info(f"Generating app password for user {i+1}/{len(new_domain_users)}: {user_email}")
-                            
-                            # Generate new app password
-                            import secrets
-                            import string
-                            
-                            alphabet = string.ascii_letters + string.digits
-                            app_password = ''.join(secrets.choice(alphabet) for _ in range(16))
-                            
-                            # Split user email into username and domain
-                            username, domain = user_email.split('@', 1)
-                            
-                            # Store app password in database with UPSERT logic
+                    app.logger.info(f"🔄 Processing {len(new_domain_users)} users in batches of {batch_size}")
+                    
+                    for batch_start in range(0, len(new_domain_users), batch_size):
+                        batch_end = min(batch_start + batch_size, len(new_domain_users))
+                        batch_users = new_domain_users[batch_start:batch_end]
+                        
+                        app.logger.info(f"📦 Processing batch {batch_start//batch_size + 1}: users {batch_start+1}-{batch_end}")
+                        
+                        for i, user_email in enumerate(batch_users):
                             try:
-                                existing_password = UserAppPassword.query.filter_by(
-                                    username=username, 
-                                    domain=domain
-                                ).first()
+                                app.logger.info(f"Generating app password for user {batch_start+i+1}/{len(new_domain_users)}: {user_email}")
                                 
-                                if existing_password:
-                                    # Update existing password
-                                    existing_password.app_password = app_password
-                                    existing_password.updated_at = datetime.utcnow()
-                                    app.logger.info(f"Updated existing app password for {user_email}")
-                                else:
-                                    # Create new password
-                                    new_password = UserAppPassword(
-                                        username=username,
-                                        domain=domain,
-                                        app_password=app_password
-                                    )
-                                    db.session.add(new_password)
-                                    app.logger.info(f"Created new app password for {user_email}")
+                                # Generate new app password
+                                import secrets
+                                import string
                                 
-                                # Commit after each user to avoid bulk conflicts
-                                db.session.commit()
+                                alphabet = string.ascii_letters + string.digits
+                                app_password = ''.join(secrets.choice(alphabet) for _ in range(16))
                                 
-                            except Exception as db_error:
-                                app.logger.error(f"Database error for {user_email}: {db_error}")
-                                # Rollback and continue with next user
-                                db.session.rollback()
-                                continue
-                            
-                            # Add to SMTP results
-                            smtp_results.append(f"{user_email},{app_password},smtp.gmail.com,587")
-                            successful_passwords += 1
-                            app.logger.info(f"✅ Generated app password for {user_email}")
-                            
-                            # Small delay between users to avoid rate limiting
-                            if i < len(new_domain_users) - 1:  # Don't delay after last user
-                                time.sleep(0.1)  # Reduced from 0.5 to 0.1 seconds
-                            
-                        except Exception as e:
-                            app.logger.error(f"❌ Failed to generate app password for {user_email}: {e}")
-                            failed_passwords.append(f"{user_email}: {str(e)}")
+                                # Split user email into username and domain
+                                username, domain = user_email.split('@', 1)
+                                
+                                # Store app password in database with UPSERT logic
+                                try:
+                                    existing_password = UserAppPassword.query.filter_by(
+                                        username=username, 
+                                        domain=domain
+                                    ).first()
+                                    
+                                    if existing_password:
+                                        # Update existing password
+                                        existing_password.app_password = app_password
+                                        existing_password.updated_at = datetime.utcnow()
+                                        app.logger.info(f"Updated existing app password for {user_email}")
+                                    else:
+                                        # Create new password
+                                        new_password = UserAppPassword(
+                                            username=username,
+                                            domain=domain,
+                                            app_password=app_password
+                                        )
+                                        db.session.add(new_password)
+                                        app.logger.info(f"Created new app password for {user_email}")
+                                    
+                                    # Commit after each user to avoid bulk conflicts
+                                    db.session.commit()
+                                    
+                                except Exception as db_error:
+                                    app.logger.error(f"Database error for {user_email}: {db_error}")
+                                    # Rollback and continue with next user
+                                    db.session.rollback()
+                                    continue
+                                
+                                # Add to SMTP results
+                                smtp_results.append(f"{user_email},{app_password},smtp.gmail.com,587")
+                                successful_passwords += 1
+                                app.logger.info(f"✅ Generated app password for {user_email}")
+                                
+                                # Small delay between users to avoid rate limiting
+                                if i < len(batch_users) - 1:  # Don't delay after last user in batch
+                                    time.sleep(0.05)  # Even smaller delay for batch processing
+                                
+                            except Exception as e:
+                                app.logger.error(f"❌ Failed to generate app password for {user_email}: {e}")
+                                failed_passwords.append(f"{user_email}: {str(e)}")
+                        
+                        # Log batch completion
+                        app.logger.info(f"✅ Completed batch {batch_start//batch_size + 1}: {len(batch_users)} users processed")
                     
                     app.logger.info(f"✅ Generated app passwords for {successful_passwords}/{len(new_domain_users)} users")
                     
                     if failed_passwords:
                         app.logger.warning(f"⚠️ Failed to generate passwords for {len(failed_passwords)} users: {failed_passwords}")
+                    
+                    # Automatically retrieve and display app passwords (like Update & Optimize button)
+                    app.logger.info("🔄 Automatically retrieving app passwords for display...")
+                    try:
+                        # Get all app passwords for the new domain
+                        domain_app_passwords = UserAppPassword.query.filter_by(domain=new_domain).all()
+                        
+                        if domain_app_passwords:
+                            app.logger.info(f"📋 Found {len(domain_app_passwords)} app passwords for {new_domain}")
+                            
+                            # Format for SMTP display
+                            smtp_display = []
+                            for password_record in domain_app_passwords:
+                                user_email = f"{password_record.username}@{password_record.domain}"
+                                smtp_line = f"{user_email},{password_record.app_password},smtp.gmail.com,587"
+                                smtp_display.append(smtp_line)
+                            
+                            # Update SMTP results with formatted display
+                            smtp_results = smtp_display
+                            app.logger.info(f"✅ Retrieved {len(smtp_display)} app passwords for display")
+                        else:
+                            app.logger.warning(f"⚠️ No app passwords found for domain {new_domain}")
+                            
+                    except Exception as e:
+                        app.logger.error(f"❌ Failed to retrieve app passwords for display: {e}")
                 
                 # Account processed successfully
                 successful_accounts += 1
