@@ -143,7 +143,7 @@ with app.app_context():
     
     # Auto-migration: Add ever_used column if it doesn't exist
     try:
-        from sqlalchemy import text
+        from sqlalchemy import text, func
         # Check if ever_used column exists
         result = db.session.execute(text("""
             SELECT column_name FROM information_schema.columns 
@@ -4080,15 +4080,22 @@ def mega_upgrade():
             try:
                 app.logger.info(f"Processing account {i+1}/{len(accounts)}: {account_email}")
                 
-                # Step 1: Find account in database
-                google_account = GoogleAccount.query.filter_by(account_name=account_email).first()
+                # Step 1: Find account in database (case-insensitive search)
+                google_account = GoogleAccount.query.filter(
+                    func.lower(GoogleAccount.account_name) == account_email.lower()
+                ).first()
                 if not google_account:
                     app.logger.warning(f"Account {account_email} not found in database")
+                    # Log available accounts for debugging
+                    all_accounts = GoogleAccount.query.all()
+                    app.logger.info(f"Available accounts in database:")
+                    for acc in all_accounts:
+                        app.logger.info(f"  - {acc.account_name}")
                     failed_accounts += 1
                     failed_details.append({
                         'account': account_email,
                         'step': 'database_lookup',
-                        'error': f'Account not found in database'
+                        'error': f'Account not found in database. Available accounts: {[acc.account_name for acc in all_accounts]}'
                     })
                     continue
                 
@@ -4259,18 +4266,23 @@ def mega_upgrade():
                     alphabet = string.ascii_letters + string.digits
                     app_password = ''.join(secrets.choice(alphabet) for _ in range(16))
                     
-                    # Store app password in database
-                    existing_password = UserAppPassword.query.filter_by(account_name=google_account.account_name).first()
+                    # Split account name into username and domain
+                    username, domain = google_account.account_name.split('@', 1)
+                    
+                    # Store app password in database using correct field names
+                    existing_password = UserAppPassword.query.filter_by(
+                        username=username, 
+                        domain=domain
+                    ).first()
                     
                     if existing_password:
                         existing_password.app_password = app_password
                         existing_password.updated_at = datetime.utcnow()
                     else:
                         new_password = UserAppPassword(
-                            account_name=google_account.account_name,
-                            app_password=app_password,
-                            created_at=datetime.utcnow(),
-                            updated_at=datetime.utcnow()
+                            username=username,
+                            domain=domain,
+                            app_password=app_password
                         )
                         db.session.add(new_password)
                     
