@@ -13,6 +13,9 @@ sleep 2
 # Copy the new service file
 sudo cp gbot.service /etc/systemd/system/
 
+# Copy the gunicorn config file
+sudo cp gunicorn.conf.py /opt/gbot-web-app/
+
 # Reload systemd
 sudo systemctl daemon-reload
 
@@ -21,6 +24,9 @@ sudo systemctl start gbot
 
 # Enable auto-start
 sudo systemctl enable gbot
+
+# Wait a moment for startup
+sleep 3
 
 # Check status
 echo "📊 Service Status:"

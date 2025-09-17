@@ -4,13 +4,13 @@ After=network.target
 
 [Service]
 Type=notify
-User=www-data
-Group=www-data
+User=root
+Group=root
 WorkingDirectory=/opt/gbot-web-app
 Environment=PATH=/opt/gbot-web-app/venv/bin
 Environment=SECRET_KEY=your-secret-key-here
 Environment=WHITELIST_TOKEN=your-whitelist-token-here
-ExecStart=/opt/gbot-web-app/venv/bin/gunicorn --config gunicorn.conf.py app:app
+ExecStart=/opt/gbot-web-app/venv/bin/gunicorn --config /opt/gbot-web-app/gunicorn.conf.py app:app
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
 TimeoutStopSec=5
