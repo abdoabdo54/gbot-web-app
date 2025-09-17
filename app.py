@@ -4790,18 +4790,18 @@ def api_refresh_domain_status():
         # Get all domains from database
         domains = UsedDomain.query.all()
         domain_dict = {domain.domain_name: domain for domain in domains}
-            
-            # Count users per domain
-            domain_user_counts = {}
+        
+        # Count users per domain
+        domain_user_counts = {}
         for user in users:
-                email = user.get('primaryEmail', '')
-                if '@' in email:
-                    domain = email.split('@')[1]
-                    domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
-            
+            email = user.get('primaryEmail', '')
+            if '@' in email:
+                domain = email.split('@')[1]
+                domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+        
         # Update domain statuses
-            updated_domains = []
-            for domain_name, user_count in domain_user_counts.items():
+        updated_domains = []
+        for domain_name, user_count in domain_user_counts.items():
             if domain_name in domain_dict:
                 domain = domain_dict[domain_name]
                 old_count = domain.user_count
@@ -4812,14 +4812,14 @@ def api_refresh_domain_status():
                     'old_count': old_count,
                     'new_count': user_count
                 })
-                    else:
+            else:
                 # Create new domain entry
-                        new_domain = UsedDomain(
-                            domain_name=domain_name,
-                            user_count=user_count,
+                new_domain = UsedDomain(
+                    domain_name=domain_name,
+                    user_count=user_count,
                     ever_used=True
-                        )
-                        db.session.add(new_domain)
+                )
+                db.session.add(new_domain)
                 updated_domains.append({
                     'domain': domain_name,
                     'old_count': 0,
@@ -4989,7 +4989,7 @@ def restore_backup():
                 result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
                 if result.returncode != 0:
                     return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
-        else:
+            else:
                 return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
         
         else:
