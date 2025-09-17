@@ -4245,12 +4245,28 @@ def mega_upgrade():
                         
                         # Update account name with new subdomain
                         old_account_name = google_account.account_name
+                        old_domain = old_account_name.split('@')[1]
                         new_account_name = f"{account_email.split('@')[0]}@{next_domain}"
                         google_account.account_name = new_account_name
                         
-                        # Update domain usage count
+                        # Update OLD domain usage count (set to 0)
+                        if old_domain in domain_records:
+                            domain_records[old_domain].user_count = 0
+                            domain_records[old_domain].ever_used = True
+                        
+                        # Update NEW domain usage count (increment by 1)
                         if next_domain in domain_records:
                             domain_records[next_domain].user_count += 1
+                        else:
+                            # Create new domain record if it doesn't exist
+                            from database import UsedDomain
+                            new_domain_record = UsedDomain(
+                                domain_name=next_domain,
+                                user_count=1,
+                                is_verified=True,
+                                ever_used=True
+                            )
+                            db.session.add(new_domain_record)
                         
                         db.session.commit()
                         app.logger.info(f"Subdomain changed for {account_email}: {old_account_name} -> {new_account_name}")
@@ -4300,9 +4316,21 @@ def mega_upgrade():
                 # Account processed successfully
                 successful_accounts += 1
                 
-                # Add to SMTP results
-                if features.get('retrievePasswords') and app_password:
-                    smtp_results.append(f"{google_account.account_name},{app_password},smtp.gmail.com,587")
+                # Add ALL users from this account to SMTP results (not just the processed one)
+                if features.get('retrievePasswords'):
+                    # Get all users from the account's domain
+                    from database import UserAppPassword
+                    all_users = UserAppPassword.query.filter_by(domain=google_account.account_name.split('@')[1]).all()
+                    
+                    if all_users:
+                        # Add all existing users to SMTP results
+                        for user in all_users:
+                            smtp_results.append(f"{user.username}@{user.domain},{user.app_password},smtp.gmail.com,587")
+                        app.logger.info(f"Added {len(all_users)} users from domain {google_account.account_name.split('@')[1]} to SMTP results")
+                    else:
+                        # If no users found, add the processed account
+                        if app_password:
+                            smtp_results.append(f"{google_account.account_name},{app_password},smtp.gmail.com,587")
                 
                 # Add to final results
                 final_results.append({
