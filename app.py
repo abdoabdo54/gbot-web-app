@@ -4061,9 +4061,9 @@ def mega_upgrade():
         def timeout_handler(signum, frame):
             raise TimeoutError("Mega upgrade timeout")
         
-        # Set timeout to 5 minutes (300 seconds)
+        # Set timeout to 10 minutes (600 seconds) for large user bases
         signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(300)
+        signal.alarm(600)
         
         data = request.get_json()
         accounts = data.get('accounts', [])
@@ -4370,9 +4370,9 @@ def mega_upgrade():
                         app.logger.info(f"Using {len(new_domain_users)} users that were moved to {new_domain}")
                         
                         # Add delay to allow subdomain changes to propagate
-                        app.logger.info("Waiting 30 seconds for subdomain changes to propagate...")
+                        app.logger.info("Waiting 10 seconds for subdomain changes to propagate...")
                         import time
-                        time.sleep(30)
+                        time.sleep(10)
                         app.logger.info("Delay completed, proceeding with app password generation...")
                     else:
                         # If no subdomain change, use all regular users
@@ -4397,22 +4397,36 @@ def mega_upgrade():
                             # Split user email into username and domain
                             username, domain = user_email.split('@', 1)
                             
-                            # Store app password in database
-                            existing_password = UserAppPassword.query.filter_by(
-                                username=username, 
-                                domain=domain
-                            ).first()
-                            
-                            if existing_password:
-                                existing_password.app_password = app_password
-                                existing_password.updated_at = datetime.utcnow()
-                            else:
-                                new_password = UserAppPassword(
-                                    username=username,
-                                    domain=domain,
-                                    app_password=app_password
-                                )
-                                db.session.add(new_password)
+                            # Store app password in database with UPSERT logic
+                            try:
+                                existing_password = UserAppPassword.query.filter_by(
+                                    username=username, 
+                                    domain=domain
+                                ).first()
+                                
+                                if existing_password:
+                                    # Update existing password
+                                    existing_password.app_password = app_password
+                                    existing_password.updated_at = datetime.utcnow()
+                                    app.logger.info(f"Updated existing app password for {user_email}")
+                                else:
+                                    # Create new password
+                                    new_password = UserAppPassword(
+                                        username=username,
+                                        domain=domain,
+                                        app_password=app_password
+                                    )
+                                    db.session.add(new_password)
+                                    app.logger.info(f"Created new app password for {user_email}")
+                                
+                                # Commit after each user to avoid bulk conflicts
+                                db.session.commit()
+                                
+                            except Exception as db_error:
+                                app.logger.error(f"Database error for {user_email}: {db_error}")
+                                # Rollback and continue with next user
+                                db.session.rollback()
+                                continue
                             
                             # Add to SMTP results
                             smtp_results.append(f"{user_email},{app_password},smtp.gmail.com,587")
@@ -4421,13 +4435,12 @@ def mega_upgrade():
                             
                             # Small delay between users to avoid rate limiting
                             if i < len(new_domain_users) - 1:  # Don't delay after last user
-                                time.sleep(0.5)
+                                time.sleep(0.1)  # Reduced from 0.5 to 0.1 seconds
                             
                         except Exception as e:
                             app.logger.error(f"❌ Failed to generate app password for {user_email}: {e}")
                             failed_passwords.append(f"{user_email}: {str(e)}")
                     
-                    db.session.commit()
                     app.logger.info(f"✅ Generated app passwords for {successful_passwords}/{len(new_domain_users)} users")
                     
                     if failed_passwords:
