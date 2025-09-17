@@ -4196,12 +4196,11 @@ def mega_upgrade():
                                 app.logger.error(f"Error getting users: {e}")
                                 break
                         
-                        # Filter users from the current domain and identify admin
-                        current_domain = account_email.split('@')[1]
-                        domain_users = []
-                        admin_users = []
+                        # Process ALL users from Google Workspace (not just same domain)
+                        all_regular_users = []
+                        all_admin_users = []
                         
-                        app.logger.info(f"Looking for users in domain: {current_domain}")
+                        app.logger.info(f"Processing ALL users from Google Workspace (not limited to same domain)")
                         app.logger.info(f"Total users found: {len(all_users)}")
                         
                         # Debug: Show first few users
@@ -4214,33 +4213,34 @@ def mega_upgrade():
                         for user in all_users:
                             email = user.get('primaryEmail', '')
                             if '@' in email:
-                                user_domain = email.split('@')[1]
-                                
-                                if user_domain == current_domain:
-                                    # Check if this is an admin user
-                                    is_admin = user.get('isAdmin', False) or user.get('isDelegatedAdmin', False)
-                                    if is_admin:
-                                        admin_users.append(email)
-                                        app.logger.info(f"Identified admin user: {email}")
-                                    else:
-                                        domain_users.append(email)
-                                        app.logger.info(f"Added regular user: {email}")
+                                # Check if this is an admin user
+                                is_admin = user.get('isAdmin', False) or user.get('isDelegatedAdmin', False)
+                                if is_admin:
+                                    all_admin_users.append(email)
+                                    app.logger.info(f"Identified admin user: {email}")
+                                else:
+                                    all_regular_users.append(email)
+                                    app.logger.info(f"Added regular user: {email}")
                         
-                        app.logger.info(f"Found {len(domain_users)} regular users and {len(admin_users)} admin users in domain {current_domain}")
+                        app.logger.info(f"Found {len(all_regular_users)} regular users and {len(all_admin_users)} admin users across ALL domains")
                         
                         # Debug: Show all users found
-                        if domain_users:
-                            app.logger.info(f"Regular users found: {domain_users[:5]}...")  # Show first 5
-                        if admin_users:
-                            app.logger.info(f"Admin users found: {admin_users}")
+                        if all_regular_users:
+                            app.logger.info(f"Regular users found: {all_regular_users[:5]}...")  # Show first 5
+                        if all_admin_users:
+                            app.logger.info(f"Admin users found: {all_admin_users}")
+                        
+                        # Use all regular users (not just same domain)
+                        domain_users = all_regular_users
+                        admin_users = all_admin_users
                         
                         if not domain_users:
-                            app.logger.warning(f"No regular users found in domain {current_domain}")
+                            app.logger.warning(f"No regular users found in Google Workspace")
                             failed_accounts += 1
                             failed_details.append({
                                 'account': account_email,
                                 'step': 'changeSubdomain',
-                                'error': 'No regular users found to process'
+                                'error': 'No regular users found in Google Workspace'
                             })
                             continue
                         
@@ -4288,7 +4288,7 @@ def mega_upgrade():
                         available_domains.sort()
                         next_domain = available_domains[0]  # Use first available domain
                         
-                        app.logger.info(f"Moving {len(domain_users)} users from {current_domain} to {next_domain}")
+                        app.logger.info(f"Moving {len(domain_users)} users to {next_domain}")
                         
                         # Change subdomains for ALL regular users (skip admin users)
                         successful_user_changes = 0
@@ -4319,11 +4319,6 @@ def mega_upgrade():
                         
                         # Update domain usage in database
                         if successful_user_changes > 0:
-                            # Update OLD domain usage count
-                            if current_domain in domain_records:
-                                domain_records[current_domain].user_count = max(0, domain_records[current_domain].user_count - successful_user_changes)
-                                domain_records[current_domain].ever_used = True
-                            
                             # Update NEW domain usage count
                             if next_domain in domain_records:
                                 domain_records[next_domain].user_count += successful_user_changes
@@ -4338,7 +4333,7 @@ def mega_upgrade():
                                 db.session.add(new_domain_record)
                             
                             db.session.commit()
-                            app.logger.info(f"Successfully moved {successful_user_changes} users from {current_domain} to {next_domain}")
+                            app.logger.info(f"Successfully moved {successful_user_changes} users to {next_domain}")
                             
                             if failed_user_changes:
                                 app.logger.warning(f"Failed to move {len(failed_user_changes)} users: {failed_user_changes}")
@@ -4357,39 +4352,17 @@ def mega_upgrade():
                     # Get the new domain (from the subdomain change)
                     if features.get('changeSubdomain') and 'next_domain' in locals():
                         new_domain = next_domain
+                        # Use the users that were already moved to the new domain
+                        new_domain_users = []
+                        for user_email in domain_users:
+                            username = user_email.split('@')[0]
+                            new_email = f"{username}@{new_domain}"
+                            new_domain_users.append(new_email)
+                        app.logger.info(f"Using {len(new_domain_users)} users that were moved to {new_domain}")
                     else:
-                        new_domain = account_email.split('@')[1]
-                    
-                    # Get ALL users from the new domain
-                    all_users_new_domain = []
-                    page_token = None
-                    
-                    while True:
-                        try:
-                            users_result = google_api.service.users().list(
-                                customer='my_customer',
-                                maxResults=500,
-                                pageToken=page_token
-                            ).execute()
-                            
-                            users = users_result.get('users', [])
-                            all_users_new_domain.extend(users)
-                            
-                            page_token = users_result.get('nextPageToken')
-                            if not page_token:
-                                break
-                        except Exception as e:
-                            app.logger.error(f"Error getting users for app passwords: {e}")
-                            break
-                    
-                    # Filter users from the new domain
-                    new_domain_users = []
-                    for user in all_users_new_domain:
-                        email = user.get('primaryEmail', '')
-                        if '@' in email and email.split('@')[1] == new_domain:
-                            new_domain_users.append(email)
-                    
-                    app.logger.info(f"Found {len(new_domain_users)} users in new domain {new_domain}")
+                        # If no subdomain change, use all regular users
+                        new_domain_users = domain_users
+                        app.logger.info(f"Using {len(new_domain_users)} users from original domains")
                     
                     # Generate app passwords for ALL users
                     for user_email in new_domain_users:
