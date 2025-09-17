@@ -27,6 +27,10 @@ from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleT
 progress_tracker = {}
 progress_lock = threading.Lock()
 
+# Global variables to store mega upgrade results
+mega_upgrade_results = {}
+mega_upgrade_lock = threading.Lock()
+
 def update_progress(task_id, current, total, status="processing", message=""):
     """Update progress for a task"""
     with progress_lock:
@@ -4056,15 +4060,62 @@ def mega_upgrade():
         return jsonify({'success': False, 'error': 'Access denied. Valid user role required.'})
     
     try:
-        # Set longer timeout for this endpoint (5 minutes)
-        import signal
-        def timeout_handler(signum, frame):
-            raise TimeoutError("Mega upgrade timeout")
+        # Start the mega upgrade in a separate thread to avoid timeout
+        import time
         
-        # Set timeout to 10 minutes (600 seconds) for large user bases
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(600)
+        def run_mega_upgrade_async():
+            """Run mega upgrade in background thread"""
+            try:
+                with mega_upgrade_lock:
+                    mega_upgrade_results['status'] = 'running'
+                    mega_upgrade_results['progress'] = 0
+                    mega_upgrade_results['message'] = 'Starting mega upgrade...'
+                
+                # Call the actual mega upgrade function
+                result = mega_upgrade_worker()
+                
+                with mega_upgrade_lock:
+                    mega_upgrade_results.update(result)
+                    mega_upgrade_results['status'] = 'completed'
+                    
+            except Exception as e:
+                with mega_upgrade_lock:
+                    mega_upgrade_results['status'] = 'error'
+                    mega_upgrade_results['error'] = str(e)
         
+        # Start the background thread
+        thread = threading.Thread(target=run_mega_upgrade_async)
+        thread.daemon = True
+        thread.start()
+        
+        # Return immediately with a task ID
+        return jsonify({
+            'success': True,
+            'message': 'Mega upgrade started in background',
+            'task_id': 'mega_upgrade_' + str(int(time.time())),
+            'status': 'started'
+        })
+        
+    except Exception as e:
+        app.logger.error(f"MEGA UPGRADE ERROR: {e}")
+        import traceback
+        app.logger.error(f"MEGA UPGRADE TRACEBACK: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e), 'traceback': traceback.format_exc()})
+
+@app.route('/api/mega-upgrade-status', methods=['GET'])
+@login_required
+def mega_upgrade_status():
+    """Get the status of the running mega upgrade"""
+    try:
+        # Return the current status
+        with mega_upgrade_lock:
+            return jsonify(mega_upgrade_results)
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)})
+
+def mega_upgrade_worker():
+    """The actual mega upgrade worker function"""
+    try:
         data = request.get_json()
         accounts = data.get('accounts', [])
         features = data.get('features', {})
