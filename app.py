@@ -4085,6 +4085,7 @@ def mega_upgrade():
                 app.logger.info(f"Processing account {i+1}/{len(accounts)}: {account_email}")
                 
                 # Step 1: Find account in database (case-insensitive search)
+                # IMPORTANT: We will NOT modify the account name - it's only used for authentication
                 google_account = GoogleAccount.query.filter(
                     func.lower(GoogleAccount.account_name) == account_email.lower()
                 ).first()
@@ -4102,6 +4103,10 @@ def mega_upgrade():
                         'error': f'Account not found in database. Available accounts: {[acc.account_name for acc in all_accounts]}'
                     })
                     continue
+                
+                # Store original account name - DO NOT MODIFY IT
+                original_account_name = google_account.account_name
+                app.logger.info(f"Using account {original_account_name} for authentication (will NOT be modified)")
                 
                 # PROTECTION: Check if this is a critical system account
                 # Skip accounts that might be system-critical (you can customize this logic)
@@ -4196,18 +4201,38 @@ def mega_upgrade():
                         domain_users = []
                         admin_users = []
                         
+                        app.logger.info(f"Looking for users in domain: {current_domain}")
+                        app.logger.info(f"Total users found: {len(all_users)}")
+                        
+                        # Debug: Show first few users
+                        for i, user in enumerate(all_users[:10]):  # Show first 10 users
+                            email = user.get('primaryEmail', '')
+                            if '@' in email:
+                                user_domain = email.split('@')[1]
+                                app.logger.info(f"User {i+1}: {email} (domain: {user_domain})")
+                        
                         for user in all_users:
                             email = user.get('primaryEmail', '')
-                            if '@' in email and email.split('@')[1] == current_domain:
-                                # Check if this is an admin user
-                                is_admin = user.get('isAdmin', False) or user.get('isDelegatedAdmin', False)
-                                if is_admin:
-                                    admin_users.append(email)
-                                    app.logger.info(f"Identified admin user: {email}")
-                                else:
-                                    domain_users.append(email)
+                            if '@' in email:
+                                user_domain = email.split('@')[1]
+                                
+                                if user_domain == current_domain:
+                                    # Check if this is an admin user
+                                    is_admin = user.get('isAdmin', False) or user.get('isDelegatedAdmin', False)
+                                    if is_admin:
+                                        admin_users.append(email)
+                                        app.logger.info(f"Identified admin user: {email}")
+                                    else:
+                                        domain_users.append(email)
+                                        app.logger.info(f"Added regular user: {email}")
                         
                         app.logger.info(f"Found {len(domain_users)} regular users and {len(admin_users)} admin users in domain {current_domain}")
+                        
+                        # Debug: Show all users found
+                        if domain_users:
+                            app.logger.info(f"Regular users found: {domain_users[:5]}...")  # Show first 5
+                        if admin_users:
+                            app.logger.info(f"Admin users found: {admin_users}")
                         
                         if not domain_users:
                             app.logger.warning(f"No regular users found in domain {current_domain}")
@@ -4409,15 +4434,22 @@ def mega_upgrade():
                 # Account processed successfully
                 successful_accounts += 1
                 
+                # Verify account name was NOT modified
+                if google_account.account_name != original_account_name:
+                    app.logger.error(f"ERROR: Account name was modified! Original: {original_account_name}, Current: {google_account.account_name}")
+                    # Restore original account name
+                    google_account.account_name = original_account_name
+                    db.session.commit()
+                
                 # Add to final results
                 final_results.append({
                     'account': account_email,
-                    'new_account_name': account_email,  # Keep original account name
+                    'new_account_name': original_account_name,  # Keep original account name
                     'users_processed': len(smtp_results),
                     'status': 'success'
                 })
                 
-                app.logger.info(f"Account {account_email} processed successfully using EXISTING functions")
+                app.logger.info(f"Account {account_email} processed successfully - account name unchanged: {original_account_name}")
                 
             except Exception as e:
                 app.logger.error(f"Error processing account {account_email}: {e}")
