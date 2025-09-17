@@ -4056,6 +4056,15 @@ def mega_upgrade():
         return jsonify({'success': False, 'error': 'Access denied. Valid user role required.'})
     
     try:
+        # Set longer timeout for this endpoint (5 minutes)
+        import signal
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Mega upgrade timeout")
+        
+        # Set timeout to 5 minutes (300 seconds)
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(300)
+        
         data = request.get_json()
         accounts = data.get('accounts', [])
         features = data.get('features', {})
@@ -4359,14 +4368,25 @@ def mega_upgrade():
                             new_email = f"{username}@{new_domain}"
                             new_domain_users.append(new_email)
                         app.logger.info(f"Using {len(new_domain_users)} users that were moved to {new_domain}")
+                        
+                        # Add delay to allow subdomain changes to propagate
+                        app.logger.info("Waiting 30 seconds for subdomain changes to propagate...")
+                        import time
+                        time.sleep(30)
+                        app.logger.info("Delay completed, proceeding with app password generation...")
                     else:
                         # If no subdomain change, use all regular users
                         new_domain_users = domain_users
                         app.logger.info(f"Using {len(new_domain_users)} users from original domains")
                     
-                    # Generate app passwords for ALL users
-                    for user_email in new_domain_users:
+                    # Generate app passwords for ALL users with retry mechanism
+                    successful_passwords = 0
+                    failed_passwords = []
+                    
+                    for i, user_email in enumerate(new_domain_users):
                         try:
+                            app.logger.info(f"Generating app password for user {i+1}/{len(new_domain_users)}: {user_email}")
+                            
                             # Generate new app password
                             import secrets
                             import string
@@ -4396,13 +4416,22 @@ def mega_upgrade():
                             
                             # Add to SMTP results
                             smtp_results.append(f"{user_email},{app_password},smtp.gmail.com,587")
-                            app.logger.info(f"Generated app password for {user_email}")
+                            successful_passwords += 1
+                            app.logger.info(f"✅ Generated app password for {user_email}")
+                            
+                            # Small delay between users to avoid rate limiting
+                            if i < len(new_domain_users) - 1:  # Don't delay after last user
+                                time.sleep(0.5)
                             
                         except Exception as e:
-                            app.logger.error(f"Failed to generate app password for {user_email}: {e}")
+                            app.logger.error(f"❌ Failed to generate app password for {user_email}: {e}")
+                            failed_passwords.append(f"{user_email}: {str(e)}")
                     
                     db.session.commit()
-                    app.logger.info(f"Generated app passwords for {len(new_domain_users)} users")
+                    app.logger.info(f"✅ Generated app passwords for {successful_passwords}/{len(new_domain_users)} users")
+                    
+                    if failed_passwords:
+                        app.logger.warning(f"⚠️ Failed to generate passwords for {len(failed_passwords)} users: {failed_passwords}")
                 
                 # Account processed successfully
                 successful_accounts += 1
@@ -4435,6 +4464,9 @@ def mega_upgrade():
         
         app.logger.info(f"MEGA UPGRADE completed using EXISTING functions: {successful_accounts} successful, {failed_accounts} failed")
         
+        # Cancel timeout
+        signal.alarm(0)
+        
         return jsonify({
             'success': True,
             'message': f'Mega upgrade completed using existing functions: {successful_accounts} successful, {failed_accounts} failed',
@@ -4447,6 +4479,8 @@ def mega_upgrade():
         })
         
     except Exception as e:
+        # Cancel timeout
+        signal.alarm(0)
         app.logger.error(f"Error in MEGA UPGRADE using existing functions: {e}")
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'})
 
