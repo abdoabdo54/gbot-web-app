@@ -4046,6 +4046,10 @@ def debug_mega_upgrade():
 @login_required
 def mega_upgrade():
     """Mega upgrade using EXISTING authentication and subdomain change functions"""
+    # Import required models at the top
+    from database import GoogleAccount, UsedDomain, UserAppPassword
+    from sqlalchemy import text, func
+    
     # Allow all user types (admin, mailer, support) to use mega upgrade
     user_role = session.get('role')
     if user_role not in ['admin', 'mailer', 'support']:
@@ -4096,6 +4100,17 @@ def mega_upgrade():
                         'account': account_email,
                         'step': 'database_lookup',
                         'error': f'Account not found in database. Available accounts: {[acc.account_name for acc in all_accounts]}'
+                    })
+                    continue
+                
+                # PROTECTION: Never modify admin accounts
+                if google_account.is_admin:
+                    app.logger.warning(f"Skipping admin account {account_email} - admin accounts cannot be modified")
+                    failed_accounts += 1
+                    failed_details.append({
+                        'account': account_email,
+                        'step': 'protection',
+                        'error': 'Admin accounts cannot be modified for security'
                     })
                     continue
                 
@@ -4319,7 +4334,6 @@ def mega_upgrade():
                 # Add ALL users from this account to SMTP results (not just the processed one)
                 if features.get('retrievePasswords'):
                     # Get all users from the account's domain
-                    from database import UserAppPassword
                     all_users = UserAppPassword.query.filter_by(domain=google_account.account_name.split('@')[1]).all()
                     
                     if all_users:

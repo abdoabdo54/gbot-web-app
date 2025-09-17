@@ -4396,6 +4396,18 @@ function clearMegaUpgradeResults() {
     logBulkDomain('🧹 Mega upgrade results cleared');
 }
 
+function updateMegaProgress(percentage, message) {
+    const progressBar = document.getElementById('megaProgressBar');
+    const progressPercent = document.getElementById('megaProgressPercent');
+    const progressText = document.getElementById('megaProgressText');
+    
+    if (progressBar && progressPercent && progressText) {
+        progressBar.style.width = percentage + '%';
+        progressPercent.textContent = percentage + '%';
+        progressText.textContent = message;
+    }
+}
+
 function testMegaUpgrade() {
     const accountsText = document.getElementById('mega-accounts-list').value.trim();
     
@@ -4534,13 +4546,25 @@ function runMegaUpgradeWorkflow(accounts, features) {
     });
     logBulkDomain('─'.repeat(50));
     
+    // Update progress indicator
+    updateMegaProgress(0, 'Initializing...');
+    
     // Show processing message with more detail
     logBulkDomain('⏳ Starting automated processing...');
+    updateMegaProgress(10, 'Looking up accounts in database...');
     logBulkDomain('🔍 Step 1: Looking up accounts in database...');
+    
+    updateMegaProgress(20, 'Authenticating accounts...');
     logBulkDomain('🔐 Step 2: Authenticating accounts...');
+    
+    updateMegaProgress(30, 'Changing subdomains...');
     logBulkDomain('🔄 Step 3: Changing subdomains...');
+    
+    updateMegaProgress(40, 'Generating app passwords...');
     logBulkDomain('🔑 Step 4: Generating app passwords...');
     logBulkDomain('─'.repeat(50));
+    
+    updateMegaProgress(50, 'Sending request to server...');
     
     // Start the mega upgrade process
     fetch('/api/mega-upgrade', {
@@ -4552,14 +4576,17 @@ function runMegaUpgradeWorkflow(accounts, features) {
         })
     })
     .then(response => {
+        updateMegaProgress(70, 'Processing server response...');
         logBulkDomain(`📡 Response received: ${response.status} ${response.statusText}`);
         return response.json();
     })
     .then(data => {
+        updateMegaProgress(80, 'Analyzing results...');
         logBulkDomain('─'.repeat(50));
         logBulkDomain('📋 PROCESSING RESULTS:');
         
         if (data.success) {
+            updateMegaProgress(90, 'Finalizing results...');
             logBulkDomain(`✅ Mega upgrade completed successfully!`);
             logBulkDomain(`📊 Results: ${data.successful_accounts} successful, ${data.failed_accounts} failed`);
             logBulkDomain(`📋 Total accounts processed: ${data.total_accounts}`);
@@ -4600,9 +4627,16 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 });
             }
 
+            updateMegaProgress(100, 'Completed successfully!');
             logBulkDomain('─'.repeat(50));
             logBulkDomain('🎉 Mega Upgrade Workflow Finished!');
+            
+            // Hide progress after 2 seconds
+            setTimeout(() => {
+                document.getElementById('megaUpgradeProgress').style.display = 'none';
+            }, 2000);
         } else {
+            updateMegaProgress(100, 'Failed');
             document.getElementById('megaStartBtn').style.display = 'inline-block';
             document.getElementById('megaStopBtn').style.display = 'none';
             logBulkDomain(`❌ Mega upgrade failed: ${data.error}`);
@@ -4611,6 +4645,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
         }
     })
     .catch(error => {
+        updateMegaProgress(100, 'Network Error');
         document.getElementById('megaStartBtn').style.display = 'inline-block';
         document.getElementById('megaStopBtn').style.display = 'none';
         logBulkDomain(`❌ Network Error: ${error.message}`);
