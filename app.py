@@ -2536,8 +2536,8 @@ def test_server_connection():
                             file_path = f"{account_path}/{json_filename}"
                             
                             try:
-                        with sftp.open(file_path, 'r') as f:
-                            content = f.read()
+                                with sftp.open(file_path, 'r') as f:
+                                    content = f.read()
                                     json_data = json.loads(content)
                                 
                                 # Validate JSON structure
@@ -2553,7 +2553,7 @@ def test_server_connection():
                                         'json_file': json_filename,
                                         'has_credentials': False
                                     })
-                    except Exception as e:
+                            except Exception as e:
                                 app.logger.warning(f"Invalid JSON file {file_path}: {e}")
                                 continue
                     
@@ -2564,7 +2564,7 @@ def test_server_connection():
                 ssh.close()
                 
                 if valid_accounts:
-                return jsonify({
+                    return jsonify({
                     'success': True,
                         'message': f'Connection successful. Found {len(valid_accounts)} account(s) with JSON files in {len(account_dirs)} total directories.',
                         'accounts_count': len(valid_accounts),
@@ -3847,23 +3847,23 @@ def test_smtp_credentials_progress():
                         progress_tracker[task_id]['progress'] = i
                         progress_tracker[task_id]['message'] = f'Testing credential {i}/{len(credentials_lines)}...'
                     
-            if ':' not in line:
+                    if ':' not in line:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                    'email': line,
-                    'status': 'error',
-                    'error': 'Invalid format - use email:password'
-                })
-                continue
-            
-            try:
-                email, password = line.split(':', 1)
-                email = email.strip()
-                password = password.strip()
-                
-                if not email or not password:
+                                    'email': line,
+                                    'status': 'error',
+                                    'error': 'Invalid format - use email:password'
+                                })
+                        continue
+                    
+                    try:
+                        email, password = line.split(':', 1)
+                        email = email.strip()
+                        password = password.strip()
+                        
+                        if not email or not password:
                             with progress_lock:
                                 if task_id in progress_tracker:
                                     progress_tracker[task_id]['fail_count'] += 1
