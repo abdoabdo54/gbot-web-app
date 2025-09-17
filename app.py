@@ -4188,8 +4188,10 @@ def mega_upgrade():
                                     current_domain = domain
                         
                         app.logger.info(f"Current domain for {account_email}: {current_domain}")
-                        app.logger.info(f"Available domains: {available_domains}")
                         app.logger.info(f"Domain user counts: {domain_user_counts}")
+                        
+                        # Initialize available_domains early to prevent reference errors
+                        available_domains = []
                         
                         # Get domain records from database
                         from database import UsedDomain
@@ -4198,7 +4200,6 @@ def mega_upgrade():
                             domain_records[domain_record.domain_name] = domain_record
                         
                         # Find next available domain
-                        available_domains = []
                         for domain in domains:
                             domain_name = domain.get('domainName', '')
                             user_count = domain_user_counts.get(domain_name, 0)
@@ -4227,6 +4228,8 @@ def mega_upgrade():
                         
                         # Sort available domains alphabetically
                         available_domains.sort()
+                        
+                        app.logger.info(f"Available domains found: {available_domains}")
                         
                         # Find the next domain after the current domain
                         next_domain = None
