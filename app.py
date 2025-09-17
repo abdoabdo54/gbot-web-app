@@ -4146,16 +4146,15 @@ def mega_upgrade():
                         })
                         continue
                 
-                # Step 3: Change subdomain using EXISTING function (if enabled)
+                # Step 3: Change subdomains for ALL users (if enabled)
                 if features.get('changeSubdomain'):
-                    app.logger.info(f"Changing subdomain for {account_email} using EXISTING function...")
+                    app.logger.info(f"Changing subdomains for ALL users in {account_email} domain...")
                     
                     # Temporarily set session for the existing function
                     original_session_account = session.get('current_account_name')
                     session['current_account_name'] = account_email
                     
                     try:
-                        # Use the EXISTING auto-change-subdomain logic
                         # Get all domains and their status
                         result = google_api.get_domain_info()
                         if not result['success']:
@@ -4170,7 +4169,7 @@ def mega_upgrade():
                         
                         domains = result['domains']
                         
-                        # Get all users to calculate domain usage
+                        # Get ALL users from the account's domain
                         all_users = []
                         page_token = None
                         
@@ -4192,33 +4191,48 @@ def mega_upgrade():
                                 app.logger.error(f"Error getting users: {e}")
                                 break
                         
+                        # Filter users from the current domain and identify admin
+                        current_domain = account_email.split('@')[1]
+                        domain_users = []
+                        admin_users = []
+                        
+                        for user in all_users:
+                            email = user.get('primaryEmail', '')
+                            if '@' in email and email.split('@')[1] == current_domain:
+                                # Check if this is an admin user
+                                is_admin = user.get('isAdmin', False) or user.get('isDelegatedAdmin', False)
+                                if is_admin:
+                                    admin_users.append(email)
+                                    app.logger.info(f"Identified admin user: {email}")
+                                else:
+                                    domain_users.append(email)
+                        
+                        app.logger.info(f"Found {len(domain_users)} regular users and {len(admin_users)} admin users in domain {current_domain}")
+                        
+                        if not domain_users:
+                            app.logger.warning(f"No regular users found in domain {current_domain}")
+                            failed_accounts += 1
+                            failed_details.append({
+                                'account': account_email,
+                                'step': 'changeSubdomain',
+                                'error': 'No regular users found to process'
+                            })
+                            continue
+                        
                         # Calculate domain usage
                         domain_user_counts = {}
-                        current_domain = None
-                        
                         for user in all_users:
                             email = user.get('primaryEmail', '')
                             if '@' in email:
                                 domain = email.split('@')[1]
                                 domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
-                                
-                                # Find current domain from the account
-                                if email == account_email:
-                                    current_domain = domain
                         
-                        app.logger.info(f"Current domain for {account_email}: {current_domain}")
-                        app.logger.info(f"Domain user counts: {domain_user_counts}")
-                        
-                        # Initialize available_domains early to prevent reference errors
+                        # Find next available domain
                         available_domains = []
-                        
-                        # Get domain records from database
-                        from database import UsedDomain
                         domain_records = {}
                         for domain_record in UsedDomain.query.all():
                             domain_records[domain_record.domain_name] = domain_record
                         
-                        # Find next available domain
                         for domain in domains:
                             domain_name = domain.get('domainName', '')
                             user_count = domain_user_counts.get(domain_name, 0)
@@ -4236,7 +4250,7 @@ def mega_upgrade():
                                 available_domains.append(domain_name)
                         
                         if not available_domains:
-                            app.logger.warning(f"No available domains for {account_email}")
+                            app.logger.warning(f"No available domains found")
                             failed_accounts += 1
                             failed_details.append({
                                 'account': account_email,
@@ -4247,48 +4261,62 @@ def mega_upgrade():
                         
                         # Sort available domains alphabetically
                         available_domains.sort()
+                        next_domain = available_domains[0]  # Use first available domain
                         
-                        app.logger.info(f"Available domains found: {available_domains}")
+                        app.logger.info(f"Moving {len(domain_users)} users from {current_domain} to {next_domain}")
                         
-                        # Find the next domain after the current domain
-                        next_domain = None
-                        if current_domain:  # Only compare if current_domain is not None
-                            for domain in available_domains:
-                                if domain > current_domain:
-                                    next_domain = domain
-                                    break
+                        # Change subdomains for ALL regular users (skip admin users)
+                        successful_user_changes = 0
+                        failed_user_changes = []
                         
-                        # If no domain found after current, use the first available domain
-                        if not next_domain:
-                            next_domain = available_domains[0]
+                        for user_email in domain_users:
+                            try:
+                                # Update user's primary email
+                                username = user_email.split('@')[0]
+                                new_email = f"{username}@{next_domain}"
+                                
+                                # Update user in Google Workspace
+                                user_body = {
+                                    'primaryEmail': new_email
+                                }
+                                
+                                google_api.service.users().update(
+                                    userKey=user_email,
+                                    body=user_body
+                                ).execute()
+                                
+                                successful_user_changes += 1
+                                app.logger.info(f"Updated user: {user_email} -> {new_email}")
+                                
+                            except Exception as e:
+                                app.logger.error(f"Failed to update user {user_email}: {e}")
+                                failed_user_changes.append(f"{user_email}: {str(e)}")
                         
-                        # Update account name with new subdomain
-                        old_account_name = google_account.account_name
-                        old_domain = old_account_name.split('@')[1]
-                        new_account_name = f"{account_email.split('@')[0]}@{next_domain}"
-                        google_account.account_name = new_account_name
-                        
-                        # Update OLD domain usage count (set to 0)
-                        if old_domain in domain_records:
-                            domain_records[old_domain].user_count = 0
-                            domain_records[old_domain].ever_used = True
-                        
-                        # Update NEW domain usage count (increment by 1)
-                        if next_domain in domain_records:
-                            domain_records[next_domain].user_count += 1
-                        else:
-                            # Create new domain record if it doesn't exist
-                            from database import UsedDomain
-                            new_domain_record = UsedDomain(
-                                domain_name=next_domain,
-                                user_count=1,
-                                is_verified=True,
-                                ever_used=True
-                            )
-                            db.session.add(new_domain_record)
-                        
-                        db.session.commit()
-                        app.logger.info(f"Subdomain changed for {account_email}: {old_account_name} -> {new_account_name}")
+                        # Update domain usage in database
+                        if successful_user_changes > 0:
+                            # Update OLD domain usage count
+                            if current_domain in domain_records:
+                                domain_records[current_domain].user_count = max(0, domain_records[current_domain].user_count - successful_user_changes)
+                                domain_records[current_domain].ever_used = True
+                            
+                            # Update NEW domain usage count
+                            if next_domain in domain_records:
+                                domain_records[next_domain].user_count += successful_user_changes
+                            else:
+                                # Create new domain record
+                                new_domain_record = UsedDomain(
+                                    domain_name=next_domain,
+                                    user_count=successful_user_changes,
+                                    is_verified=True,
+                                    ever_used=True
+                                )
+                                db.session.add(new_domain_record)
+                            
+                            db.session.commit()
+                            app.logger.info(f"Successfully moved {successful_user_changes} users from {current_domain} to {next_domain}")
+                            
+                            if failed_user_changes:
+                                app.logger.warning(f"Failed to move {len(failed_user_changes)} users: {failed_user_changes}")
                         
                     finally:
                         # Restore original session
@@ -4297,64 +4325,95 @@ def mega_upgrade():
                         else:
                             session.pop('current_account_name', None)
                 
-                # Step 4: Generate app password (if enabled)
-                app_password = None
+                # Step 4: Generate app passwords for ALL users (if enabled)
                 if features.get('retrievePasswords'):
-                    app.logger.info(f"Generating app password for {account_email}...")
+                    app.logger.info(f"Generating app passwords for ALL users in the new domain...")
                     
-                    # Generate new app password
-                    import secrets
-                    import string
-                    
-                    alphabet = string.ascii_letters + string.digits
-                    app_password = ''.join(secrets.choice(alphabet) for _ in range(16))
-                    
-                    # Split account name into username and domain
-                    username, domain = google_account.account_name.split('@', 1)
-                    
-                    # Store app password in database using correct field names
-                    existing_password = UserAppPassword.query.filter_by(
-                        username=username, 
-                        domain=domain
-                    ).first()
-                    
-                    if existing_password:
-                        existing_password.app_password = app_password
-                        existing_password.updated_at = datetime.utcnow()
+                    # Get the new domain (from the subdomain change)
+                    if features.get('changeSubdomain') and 'next_domain' in locals():
+                        new_domain = next_domain
                     else:
-                        new_password = UserAppPassword(
-                            username=username,
-                            domain=domain,
-                            app_password=app_password
-                        )
-                        db.session.add(new_password)
+                        new_domain = account_email.split('@')[1]
+                    
+                    # Get ALL users from the new domain
+                    all_users_new_domain = []
+                    page_token = None
+                    
+                    while True:
+                        try:
+                            users_result = google_api.service.users().list(
+                                customer='my_customer',
+                                maxResults=500,
+                                pageToken=page_token
+                            ).execute()
+                            
+                            users = users_result.get('users', [])
+                            all_users_new_domain.extend(users)
+                            
+                            page_token = users_result.get('nextPageToken')
+                            if not page_token:
+                                break
+                        except Exception as e:
+                            app.logger.error(f"Error getting users for app passwords: {e}")
+                            break
+                    
+                    # Filter users from the new domain
+                    new_domain_users = []
+                    for user in all_users_new_domain:
+                        email = user.get('primaryEmail', '')
+                        if '@' in email and email.split('@')[1] == new_domain:
+                            new_domain_users.append(email)
+                    
+                    app.logger.info(f"Found {len(new_domain_users)} users in new domain {new_domain}")
+                    
+                    # Generate app passwords for ALL users
+                    for user_email in new_domain_users:
+                        try:
+                            # Generate new app password
+                            import secrets
+                            import string
+                            
+                            alphabet = string.ascii_letters + string.digits
+                            app_password = ''.join(secrets.choice(alphabet) for _ in range(16))
+                            
+                            # Split user email into username and domain
+                            username, domain = user_email.split('@', 1)
+                            
+                            # Store app password in database
+                            existing_password = UserAppPassword.query.filter_by(
+                                username=username, 
+                                domain=domain
+                            ).first()
+                            
+                            if existing_password:
+                                existing_password.app_password = app_password
+                                existing_password.updated_at = datetime.utcnow()
+                            else:
+                                new_password = UserAppPassword(
+                                    username=username,
+                                    domain=domain,
+                                    app_password=app_password
+                                )
+                                db.session.add(new_password)
+                            
+                            # Add to SMTP results
+                            smtp_results.append(f"{user_email},{app_password},smtp.gmail.com,587")
+                            app.logger.info(f"Generated app password for {user_email}")
+                            
+                        except Exception as e:
+                            app.logger.error(f"Failed to generate app password for {user_email}: {e}")
                     
                     db.session.commit()
-                    app.logger.info(f"App password generated for {account_email}")
+                    app.logger.info(f"Generated app passwords for {len(new_domain_users)} users")
                 
                 # Account processed successfully
                 successful_accounts += 1
                 
-                # Add ALL users from this account to SMTP results (not just the processed one)
-                if features.get('retrievePasswords'):
-                    # Get all users from the account's domain
-                    all_users = UserAppPassword.query.filter_by(domain=google_account.account_name.split('@')[1]).all()
-                    
-                    if all_users:
-                        # Add all existing users to SMTP results
-                        for user in all_users:
-                            smtp_results.append(f"{user.username}@{user.domain},{user.app_password},smtp.gmail.com,587")
-                        app.logger.info(f"Added {len(all_users)} users from domain {google_account.account_name.split('@')[1]} to SMTP results")
-                    else:
-                        # If no users found, add the processed account
-                        if app_password:
-                            smtp_results.append(f"{google_account.account_name},{app_password},smtp.gmail.com,587")
-                
                 # Add to final results
                 final_results.append({
                     'account': account_email,
-                    'new_account_name': google_account.account_name,
-                    'app_password': app_password if features.get('retrievePasswords') else 'N/A',
+                    'new_account_name': account_email,  # Keep original account name
+                    'users_processed': len(smtp_results),
                     'status': 'success'
                 })
                 
