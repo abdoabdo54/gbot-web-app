@@ -4187,6 +4187,10 @@ def mega_upgrade():
                                 if email == account_email:
                                     current_domain = domain
                         
+                        app.logger.info(f"Current domain for {account_email}: {current_domain}")
+                        app.logger.info(f"Available domains: {available_domains}")
+                        app.logger.info(f"Domain user counts: {domain_user_counts}")
+                        
                         # Get domain records from database
                         from database import UsedDomain
                         domain_records = {}
@@ -4226,10 +4230,11 @@ def mega_upgrade():
                         
                         # Find the next domain after the current domain
                         next_domain = None
-                        for domain in available_domains:
-                            if domain > current_domain:
-                                next_domain = domain
-                                break
+                        if current_domain:  # Only compare if current_domain is not None
+                            for domain in available_domains:
+                                if domain > current_domain:
+                                    next_domain = domain
+                                    break
                         
                         # If no domain found after current, use the first available domain
                         if not next_domain:
