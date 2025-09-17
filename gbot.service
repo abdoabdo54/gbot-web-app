@@ -3,7 +3,7 @@ Description=GBot Web Application
 After=network.target
 
 [Service]
-Type=notify
+Type=simple
 User=root
 Group=root
 WorkingDirectory=/opt/gbot-web-app
@@ -13,7 +13,7 @@ Environment=WHITELIST_TOKEN=your-whitelist-token-here
 ExecStart=/opt/gbot-web-app/venv/bin/gunicorn --config /opt/gbot-web-app/gunicorn.conf.py app:app
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
-TimeoutStopSec=5
+TimeoutStopSec=30
 PrivateTmp=true
 Restart=always
 RestartSec=10

@@ -1,12 +1,13 @@
-# Gunicorn configuration for GBot Web App
+# Gunicorn configuration for GBot Web App - Ubuntu Compatible
 import multiprocessing
+import os
 
 # Server socket
 bind = "0.0.0.0:5000"
 backlog = 2048
 
 # Worker processes
-workers = multiprocessing.cpu_count() * 2 + 1
+workers = 2  # Reduced for stability
 worker_class = "sync"
 worker_connections = 1000
 timeout = 600  # 10 minutes timeout for long-running operations
@@ -37,4 +38,4 @@ keyfile = None
 certfile = None
 
 # Preload app for better performance
-preload_app = True
+preload_app = False  # Changed to False for better compatibility
