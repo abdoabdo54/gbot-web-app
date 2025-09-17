@@ -4103,14 +4103,18 @@ def mega_upgrade():
                     })
                     continue
                 
-                # PROTECTION: Never modify admin accounts
-                if google_account.is_admin:
-                    app.logger.warning(f"Skipping admin account {account_email} - admin accounts cannot be modified")
+                # PROTECTION: Check if this is a critical system account
+                # Skip accounts that might be system-critical (you can customize this logic)
+                critical_accounts = ['admin@', 'system@', 'noreply@', 'postmaster@']
+                is_critical = any(google_account.account_name.lower().startswith(prefix) for prefix in critical_accounts)
+                
+                if is_critical:
+                    app.logger.warning(f"Skipping critical account {account_email} - critical accounts cannot be modified")
                     failed_accounts += 1
                     failed_details.append({
                         'account': account_email,
                         'step': 'protection',
-                        'error': 'Admin accounts cannot be modified for security'
+                        'error': 'Critical system accounts cannot be modified for security'
                     })
                     continue
                 
