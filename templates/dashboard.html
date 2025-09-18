@@ -471,6 +471,33 @@
         </div>
     </div>
 
+    <!-- Update Passwords for Specific Users -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-key"></i>
+                Update Passwords for Specific Users
+            </h3>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end;">
+            <div class="form-group-github">
+                <label for="password-update-users" class="form-label-github">
+                    <i class="fas fa-users"></i> Users (one per line)
+                </label>
+                <textarea id="password-update-users" class="form-control-github" rows="4" placeholder="user1@domain.com&#10;user2@domain.com&#10;user3@domain.com"></textarea>
+            </div>
+            <div class="form-group-github">
+                <label for="password-update-new-password" class="form-label-github">
+                    <i class="fas fa-lock"></i> New Password
+                </label>
+                <input type="text" id="password-update-new-password" class="form-control-github" placeholder="New password for all users">
+            </div>
+            <button onclick="updateUserPasswords()" class="btn-github btn-github-primary">
+                <i class="fas fa-key"></i> Update Passwords
+            </button>
+        </div>
+    </div>
+
     <!-- Change Domain for Specific Users -->
     <div class="github-card">
         <div class="github-card-header">
@@ -2790,6 +2817,80 @@ function createRandomUsers() {
             } else {
                 logResult(`❌ Random user creation failed: ${data.error}`);
             }
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error.message}`);
+        logResult(`💡 Solution: Check your internet connection and try again`);
+    });
+}
+
+function updateUserPasswords() {
+    const usersText = document.getElementById('password-update-users').value;
+    const newPassword = document.getElementById('password-update-new-password').value;
+    
+    if (!usersText.trim()) {
+        alert('Please enter user email addresses');
+        return;
+    }
+    
+    if (!newPassword || newPassword.length < 8) {
+        alert('Please enter a password (minimum 8 characters)');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    // Parse users from textarea (one per line)
+    const users = usersText.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+    
+    if (users.length === 0) {
+        alert('Please enter at least one valid email address');
+        return;
+    }
+    
+    logResult(`🔑 Updating passwords for ${users.length} users...`);
+    
+    fetch('/api/update-user-passwords', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            users: users,
+            new_password: newPassword
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ Password update completed!`);
+            if (data.results) {
+                let successCount = 0;
+                let failureCount = 0;
+                
+                data.results.forEach(result => {
+                    if (result.success) {
+                        logResult(`✅ Updated: ${result.email}`);
+                        successCount++;
+                    } else {
+                        logResult(`❌ Failed: ${result.email} - ${result.error}`);
+                        failureCount++;
+                    }
+                });
+                
+                logResult(`📊 Summary: ${successCount} successful, ${failureCount} failed`);
+            }
+        } else {
+            logResult(`❌ Password update failed: ${data.error}`);
         }
     })
     .catch(error => {

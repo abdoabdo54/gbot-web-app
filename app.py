@@ -1157,6 +1157,15 @@ def api_create_gsuite_user():
 @app.route('/api/create-random-users', methods=['POST'])
 @login_required
 def api_create_random_users():
+    # Set timeout for this endpoint (15 minutes)
+    import signal
+    
+    def timeout_handler(signum, frame):
+        raise TimeoutError("Request timed out after 15 minutes")
+    
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(900)  # 15 minutes timeout
+    
     try:
         data = request.get_json()
         num_users = data.get('num_users')
@@ -1195,9 +1204,53 @@ def api_create_random_users():
             return jsonify({'success': False, 'error': 'Domain contains invalid characters'})
 
         result = google_api.create_random_users(num_users, domain, password)
+        signal.alarm(0)  # Cancel timeout
         return jsonify(result)
 
     except Exception as e:
+        signal.alarm(0)  # Cancel timeout
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/update-user-passwords', methods=['POST'])
+@login_required
+def api_update_user_passwords():
+    # Set timeout for this endpoint (10 minutes)
+    import signal
+    
+    def timeout_handler(signum, frame):
+        raise TimeoutError("Request timed out after 10 minutes")
+    
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(600)  # 10 minutes timeout
+    
+    try:
+        data = request.get_json()
+        users = data.get('users', [])
+        new_password = data.get('new_password')
+
+        if not users or len(users) == 0:
+            return jsonify({'success': False, 'error': 'No users provided'})
+
+        if not new_password or len(new_password) < 8:
+            return jsonify({'success': False, 'error': 'Password must be at least 8 characters long'})
+
+        # Sanitize password - remove any potentially problematic characters
+        import re
+        new_password = re.sub(r'[^\w\-_!@#$%^&*()+=]', '', new_password)
+        
+        if not new_password.strip():
+            return jsonify({'success': False, 'error': 'Password cannot be empty after sanitization'})
+
+        # Limit the number of users for performance
+        if len(users) > 100:
+            return jsonify({'success': False, 'error': 'Maximum 100 users allowed per batch'})
+
+        result = google_api.update_user_passwords(users, new_password)
+        signal.alarm(0)  # Cancel timeout
+        return jsonify(result)
+
+    except Exception as e:
+        signal.alarm(0)  # Cancel timeout
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/get-domain-info', methods=['GET'])

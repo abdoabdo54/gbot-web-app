@@ -335,4 +335,49 @@ class WebGoogleAPI:
             'results': results
         }
 
+    def update_user_passwords(self, users, new_password):
+        """Update passwords for specific users"""
+        if not self.service:
+            raise Exception("Not authenticated or session expired.")
+        
+        results = []
+        successful_count = 0
+        
+        for email in users:
+            try:
+                # Update user password using Google Admin SDK
+                user_body = {
+                    'password': new_password
+                }
+                
+                self.service.users().update(
+                    userKey=email,
+                    body=user_body
+                ).execute()
+                
+                results.append({
+                    'email': email,
+                    'success': True
+                })
+                successful_count += 1
+                
+                # Small delay to avoid rate limiting
+                import time
+                time.sleep(0.1)
+                
+            except Exception as e:
+                results.append({
+                    'email': email,
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        return {
+            'success': True,
+            'total_requested': len(users),
+            'successful_count': successful_count,
+            'failed_count': len(users) - successful_count,
+            'results': results
+        }
+
 google_api = WebGoogleAPI()
