@@ -3429,6 +3429,12 @@ def create_users_from_csv():
         # Import required modules
         from database import GoogleAccount
         
+        # Check if Google API is properly authenticated
+        if not google_api.service:
+            return jsonify({'success': False, 'error': 'Google API not authenticated. Please authenticate an account first.'})
+        
+        app.logger.info(f"Google API service status: {google_api.service is not None}")
+        
         created_count = 0
         results = []
         
@@ -3481,8 +3487,17 @@ def create_users_from_csv():
                     continue
                 
                 # Create user using Google API with CSV values
-                app.logger.info(f"Creating user: {email} with password: {password[:3]}*** (length: {len(password)})")
-                result = google_api.create_gsuite_user(first_name, last_name, email, password)
+                app.logger.info(f"Creating user: {email}")
+                app.logger.info(f"First name: {first_name}, Last name: {last_name}")
+                app.logger.info(f"Password: '{password}' (length: {len(password)}, type: {type(password)})")
+                app.logger.info(f"Password bytes: {password.encode('utf-8')}")
+                
+                # Ensure password is a clean string
+                clean_password = str(password).strip()
+                app.logger.info(f"Clean password: '{clean_password}'")
+                
+                # Try to create the user
+                result = google_api.create_gsuite_user(first_name, last_name, email, clean_password)
                 
                 if result.get('success'):
                     created_count += 1
