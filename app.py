@@ -3409,11 +3409,7 @@ def create_users_from_csv():
             return jsonify({'success': False, 'error': 'Could not find email column'})
         
         # Import required modules
-        from core_logic import GoogleAPI
         from database import GoogleAccount
-        
-        # Initialize Google API
-        google_api = GoogleAPI()
         
         created_count = 0
         results = []
