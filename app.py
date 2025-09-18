@@ -3776,6 +3776,9 @@ def generate_csv():
         
         data = request.get_json()
         csv_type = data.get('type', 'users')  # users, passwords, etc.
+        num_users = data.get('num_users', 10)
+        domain = data.get('domain', 'example.com')
+        password = data.get('password', 'DefaultPass123')
         
         from database import GoogleAccount, UserAppPassword
         import io
@@ -3785,6 +3788,16 @@ def generate_csv():
         writer = csv.writer(output)
         
         if csv_type == 'users':
+            # Write header
+            writer.writerow(['email', 'password'])
+            
+            # Generate sample users
+            for i in range(1, int(num_users) + 1):
+                username = f"user{i}"
+                email = f"{username}@{domain}"
+                writer.writerow([email, password])
+        
+        elif csv_type == 'existing_users':
             # Write header
             writer.writerow(['email', 'client_id'])
             
@@ -3836,9 +3849,9 @@ def generate_csv():
         
         return jsonify({
             'success': True,
-            'filename': filename,
-            'filepath': filepath,
-            'message': f'CSV file generated: {filename}'
+            'csv_data': csv_content,
+            'filename': f"users_{domain}_{num_users}.csv",
+            'message': f'CSV file generated with {num_users} users'
         })
         
     except Exception as e:
@@ -3855,24 +3868,35 @@ def preview_csv():
             return jsonify({'success': False, 'error': 'Admin or support privileges required'})
         
         data = request.get_json()
-        csv_path = data.get('csv_path')
+        num_users = data.get('num_users', 5)
+        domain = data.get('domain', 'example.com')
+        password = data.get('password', 'DefaultPass123')
         
-        if not csv_path:
-            return jsonify({'success': False, 'error': 'CSV path is required'})
+        # Generate preview CSV content
+        import io
+        output = io.StringIO()
+        writer = csv.writer(output)
         
-        # Read CSV file
-        with open(csv_path, 'r', encoding='utf-8') as file:
-            content = file.read()
+        # Write header
+        writer.writerow(['email', 'password'])
         
-        lines = content.strip().split('\n')
+        # Generate preview users
+        for i in range(1, min(int(num_users), 10) + 1):  # Max 10 for preview
+            username = f"user{i}"
+            email = f"{username}@{domain}"
+            writer.writerow([email, password])
         
-        # Preview first 10 lines
-        preview_lines = lines[:10]
+        # Get preview content
+        output.seek(0)
+        preview_content = output.getvalue()
+        output.close()
+        
+        preview_lines = preview_content.strip().split('\n')
         
         return jsonify({
             'success': True,
             'preview': preview_lines,
-            'total_lines': len(lines),
+            'total_lines': int(num_users),
             'showing_lines': len(preview_lines)
         })
         
