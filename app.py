@@ -3784,14 +3784,74 @@ def generate_csv():
         writer = csv.writer(output)
         
         if csv_type == 'users':
-            # Write header
-            writer.writerow(['email', 'password'])
+            # Write header matching Google Workspace CSV format
+            writer.writerow([
+                'First Name [Required]',
+                'Last Name [Required]', 
+                'Email Address [Required]',
+                'Password [Required]',
+                'Password Hash Function [UPLOAD ONLY]',
+                'Org Unit Path [Required]',
+                'New Primary Email [UPLOAD ONLY]',
+                'Recovery Email',
+                'Home Secondary Email',
+                'Work Secondary Email',
+                'Recovery Phone [MUST BE IN THE E.164 FORMAT]',
+                'Work Phone',
+                'Home Phone',
+                'Mobile Phone',
+                'Work Address',
+                'Home Address',
+                'Employee ID',
+                'Employee Type',
+                'Employee Title',
+                'Manager Email',
+                'Department',
+                'Cost Center',
+                'Building ID',
+                'Floor Name',
+                'Floor Section',
+                'Change Password at Next Sign-In',
+                'New Status [UPLOAD ONLY]',
+                'Advanced Protection Program enrollment'
+            ])
             
             # Generate sample users
             for i in range(1, int(num_users) + 1):
-                username = f"user{i}"
-                email = f"{username}@{domain}"
-                writer.writerow([email, password])
+                first_name = f"User{i}"
+                last_name = "Test"
+                email = f"user{i}@{domain}"
+                
+                writer.writerow([
+                    first_name,           # First Name [Required]
+                    last_name,            # Last Name [Required]
+                    email,                # Email Address [Required]
+                    password,             # Password [Required]
+                    '',                   # Password Hash Function [UPLOAD ONLY]
+                    '/',                  # Org Unit Path [Required]
+                    '',                   # New Primary Email [UPLOAD ONLY]
+                    '',                   # Recovery Email
+                    '',                   # Home Secondary Email
+                    '',                   # Work Secondary Email
+                    '',                   # Recovery Phone [MUST BE IN THE E.164 FORMAT]
+                    '',                   # Work Phone
+                    '',                   # Home Phone
+                    '',                   # Mobile Phone
+                    '',                   # Work Address
+                    '',                   # Home Address
+                    f"EMP{i:04d}",        # Employee ID
+                    'Employee',           # Employee Type
+                    'Staff',              # Employee Title
+                    '',                   # Manager Email
+                    'IT',                 # Department
+                    '',                   # Cost Center
+                    '',                   # Building ID
+                    '',                   # Floor Name
+                    '',                   # Floor Section
+                    'False',              # Change Password at Next Sign-In
+                    '',                   # New Status [UPLOAD ONLY]
+                    'False'               # Advanced Protection Program enrollment
+                ])
         
         elif csv_type == 'existing_users':
             # Write header
@@ -3873,14 +3933,74 @@ def preview_csv():
         output = io.StringIO()
         writer = csv.writer(output)
         
-        # Write header
-        writer.writerow(['email', 'password'])
+        # Write header matching Google Workspace CSV format
+        writer.writerow([
+            'First Name [Required]',
+            'Last Name [Required]', 
+            'Email Address [Required]',
+            'Password [Required]',
+            'Password Hash Function [UPLOAD ONLY]',
+            'Org Unit Path [Required]',
+            'New Primary Email [UPLOAD ONLY]',
+            'Recovery Email',
+            'Home Secondary Email',
+            'Work Secondary Email',
+            'Recovery Phone [MUST BE IN THE E.164 FORMAT]',
+            'Work Phone',
+            'Home Phone',
+            'Mobile Phone',
+            'Work Address',
+            'Home Address',
+            'Employee ID',
+            'Employee Type',
+            'Employee Title',
+            'Manager Email',
+            'Department',
+            'Cost Center',
+            'Building ID',
+            'Floor Name',
+            'Floor Section',
+            'Change Password at Next Sign-In',
+            'New Status [UPLOAD ONLY]',
+            'Advanced Protection Program enrollment'
+        ])
         
         # Generate preview users
         for i in range(1, min(int(num_users), 10) + 1):  # Max 10 for preview
-            username = f"user{i}"
-            email = f"{username}@{domain}"
-            writer.writerow([email, password])
+            first_name = f"User{i}"
+            last_name = "Test"
+            email = f"user{i}@{domain}"
+            
+            writer.writerow([
+                first_name,           # First Name [Required]
+                last_name,            # Last Name [Required]
+                email,                # Email Address [Required]
+                password,             # Password [Required]
+                '',                   # Password Hash Function [UPLOAD ONLY]
+                '/',                  # Org Unit Path [Required]
+                '',                   # New Primary Email [UPLOAD ONLY]
+                '',                   # Recovery Email
+                '',                   # Home Secondary Email
+                '',                   # Work Secondary Email
+                '',                   # Recovery Phone [MUST BE IN THE E.164 FORMAT]
+                '',                   # Work Phone
+                '',                   # Home Phone
+                '',                   # Mobile Phone
+                '',                   # Work Address
+                '',                   # Home Address
+                f"EMP{i:04d}",        # Employee ID
+                'Employee',           # Employee Type
+                'Staff',              # Employee Title
+                '',                   # Manager Email
+                'IT',                 # Department
+                '',                   # Cost Center
+                '',                   # Building ID
+                '',                   # Floor Name
+                '',                   # Floor Section
+                'False',              # Change Password at Next Sign-In
+                '',                   # New Status [UPLOAD ONLY]
+                'False'               # Advanced Protection Program enrollment
+            ])
         
         # Get preview content
         output.seek(0)
