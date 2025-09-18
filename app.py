@@ -3481,6 +3481,7 @@ def create_users_from_csv():
                     continue
                 
                 # Create user using Google API with CSV values
+                app.logger.info(f"Creating user: {email} with password: {password[:3]}*** (length: {len(password)})")
                 result = google_api.create_gsuite_user(first_name, last_name, email, password)
                 
                 if result.get('success'):
@@ -3784,18 +3785,18 @@ def generate_csv():
         domain = data.get('domain', 'example.com')
         password = data.get('password', 'SecurePass123')
         
-        # Validate password meets Google requirements
+        # Sanitize password - remove any potentially problematic characters
+        import re
+        # Keep only alphanumeric characters and basic symbols
+        password = re.sub(r'[^\w\-_!@#$%^&*()+=]', '', password)
+        
+        # Validate password meets basic requirements
         if len(password) < 8:
             return jsonify({'success': False, 'error': 'Password must be at least 8 characters long'})
         
-        if not any(c.isupper() for c in password):
-            return jsonify({'success': False, 'error': 'Password must contain at least one uppercase letter'})
-        
-        if not any(c.islower() for c in password):
-            return jsonify({'success': False, 'error': 'Password must contain at least one lowercase letter'})
-        
-        if not any(c.isdigit() for c in password):
-            return jsonify({'success': False, 'error': 'Password must contain at least one number'})
+        # Basic validation - just check length and that it's not empty
+        if not password.strip():
+            return jsonify({'success': False, 'error': 'Password cannot be empty'})
         
         # Validate domain - remove any @ symbols that shouldn't be there
         if '@' in domain:
@@ -4002,18 +4003,18 @@ def preview_csv():
         domain = data.get('domain', 'example.com')
         password = data.get('password', 'SecurePass123')
         
-        # Validate password meets Google requirements
+        # Sanitize password - remove any potentially problematic characters
+        import re
+        # Keep only alphanumeric characters and basic symbols
+        password = re.sub(r'[^\w\-_!@#$%^&*()+=]', '', password)
+        
+        # Validate password meets basic requirements
         if len(password) < 8:
             return jsonify({'success': False, 'error': 'Password must be at least 8 characters long'})
         
-        if not any(c.isupper() for c in password):
-            return jsonify({'success': False, 'error': 'Password must contain at least one uppercase letter'})
-        
-        if not any(c.islower() for c in password):
-            return jsonify({'success': False, 'error': 'Password must contain at least one lowercase letter'})
-        
-        if not any(c.isdigit() for c in password):
-            return jsonify({'success': False, 'error': 'Password must contain at least one number'})
+        # Basic validation - just check length and that it's not empty
+        if not password.strip():
+            return jsonify({'success': False, 'error': 'Password cannot be empty'})
         
         # Validate domain - remove any @ symbols that shouldn't be there
         if '@' in domain:
