@@ -4817,21 +4817,21 @@ def test_smtp_credentials_progress():
                         progress_tracker[task_id]['progress'] = i
                         progress_tracker[task_id]['message'] = f'Testing credential {i}/{len(credentials_lines)}...'
                     
-                    if ':' not in line:
+            if ':' not in line:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': line,
-                                    'status': 'error',
-                                    'error': 'Invalid format - use email:password'
-                                })
-                            continue
-                    
-                    try:
-                        email, password = line.split(':', 1)
-                        email = email.strip()
-                        password = password.strip()
+                    'email': line,
+                    'status': 'error',
+                    'error': 'Invalid format - use email:password'
+                })
+                continue
+            
+            try:
+                email, password = line.split(':', 1)
+                email = email.strip()
+                password = password.strip()
                 
                 if not email or not password:
                             with progress_lock:
@@ -4911,10 +4911,10 @@ If you received this email, the SMTP credentials are working correctly.
                     'error': f'DNS/Network error: {str(e)}'
                 })
             except Exception as e:
-                with progress_lock:
-                    if task_id in progress_tracker:
-                        progress_tracker[task_id]['fail_count'] += 1
-                        progress_tracker[task_id]['results'].append({
+                        with progress_lock:
+                            if task_id in progress_tracker:
+                                progress_tracker[task_id]['fail_count'] += 1
+                                progress_tracker[task_id]['results'].append({
                     'email': email,
                     'status': 'error',
                     'error': f'Unexpected error: {str(e)}'
@@ -5437,13 +5437,13 @@ def mega_upgrade():
                 app.logger.info(f"Account {account_email} processed successfully - account name unchanged: {original_account_name}")
                 
     except Exception as e:
-                app.logger.error(f"Error processing account {account_email}: {e}")
-                failed_accounts += 1
-                failed_details.append({
-                    'account': account_email,
-                    'step': 'processing',
-                    'error': str(e)
-                })
+            app.logger.error(f"Error processing account {account_email}: {e}")
+            failed_accounts += 1
+            failed_details.append({
+                'account': account_email,
+                'step': 'processing',
+                'error': str(e)
+            })
         
         app.logger.info(f"MEGA UPGRADE completed using EXISTING functions: {successful_accounts} successful, {failed_accounts} failed")
         
