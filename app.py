@@ -3394,19 +3394,37 @@ def create_users_from_csv():
         if len(lines) < 2:
             return jsonify({'success': False, 'error': 'CSV file must have at least a header and one data row'})
         
-        # Parse header
+        # Parse header - look for Google Workspace CSV format
         header = lines[0].split(',')
-        if 'email' not in [h.strip().lower() for h in header]:
-            return jsonify({'success': False, 'error': 'CSV must have an "email" column'})
         
+        # Look for email column (could be "Email Address [Required]" or just "email")
         email_index = None
+        first_name_index = None
+        last_name_index = None
+        password_index = None
+        
         for i, h in enumerate(header):
-            if h.strip().lower() == 'email':
+            h_clean = h.strip().lower()
+            if 'email address' in h_clean or h_clean == 'email':
                 email_index = i
-                break
+            elif 'first name' in h_clean:
+                first_name_index = i
+            elif 'last name' in h_clean:
+                last_name_index = i
+            elif 'password' in h_clean and 'hash' not in h_clean:
+                password_index = i
         
         if email_index is None:
-            return jsonify({'success': False, 'error': 'Could not find email column'})
+            return jsonify({'success': False, 'error': 'CSV must have an "Email Address" or "email" column'})
+        
+        if first_name_index is None:
+            return jsonify({'success': False, 'error': 'CSV must have a "First Name" column'})
+        
+        if last_name_index is None:
+            return jsonify({'success': False, 'error': 'CSV must have a "Last Name" column'})
+        
+        if password_index is None:
+            return jsonify({'success': False, 'error': 'CSV must have a "Password" column'})
         
         # Import required modules
         from database import GoogleAccount
@@ -3423,7 +3441,7 @@ def create_users_from_csv():
             try:
                 # Parse CSV line
                 values = line.split(',')
-                if len(values) <= email_index:
+                if len(values) <= max(email_index, first_name_index, last_name_index, password_index):
                     results.append({
                         'email': f'Line {line_num}',
                         'success': False,
@@ -3431,7 +3449,11 @@ def create_users_from_csv():
                     })
                     continue
                 
+                # Extract values from CSV
                 email = values[email_index].strip().strip('"')
+                first_name = values[first_name_index].strip().strip('"') if first_name_index < len(values) else 'User'
+                last_name = values[last_name_index].strip().strip('"') if last_name_index < len(values) else 'Test'
+                password = values[password_index].strip().strip('"') if password_index < len(values) else 'DefaultPass123'
                 
                 if not email or '@' not in email:
                     results.append({
@@ -3440,6 +3462,13 @@ def create_users_from_csv():
                         'error': 'Invalid email format'
                     })
                     continue
+                
+                if not first_name:
+                    first_name = 'User'
+                if not last_name:
+                    last_name = 'Test'
+                if not password:
+                    password = 'DefaultPass123'
                 
                 # Check if user already exists
                 existing_account = GoogleAccount.query.filter_by(account_name=email).first()
@@ -3451,28 +3480,7 @@ def create_users_from_csv():
                     })
                     continue
                 
-                # Create user using existing logic
-                # Extract first name and last name from email (before @)
-                username_part = email.split('@')[0]
-                # Try to split by common separators
-                if '.' in username_part:
-                    name_parts = username_part.split('.')
-                    first_name = name_parts[0].capitalize()
-                    last_name = name_parts[1].capitalize() if len(name_parts) > 1 else 'User'
-                elif '_' in username_part:
-                    name_parts = username_part.split('_')
-                    first_name = name_parts[0].capitalize()
-                    last_name = name_parts[1].capitalize() if len(name_parts) > 1 else 'User'
-                else:
-                    first_name = username_part.capitalize()
-                    last_name = 'User'
-                
-                # Generate a random password
-                import secrets
-                import string
-                password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
-                
-                # Create user using Google API
+                # Create user using Google API with CSV values
                 result = google_api.create_gsuite_user(first_name, last_name, email, password)
                 
                 if result.get('success'):
