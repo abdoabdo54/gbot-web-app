@@ -3784,6 +3784,21 @@ def generate_csv():
         domain = data.get('domain', 'example.com')
         password = data.get('password', 'DefaultPass123')
         
+        # Validate domain - remove any @ symbols that shouldn't be there
+        if '@' in domain:
+            # If domain contains @, extract the part after @
+            domain_parts = domain.split('@')
+            if len(domain_parts) > 1:
+                domain = domain_parts[-1]  # Take the last part after @
+            else:
+                domain = domain_parts[0]  # Take the part before @
+        
+        # Ensure domain doesn't start with @
+        domain = domain.lstrip('@')
+        
+        if not domain or '.' not in domain:
+            return jsonify({'success': False, 'error': 'Invalid domain format'})
+        
         from database import GoogleAccount, UserAppPassword
         import io
         
@@ -3824,11 +3839,49 @@ def generate_csv():
                 'Advanced Protection Program enrollment'
             ])
             
-            # Generate sample users
+            # Generate sample users with realistic data
+            import random
+            from faker import Faker
+            fake = Faker()
+            
+            # Common first names and last names for realistic data
+            first_names = [
+                'James', 'John', 'Robert', 'Michael', 'William', 'David', 'Richard', 'Charles', 'Joseph', 'Thomas',
+                'Christopher', 'Daniel', 'Paul', 'Mark', 'Donald', 'George', 'Kenneth', 'Steven', 'Edward', 'Brian',
+                'Ronald', 'Anthony', 'Kevin', 'Jason', 'Matthew', 'Gary', 'Timothy', 'Jose', 'Larry', 'Jeffrey',
+                'Mary', 'Patricia', 'Jennifer', 'Linda', 'Elizabeth', 'Barbara', 'Susan', 'Jessica', 'Sarah', 'Karen',
+                'Nancy', 'Lisa', 'Betty', 'Helen', 'Sandra', 'Donna', 'Carol', 'Ruth', 'Sharon', 'Michelle',
+                'Laura', 'Sarah', 'Kimberly', 'Deborah', 'Dorothy', 'Lisa', 'Nancy', 'Karen', 'Betty', 'Helen'
+            ]
+            
+            last_names = [
+                'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
+                'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin',
+                'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson',
+                'Walker', 'Young', 'Allen', 'King', 'Wright', 'Scott', 'Torres', 'Nguyen', 'Hill', 'Flores',
+                'Green', 'Adams', 'Nelson', 'Baker', 'Hall', 'Rivera', 'Campbell', 'Mitchell', 'Carter', 'Roberts'
+            ]
+            
+            # Generate realistic usernames/aliases
+            def generate_alias(first_name, last_name, index):
+                # Create various alias formats
+                formats = [
+                    f"{first_name.lower()}.{last_name.lower()}{index}",
+                    f"{first_name.lower()}{last_name.lower()}{index:02d}",
+                    f"{first_name[0].lower()}{last_name.lower()}{index}",
+                    f"{first_name.lower()}{last_name[0].lower()}{index:03d}",
+                    f"{last_name.lower()}.{first_name.lower()}{index}",
+                    f"{first_name.lower()}_{last_name.lower()}{index}",
+                    f"{first_name.lower()}{index}{last_name.lower()}",
+                    f"{first_name[0].lower()}{last_name[0].lower()}{index:02d}"
+                ]
+                return random.choice(formats)
+            
             for i in range(1, int(num_users) + 1):
-                first_name = f"User{i}"
-                last_name = "Test"
-                email = f"user{i}@{domain}"
+                first_name = random.choice(first_names)
+                last_name = random.choice(last_names)
+                alias = generate_alias(first_name, last_name, i)
+                email = f"{alias}@{domain}"
                 
                 writer.writerow([
                     first_name,           # First Name [Required]
@@ -3936,6 +3989,21 @@ def preview_csv():
         domain = data.get('domain', 'example.com')
         password = data.get('password', 'DefaultPass123')
         
+        # Validate domain - remove any @ symbols that shouldn't be there
+        if '@' in domain:
+            # If domain contains @, extract the part after @
+            domain_parts = domain.split('@')
+            if len(domain_parts) > 1:
+                domain = domain_parts[-1]  # Take the last part after @
+            else:
+                domain = domain_parts[0]  # Take the part before @
+        
+        # Ensure domain doesn't start with @
+        domain = domain.lstrip('@')
+        
+        if not domain or '.' not in domain:
+            return jsonify({'success': False, 'error': 'Invalid domain format'})
+        
         # Generate preview CSV content
         import io
         output = io.StringIO()
@@ -3973,11 +4041,48 @@ def preview_csv():
             'Advanced Protection Program enrollment'
         ])
         
+        # Generate preview users with realistic data
+        import random
+        
+        # Common first names and last names for realistic data
+        first_names = [
+            'James', 'John', 'Robert', 'Michael', 'William', 'David', 'Richard', 'Charles', 'Joseph', 'Thomas',
+            'Christopher', 'Daniel', 'Paul', 'Mark', 'Donald', 'George', 'Kenneth', 'Steven', 'Edward', 'Brian',
+            'Ronald', 'Anthony', 'Kevin', 'Jason', 'Matthew', 'Gary', 'Timothy', 'Jose', 'Larry', 'Jeffrey',
+            'Mary', 'Patricia', 'Jennifer', 'Linda', 'Elizabeth', 'Barbara', 'Susan', 'Jessica', 'Sarah', 'Karen',
+            'Nancy', 'Lisa', 'Betty', 'Helen', 'Sandra', 'Donna', 'Carol', 'Ruth', 'Sharon', 'Michelle',
+            'Laura', 'Sarah', 'Kimberly', 'Deborah', 'Dorothy', 'Lisa', 'Nancy', 'Karen', 'Betty', 'Helen'
+        ]
+        
+        last_names = [
+            'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
+            'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin',
+            'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson',
+            'Walker', 'Young', 'Allen', 'King', 'Wright', 'Scott', 'Torres', 'Nguyen', 'Hill', 'Flores',
+            'Green', 'Adams', 'Nelson', 'Baker', 'Hall', 'Rivera', 'Campbell', 'Mitchell', 'Carter', 'Roberts'
+        ]
+        
+        # Generate realistic usernames/aliases
+        def generate_alias(first_name, last_name, index):
+            # Create various alias formats
+            formats = [
+                f"{first_name.lower()}.{last_name.lower()}{index}",
+                f"{first_name.lower()}{last_name.lower()}{index:02d}",
+                f"{first_name[0].lower()}{last_name.lower()}{index}",
+                f"{first_name.lower()}{last_name[0].lower()}{index:03d}",
+                f"{last_name.lower()}.{first_name.lower()}{index}",
+                f"{first_name.lower()}_{last_name.lower()}{index}",
+                f"{first_name.lower()}{index}{last_name.lower()}",
+                f"{first_name[0].lower()}{last_name[0].lower()}{index:02d}"
+            ]
+            return random.choice(formats)
+        
         # Generate preview users
         for i in range(1, min(int(num_users), 10) + 1):  # Max 10 for preview
-            first_name = f"User{i}"
-            last_name = "Test"
-            email = f"user{i}@{domain}"
+            first_name = random.choice(first_names)
+            last_name = random.choice(last_names)
+            alias = generate_alias(first_name, last_name, i)
+            email = f"{alias}@{domain}"
             
             writer.writerow([
                 first_name,           # First Name [Required]
