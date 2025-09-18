@@ -1161,12 +1161,23 @@ def api_create_random_users():
         data = request.get_json()
         num_users = data.get('num_users')
         domain = data.get('domain')
+        password = data.get('password', 'SecurePass123')
 
         if not num_users or num_users <= 0:
             return jsonify({'success': False, 'error': 'Number of users must be greater than 0'})
 
         if not domain or not domain.strip():
             return jsonify({'success': False, 'error': 'Domain is required'})
+        
+        if not password or len(password) < 8:
+            return jsonify({'success': False, 'error': 'Password must be at least 8 characters long'})
+
+        # Sanitize password - remove any potentially problematic characters
+        import re
+        password = re.sub(r'[^\w\-_!@#$%^&*()+=]', '', password)
+        
+        if not password.strip():
+            return jsonify({'success': False, 'error': 'Password cannot be empty after sanitization'})
 
         # Limit the number of users for performance
         if num_users > 50:
@@ -1180,11 +1191,10 @@ def api_create_random_users():
             return jsonify({'success': False, 'error': 'Domain must be a valid domain (e.g., example.com)'})
         
         # Check for valid domain characters (letters, numbers, dots, hyphens)
-        import re
         if not re.match(r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', domain):
             return jsonify({'success': False, 'error': 'Domain contains invalid characters'})
 
-        result = google_api.create_random_users(num_users, domain)
+        result = google_api.create_random_users(num_users, domain, password)
         return jsonify(result)
 
     except Exception as e:

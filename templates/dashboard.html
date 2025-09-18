@@ -446,7 +446,7 @@
                 Create Random Users
             </h3>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 16px; align-items: end;">
             <div class="form-group-github">
                 <label for="random-user-count" class="form-label-github">
                     <i class="fas fa-hashtag"></i> Number of Users
@@ -458,6 +458,12 @@
                     <i class="fas fa-globe"></i> Domain
                 </label>
                 <input type="text" id="random-user-domain" class="form-control-github" placeholder="example.com">
+            </div>
+            <div class="form-group-github">
+                <label for="random-user-password" class="form-label-github">
+                    <i class="fas fa-lock"></i> Password
+                </label>
+                <input type="text" id="random-user-password" class="form-control-github" placeholder="Password for all users">
             </div>
             <button onclick="createRandomUsers()" class="btn-github btn-github-primary">
                 <i class="fas fa-random"></i> Create Random Users
@@ -2704,6 +2710,7 @@ function createUsersFromCSV() {
 function createRandomUsers() {
     const count = document.getElementById('random-user-count').value;
     const domain = document.getElementById('random-user-domain').value;
+    const password = document.getElementById('random-user-password').value;
     
     if (!count || count <= 0) {
         alert('Please enter a valid number of users');
@@ -2715,19 +2722,25 @@ function createRandomUsers() {
         return;
     }
     
+    if (!password || password.length < 8) {
+        alert('Please enter a password (minimum 8 characters)');
+        return;
+    }
+    
     if (!isAuthenticated) {
         alert('Please authenticate an account first');
         return;
     }
     
-    logResult(`🎲 Creating ${count} random users for ${domain}...`);
+    logResult(`🎲 Creating ${count} random users for ${domain} with password...`);
     
     fetch('/api/create-random-users', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             num_users: parseInt(count),
-            domain: domain
+            domain: domain,
+            password: password
         })
     })
     .then(response => {

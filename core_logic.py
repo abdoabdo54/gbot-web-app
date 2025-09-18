@@ -265,16 +265,17 @@ class WebGoogleAPI:
         except HttpError as e:
             return {"success": False, "error": str(e)}
 
-    def create_random_users(self, num_users, domain):
-        """Create multiple random users with generated names and passwords"""
+    def create_random_users(self, num_users, domain, password=None):
+        """Create multiple random users with generated names and specified password"""
         if not self.service:
             raise Exception("Not authenticated or session expired.")
         
         import random
         import string
         
-        # Generate a random password for all users
-        password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+        # Use provided password or generate a random one
+        if not password:
+            password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
         
         # Common first and last names for random generation
         first_names = [
