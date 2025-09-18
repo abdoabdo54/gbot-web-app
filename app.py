@@ -3409,8 +3409,11 @@ def create_users_from_csv():
             return jsonify({'success': False, 'error': 'Could not find email column'})
         
         # Import required modules
-        from core_logic import create_gsuite_user
+        from core_logic import GoogleAPI
         from database import GoogleAccount
+        
+        # Initialize Google API
+        google_api = GoogleAPI()
         
         created_count = 0
         results = []
@@ -3453,7 +3456,28 @@ def create_users_from_csv():
                     continue
                 
                 # Create user using existing logic
-                result = create_gsuite_user(email)
+                # Extract first name and last name from email (before @)
+                username_part = email.split('@')[0]
+                # Try to split by common separators
+                if '.' in username_part:
+                    name_parts = username_part.split('.')
+                    first_name = name_parts[0].capitalize()
+                    last_name = name_parts[1].capitalize() if len(name_parts) > 1 else 'User'
+                elif '_' in username_part:
+                    name_parts = username_part.split('_')
+                    first_name = name_parts[0].capitalize()
+                    last_name = name_parts[1].capitalize() if len(name_parts) > 1 else 'User'
+                else:
+                    first_name = username_part.capitalize()
+                    last_name = 'User'
+                
+                # Generate a random password
+                import secrets
+                import string
+                password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+                
+                # Create user using Google API
+                result = google_api.create_gsuite_user(first_name, last_name, email, password)
                 
                 if result.get('success'):
                     created_count += 1
@@ -3507,14 +3531,13 @@ def download_users_csv():
         writer = csv.writer(output)
         
         # Write header
-        writer.writerow(['email', 'created_at', 'last_login'])
+        writer.writerow(['email', 'client_id'])
         
         # Write user data
         for user in users:
             writer.writerow([
                 user.account_name,
-                user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '',
-                user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else ''
+                user.client_id
             ])
         
         # Create response
@@ -3763,7 +3786,7 @@ def generate_csv():
         
         if csv_type == 'users':
             # Write header
-            writer.writerow(['email', 'created_at', 'last_login'])
+            writer.writerow(['email', 'client_id'])
             
             # Get all users
             users = GoogleAccount.query.all()
@@ -3772,8 +3795,7 @@ def generate_csv():
             for user in users:
                 writer.writerow([
                     user.account_name,
-                    user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '',
-                    user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else ''
+                    user.client_id
                 ])
         
         elif csv_type == 'passwords':
