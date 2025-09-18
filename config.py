@@ -36,6 +36,10 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 PERMANENT_SESSION_LIFETIME = 3600  # 1 hour
 
+# Timeout Settings for long-running operations
+MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500MB
+SEND_FILE_MAX_AGE_DEFAULT = 0
+
 # Logging
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
 

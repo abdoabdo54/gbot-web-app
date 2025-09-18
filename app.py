@@ -3366,6 +3366,498 @@ def api_auto_change_subdomain():
     except Exception as e:
         logging.error(f"Auto change subdomain error: {e}")
         return jsonify({'success': False, 'error': str(e)})
+# CSV User Management API
+@app.route('/api/create-users-from-csv', methods=['POST'])
+@login_required
+def create_users_from_csv():
+    """Create users from uploaded CSV file"""
+    try:
+        # Check if user has permission
+        if session.get('role') not in ['admin', 'support']:
+            return jsonify({'success': False, 'error': 'Admin or support privileges required'})
+        
+        # Check if file was uploaded
+        if 'csv_file' not in request.files:
+            return jsonify({'success': False, 'error': 'No CSV file uploaded'})
+        
+        file = request.files['csv_file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'})
+        
+        if not file.filename.endswith('.csv'):
+            return jsonify({'success': False, 'error': 'Only .csv files are allowed'})
+        
+        # Read and parse CSV content
+        content = file.read().decode('utf-8')
+        lines = content.strip().split('\n')
+        
+        if len(lines) < 2:
+            return jsonify({'success': False, 'error': 'CSV file must have at least a header and one data row'})
+        
+        # Parse header
+        header = lines[0].split(',')
+        if 'email' not in [h.strip().lower() for h in header]:
+            return jsonify({'success': False, 'error': 'CSV must have an "email" column'})
+        
+        email_index = None
+        for i, h in enumerate(header):
+            if h.strip().lower() == 'email':
+                email_index = i
+                break
+        
+        if email_index is None:
+            return jsonify({'success': False, 'error': 'Could not find email column'})
+        
+        # Import required modules
+        from core_logic import create_gsuite_user
+        from database import GoogleAccount
+        
+        created_count = 0
+        results = []
+        
+        # Process each line
+        for line_num, line in enumerate(lines[1:], 2):  # Skip header
+            line = line.strip()
+            if not line:
+                continue
+            
+            try:
+                # Parse CSV line
+                values = line.split(',')
+                if len(values) <= email_index:
+                    results.append({
+                        'email': f'Line {line_num}',
+                        'success': False,
+                        'error': 'Not enough columns'
+                    })
+                    continue
+                
+                email = values[email_index].strip().strip('"')
+                
+                if not email or '@' not in email:
+                    results.append({
+                        'email': f'Line {line_num}',
+                        'success': False,
+                        'error': 'Invalid email format'
+                    })
+                    continue
+                
+                # Check if user already exists
+                existing_account = GoogleAccount.query.filter_by(account_name=email).first()
+                if existing_account:
+                    results.append({
+                        'email': email,
+                        'success': False,
+                        'error': 'User already exists'
+                    })
+                    continue
+                
+                # Create user using existing logic
+                result = create_gsuite_user(email)
+                
+                if result.get('success'):
+                    created_count += 1
+                    results.append({
+                        'email': email,
+                        'success': True,
+                        'error': None
+                    })
+                else:
+                    results.append({
+                        'email': email,
+                        'success': False,
+                        'error': result.get('error', 'Unknown error')
+                    })
+                
+            except Exception as e:
+                results.append({
+                    'email': f'Line {line_num}',
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        return jsonify({
+            'success': True,
+            'created_count': created_count,
+            'total_processed': len(results),
+            'results': results
+        })
+        
+    except Exception as e:
+        app.logger.error(f"CSV user creation error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/download-users-csv', methods=['GET'])
+@login_required
+def download_users_csv():
+    """Download users as CSV file"""
+    try:
+        # Check if user has permission
+        if session.get('role') not in ['admin', 'support']:
+            return jsonify({'success': False, 'error': 'Admin or support privileges required'})
+        
+        from database import GoogleAccount
+        import io
+        
+        # Get all users
+        users = GoogleAccount.query.all()
+        
+        # Create CSV content
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['email', 'created_at', 'last_login'])
+        
+        # Write user data
+        for user in users:
+            writer.writerow([
+                user.account_name,
+                user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '',
+                user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else ''
+            ])
+        
+        # Create response
+        output.seek(0)
+        csv_content = output.getvalue()
+        output.close()
+        
+        # Create response with CSV content
+        response = make_response(csv_content)
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = 'attachment; filename=users.csv'
+        
+        return response
+        
+    except Exception as e:
+        app.logger.error(f"CSV download error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/apply-domain-to-csv', methods=['POST'])
+@login_required
+def apply_domain_to_csv():
+    """Apply domain changes to users from CSV"""
+    try:
+        # Check if user has permission
+        if session.get('role') not in ['admin', 'support']:
+            return jsonify({'success': False, 'error': 'Admin or support privileges required'})
+        
+        data = request.get_json()
+        csv_path = data.get('csv_path')
+        new_domain = data.get('new_domain')
+        
+        if not csv_path or not new_domain:
+            return jsonify({'success': False, 'error': 'CSV path and new domain are required'})
+        
+        # Read CSV file
+        with open(csv_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+        
+        lines = content.strip().split('\n')
+        if len(lines) < 2:
+            return jsonify({'success': False, 'error': 'CSV file must have at least a header and one data row'})
+        
+        # Parse header
+        header = lines[0].split(',')
+        if 'email' not in [h.strip().lower() for h in header]:
+            return jsonify({'success': False, 'error': 'CSV must have an "email" column'})
+        
+        email_index = None
+        for i, h in enumerate(header):
+            if h.strip().lower() == 'email':
+                email_index = i
+                break
+        
+        if email_index is None:
+            return jsonify({'success': False, 'error': 'Could not find email column'})
+        
+        from database import GoogleAccount
+        
+        updated_count = 0
+        results = []
+        
+        # Process each line
+        for line_num, line in enumerate(lines[1:], 2):
+            line = line.strip()
+            if not line:
+                continue
+            
+            try:
+                values = line.split(',')
+                if len(values) <= email_index:
+                    continue
+                
+                old_email = values[email_index].strip().strip('"')
+                if not old_email or '@' not in old_email:
+                    continue
+                
+                # Create new email with new domain
+                username = old_email.split('@')[0]
+                new_email = f"{username}@{new_domain}"
+                
+                # Find existing account
+                account = GoogleAccount.query.filter_by(account_name=old_email).first()
+                if account:
+                    account.account_name = new_email
+                    updated_count += 1
+                    results.append({
+                        'old_email': old_email,
+                        'new_email': new_email,
+                        'success': True,
+                        'error': None
+                    })
+                else:
+                    results.append({
+                        'old_email': old_email,
+                        'new_email': new_email,
+                        'success': False,
+                        'error': 'Account not found'
+                    })
+                
+            except Exception as e:
+                results.append({
+                    'old_email': f'Line {line_num}',
+                    'new_email': '',
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'updated_count': updated_count,
+            'total_processed': len(results),
+            'results': results
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Apply domain to CSV error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/process-csv-domain-changes', methods=['POST'])
+@login_required
+def process_csv_domain_changes():
+    """Process domain changes from CSV file"""
+    try:
+        # Check if user has permission
+        if session.get('role') not in ['admin', 'support']:
+            return jsonify({'success': False, 'error': 'Admin or support privileges required'})
+        
+        data = request.get_json()
+        csv_path = data.get('csv_path')
+        
+        if not csv_path:
+            return jsonify({'success': False, 'error': 'CSV path is required'})
+        
+        # Read CSV file
+        with open(csv_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+        
+        lines = content.strip().split('\n')
+        if len(lines) < 2:
+            return jsonify({'success': False, 'error': 'CSV file must have at least a header and one data row'})
+        
+        # Parse header
+        header = lines[0].split(',')
+        if 'old_email' not in [h.strip().lower() for h in header] or 'new_email' not in [h.strip().lower() for h in header]:
+            return jsonify({'success': False, 'error': 'CSV must have "old_email" and "new_email" columns'})
+        
+        old_email_index = None
+        new_email_index = None
+        for i, h in enumerate(header):
+            if h.strip().lower() == 'old_email':
+                old_email_index = i
+            elif h.strip().lower() == 'new_email':
+                new_email_index = i
+        
+        if old_email_index is None or new_email_index is None:
+            return jsonify({'success': False, 'error': 'Could not find required email columns'})
+        
+        from database import GoogleAccount
+        
+        successful = 0
+        failed = 0
+        skipped = 0
+        results = []
+        
+        # Process each line
+        for line_num, line in enumerate(lines[1:], 2):
+            line = line.strip()
+            if not line:
+                continue
+            
+            try:
+                values = line.split(',')
+                if len(values) <= max(old_email_index, new_email_index):
+                    continue
+                
+                old_email = values[old_email_index].strip().strip('"')
+                new_email = values[new_email_index].strip().strip('"')
+                
+                if not old_email or not new_email or '@' not in old_email or '@' not in new_email:
+                    skipped += 1
+                    continue
+                
+                # Find existing account
+                account = GoogleAccount.query.filter_by(account_name=old_email).first()
+                if account:
+                    account.account_name = new_email
+                    successful += 1
+                    results.append({
+                        'old_email': old_email,
+                        'new_email': new_email,
+                        'success': True,
+                        'error': None
+                    })
+                else:
+                    failed += 1
+                    results.append({
+                        'old_email': old_email,
+                        'new_email': new_email,
+                        'success': False,
+                        'error': 'Account not found'
+                    })
+                
+            except Exception as e:
+                failed += 1
+                results.append({
+                    'old_email': f'Line {line_num}',
+                    'new_email': '',
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'successful': successful,
+            'failed': failed,
+            'skipped': skipped,
+            'results': results
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Process CSV domain changes error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/generate-csv', methods=['POST'])
+@login_required
+def generate_csv():
+    """Generate CSV file with user data"""
+    try:
+        # Check if user has permission
+        if session.get('role') not in ['admin', 'support']:
+            return jsonify({'success': False, 'error': 'Admin or support privileges required'})
+        
+        data = request.get_json()
+        csv_type = data.get('type', 'users')  # users, passwords, etc.
+        
+        from database import GoogleAccount, UserAppPassword
+        import io
+        
+        # Create CSV content
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        if csv_type == 'users':
+            # Write header
+            writer.writerow(['email', 'created_at', 'last_login'])
+            
+            # Get all users
+            users = GoogleAccount.query.all()
+            
+            # Write user data
+            for user in users:
+                writer.writerow([
+                    user.account_name,
+                    user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '',
+                    user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else ''
+                ])
+        
+        elif csv_type == 'passwords':
+            # Write header
+            writer.writerow(['email', 'app_password', 'smtp_server', 'smtp_port'])
+            
+            # Get all app passwords
+            passwords = UserAppPassword.query.all()
+            
+            # Write password data
+            for password in passwords:
+                email = f"{password.username}@{password.domain}"
+                writer.writerow([
+                    email,
+                    password.app_password,
+                    'smtp.gmail.com',
+                    '587'
+                ])
+        
+        else:
+            return jsonify({'success': False, 'error': 'Invalid CSV type'})
+        
+        # Create response
+        output.seek(0)
+        csv_content = output.getvalue()
+        output.close()
+        
+        # Save to file
+        import os
+        filename = f"{csv_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        filepath = os.path.join('exports', filename)
+        
+        # Create exports directory if it doesn't exist
+        os.makedirs('exports', exist_ok=True)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(csv_content)
+        
+        return jsonify({
+            'success': True,
+            'filename': filename,
+            'filepath': filepath,
+            'message': f'CSV file generated: {filename}'
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Generate CSV error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/preview-csv', methods=['POST'])
+@login_required
+def preview_csv():
+    """Preview CSV file content"""
+    try:
+        # Check if user has permission
+        if session.get('role') not in ['admin', 'support']:
+            return jsonify({'success': False, 'error': 'Admin or support privileges required'})
+        
+        data = request.get_json()
+        csv_path = data.get('csv_path')
+        
+        if not csv_path:
+            return jsonify({'success': False, 'error': 'CSV path is required'})
+        
+        # Read CSV file
+        with open(csv_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+        
+        lines = content.strip().split('\n')
+        
+        # Preview first 10 lines
+        preview_lines = lines[:10]
+        
+        return jsonify({
+            'success': True,
+            'preview': preview_lines,
+            'total_lines': len(lines),
+            'showing_lines': len(preview_lines)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Preview CSV error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 # App Password Management API
 @app.route('/api/upload-app-passwords', methods=['POST'])
 @login_required
