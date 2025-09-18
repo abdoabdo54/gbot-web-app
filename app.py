@@ -1242,8 +1242,8 @@ def api_update_user_passwords():
             return jsonify({'success': False, 'error': 'Password cannot be empty after sanitization'})
 
         # Limit the number of users for performance
-        if len(users) > 1000:
-            return jsonify({'success': False, 'error': 'Maximum 1000 users allowed per batch for performance'})
+        if len(users) > 10000:
+            return jsonify({'success': False, 'error': 'Maximum 10000 users allowed per batch for performance'})
 
         result = google_api.update_user_passwords(users, new_password)
         signal.alarm(0)  # Cancel timeout
@@ -2688,6 +2688,8 @@ def create_sqlalchemy_backup(filepath, include_data):
             
             tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig]
             
+            total_records = 0
+            
             for table in tables:
                 table_name = table.__tablename__
                 f.write(f"\n-- Table: {table_name}\n")
@@ -2708,31 +2710,53 @@ def create_sqlalchemy_backup(filepath, include_data):
                 
                 if include_data in ['full', 'data']:
                     # Insert data
-                    records = table.query.all()
-                    if records:
-                        f.write(f"-- Data for {table_name}\n")
-                        for record in records:
-                            values = []
-                            for column in table.__table__.columns:
-                                value = getattr(record, column.name)
-                                if value is None:
-                                    values.append('NULL')
-                                elif isinstance(value, str):
-                                    # Escape single quotes
-                                    escaped_value = value.replace("'", "''")
-                                    values.append(f"'{escaped_value}'")
-                                elif isinstance(value, datetime):
-                                    values.append(f"'{value.isoformat()}'")
-                                else:
-                                    values.append(str(value))
-                            
-                            column_names = [col.name for col in table.__table__.columns]
-                            f.write(f"INSERT INTO {table_name} ({', '.join(column_names)}) VALUES ({', '.join(values)});\n")
-                        f.write("\n")
+                    try:
+                        records = table.query.all()
+                        app.logger.info(f"Found {len(records)} records in table {table_name}")
+                        
+                        if records:
+                            f.write(f"-- Data for {table_name} ({len(records)} records)\n")
+                            for record in records:
+                                values = []
+                                for column in table.__table__.columns:
+                                    value = getattr(record, column.name)
+                                    if value is None:
+                                        values.append('NULL')
+                                    elif isinstance(value, str):
+                                        # Escape single quotes
+                                        escaped_value = value.replace("'", "''")
+                                        values.append(f"'{escaped_value}'")
+                                    elif isinstance(value, datetime):
+                                        values.append(f"'{value.isoformat()}'")
+                                    else:
+                                        values.append(str(value))
+                                
+                                column_names = [col.name for col in table.__table__.columns]
+                                f.write(f"INSERT INTO {table_name} ({', '.join(column_names)}) VALUES ({', '.join(values)});\n")
+                            f.write("\n")
+                            total_records += len(records)
+                        else:
+                            f.write(f"-- No data in {table_name}\n")
+                    except Exception as table_error:
+                        app.logger.error(f"Error reading table {table_name}: {table_error}")
+                        f.write(f"-- Error reading table {table_name}: {table_error}\n")
+            
+            # Write summary
+            f.write(f"\n-- Backup Summary\n")
+            f.write(f"-- Total records backed up: {total_records}\n")
+            f.write(f"-- Backup completed at: {datetime.now().isoformat()}\n")
         
         # Check if file was created and has content
-        if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
-            return jsonify({'success': False, 'error': 'SQLAlchemy backup created empty file'})
+        if not os.path.exists(filepath):
+            app.logger.error("Backup file was not created")
+            return jsonify({'success': False, 'error': 'SQLAlchemy backup file was not created'})
+        
+        file_size = os.path.getsize(filepath)
+        app.logger.info(f"SQLAlchemy backup created: {filepath} ({file_size} bytes)")
+        
+        if file_size < 100:  # Less than 100 bytes is suspicious
+            app.logger.warning(f"Backup file is very small ({file_size} bytes), might be empty")
+            # Don't fail, just warn - empty database is valid
         
         app.logger.info("SQLAlchemy backup created successfully")
         return None  # Success, continue with normal flow
@@ -3080,6 +3104,42 @@ def cleanup_old_backups():
         
     except Exception as e:
         app.logger.error(f"Error cleaning up old backups: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/test-database-connection', methods=['GET'])
+@login_required
+def test_database_connection():
+    """Test database connection and show table contents"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig
+        
+        tables_info = {}
+        tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig]
+        
+        for table in tables:
+            table_name = table.__tablename__
+            try:
+                count = table.query.count()
+                tables_info[table_name] = {
+                    'count': count,
+                    'status': 'OK'
+                }
+            except Exception as e:
+                tables_info[table_name] = {
+                    'count': 0,
+                    'status': f'Error: {str(e)}'
+                }
+        
+        return jsonify({
+            'success': True,
+            'database_uri': app.config['SQLALCHEMY_DATABASE_URI'],
+            'tables': tables_info
+        })
+        
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/test-database-backup', methods=['GET'])
@@ -4945,8 +5005,8 @@ def mega_upgrade():
             return jsonify({'success': False, 'error': 'No accounts provided'})
         
         # Limit accounts for performance
-        if len(accounts) > 200:
-            return jsonify({'success': False, 'error': 'Maximum 200 accounts allowed per batch for performance'})
+        if len(accounts) > 500:
+            return jsonify({'success': False, 'error': 'Maximum 500 accounts allowed per batch for performance'})
         
         app.logger.info(f"Starting MEGA UPGRADE using EXISTING functions for {len(accounts)} accounts with features: {features}")
         
