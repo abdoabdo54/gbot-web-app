@@ -2598,27 +2598,27 @@ def test_server_connection():
                             json_filename = json_files[0]
                             file_path = f"{account_path}/{json_filename}"
                             
-                            try:
-                                with sftp.open(file_path, 'r') as f:
-                                    content = f.read()
-                                    json_data = json.loads(content)
-                                
-                                # Validate JSON structure
-                                if 'installed' in json_data or 'web' in json_data:
-                                    valid_accounts.append({
-                                        'account': account_dir,
-                                        'json_file': json_filename,
-                                        'has_credentials': True
-                                    })
-                                else:
-                                    valid_accounts.append({
-                                        'account': account_dir,
-                                        'json_file': json_filename,
-                                        'has_credentials': False
-                                    })
-                            except Exception as e:
-                                app.logger.warning(f"Invalid JSON file {file_path}: {e}")
-                                continue
+                        try:
+                            with sftp.open(file_path, 'r') as f:
+                                content = f.read()
+                                json_data = json.loads(content)
+                            
+                            # Validate JSON structure
+                            if 'installed' in json_data or 'web' in json_data:
+                                valid_accounts.append({
+                                    'account': account_dir,
+                                    'json_file': json_filename,
+                                    'has_credentials': True
+                                })
+                            else:
+                                valid_accounts.append({
+                                    'account': account_dir,
+                                    'json_file': json_filename,
+                                    'has_credentials': False
+                                })
+                        except Exception as e:
+                            app.logger.warning(f"Invalid JSON file {file_path}: {e}")
+                            continue
                     
                     except Exception as e:
                         app.logger.warning(f"Could not access account directory {account_path}: {e}")
@@ -2794,6 +2794,22 @@ def create_database_backup():
                 # PostgreSQL backup
                 import subprocess
                 import urllib.parse
+                
+                # Check if pg_dump is available, if not try to install it
+                try:
+                    subprocess.run(['pg_dump', '--version'], capture_output=True, check=True)
+                    app.logger.info("pg_dump is available")
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    app.logger.warning("pg_dump not found, attempting to install PostgreSQL client tools...")
+                    try:
+                        # Try to install PostgreSQL client tools
+                        install_cmd = ['apt-get', 'update', '&&', 'apt-get', 'install', '-y', 'postgresql-client']
+                        subprocess.run(' '.join(install_cmd), shell=True, check=True)
+                        app.logger.info("PostgreSQL client tools installed successfully")
+                    except subprocess.CalledProcessError as install_error:
+                        app.logger.error(f"Failed to install PostgreSQL client tools: {install_error}")
+                        app.logger.info("Falling back to SQLAlchemy-based backup")
+                        return create_sqlalchemy_backup(filepath, include_data)
                 
                 # Parse database URL
                 db_url = app.config['SQLALCHEMY_DATABASE_URI']
@@ -3106,6 +3122,27 @@ def cleanup_old_backups():
         app.logger.error(f"Error cleaning up old backups: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/simple-db-test', methods=['GET'])
+@login_required
+def simple_db_test():
+    """Simple database connection test"""
+    try:
+        from database import db
+        from sqlalchemy import text
+        with app.app_context():
+            result = db.session.execute(text('SELECT 1 as test')).fetchone()
+            return jsonify({
+                'success': True, 
+                'message': 'Database connection successful',
+                'test_result': result[0] if result else None
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False, 
+            'error': str(e),
+            'database_uri': app.config['SQLALCHEMY_DATABASE_URI']
+        })
+
 @app.route('/api/test-database-connection', methods=['GET'])
 @login_required
 def test_database_connection():
@@ -3177,8 +3214,9 @@ def test_database_backup():
         # Test database connection
         try:
             from database import db
+            from sqlalchemy import text
             with app.app_context():
-                db.session.execute('SELECT 1')
+                db.session.execute(text('SELECT 1'))
                 test_results['database_connection'] = True
         except Exception as e:
             test_results['database_connection_error'] = str(e)
@@ -4788,36 +4826,36 @@ def test_smtp_credentials_progress():
                                     'status': 'error',
                                     'error': 'Invalid format - use email:password'
                                 })
-                        continue
+                            continue
                     
                     try:
                         email, password = line.split(':', 1)
                         email = email.strip()
                         password = password.strip()
-                        
-                        if not email or not password:
+                
+                if not email or not password:
                             with progress_lock:
                                 if task_id in progress_tracker:
                                     progress_tracker[task_id]['fail_count'] += 1
                                     progress_tracker[task_id]['results'].append({
-                                        'email': email or 'unknown',
-                                        'status': 'error',
-                                        'error': 'Empty email or password'
-                                    })
-                            continue
-                        
+                        'email': email or 'unknown',
+                        'status': 'error',
+                        'error': 'Empty email or password'
+                    })
+                    continue
+                
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['current_email'] = email
                                 progress_tracker[task_id]['message'] = f'Testing {email}...'
-                        
-                        # Create message
-                        msg = MIMEMultipart()
-                        msg['From'] = email
-                        msg['To'] = recipient_email
-                        msg['Subject'] = f"SMTP Test from {email}"
-                        
-                        body = f"""
+                
+                # Create message
+                msg = MIMEMultipart()
+                msg['From'] = email
+                msg['To'] = recipient_email
+                msg['Subject'] = f"SMTP Test from {email}"
+                
+                body = f"""
 This is a test email sent from {email} using the GBot Web Application SMTP tester.
 
 Test Details:
@@ -4827,25 +4865,25 @@ Test Details:
 
 If you received this email, the SMTP credentials are working correctly.
 """
-                        msg.attach(MIMEText(body, 'plain'))
-                        
-                        # Connect and send
-                        server = smtplib.SMTP(smtp_server, smtp_port)
-                        server.starttls()  # Enable encryption
-                        server.login(email, password)
-                        server.send_message(msg)
-                        server.quit()
-                        
+                msg.attach(MIMEText(body, 'plain'))
+                
+                # Connect and send
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()  # Enable encryption
+                server.login(email, password)
+                server.send_message(msg)
+                server.quit()
+                
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['success_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'success',
-                                    'message': f'Test email sent successfully to {recipient_email}'
-                                })
-                        
-                    except smtplib.SMTPAuthenticationError as e:
+                    'email': email,
+                    'status': 'success',
+                    'message': f'Test email sent successfully to {recipient_email}'
+                })
+                
+            except smtplib.SMTPAuthenticationError as e:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
@@ -4877,11 +4915,11 @@ If you received this email, the SMTP credentials are working correctly.
                     if task_id in progress_tracker:
                         progress_tracker[task_id]['fail_count'] += 1
                         progress_tracker[task_id]['results'].append({
-                            'email': email,
-                            'status': 'error',
-                            'error': f'Unexpected error: {str(e)}'
-                        })
-                
+                    'email': email,
+                    'status': 'error',
+                    'error': f'Unexpected error: {str(e)}'
+                })
+        
                 # Mark as completed
                 with progress_lock:
                     if task_id in progress_tracker:
@@ -5398,7 +5436,7 @@ def mega_upgrade():
                 
                 app.logger.info(f"Account {account_email} processed successfully - account name unchanged: {original_account_name}")
                 
-            except Exception as e:
+    except Exception as e:
                 app.logger.error(f"Error processing account {account_email}: {e}")
                 failed_accounts += 1
                 failed_details.append({
@@ -5685,18 +5723,18 @@ def api_refresh_domain_status():
         # Get all domains from database
         domains = UsedDomain.query.all()
         domain_dict = {domain.domain_name: domain for domain in domains}
-        
-        # Count users per domain
-        domain_user_counts = {}
+            
+            # Count users per domain
+            domain_user_counts = {}
         for user in users:
-            email = user.get('primaryEmail', '')
-            if '@' in email:
-                domain = email.split('@')[1]
-                domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+                email = user.get('primaryEmail', '')
+                if '@' in email:
+                    domain = email.split('@')[1]
+                    domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
             
         # Update domain statuses
-        updated_domains = []
-        for domain_name, user_count in domain_user_counts.items():
+            updated_domains = []
+            for domain_name, user_count in domain_user_counts.items():
             if domain_name in domain_dict:
                 domain = domain_dict[domain_name]
                 old_count = domain.user_count
@@ -5707,14 +5745,14 @@ def api_refresh_domain_status():
                     'old_count': old_count,
                     'new_count': user_count
                 })
-            else:
+                    else:
                 # Create new domain entry
-                new_domain = UsedDomain(
-                    domain_name=domain_name,
-                    user_count=user_count,
+                        new_domain = UsedDomain(
+                            domain_name=domain_name,
+                            user_count=user_count,
                     ever_used=True
-                )
-                db.session.add(new_domain)
+                        )
+                        db.session.add(new_domain)
                 updated_domains.append({
                     'domain': domain_name,
                     'old_count': 0,
@@ -5884,7 +5922,7 @@ def restore_backup():
                 result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
                 if result.returncode != 0:
                     return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
-            else:
+        else:
                 return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
         
         else:
@@ -6353,7 +6391,7 @@ def restore_from_base64():
                             pg_dump_path = path
                             app.logger.info(f"✅ pg_dump found at {path}: {result.stdout.strip()}")
                             break
-                        else:
+                else:
                             app.logger.debug(f"pg_dump at {path} returned code {result.returncode}")
                     except Exception as e:
                         app.logger.debug(f"pg_dump not found at {path}: {e}")
@@ -6392,7 +6430,7 @@ def restore_from_base64():
                             psql_path = path
                             app.logger.info(f"✅ psql found at {path}: {result.stdout.strip()}")
                             break
-                        else:
+                else:
                             app.logger.debug(f"psql at {path} returned code {result.returncode}")
                     except Exception as e:
                         app.logger.debug(f"psql not found at {path}: {e}")
@@ -6525,8 +6563,8 @@ def restore_from_base64():
         # Clear SQLAlchemy session to force reload
         db.session.remove()
         
-        return jsonify({
-            'success': True,
+            return jsonify({
+                'success': True,
             'message': f'Database restored successfully from base64 upload: {filename}',
             'decoded_file': decoded_filename,
             'current_backup': current_backup_name
@@ -6900,8 +6938,8 @@ def upload_base64_chunk():
         
         app.logger.info(f"Base64 chunk {chunk_index + 1}/{total_chunks} uploaded for {filename}")
         
-        return jsonify({
-            'success': True,
+                return jsonify({
+                    'success': True,
             'message': f'Base64 chunk {chunk_index + 1}/{total_chunks} uploaded',
             'chunk_index': chunk_index,
             'total_chunks': total_chunks

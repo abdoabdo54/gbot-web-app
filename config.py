@@ -19,7 +19,7 @@ else:
     # Check if we're in production environment (Ubuntu server)
     if os.environ.get('FLASK_ENV') == 'production' or os.path.exists('/etc/nginx/sites-available/gbot'):
         # Production environment - use PostgreSQL
-        SQLALCHEMY_DATABASE_URI = 'postgresql://gbot_user:gbot_password@localhost/gbot_db'
+        SQLALCHEMY_DATABASE_URI = 'postgresql://gbot_user:gbot_password@localhost:5432/gbot_db'
     else:
         # Development environment - use SQLite
         db_path = os.path.join(os.path.dirname(__file__), 'instance', 'gbot.db')
@@ -60,7 +60,7 @@ PRODUCTION_ENV_TEMPLATE = """
 # GBot Web Application - Production Environment
 SECRET_KEY={SECRET_KEY}
 WHITELIST_TOKEN={WHITELIST_TOKEN}
-DATABASE_URL=postgresql://gbot_user:{DB_PASSWORD}@localhost/gbot_db
+DATABASE_URL=postgresql://gbot_user:{DB_PASSWORD}@localhost:5432/gbot_db
 DEBUG=False
 FLASK_ENV=production
 LOG_LEVEL=INFO
