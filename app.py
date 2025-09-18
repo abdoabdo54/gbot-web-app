@@ -3782,7 +3782,20 @@ def generate_csv():
         csv_type = data.get('type', 'users')  # users, passwords, etc.
         num_users = data.get('num_users', 10)
         domain = data.get('domain', 'example.com')
-        password = data.get('password', 'DefaultPass123')
+        password = data.get('password', 'SecurePass123')
+        
+        # Validate password meets Google requirements
+        if len(password) < 8:
+            return jsonify({'success': False, 'error': 'Password must be at least 8 characters long'})
+        
+        if not any(c.isupper() for c in password):
+            return jsonify({'success': False, 'error': 'Password must contain at least one uppercase letter'})
+        
+        if not any(c.islower() for c in password):
+            return jsonify({'success': False, 'error': 'Password must contain at least one lowercase letter'})
+        
+        if not any(c.isdigit() for c in password):
+            return jsonify({'success': False, 'error': 'Password must contain at least one number'})
         
         # Validate domain - remove any @ symbols that shouldn't be there
         if '@' in domain:
@@ -3987,7 +4000,20 @@ def preview_csv():
         data = request.get_json()
         num_users = data.get('num_users', 5)
         domain = data.get('domain', 'example.com')
-        password = data.get('password', 'DefaultPass123')
+        password = data.get('password', 'SecurePass123')
+        
+        # Validate password meets Google requirements
+        if len(password) < 8:
+            return jsonify({'success': False, 'error': 'Password must be at least 8 characters long'})
+        
+        if not any(c.isupper() for c in password):
+            return jsonify({'success': False, 'error': 'Password must contain at least one uppercase letter'})
+        
+        if not any(c.islower() for c in password):
+            return jsonify({'success': False, 'error': 'Password must contain at least one lowercase letter'})
+        
+        if not any(c.isdigit() for c in password):
+            return jsonify({'success': False, 'error': 'Password must contain at least one number'})
         
         # Validate domain - remove any @ symbols that shouldn't be there
         if '@' in domain:
