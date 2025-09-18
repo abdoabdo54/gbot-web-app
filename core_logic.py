@@ -254,14 +254,38 @@ class WebGoogleAPI:
         except HttpError as e:
             return {"success": False, "error": str(e)}
 
-    def get_users(self, max_results=500):
-        """Retrieve all users from the authenticated Google account"""
+    def get_users(self, max_results=None):
+        """Retrieve all users from the authenticated Google account (unlimited)"""
         if not self.service:
             raise Exception("Not authenticated or session expired.")
         
         try:
-            users_result = self.service.users().list(customer='my_customer', maxResults=max_results).execute()
-            return {"success": True, "users": users_result.get("users", [])}
+            all_users = []
+            page_token = None
+            
+            while True:
+                # Request parameters
+                request_params = {
+                    'customer': 'my_customer',
+                    'maxResults': 500  # Google's maximum per request
+                }
+                
+                if page_token:
+                    request_params['pageToken'] = page_token
+                
+                # Make the API request
+                users_result = self.service.users().list(**request_params).execute()
+                
+                # Add users from this page
+                users = users_result.get("users", [])
+                all_users.extend(users)
+                
+                # Check if there are more pages
+                page_token = users_result.get("nextPageToken")
+                if not page_token:
+                    break
+            
+            return {"success": True, "users": all_users, "total_count": len(all_users)}
         except HttpError as e:
             return {"success": False, "error": str(e)}
 

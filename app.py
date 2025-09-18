@@ -1161,10 +1161,10 @@ def api_create_random_users():
     import signal
     
     def timeout_handler(signum, frame):
-        raise TimeoutError("Request timed out after 15 minutes")
+        raise TimeoutError("Request timed out after 30 minutes")
     
     signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(900)  # 15 minutes timeout
+    signal.alarm(1800)  # 30 minutes timeout
     
     try:
         data = request.get_json()
@@ -1189,8 +1189,8 @@ def api_create_random_users():
             return jsonify({'success': False, 'error': 'Password cannot be empty after sanitization'})
 
         # Limit the number of users for performance
-        if num_users > 50:
-            return jsonify({'success': False, 'error': 'Maximum 50 users allowed per batch'})
+        if num_users > 1000:
+            return jsonify({'success': False, 'error': 'Maximum 1000 users allowed per batch for performance'})
 
         # Clean domain name
         domain = domain.strip().lower()
@@ -1218,10 +1218,10 @@ def api_update_user_passwords():
     import signal
     
     def timeout_handler(signum, frame):
-        raise TimeoutError("Request timed out after 10 minutes")
+        raise TimeoutError("Request timed out after 30 minutes")
     
     signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(600)  # 10 minutes timeout
+    signal.alarm(1800)  # 30 minutes timeout
     
     try:
         data = request.get_json()
@@ -1242,8 +1242,8 @@ def api_update_user_passwords():
             return jsonify({'success': False, 'error': 'Password cannot be empty after sanitization'})
 
         # Limit the number of users for performance
-        if len(users) > 100:
-            return jsonify({'success': False, 'error': 'Maximum 100 users allowed per batch'})
+        if len(users) > 1000:
+            return jsonify({'success': False, 'error': 'Maximum 1000 users allowed per batch for performance'})
 
         result = google_api.update_user_passwords(users, new_password)
         signal.alarm(0)  # Cancel timeout
@@ -4933,9 +4933,9 @@ def mega_upgrade():
         def timeout_handler(signum, frame):
             raise TimeoutError("Mega upgrade timeout")
         
-        # Set timeout to 10 minutes (600 seconds) for large user bases
+        # Set timeout to 20 minutes (1200 seconds) for large user bases
         signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(600)
+        signal.alarm(1200)
         
         data = request.get_json()
         accounts = data.get('accounts', [])
@@ -4945,8 +4945,8 @@ def mega_upgrade():
             return jsonify({'success': False, 'error': 'No accounts provided'})
         
         # Limit accounts for performance
-        if len(accounts) > 50:
-            return jsonify({'success': False, 'error': 'Maximum 50 accounts allowed per batch for performance'})
+        if len(accounts) > 200:
+            return jsonify({'success': False, 'error': 'Maximum 200 accounts allowed per batch for performance'})
         
         app.logger.info(f"Starting MEGA UPGRADE using EXISTING functions for {len(accounts)} accounts with features: {features}")
         
