@@ -2676,6 +2676,16 @@ def create_sqlalchemy_backup(filepath, include_data):
     """Create a backup using SQLAlchemy when pg_dump fails"""
     try:
         app.logger.info("Creating SQLAlchemy-based backup...")
+        app.logger.info(f"Database URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
+        
+        # Test database connection first
+        try:
+            from sqlalchemy import text
+            result = db.session.execute(text('SELECT 1 as test'))
+            app.logger.info("Database connection test successful")
+        except Exception as e:
+            app.logger.error(f"Database connection test failed: {e}")
+            return jsonify({'success': False, 'error': f'Database connection failed: {str(e)}'})
         
         with open(filepath, 'w') as f:
             # Write header
@@ -2759,13 +2769,101 @@ def create_sqlalchemy_backup(filepath, include_data):
             # Don't fail, just warn - empty database is valid
         
         app.logger.info("SQLAlchemy backup created successfully")
-        return None  # Success, continue with normal flow
+        return jsonify({
+            'success': True,
+            'message': f'SQLAlchemy backup created successfully',
+            'filename': os.path.basename(filepath),
+            'file_size': file_size,
+            'total_records': total_records
+        })
         
     except Exception as e:
         app.logger.error(f"SQLAlchemy backup failed: {e}")
         return jsonify({'success': False, 'error': f'SQLAlchemy backup failed: {str(e)}'})
 
 # Database Backup API routes
+@app.route('/api/diagnose-backup', methods=['GET'])
+@login_required
+def diagnose_backup():
+    """Diagnose backup issues"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        import os
+        import subprocess
+        
+        # Check database connection
+        db_status = {}
+        try:
+            from sqlalchemy import text
+            result = db.session.execute(text('SELECT 1 as test'))
+            db_status['connection'] = 'OK'
+            db_status['uri'] = app.config['SQLALCHEMY_DATABASE_URI']
+        except Exception as e:
+            db_status['connection'] = f'FAILED: {str(e)}'
+            db_status['uri'] = app.config['SQLALCHEMY_DATABASE_URI']
+        
+        # Check pg_dump availability
+        pg_dump_status = {}
+        try:
+            result = subprocess.run(['pg_dump', '--version'], capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                pg_dump_status['available'] = True
+                pg_dump_status['version'] = result.stdout.strip()
+            else:
+                pg_dump_status['available'] = False
+                pg_dump_status['error'] = result.stderr
+        except Exception as e:
+            pg_dump_status['available'] = False
+            pg_dump_status['error'] = str(e)
+        
+        # Check backup directory
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
+        backup_status = {
+            'directory': backup_dir,
+            'exists': os.path.exists(backup_dir),
+            'writable': False
+        }
+        
+        if backup_status['exists']:
+            try:
+                test_file = os.path.join(backup_dir, 'test_write.tmp')
+                with open(test_file, 'w') as f:
+                    f.write('test')
+                os.remove(test_file)
+                backup_status['writable'] = True
+            except Exception as e:
+                backup_status['error'] = str(e)
+        
+        # Check database tables and record counts
+        table_status = {}
+        try:
+            from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig
+            tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig]
+            
+            for table in tables:
+                try:
+                    count = table.query.count()
+                    table_status[table.__tablename__] = count
+                except Exception as e:
+                    table_status[table.__tablename__] = f'ERROR: {str(e)}'
+        except Exception as e:
+            table_status['error'] = str(e)
+        
+        return jsonify({
+            'success': True,
+            'diagnosis': {
+                'database': db_status,
+                'pg_dump': pg_dump_status,
+                'backup_directory': backup_status,
+                'tables': table_status
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/create-database-backup', methods=['POST'])
 @login_required
 def create_database_backup():
@@ -2841,6 +2939,10 @@ def create_database_backup():
                 
                 # Execute pg_dump
                 try:
+                    app.logger.info(f"Executing pg_dump with command: {' '.join(cmd)}")
+                    app.logger.info(f"Database URL: {db_url}")
+                    app.logger.info(f"Environment PGPASSWORD set: {'Yes' if env.get('PGPASSWORD') else 'No'}")
+                    
                     with open(filepath, 'w') as f:
                         result = subprocess.run(cmd, stdout=f, stderr=subprocess.PIPE, env=env, text=True, timeout=300)
                     
@@ -2849,13 +2951,26 @@ def create_database_backup():
                         app.logger.warning(f"pg_dump stderr: {result.stderr}")
                     
                     if result.returncode != 0:
+                        app.logger.error(f"pg_dump failed with return code {result.returncode}: {result.stderr}")
                         return jsonify({'success': False, 'error': f'pg_dump failed (code {result.returncode}): {result.stderr}'})
                     
                     # Check if file was created and has content
-                    if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+                    file_size = os.path.getsize(filepath) if os.path.exists(filepath) else 0
+                    app.logger.info(f"Backup file created: {filepath}, size: {file_size} bytes")
+                    
+                    if not os.path.exists(filepath) or file_size == 0:
                         app.logger.warning("pg_dump created empty file, trying SQLAlchemy fallback...")
                         # Fallback to SQLAlchemy-based backup
                         return create_sqlalchemy_backup(filepath, include_data)
+                    
+                    # Check if file is too small (less than 1KB indicates potential issue)
+                    if file_size < 1024:
+                        app.logger.warning(f"Backup file is very small ({file_size} bytes), checking content...")
+                        with open(filepath, 'r') as f:
+                            content = f.read()
+                            if not content.strip() or len(content.strip()) < 100:
+                                app.logger.warning("Backup file appears empty or minimal, trying SQLAlchemy fallback...")
+                                return create_sqlalchemy_backup(filepath, include_data)
                         
                 except subprocess.TimeoutExpired:
                     app.logger.warning("pg_dump timed out, trying SQLAlchemy fallback...")
