@@ -2590,7 +2590,7 @@ def test_server_connection():
                         account_files = sftp.listdir(account_path)
                         
                         # Look for JSON files
-                import fnmatch
+                        import fnmatch
                         json_files = [f for f in account_files if fnmatch.fnmatch(f, '*.json')]
                         
                         if json_files:
@@ -2599,8 +2599,8 @@ def test_server_connection():
                             file_path = f"{account_path}/{json_filename}"
                             
                             try:
-                        with sftp.open(file_path, 'r') as f:
-                            content = f.read()
+                                with sftp.open(file_path, 'r') as f:
+                                    content = f.read()
                                     json_data = json.loads(content)
                                 
                                 # Validate JSON structure
@@ -2634,8 +2634,8 @@ def test_server_connection():
                 ssh.close()
                 
                 if valid_accounts:
-                return jsonify({
-                    'success': True,
+                    return jsonify({
+                        'success': True,
                         'message': f'Connection successful. Found {len(valid_accounts)} account(s) with JSON files in {len(account_dirs)} total directories.',
                         'accounts_count': len(valid_accounts),
                         'total_dirs': len(account_dirs),
@@ -2646,7 +2646,7 @@ def test_server_connection():
                     return jsonify({
                         'success': False,
                         'error': f'No valid JSON files found in any account directories. Checked {tested_accounts} directories.'
-                })
+                    })
                 
             except Exception as e:
                 ssh.close()
@@ -2728,29 +2728,29 @@ def create_sqlalchemy_backup(filepath, include_data):
                 if include_data in ['full', 'data']:
                     # Insert data
                     try:
-                    records = table.query.all()
+                        records = table.query.all()
                         app.logger.info(f"Found {len(records)} records in table {table_name}")
                         
-                    if records:
+                        if records:
                             f.write(f"-- Data for {table_name} ({len(records)} records)\n")
-                        for record in records:
-                            values = []
-                            for column in table.__table__.columns:
-                                value = getattr(record, column.name)
-                                if value is None:
-                                    values.append('NULL')
-                                elif isinstance(value, str):
-                                    # Escape single quotes
-                                    escaped_value = value.replace("'", "''")
-                                    values.append(f"'{escaped_value}'")
-                                elif isinstance(value, datetime):
-                                    values.append(f"'{value.isoformat()}'")
-                                else:
-                                    values.append(str(value))
-                            
-                            column_names = [col.name for col in table.__table__.columns]
-                            f.write(f"INSERT INTO {table_name} ({', '.join(column_names)}) VALUES ({', '.join(values)});\n")
-                        f.write("\n")
+                            for record in records:
+                                values = []
+                                for column in table.__table__.columns:
+                                    value = getattr(record, column.name)
+                                    if value is None:
+                                        values.append('NULL')
+                                    elif isinstance(value, str):
+                                        # Escape single quotes
+                                        escaped_value = value.replace("'", "''")
+                                        values.append(f"'{escaped_value}'")
+                                    elif isinstance(value, datetime):
+                                        values.append(f"'{value.isoformat()}'")
+                                    else:
+                                        values.append(str(value))
+                                
+                                column_names = [col.name for col in table.__table__.columns]
+                                f.write(f"INSERT INTO {table_name} ({', '.join(column_names)}) VALUES ({', '.join(values)});\n")
+                            f.write("\n")
                             total_records += len(records)
                         else:
                             f.write(f"-- No data in {table_name}\n")
@@ -5015,17 +5015,17 @@ def test_smtp_credentials_progress():
                         progress_tracker[task_id]['progress'] = i
                         progress_tracker[task_id]['message'] = f'Testing credential {i}/{len(credentials_lines)}...'
                     
-            if ':' not in line:
+                    if ':' not in line:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                    'email': line,
-                    'status': 'error',
-                    'error': 'Invalid format - use email:password'
-                })
-                continue
-            
+                                    'email': line,
+                                    'status': 'error',
+                                    'error': 'Invalid format - use email:password'
+                                })
+                        continue
+                    
                     try:
                         email, password = line.split(':', 1)
                         email = email.strip()
@@ -5046,7 +5046,7 @@ def test_smtp_credentials_progress():
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['current_email'] = email
                                 progress_tracker[task_id]['message'] = f'Testing {email}...'
-                
+                        
                         # Create message
                         msg = MIMEMultipart()
                         msg['From'] = email
