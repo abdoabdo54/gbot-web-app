@@ -2590,7 +2590,7 @@ def test_server_connection():
                         account_files = sftp.listdir(account_path)
                         
                         # Look for JSON files
-                        import fnmatch
+                import fnmatch
                         json_files = [f for f in account_files if fnmatch.fnmatch(f, '*.json')]
                         
                         if json_files:
@@ -2599,8 +2599,8 @@ def test_server_connection():
                             file_path = f"{account_path}/{json_filename}"
                             
                         try:
-                            with sftp.open(file_path, 'r') as f:
-                                content = f.read()
+                        with sftp.open(file_path, 'r') as f:
+                            content = f.read()
                                 json_data = json.loads(content)
                             
                             # Validate JSON structure
@@ -2616,7 +2616,7 @@ def test_server_connection():
                                     'json_file': json_filename,
                                     'has_credentials': False
                                 })
-                        except Exception as e:
+                    except Exception as e:
                             app.logger.warning(f"Invalid JSON file {file_path}: {e}")
                             continue
                     
@@ -2627,8 +2627,8 @@ def test_server_connection():
                 ssh.close()
                 
                 if valid_accounts:
-                    return jsonify({
-                        'success': True,
+                return jsonify({
+                    'success': True,
                         'message': f'Connection successful. Found {len(valid_accounts)} account(s) with JSON files in {len(account_dirs)} total directories.',
                         'accounts_count': len(valid_accounts),
                         'total_dirs': len(account_dirs),
@@ -2721,29 +2721,29 @@ def create_sqlalchemy_backup(filepath, include_data):
                 if include_data in ['full', 'data']:
                     # Insert data
                     try:
-                        records = table.query.all()
+                    records = table.query.all()
                         app.logger.info(f"Found {len(records)} records in table {table_name}")
                         
-                        if records:
+                    if records:
                             f.write(f"-- Data for {table_name} ({len(records)} records)\n")
-                            for record in records:
-                                values = []
-                                for column in table.__table__.columns:
-                                    value = getattr(record, column.name)
-                                    if value is None:
-                                        values.append('NULL')
-                                    elif isinstance(value, str):
-                                        # Escape single quotes
-                                        escaped_value = value.replace("'", "''")
-                                        values.append(f"'{escaped_value}'")
-                                    elif isinstance(value, datetime):
-                                        values.append(f"'{value.isoformat()}'")
-                                    else:
-                                        values.append(str(value))
-                                
-                                column_names = [col.name for col in table.__table__.columns]
-                                f.write(f"INSERT INTO {table_name} ({', '.join(column_names)}) VALUES ({', '.join(values)});\n")
-                            f.write("\n")
+                        for record in records:
+                            values = []
+                            for column in table.__table__.columns:
+                                value = getattr(record, column.name)
+                                if value is None:
+                                    values.append('NULL')
+                                elif isinstance(value, str):
+                                    # Escape single quotes
+                                    escaped_value = value.replace("'", "''")
+                                    values.append(f"'{escaped_value}'")
+                                elif isinstance(value, datetime):
+                                    values.append(f"'{value.isoformat()}'")
+                                else:
+                                    values.append(str(value))
+                            
+                            column_names = [col.name for col in table.__table__.columns]
+                            f.write(f"INSERT INTO {table_name} ({', '.join(column_names)}) VALUES ({', '.join(values)});\n")
+                        f.write("\n")
                             total_records += len(records)
                         else:
                             f.write(f"-- No data in {table_name}\n")
@@ -2782,6 +2782,63 @@ def create_sqlalchemy_backup(filepath, include_data):
         return jsonify({'success': False, 'error': f'SQLAlchemy backup failed: {str(e)}'})
 
 # Database Backup API routes
+@app.route('/api/install-pg-tools', methods=['POST'])
+@login_required
+def install_pg_tools():
+    """Manually install PostgreSQL client tools"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        import subprocess
+        import getpass
+        
+        app.logger.info("Attempting to install PostgreSQL client tools...")
+        
+        is_root = getpass.getuser() == 'root'
+        
+        if is_root:
+            # Running as root, no sudo needed
+            app.logger.info("Running as root, installing without sudo")
+            install_cmd = ['apt-get', 'update']
+            result = subprocess.run(install_cmd, capture_output=True, text=True, timeout=60)
+            if result.returncode != 0:
+                return jsonify({'success': False, 'error': f'apt-get update failed: {result.stderr}'})
+            
+            install_cmd = ['apt-get', 'install', '-y', 'postgresql-client']
+            result = subprocess.run(install_cmd, capture_output=True, text=True, timeout=300)
+            if result.returncode != 0:
+                return jsonify({'success': False, 'error': f'apt-get install failed: {result.stderr}'})
+        else:
+            # Not root, try with sudo
+            app.logger.info("Not running as root, using sudo")
+            install_cmd = ['sudo', 'apt-get', 'update']
+            result = subprocess.run(install_cmd, capture_output=True, text=True, timeout=60)
+            if result.returncode != 0:
+                return jsonify({'success': False, 'error': f'sudo apt-get update failed: {result.stderr}'})
+            
+            install_cmd = ['sudo', 'apt-get', 'install', '-y', 'postgresql-client']
+            result = subprocess.run(install_cmd, capture_output=True, text=True, timeout=300)
+            if result.returncode != 0:
+                return jsonify({'success': False, 'error': f'sudo apt-get install failed: {result.stderr}'})
+        
+        # Verify installation
+        verify_result = subprocess.run(['pg_dump', '--version'], capture_output=True, text=True, timeout=10)
+        if verify_result.returncode != 0:
+            return jsonify({'success': False, 'error': f'pg_dump installation verification failed: {verify_result.stderr}'})
+        
+        app.logger.info(f"PostgreSQL client tools installed successfully: {verify_result.stdout.strip()}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'PostgreSQL client tools installed successfully',
+            'version': verify_result.stdout.strip()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error installing PostgreSQL client tools: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/diagnose-backup', methods=['GET'])
 @login_required
 def diagnose_backup():
@@ -2901,9 +2958,28 @@ def create_database_backup():
                     app.logger.warning("pg_dump not found, attempting to install PostgreSQL client tools...")
                     try:
                         # Try to install PostgreSQL client tools
-                        install_cmd = ['apt-get', 'update', '&&', 'apt-get', 'install', '-y', 'postgresql-client']
-                        subprocess.run(' '.join(install_cmd), shell=True, check=True)
-                        app.logger.info("PostgreSQL client tools installed successfully")
+                        import getpass
+                        is_root = getpass.getuser() == 'root'
+                        
+                        if is_root:
+                            # Running as root, no sudo needed
+                            install_cmd = ['apt-get', 'update']
+                            subprocess.run(install_cmd, check=True, timeout=60)
+                            install_cmd = ['apt-get', 'install', '-y', 'postgresql-client']
+                            subprocess.run(install_cmd, check=True, timeout=300)
+                            app.logger.info("PostgreSQL client tools installed successfully")
+                        else:
+                            # Not root, try with sudo
+                            install_cmd = ['sudo', 'apt-get', 'update']
+                            subprocess.run(install_cmd, check=True, timeout=60)
+                            install_cmd = ['sudo', 'apt-get', 'install', '-y', 'postgresql-client']
+                            subprocess.run(install_cmd, check=True, timeout=300)
+                            app.logger.info("PostgreSQL client tools installed successfully")
+                            
+                        # Verify installation
+                        subprocess.run(['pg_dump', '--version'], capture_output=True, check=True)
+                        app.logger.info("pg_dump installation verified")
+                        
                     except subprocess.CalledProcessError as install_error:
                         app.logger.error(f"Failed to install PostgreSQL client tools: {install_error}")
                         app.logger.info("Falling back to SQLAlchemy-based backup")
@@ -2970,7 +3046,7 @@ def create_database_backup():
                             content = f.read()
                             if not content.strip() or len(content.strip()) < 100:
                                 app.logger.warning("Backup file appears empty or minimal, trying SQLAlchemy fallback...")
-                                return create_sqlalchemy_backup(filepath, include_data)
+                        return create_sqlalchemy_backup(filepath, include_data)
                         
                 except subprocess.TimeoutExpired:
                     app.logger.warning("pg_dump timed out, trying SQLAlchemy fallback...")
@@ -2992,9 +3068,9 @@ def create_database_backup():
             backup_data = {}
             
             # Export all tables
-            from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig
+            from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword
             
-            tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig]
+            tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword]
             
             for table in tables:
                 table_name = table.__tablename__
@@ -4932,45 +5008,45 @@ def test_smtp_credentials_progress():
                         progress_tracker[task_id]['progress'] = i
                         progress_tracker[task_id]['message'] = f'Testing credential {i}/{len(credentials_lines)}...'
                     
-                    if ':' not in line:
+            if ':' not in line:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': line,
-                                    'status': 'error',
-                                    'error': 'Invalid format - use email:password'
-                                })
-                        continue
-                    
-                    try:
-                        email, password = line.split(':', 1)
-                        email = email.strip()
-                        password = password.strip()
-                        
-                        if not email or not password:
+                    'email': line,
+                    'status': 'error',
+                    'error': 'Invalid format - use email:password'
+                })
+                continue
+            
+            try:
+                email, password = line.split(':', 1)
+                email = email.strip()
+                password = password.strip()
+                
+                if not email or not password:
                             with progress_lock:
                                 if task_id in progress_tracker:
                                     progress_tracker[task_id]['fail_count'] += 1
                                     progress_tracker[task_id]['results'].append({
-                                        'email': email or 'unknown',
-                                        'status': 'error',
-                                        'error': 'Empty email or password'
-                                    })
-                            continue
-                        
+                        'email': email or 'unknown',
+                        'status': 'error',
+                        'error': 'Empty email or password'
+                    })
+                    continue
+                
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['current_email'] = email
                                 progress_tracker[task_id]['message'] = f'Testing {email}...'
-                        
-                        # Create message
-                        msg = MIMEMultipart()
-                        msg['From'] = email
-                        msg['To'] = recipient_email
-                        msg['Subject'] = f"SMTP Test from {email}"
-                        
-                        body = f"""
+                
+                # Create message
+                msg = MIMEMultipart()
+                msg['From'] = email
+                msg['To'] = recipient_email
+                msg['Subject'] = f"SMTP Test from {email}"
+                
+                body = f"""
 This is a test email sent from {email} using the GBot Web Application SMTP tester.
 
 Test Details:
@@ -4980,60 +5056,60 @@ Test Details:
 
 If you received this email, the SMTP credentials are working correctly.
 """
-                        msg.attach(MIMEText(body, 'plain'))
-                        
-                        # Connect and send
-                        server = smtplib.SMTP(smtp_server, smtp_port)
-                        server.starttls()  # Enable encryption
-                        server.login(email, password)
-                        server.send_message(msg)
-                        server.quit()
-                        
+                msg.attach(MIMEText(body, 'plain'))
+                
+                # Connect and send
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()  # Enable encryption
+                server.login(email, password)
+                server.send_message(msg)
+                server.quit()
+                
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['success_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'success',
-                                    'message': f'Test email sent successfully to {recipient_email}'
-                                })
-                        
-                    except smtplib.SMTPAuthenticationError as e:
+                    'email': email,
+                    'status': 'success',
+                    'message': f'Test email sent successfully to {recipient_email}'
+                })
+                
+            except smtplib.SMTPAuthenticationError as e:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'error',
-                                    'error': f'Authentication failed: {str(e)}'
-                                })
-                    except smtplib.SMTPException as e:
+                    'email': email,
+                    'status': 'error',
+                    'error': f'Authentication failed: {str(e)}'
+                })
+            except smtplib.SMTPException as e:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'error',
-                                    'error': f'SMTP error: {str(e)}'
-                                })
-                    except socket.gaierror as e:
+                    'email': email,
+                    'status': 'error',
+                    'error': f'SMTP error: {str(e)}'
+                })
+            except socket.gaierror as e:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'error',
-                                    'error': f'DNS/Network error: {str(e)}'
-                                })
-                    except Exception as e:
+                    'email': email,
+                    'status': 'error',
+                    'error': f'DNS/Network error: {str(e)}'
+                })
+            except Exception as e:
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['fail_count'] += 1
                                 progress_tracker[task_id]['results'].append({
-                                    'email': email,
-                                    'status': 'error',
-                                    'error': f'Unexpected error: {str(e)}'
-                                })
+                    'email': email,
+                    'status': 'error',
+                    'error': f'Unexpected error: {str(e)}'
+                })
         
                 # Mark as completed
                 with progress_lock:
@@ -5551,7 +5627,7 @@ def mega_upgrade():
                 
                 app.logger.info(f"Account {account_email} processed successfully - account name unchanged: {original_account_name}")
                 
-            except Exception as e:
+    except Exception as e:
                 app.logger.error(f"Error processing account {account_email}: {e}")
                 failed_accounts += 1
                 failed_details.append({
@@ -5838,18 +5914,18 @@ def api_refresh_domain_status():
         # Get all domains from database
         domains = UsedDomain.query.all()
         domain_dict = {domain.domain_name: domain for domain in domains}
-        
-        # Count users per domain
-        domain_user_counts = {}
+            
+            # Count users per domain
+            domain_user_counts = {}
         for user in users:
-            email = user.get('primaryEmail', '')
-            if '@' in email:
-                domain = email.split('@')[1]
-                domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+                email = user.get('primaryEmail', '')
+                if '@' in email:
+                    domain = email.split('@')[1]
+                    domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
             
         # Update domain statuses
-        updated_domains = []
-        for domain_name, user_count in domain_user_counts.items():
+            updated_domains = []
+            for domain_name, user_count in domain_user_counts.items():
             if domain_name in domain_dict:
                 domain = domain_dict[domain_name]
                 old_count = domain.user_count
@@ -5860,14 +5936,14 @@ def api_refresh_domain_status():
                     'old_count': old_count,
                     'new_count': user_count
                 })
-            else:
+                    else:
                 # Create new domain entry
-                new_domain = UsedDomain(
-                    domain_name=domain_name,
-                    user_count=user_count,
+                        new_domain = UsedDomain(
+                            domain_name=domain_name,
+                            user_count=user_count,
                     ever_used=True
-                )
-                db.session.add(new_domain)
+                        )
+                        db.session.add(new_domain)
                 updated_domains.append({
                     'domain': domain_name,
                     'old_count': 0,
@@ -5975,13 +6051,13 @@ def restore_from_json_backup(backup_path):
         app.logger.info(f"JSON backup loaded, tables: {list(backup_data.keys())}")
         
         # Import all models
-        from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig
+        from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword
         
         # Clear existing data (optional - you might want to keep some data)
         app.logger.info("Clearing existing data...")
         
         # Delete in reverse order to avoid foreign key constraints
-        tables_to_clear = [BackupServerConfig, ServerConfig, Scope, GoogleToken, GoogleAccount, UsedDomain, WhitelistedIP, User]
+        tables_to_clear = [UserAppPassword, ServerConfig, Scope, GoogleToken, GoogleAccount, UsedDomain, WhitelistedIP, User]
         
         for table in tables_to_clear:
             try:
@@ -5997,7 +6073,7 @@ def restore_from_json_backup(backup_path):
         restored_records = 0
         
         # Restore in order to respect foreign key constraints
-        restore_order = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig]
+        restore_order = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword]
         
         for table in restore_order:
             table_name = table.__tablename__
@@ -6028,7 +6104,7 @@ def restore_from_json_backup(backup_path):
                         
                     except Exception as e:
                         app.logger.error(f"Error restoring record to {table_name}: {e}")
-                        continue
+                continue
         
         # Commit all changes
         db.session.commit()
@@ -6595,7 +6671,7 @@ def restore_from_base64():
                             pg_dump_path = path
                             app.logger.info(f"✅ pg_dump found at {path}: {result.stdout.strip()}")
                             break
-                        else:
+                else:
                             app.logger.debug(f"pg_dump at {path} returned code {result.returncode}")
                     except Exception as e:
                         app.logger.debug(f"pg_dump not found at {path}: {e}")
@@ -6634,7 +6710,7 @@ def restore_from_base64():
                             psql_path = path
                             app.logger.info(f"✅ psql found at {path}: {result.stdout.strip()}")
                             break
-                        else:
+                else:
                             app.logger.debug(f"psql at {path} returned code {result.returncode}")
                     except Exception as e:
                         app.logger.debug(f"psql not found at {path}: {e}")
@@ -6771,8 +6847,8 @@ def restore_from_base64():
         # Clear SQLAlchemy session to force reload
         db.session.remove()
         
-        return jsonify({
-            'success': True,
+            return jsonify({
+                'success': True,
             'message': f'Database restored successfully from base64 upload: {filename}',
             'decoded_file': decoded_filename,
             'current_backup': current_backup_name
@@ -7150,8 +7226,8 @@ def upload_base64_chunk():
         
         app.logger.info(f"Base64 chunk {chunk_index + 1}/{total_chunks} uploaded for {filename}")
         
-        return jsonify({
-            'success': True,
+                return jsonify({
+                    'success': True,
             'message': f'Base64 chunk {chunk_index + 1}/{total_chunks} uploaded',
             'chunk_index': chunk_index,
             'total_chunks': total_chunks
