@@ -2590,7 +2590,7 @@ def test_server_connection():
                         account_files = sftp.listdir(account_path)
                         
                         # Look for JSON files
-                        import fnmatch
+                import fnmatch
                         json_files = [f for f in account_files if fnmatch.fnmatch(f, '*.json')]
                         
                         if json_files:
@@ -2599,8 +2599,8 @@ def test_server_connection():
                             file_path = f"{account_path}/{json_filename}"
                             
                             try:
-                                with sftp.open(file_path, 'r') as f:
-                                    content = f.read()
+                        with sftp.open(file_path, 'r') as f:
+                            content = f.read()
                                     json_data = json.loads(content)
                                 
                                 # Validate JSON structure
@@ -5026,34 +5026,34 @@ def test_smtp_credentials_progress():
                 })
                 continue
             
-            try:
-                email, password = line.split(':', 1)
-                email = email.strip()
-                password = password.strip()
-                
-                if not email or not password:
+                    try:
+                        email, password = line.split(':', 1)
+                        email = email.strip()
+                        password = password.strip()
+                        
+                        if not email or not password:
                             with progress_lock:
                                 if task_id in progress_tracker:
                                     progress_tracker[task_id]['fail_count'] += 1
                                     progress_tracker[task_id]['results'].append({
-                        'email': email or 'unknown',
-                        'status': 'error',
-                        'error': 'Empty email or password'
-                    })
-                    continue
-                
+                                        'email': email or 'unknown',
+                                        'status': 'error',
+                                        'error': 'Empty email or password'
+                                    })
+                            continue
+                        
                         with progress_lock:
                             if task_id in progress_tracker:
                                 progress_tracker[task_id]['current_email'] = email
                                 progress_tracker[task_id]['message'] = f'Testing {email}...'
                 
-                # Create message
-                msg = MIMEMultipart()
-                msg['From'] = email
-                msg['To'] = recipient_email
-                msg['Subject'] = f"SMTP Test from {email}"
-                
-                body = f"""
+                        # Create message
+                        msg = MIMEMultipart()
+                        msg['From'] = email
+                        msg['To'] = recipient_email
+                        msg['Subject'] = f"SMTP Test from {email}"
+                        
+                        body = f"""
 This is a test email sent from {email} using the GBot Web Application SMTP tester.
 
 Test Details:
