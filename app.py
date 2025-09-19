@@ -5961,6 +5961,91 @@ def list_backups():
         app.logger.error(f"Error listing backups: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+def restore_from_json_backup(backup_path):
+    """Restore database from JSON backup file"""
+    try:
+        import json
+        
+        app.logger.info(f"Loading JSON backup from {backup_path}")
+        
+        # Load JSON backup
+        with open(backup_path, 'r') as f:
+            backup_data = json.load(f)
+        
+        app.logger.info(f"JSON backup loaded, tables: {list(backup_data.keys())}")
+        
+        # Import all models
+        from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig
+        
+        # Clear existing data (optional - you might want to keep some data)
+        app.logger.info("Clearing existing data...")
+        
+        # Delete in reverse order to avoid foreign key constraints
+        tables_to_clear = [BackupServerConfig, ServerConfig, Scope, GoogleToken, GoogleAccount, UsedDomain, WhitelistedIP, User]
+        
+        for table in tables_to_clear:
+            try:
+                table.query.delete()
+                app.logger.info(f"Cleared table: {table.__tablename__}")
+            except Exception as e:
+                app.logger.warning(f"Could not clear table {table.__tablename__}: {e}")
+        
+        # Commit the deletions
+        db.session.commit()
+        
+        # Restore data
+        restored_records = 0
+        
+        # Restore in order to respect foreign key constraints
+        restore_order = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig]
+        
+        for table in restore_order:
+            table_name = table.__tablename__
+            if table_name in backup_data:
+                records = backup_data[table_name].get('records', [])
+                app.logger.info(f"Restoring {len(records)} records to {table_name}")
+                
+                for record_data in records:
+                    try:
+                        # Create new record instance
+                        record = table()
+                        
+                        # Set attributes
+                        for column_name, value in record_data.items():
+                            if hasattr(record, column_name):
+                                # Handle datetime fields
+                                if isinstance(value, str) and 'T' in value and ':' in value:
+                                    try:
+                                        from datetime import datetime
+                                        value = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                                    except:
+                                        pass  # Keep as string if parsing fails
+                                
+                                setattr(record, column_name, value)
+                        
+                        db.session.add(record)
+                        restored_records += 1
+                        
+                    except Exception as e:
+                        app.logger.error(f"Error restoring record to {table_name}: {e}")
+                        continue
+        
+        # Commit all changes
+        db.session.commit()
+        
+        app.logger.info(f"JSON restore completed: {restored_records} records restored")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Database restored successfully from JSON backup',
+            'restored_records': restored_records
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error restoring from JSON backup: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': f'JSON restore failed: {str(e)}'})
+
 @app.route('/api/restore-backup', methods=['POST'])
 @login_required
 def restore_backup():
@@ -6037,6 +6122,10 @@ def restore_backup():
                 result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
                 if result.returncode != 0:
                     return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+            elif backup_filename.endswith('.json'):
+                # JSON file restore
+                app.logger.info("Restoring from JSON backup file...")
+                return restore_from_json_backup(backup_path)
             else:
                 return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
         
@@ -6606,6 +6695,10 @@ def restore_from_base64():
                     result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
                     if result.returncode != 0:
                         return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+                elif file_ext == '.json':
+                    # JSON file restore
+                    app.logger.info("Restoring from JSON backup file...")
+                    return restore_from_json_backup(decoded_path)
                 else:
                     return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
             else:
@@ -6935,6 +7028,10 @@ def restore_from_base64_chunks():
                     result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
                     if result.returncode != 0:
                         return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+                elif file_ext == '.json':
+                    # JSON file restore
+                    app.logger.info("Restoring from JSON backup file...")
+                    return restore_from_json_backup(decoded_path)
                 else:
                     return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
             else:
