@@ -2590,7 +2590,7 @@ def test_server_connection():
                         account_files = sftp.listdir(account_path)
                         
                         # Look for JSON files
-                import fnmatch
+                        import fnmatch
                         json_files = [f for f in account_files if fnmatch.fnmatch(f, '*.json')]
                         
                         if json_files:
@@ -2598,19 +2598,26 @@ def test_server_connection():
                             json_filename = json_files[0]
                             file_path = f"{account_path}/{json_filename}"
                             
-                        try:
-                        with sftp.open(file_path, 'r') as f:
-                            content = f.read()
-                                json_data = json.loads(content)
-                            
-                            # Validate JSON structure
-                            if 'installed' in json_data or 'web' in json_data:
-                                valid_accounts.append({
-                                    'account': account_dir,
-                                    'json_file': json_filename,
-                                    'has_credentials': True
-                                })
-                            else:
+                            try:
+                                with sftp.open(file_path, 'r') as f:
+                                    content = f.read()
+                                    json_data = json.loads(content)
+                                
+                                # Validate JSON structure
+                                if 'installed' in json_data or 'web' in json_data:
+                                    valid_accounts.append({
+                                        'account': account_dir,
+                                        'json_file': json_filename,
+                                        'has_credentials': True
+                                    })
+                                else:
+                                    valid_accounts.append({
+                                        'account': account_dir,
+                                        'json_file': json_filename,
+                                        'has_credentials': False
+                                    })
+                            except Exception as json_error:
+                                app.logger.warning(f"Error reading JSON file {json_filename}: {json_error}")
                                 valid_accounts.append({
                                     'account': account_dir,
                                     'json_file': json_filename,
