@@ -1876,22 +1876,29 @@ function retrieveDomains() {
     fetchBatch().then(domains => {
         let html = '';
         domains.forEach(domain => {
-            // Debug: Log the domain structure to see what properties are available
-            console.log('Domain structure:', domain);
-            
-            // Extract domain name from various possible properties
+            // Extract domain information
             const domainName = domain.domainName || domain.domain_name || domain.domain || 'Unknown Domain';
-            
-            // Extract verification status
             const isVerified = domain.verified || domain.isVerified || domain.is_verified || false;
-            
-            // Extract user count (will be 0 since we're not calculating it in batched mode)
             const userCount = domain.user_count || 0;
+            const status = domain.status || 'available';
+            const statusText = domain.status_text || 'AVAILABLE';
+            const statusColor = domain.status_color || '#4CAF50';
+            
+            // Create status badge based on domain status
+            let statusBadge = '';
+            if (status === 'in_use') {
+                statusBadge = `<span class="badge in-use" style="background-color: #9C27B0; color: white;">🟣 IN USE</span>`;
+            } else if (status === 'used') {
+                statusBadge = `<span class="badge used" style="background-color: #FF9800; color: white;">🟠 USED</span>`;
+            } else {
+                statusBadge = `<span class="badge available" style="background-color: #4CAF50; color: white;">🟢 AVAILABLE</span>`;
+            }
             
             html += `<div class="domain-item">
                 <span class="domain-name">${domainName}</span>
                 <span class="user-count">${userCount} users</span>
                 ${isVerified ? '<span class="badge verified">✅ Verified</span>' : '<span class="badge unverified">❌ Not Verified</span>'}
+                ${statusBadge}
             </div>`;
         });
         document.getElementById('domain-display').innerHTML = html;
@@ -3549,22 +3556,9 @@ function retrieveAvailableDomains() {
 
     fetchBatch().then(domains => {
         if (domains && domains.length > 0) {
-            // Transform domains to match expected format
-            const transformedDomains = domains.map(domain => {
-                return {
-                    domain_name: domain.domainName || domain.domain_name || domain.domain || 'Unknown Domain',
-                    user_count: domain.user_count || 0,
-                    verified: domain.verified || domain.isVerified || domain.is_verified || false,
-                    status: 'available', // Default status for batched retrieval
-                    status_text: 'AVAILABLE',
-                    status_color: 'green',
-                    is_used: false,
-                    ever_used: false
-                };
-            });
-            
-            displayAvailableDomains(transformedDomains);
-            logBulkDomain(`✅ Retrieved ${domains.length} available domains`);
+            // Use domains directly as they now have proper status and user counts
+            displayAvailableDomains(domains);
+            logBulkDomain(`✅ Retrieved ${domains.length} domains with user counts and status`);
         } else {
             logBulkDomain(`❌ No domains found`);
             domainList.innerHTML = `<div class="domain-error">❌ No domains found</div>`;

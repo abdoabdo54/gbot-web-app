@@ -1478,17 +1478,88 @@ def api_retrieve_domains():
 
                 domains = result['domains']
                 
-                # Format domains for frontend compatibility
+                # Get all users to calculate domain usage (handle pagination for large user bases)
+                all_users = []
+                user_page_token = None
+                
+                while True:
+                    try:
+                        if user_page_token:
+                            users_result = google_api.service.users().list(
+                                customer='my_customer',
+                                maxResults=500,
+                                pageToken=user_page_token
+                            ).execute()
+                        else:
+                            users_result = google_api.service.users().list(
+                                customer='my_customer',
+                                maxResults=500
+                            ).execute()
+                        
+                        users = users_result.get('users', [])
+                        all_users.extend(users)
+                        
+                        user_page_token = users_result.get('nextPageToken')
+                        if not user_page_token:
+                            break
+                            
+                    except Exception as e:
+                        logging.warning(f"Failed to retrieve users page: {e}")
+                        break
+                
+                logging.info(f"Retrieved {len(all_users)} total users for domain calculation")
+                
+                # Calculate user count per domain
+                domain_user_counts = {}
+                for user in all_users:
+                    email = user.get('primaryEmail', '')
+                    if email and '@' in email:
+                        domain = email.split('@')[1]
+                        domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+                
+                # Get domain records from database to check ever_used status
+                from database import UsedDomain
+                domain_records = {}
+                for domain_record in UsedDomain.query.all():
+                    domain_records[domain_record.domain_name] = domain_record
+                
+                # Format domains for frontend compatibility with proper status
                 formatted_domains = []
                 for domain in domains:
+                    domain_name = domain.get('domainName', '')
+                    user_count = domain_user_counts.get(domain_name, 0)
+                    is_verified = domain.get('verified', False)
+                    
+                    # Determine domain status
+                    domain_record = domain_records.get(domain_name)
+                    ever_used = domain_record.ever_used if domain_record else False
+                    
+                    if user_count > 0:
+                        # Currently has users
+                        status = 'in_use'
+                        status_text = 'IN USE'
+                        status_color = '#9C27B0'  # Purple
+                    elif ever_used:
+                        # Previously used but no current users
+                        status = 'used'
+                        status_text = 'USED'
+                        status_color = '#FF9800'  # Orange
+                    else:
+                        # Never been used
+                        status = 'available'
+                        status_text = 'AVAILABLE'
+                        status_color = '#4CAF50'  # Green
+                    
                     formatted_domain = {
-                        'domainName': domain.get('domainName', ''),
-                        'domain_name': domain.get('domainName', ''),
-                        'verified': domain.get('verified', False),
-                        'user_count': 0,  # Will be calculated separately if needed
-                        'status': 'available',
-                        'status_text': 'AVAILABLE',
-                        'status_color': 'green'
+                        'domainName': domain_name,
+                        'domain_name': domain_name,
+                        'verified': is_verified,
+                        'user_count': user_count,
+                        'status': status,
+                        'status_text': status_text,
+                        'status_color': status_color,
+                        'is_used': ever_used,
+                        'ever_used': ever_used
                     }
                     formatted_domains.append(formatted_domain)
                 
