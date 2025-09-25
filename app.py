@@ -1477,9 +1477,24 @@ def api_retrieve_domains():
                     return jsonify({'success': False, 'error': result.get('error', 'Unknown error')})
 
                 domains = result['domains']
+                
+                # Format domains for frontend compatibility
+                formatted_domains = []
+                for domain in domains:
+                    formatted_domain = {
+                        'domainName': domain.get('domainName', ''),
+                        'domain_name': domain.get('domainName', ''),
+                        'verified': domain.get('verified', False),
+                        'user_count': 0,  # Will be calculated separately if needed
+                        'status': 'available',
+                        'status_text': 'AVAILABLE',
+                        'status_color': 'green'
+                    }
+                    formatted_domains.append(formatted_domain)
+                
                 return jsonify({
                     'success': True,
-                    'domains': domains,
+                    'domains': formatted_domains,
                     'next_page_token': result.get('next_page_token'),
                     'total_fetched': result.get('total_fetched')
                 })

@@ -1876,10 +1876,22 @@ function retrieveDomains() {
     fetchBatch().then(domains => {
         let html = '';
         domains.forEach(domain => {
+            // Debug: Log the domain structure to see what properties are available
+            console.log('Domain structure:', domain);
+            
+            // Extract domain name from various possible properties
+            const domainName = domain.domainName || domain.domain_name || domain.domain || 'Unknown Domain';
+            
+            // Extract verification status
+            const isVerified = domain.verified || domain.isVerified || domain.is_verified || false;
+            
+            // Extract user count (will be 0 since we're not calculating it in batched mode)
+            const userCount = domain.user_count || 0;
+            
             html += `<div class="domain-item">
-                <span class="domain-name">${domain.domainName || domain.domain_name}</span>
-                <span class="user-count">${domain.user_count || 0} users</span>
-                ${domain.verified ? '<span class="badge verified">✅ Verified</span>' : '<span class="badge unverified">❌ Not Verified</span>'}
+                <span class="domain-name">${domainName}</span>
+                <span class="user-count">${userCount} users</span>
+                ${isVerified ? '<span class="badge verified">✅ Verified</span>' : '<span class="badge unverified">❌ Not Verified</span>'}
             </div>`;
         });
         document.getElementById('domain-display').innerHTML = html;
@@ -3537,7 +3549,21 @@ function retrieveAvailableDomains() {
 
     fetchBatch().then(domains => {
         if (domains && domains.length > 0) {
-            displayAvailableDomains(domains);
+            // Transform domains to match expected format
+            const transformedDomains = domains.map(domain => {
+                return {
+                    domain_name: domain.domainName || domain.domain_name || domain.domain || 'Unknown Domain',
+                    user_count: domain.user_count || 0,
+                    verified: domain.verified || domain.isVerified || domain.is_verified || false,
+                    status: 'available', // Default status for batched retrieval
+                    status_text: 'AVAILABLE',
+                    status_color: 'green',
+                    is_used: false,
+                    ever_used: false
+                };
+            });
+            
+            displayAvailableDomains(transformedDomains);
             logBulkDomain(`✅ Retrieved ${domains.length} available domains`);
         } else {
             logBulkDomain(`❌ No domains found`);
