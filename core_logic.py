@@ -284,14 +284,14 @@ class WebGoogleAPI:
                 
                 # Log progress for large user bases
                 if page_count % 10 == 0:  # Log every 10 pages (5000 users)
-                    print(f"Retrieved {len(all_users)} users so far...")
+                    logging.info(f"Retrieved {len(all_users)} users so far...")
                 
                 # Check if there are more pages
                 page_token = users_result.get("nextPageToken")
                 if not page_token:
                     break
             
-            print(f"Successfully retrieved {len(all_users)} total users across {page_count} pages")
+            logging.info(f"Successfully retrieved {len(all_users)} total users across {page_count} pages")
             return {"success": True, "users": all_users, "total_count": len(all_users)}
         except HttpError as e:
             return {"success": False, "error": str(e)}

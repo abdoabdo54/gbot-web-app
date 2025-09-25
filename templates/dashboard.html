@@ -1610,8 +1610,7 @@ function retrieveUsers() {
     
     fetch('/api/retrieve-users', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        signal: AbortSignal.timeout(120000) // 2 minutes timeout
+        headers: {'Content-Type': 'application/json'}
     })
     .then(response => response.json())
     .then(data => {

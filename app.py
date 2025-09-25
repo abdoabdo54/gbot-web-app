@@ -1479,7 +1479,7 @@ def api_retrieve_domains():
             
             # Calculate user count per domain
             domain_user_counts = {}
-            for user in users:
+            for user in all_users:
                 email = user.get('primaryEmail', '')
                 if email and '@' in email:
                     domain = email.split('@')[1]
