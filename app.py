@@ -2797,17 +2797,72 @@ def create_sqlalchemy_backup(filepath, include_data):
             # Don't fail, just warn - empty database is valid
         
         app.logger.info("SQLAlchemy backup created successfully")
-        return jsonify({
-            'success': True,
-            'message': f'SQLAlchemy backup created successfully',
-            'filename': os.path.basename(filepath),
-            'file_size': file_size,
-            'total_records': total_records
-        })
+        return True  # Return success status, not JSON
         
     except Exception as e:
         app.logger.error(f"SQLAlchemy backup failed: {e}")
-        return jsonify({'success': False, 'error': f'SQLAlchemy backup failed: {str(e)}'})
+        return False  # Return failure status, not JSON
+
+def convert_json_to_sql(json_filepath, sql_filepath, include_data):
+    """Convert JSON backup to SQL format for restore compatibility"""
+    try:
+        import json
+        with open(json_filepath, 'r') as f:
+            backup_data = json.load(f)
+        
+        with open(sql_filepath, 'w') as f:
+            # Write header
+            f.write("-- GBot Database Backup (Converted from JSON)\n")
+            f.write(f"-- Created: {datetime.now().isoformat()}\n")
+            f.write("-- Database: PostgreSQL\n\n")
+            
+            total_records = 0
+            
+            for table_name, table_data in backup_data.items():
+                f.write(f"\n-- Table: {table_name}\n")
+                
+                if include_data in ['full', 'schema']:
+                    # Create table schema
+                    f.write(f"CREATE TABLE IF NOT EXISTS {table_name} (\n")
+                    columns = []
+                    for col in table_data['schema']['columns']:
+                        col_def = f"    {col['name']} {col['type']}"
+                        columns.append(col_def)
+                    f.write(",\n".join(columns))
+                    f.write("\n);\n\n")
+                
+                if include_data in ['full', 'data'] and table_data['data']:
+                    # Insert data
+                    f.write(f"-- Data for {table_name} ({len(table_data['data'])} records)\n")
+                    for record in table_data['data']:
+                        values = []
+                        for col in table_data['schema']['columns']:
+                            value = record.get(col['name'])
+                            if value is None:
+                                values.append('NULL')
+                            elif isinstance(value, str):
+                                # Escape single quotes
+                                escaped_value = value.replace("'", "''")
+                                values.append(f"'{escaped_value}'")
+                            else:
+                                values.append(str(value))
+                        
+                        column_names = [col['name'] for col in table_data['schema']['columns']]
+                        f.write(f"INSERT INTO {table_name} ({', '.join(column_names)}) VALUES ({', '.join(values)});\n")
+                    f.write("\n")
+                    total_records += len(table_data['data'])
+                else:
+                    f.write(f"-- No data in {table_name}\n")
+            
+            # Write summary
+            f.write(f"\n-- Backup Summary\n")
+            f.write(f"-- Total records backed up: {total_records}\n")
+            f.write(f"-- Backup completed at: {datetime.now().isoformat()}\n")
+        
+        return True
+    except Exception as e:
+        app.logger.error(f"Failed to convert JSON to SQL: {e}")
+        return False
 
 # Database Backup API routes
 @app.route('/api/diagnose-backup', methods=['GET'])
@@ -3017,7 +3072,9 @@ def create_database_backup():
                     except subprocess.CalledProcessError as install_error:
                         app.logger.error(f"Failed to install PostgreSQL client tools: {install_error}")
                         app.logger.info("Falling back to SQLAlchemy-based backup")
-                        return create_sqlalchemy_backup(filepath, include_data)
+                        result = create_sqlalchemy_backup(filepath, include_data)
+                        if not result:
+                            return jsonify({'success': False, 'error': 'SQLAlchemy backup fallback failed'})
                 
                 # Parse database URL
                 db_url = app.config['SQLALCHEMY_DATABASE_URI']
@@ -3070,7 +3127,9 @@ def create_database_backup():
                     if not os.path.exists(filepath) or file_size == 0:
                         app.logger.warning("pg_dump created empty file, trying SQLAlchemy fallback...")
                         # Fallback to SQLAlchemy-based backup
-                        return create_sqlalchemy_backup(filepath, include_data)
+                        result = create_sqlalchemy_backup(filepath, include_data)
+                        if not result:
+                            return jsonify({'success': False, 'error': 'SQLAlchemy backup fallback failed'})
                     
                     # Check if file is too small (less than 1KB indicates potential issue)
                     if file_size < 1024:
@@ -3079,14 +3138,20 @@ def create_database_backup():
                             content = f.read()
                             if not content.strip() or len(content.strip()) < 100:
                                 app.logger.warning("Backup file appears empty or minimal, trying SQLAlchemy fallback...")
-                                return create_sqlalchemy_backup(filepath, include_data)
+                                result = create_sqlalchemy_backup(filepath, include_data)
+                                if not result:
+                                    return jsonify({'success': False, 'error': 'SQLAlchemy backup fallback failed'})
                         
                 except subprocess.TimeoutExpired:
                     app.logger.warning("pg_dump timed out, trying SQLAlchemy fallback...")
-                    return create_sqlalchemy_backup(filepath, include_data)
+                    result = create_sqlalchemy_backup(filepath, include_data)
+                    if not result:
+                        return jsonify({'success': False, 'error': 'SQLAlchemy backup fallback failed'})
                 except Exception as e:
                     app.logger.warning(f"pg_dump failed: {e}, trying SQLAlchemy fallback...")
-                    return create_sqlalchemy_backup(filepath, include_data)
+                    result = create_sqlalchemy_backup(filepath, include_data)
+                    if not result:
+                        return jsonify({'success': False, 'error': 'SQLAlchemy backup fallback failed'})
                     
             else:
                 # SQLite backup
@@ -3130,6 +3195,12 @@ def create_database_backup():
             import json
             with open(filepath, 'w') as f:
                 json.dump(backup_data, f, indent=2, default=str)
+            
+            # Also create SQL version for restore compatibility
+            sql_filepath = filepath.replace('.json', '.sql')
+            result = create_sqlalchemy_backup(sql_filepath, include_data)
+            if not result:
+                app.logger.warning("Failed to create SQL version of JSON backup")
         
         elif backup_format == 'csv':
             # Create CSV export
@@ -6146,6 +6217,25 @@ def restore_backup():
                 result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
                 if result.returncode != 0:
                     return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+            elif backup_filename.endswith('.json'):
+                # Convert JSON to SQL first
+                sql_backup_path = backup_path.replace('.json', '.sql')
+                if convert_json_to_sql(backup_path, sql_backup_path, 'full'):
+                    # Use the converted SQL file
+                    psql_cmd = [
+                        psql_path,
+                        f'--host={parsed.hostname or "localhost"}',
+                        f'--port={parsed.port or 5432}',
+                        f'--username={parsed.username or "postgres"}',
+                        f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
+                        '--file', sql_backup_path
+                    ]
+                    
+                    result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                    if result.returncode != 0:
+                        return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+                else:
+                    return jsonify({'success': False, 'error': 'Failed to convert JSON backup to SQL format'})
             else:
                 return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
         
@@ -6288,6 +6378,25 @@ def upload_restore_backup():
                 result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
                 if result.returncode != 0:
                     return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+            elif file_ext == '.json':
+                # Convert JSON to SQL first
+                sql_uploaded_path = uploaded_path.replace('.json', '.sql')
+                if convert_json_to_sql(uploaded_path, sql_uploaded_path, 'full'):
+                    # Use the converted SQL file
+                    psql_cmd = [
+                        psql_path,
+                        f'--host={parsed.hostname or "localhost"}',
+                        f'--port={parsed.port or 5432}',
+                        f'--username={parsed.username or "postgres"}',
+                        f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
+                        '--file', sql_uploaded_path
+                    ]
+                    
+                    result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                    if result.returncode != 0:
+                        return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+                else:
+                    return jsonify({'success': False, 'error': 'Failed to convert JSON backup to SQL format'})
             else:
                 return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
         
