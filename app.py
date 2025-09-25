@@ -1316,9 +1316,37 @@ def api_retrieve_users():
             else:
                 return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
         
-        # Now try to retrieve users
+        # Support batched mode to avoid timeouts
+        # Client can pass { mode: 'batched', page_token, max_pages }
+        req = request.get_json(silent=True) or {}
+        mode = req.get('mode')
+        page_token = req.get('page_token')
+        max_pages = int(req.get('max_pages') or 5)
+
         try:
-            # Use the google_api method to retrieve users (unlimited)
+            if mode == 'batched':
+                result = google_api.get_users_batch(page_token=page_token, max_pages=max_pages)
+                if not result['success']:
+                    return jsonify({'success': False, 'error': result.get('error', 'Unknown error')})
+
+                users = result['users']
+                return jsonify({
+                    'success': True,
+                    'users': [
+                        {
+                            'email': u.get('primaryEmail', ''),
+                            'first_name': u.get('name', {}).get('givenName', ''),
+                            'last_name': u.get('name', {}).get('familyName', ''),
+                            'admin': u.get('isAdmin', False),
+                            'suspended': u.get('suspended', False)
+                        } for u in users
+                    ],
+                    'total_count': len(users),
+                    'next_page_token': result.get('next_page_token'),
+                    'fetched_pages': result.get('fetched_pages')
+                })
+
+            # Fallback: full retrieval (may be long)
             result = google_api.get_users()
             
             if not result['success']:

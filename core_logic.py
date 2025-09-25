@@ -296,6 +296,51 @@ class WebGoogleAPI:
         except HttpError as e:
             return {"success": False, "error": str(e)}
 
+    def get_users_batch(self, page_token=None, max_pages=5):
+        """Retrieve users in batches to avoid long-running single requests.
+
+        Args:
+            page_token: Optional page token to start from.
+            max_pages: Maximum number of 500-user pages to fetch in this call.
+
+        Returns:
+            dict: { success, users, next_page_token, fetched_pages }
+        """
+        if not self.service:
+            raise Exception("Not authenticated or session expired.")
+
+        try:
+            batch_users = []
+            pages_fetched = 0
+            current_token = page_token
+
+            while pages_fetched < max_pages:
+                request_params = {
+                    'customer': 'my_customer',
+                    'maxResults': 500
+                }
+                if current_token:
+                    request_params['pageToken'] = current_token
+
+                users_result = self.service.users().list(**request_params).execute()
+                users = users_result.get('users', [])
+                batch_users.extend(users)
+
+                current_token = users_result.get('nextPageToken')
+                pages_fetched += 1
+
+                if not current_token:
+                    break
+
+            return {
+                'success': True,
+                'users': batch_users,
+                'next_page_token': current_token,
+                'fetched_pages': pages_fetched
+            }
+        except HttpError as e:
+            return {"success": False, "error": str(e)}
+
     def create_random_users(self, num_users, domain, password=None):
         """Create multiple random users with generated names and specified password"""
         if not self.service:
