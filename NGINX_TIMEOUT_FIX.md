@@ -4,7 +4,7 @@
 The app is getting "Network error: Server returned HTML instead of JSON. Status: 504" because nginx is configured with 30-second timeouts, but bulk operations take longer than that.
 
 ## Solution
-Increase nginx proxy timeouts to 120 seconds (2 minutes) to handle large user bases (10k+ users).
+Increase nginx proxy timeouts to 300 seconds (5 minutes) to handle very large user bases (10k+ users).
 
 ## Steps to Fix on Ubuntu Server
 
@@ -29,9 +29,9 @@ sudo nano /etc/nginx/sites-available/gbot
 #    proxy_read_timeout 30s;
 
 # 4. Change them to:
-#    proxy_connect_timeout 120s;
-#    proxy_send_timeout 120s;
-#    proxy_read_timeout 120s;
+#    proxy_connect_timeout 300s;
+#    proxy_send_timeout 300s;
+#    proxy_read_timeout 300s;
 
 # 5. Also add these lines after the proxy_set_header lines:
 #    proxy_buffering off;
@@ -61,9 +61,9 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         
         # Increased timeouts to prevent 504 errors
-        proxy_connect_timeout 120s;
-        proxy_send_timeout 120s;
-        proxy_read_timeout 120s;
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
         
         # Additional settings
         proxy_buffering off;

@@ -1612,7 +1612,11 @@ function retrieveUsers() {
         method: 'POST',
         headers: {'Content-Type': 'application/json'}
     })
-    .then(response => response.json())
+    .then(async response => {
+        const text = await response.text();
+        try { return JSON.parse(text); }
+        catch (e) { throw new Error('SERVER_HTML:' + text.slice(0, 200)); }
+    })
     .then(data => {
         if (data.success) {
             // Calculate status counts
@@ -1684,12 +1688,22 @@ function retrieveUsers() {
             errorDetails = `Failed to connect to the server: ${error.message}`;
         }
         
-        document.getElementById('user-display').innerHTML = `
-            <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
-                <p><strong>❌ ${errorMessage}</strong></p>
-                <p>${errorDetails}</p>
-                <p><small>If you have a very large user base (10k+ users), this timeout is expected. The system is designed to handle up to 50k users.</small></p>
-            </div>`;
+        if (error.message && error.message.startsWith('SERVER_HTML:')) {
+            const snippet = error.message.replace('SERVER_HTML:', '');
+            document.getElementById('user-display').innerHTML = `
+                <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
+                    <p><strong>❌ Server Error</strong></p>
+                    <p>The server returned an HTML error page instead of JSON. This usually means a timeout or crash upstream.</p>
+                    <pre style="white-space: pre-wrap; max-height: 160px; overflow:auto; background:#fff; padding:8px; border:1px solid #eee;">${snippet}</pre>
+                </div>`;
+        } else {
+            document.getElementById('user-display').innerHTML = `
+                <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
+                    <p><strong>❌ ${errorMessage}</strong></p>
+                    <p>${errorDetails}</p>
+                    <p><small>If you have a very large user base (10k+ users), this may be a timeout. We’ve raised server timeouts to handle this.</small></p>
+                </div>`;
+        }
     });
 }
 
@@ -1828,7 +1842,11 @@ function retrieveDomains() {
         method: 'POST',
         headers: {'Content-Type': 'application/json'}
     })
-    .then(response => response.json())
+    .then(async response => {
+        const text = await response.text();
+        try { return JSON.parse(text); }
+        catch(e) { throw new Error('SERVER_HTML:' + text.slice(0,200)); }
+    })
     .then(data => {
         if (data.success) {
             let html = '';
@@ -1845,7 +1863,12 @@ function retrieveDomains() {
         }
     })
     .catch(error => {
-        document.getElementById('domain-display').innerHTML = `<p style="color: red;">Network error: ${error}</p>`;
+        if (error.message && error.message.startsWith('SERVER_HTML:')) {
+            const snippet = error.message.replace('SERVER_HTML:', '');
+            document.getElementById('domain-display').innerHTML = `<div class="domain-error">❌ Server Error: HTML error page returned<pre style="white-space: pre-wrap; max-height: 160px; overflow:auto; background:#fff; padding:8px; border:1px solid #eee;">${snippet}</pre></div>`;
+        } else {
+            document.getElementById('domain-display').innerHTML = `<p style="color: red;">Network error: ${error}</p>`;
+        }
     });
 }
 
