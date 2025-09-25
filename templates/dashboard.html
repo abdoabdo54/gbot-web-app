@@ -3556,9 +3556,12 @@ function retrieveAvailableDomains() {
 
     fetchBatch().then(domains => {
         if (domains && domains.length > 0) {
-            // Use domains directly as they now have proper status and user counts
+            // First display domains with basic info (no user counts to avoid timeout)
             displayAvailableDomains(domains);
-            logBulkDomain(`✅ Retrieved ${domains.length} domains with user counts and status`);
+            logBulkDomain(`✅ Retrieved ${domains.length} domains (calculating user counts...)`);
+            
+            // Then calculate user counts separately to avoid timeout
+            calculateUserCounts(domains);
         } else {
             logBulkDomain(`❌ No domains found`);
             domainList.innerHTML = `<div class="domain-error">❌ No domains found</div>`;
@@ -3634,6 +3637,87 @@ function getDomainUsageStats() {
 }
 
 
+
+function calculateUserCounts(domains) {
+    // Calculate user counts for domains separately to avoid timeout
+    if (!domains || domains.length === 0) return;
+    
+    // Extract domain names
+    const domainNames = domains.map(d => d.domain_name || d.domainName).filter(name => name);
+    
+    if (domainNames.length === 0) return;
+    
+    logBulkDomain(`🔍 Calculating user counts for ${domainNames.length} domains...`);
+    
+    // Show loading indicator
+    const domainList = document.getElementById('available-domains');
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'user-count-loading';
+    loadingDiv.innerHTML = '<div style="background: #f0f8ff; padding: 10px; margin: 10px 0; border-radius: 5px; text-align: center;"><span style="color: #0066cc;">🔄 Calculating user counts...</span></div>';
+    domainList.appendChild(loadingDiv);
+    
+    // Call the separate user count calculation API
+    fetch('/api/calculate-domain-users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ domains: domainNames })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.domain_user_counts) {
+            // Update domains with user counts
+            const updatedDomains = domains.map(domain => {
+                const domainName = domain.domain_name || domain.domainName;
+                const userCount = data.domain_user_counts[domainName] || 0;
+                
+                // Update status based on user count
+                let status, status_text, status_color;
+                if (userCount > 0) {
+                    status = 'in_use';
+                    status_text = 'IN USE';
+                    status_color = '#9C27B0';
+                } else if (domain.ever_used) {
+                    status = 'used';
+                    status_text = 'USED';
+                    status_color = '#FF9800';
+                } else {
+                    status = 'available';
+                    status_text = 'AVAILABLE';
+                    status_color = '#4CAF50';
+                }
+                
+                return {
+                    ...domain,
+                    user_count: userCount,
+                    status: status,
+                    status_text: status_text,
+                    status_color: status_color
+                };
+            });
+            
+            // Remove loading indicator
+            const loadingDiv = document.getElementById('user-count-loading');
+            if (loadingDiv) loadingDiv.remove();
+            
+            // Update display with user counts
+            displayAvailableDomains(updatedDomains);
+            logBulkDomain(`✅ Updated ${updatedDomains.length} domains with user counts`);
+        } else {
+            logBulkDomain(`❌ Failed to calculate user counts: ${data.error || 'Unknown error'}`);
+            const loadingDiv = document.getElementById('user-count-loading');
+            if (loadingDiv) {
+                loadingDiv.innerHTML = '<div style="background: #ffe6e6; padding: 10px; margin: 10px 0; border-radius: 5px; text-align: center;"><span style="color: #cc0000;">❌ Failed to calculate user counts</span></div>';
+            }
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Error calculating user counts: ${error}`);
+        const loadingDiv = document.getElementById('user-count-loading');
+        if (loadingDiv) {
+            loadingDiv.innerHTML = '<div style="background: #ffe6e6; padding: 10px; margin: 10px 0; border-radius: 5px; text-align: center;"><span style="color: #cc0000;">❌ Error calculating user counts</span></div>';
+        }
+    });
+}
 
 function clearOldDomainData() {
     if (!isAuthenticated) {

@@ -1443,6 +1443,82 @@ def api_update_all_passwords():
         logging.error(f"Update all passwords error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/calculate-domain-users', methods=['POST'])
+@login_required
+def api_calculate_domain_users():
+    """Calculate user counts for specific domains to avoid timeout"""
+    try:
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
+        
+        account_name = session.get('current_account_name')
+        
+        # Check if we have valid tokens for this account
+        if not google_api.service:
+            if google_api.is_token_valid(account_name):
+                success = google_api.authenticate_with_tokens(account_name)
+                if not success:
+                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
+            else:
+                return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
+        
+        req = request.get_json(silent=True) or {}
+        domain_names = req.get('domains', [])
+        
+        if not domain_names:
+            return jsonify({'success': False, 'error': 'No domains provided'})
+        
+        # Get user counts for specific domains only
+        domain_user_counts = {}
+        
+        # Fetch users in batches and filter by the requested domains
+        user_page_token = None
+        total_users = 0
+        
+        while True:
+            try:
+                if user_page_token:
+                    users_result = google_api.service.users().list(
+                        customer='my_customer',
+                        maxResults=500,
+                        pageToken=user_page_token
+                    ).execute()
+                else:
+                    users_result = google_api.service.users().list(
+                        customer='my_customer',
+                        maxResults=500
+                    ).execute()
+                
+                users = users_result.get('users', [])
+                total_users += len(users)
+                
+                # Count users for the requested domains only
+                for user in users:
+                    email = user.get('primaryEmail', '')
+                    if email and '@' in email:
+                        domain = email.split('@')[1]
+                        if domain in domain_names:
+                            domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+                
+                user_page_token = users_result.get('nextPageToken')
+                if not user_page_token:
+                    break
+                    
+            except Exception as e:
+                logging.warning(f"Failed to retrieve users page: {e}")
+                break
+        
+        logging.info(f"Calculated user counts for {len(domain_names)} domains from {total_users} total users")
+        
+        return jsonify({
+            'success': True,
+            'domain_user_counts': domain_user_counts
+        })
+        
+    except Exception as e:
+        logging.error(f"Calculate domain users error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/retrieve-domains', methods=['POST'])
 @login_required
 def api_retrieve_domains():
@@ -1478,74 +1554,34 @@ def api_retrieve_domains():
 
                 domains = result['domains']
                 
-                # Get all users to calculate domain usage (handle pagination for large user bases)
-                all_users = []
-                user_page_token = None
-                
-                while True:
-                    try:
-                        if user_page_token:
-                            users_result = google_api.service.users().list(
-                                customer='my_customer',
-                                maxResults=500,
-                                pageToken=user_page_token
-                            ).execute()
-                        else:
-                            users_result = google_api.service.users().list(
-                                customer='my_customer',
-                                maxResults=500
-                            ).execute()
-                        
-                        users = users_result.get('users', [])
-                        all_users.extend(users)
-                        
-                        user_page_token = users_result.get('nextPageToken')
-                        if not user_page_token:
-                            break
-                            
-                    except Exception as e:
-                        logging.warning(f"Failed to retrieve users page: {e}")
-                        break
-                
-                logging.info(f"Retrieved {len(all_users)} total users for domain calculation")
-                
-                # Calculate user count per domain
-                domain_user_counts = {}
-                for user in all_users:
-                    email = user.get('primaryEmail', '')
-                    if email and '@' in email:
-                        domain = email.split('@')[1]
-                        domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
-                
-                # Get domain records from database to check ever_used status
+                # For batched mode, we'll get user counts separately to avoid timeout
+                # First, get domain records from database to check ever_used status
                 from database import UsedDomain
                 domain_records = {}
                 for domain_record in UsedDomain.query.all():
                     domain_records[domain_record.domain_name] = domain_record
                 
-                # Format domains for frontend compatibility with proper status
+                # Format domains with basic info first (no user counts to avoid timeout)
                 formatted_domains = []
                 for domain in domains:
                     domain_name = domain.get('domainName', '')
-                    user_count = domain_user_counts.get(domain_name, 0)
                     is_verified = domain.get('verified', False)
                     
-                    # Determine domain status
+                    # Get ever_used status from database
                     domain_record = domain_records.get(domain_name)
                     ever_used = domain_record.ever_used if domain_record else False
                     
-                    if user_count > 0:
-                        # Currently has users
-                        status = 'in_use'
-                        status_text = 'IN USE'
-                        status_color = '#9C27B0'  # Purple
-                    elif ever_used:
-                        # Previously used but no current users
+                    # For batched mode, we'll calculate user counts in a separate API call
+                    # to avoid timeout. For now, set user_count to 0 and status based on ever_used
+                    user_count = 0  # Will be calculated separately
+                    
+                    if ever_used:
+                        # Previously used but no current users (we'll update this with real counts later)
                         status = 'used'
                         status_text = 'USED'
                         status_color = '#FF9800'  # Orange
                     else:
-                        # Never been used
+                        # Never been used (we'll update this with real counts later)
                         status = 'available'
                         status_text = 'AVAILABLE'
                         status_color = '#4CAF50'  # Green
@@ -1559,7 +1595,8 @@ def api_retrieve_domains():
                         'status_text': status_text,
                         'status_color': status_color,
                         'is_used': ever_used,
-                        'ever_used': ever_used
+                        'ever_used': ever_used,
+                        'needs_user_count': True  # Flag to indicate this needs user count calculation
                     }
                     formatted_domains.append(formatted_domain)
                 
