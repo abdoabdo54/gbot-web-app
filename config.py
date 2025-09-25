@@ -40,6 +40,11 @@ PERMANENT_SESSION_LIFETIME = 3600  # 1 hour
 MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500MB
 SEND_FILE_MAX_AGE_DEFAULT = 0
 
+# Large User Base Settings (10k+ users)
+LARGE_USER_OPERATION_TIMEOUT = 120  # 2 minutes for large user operations
+USER_RETRIEVAL_PAGE_SIZE = 500  # Google's maximum per request
+MAX_USERS_PER_OPERATION = 50000  # Support up to 50k users
+
 # Logging
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
 

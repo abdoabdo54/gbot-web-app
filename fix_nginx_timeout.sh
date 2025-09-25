@@ -25,7 +25,7 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         
-        # Increased timeouts to prevent 504 errors during bulk operations
+        # Increased timeouts to prevent 504 errors during bulk operations (2 minutes)
         proxy_connect_timeout 120s;
         proxy_send_timeout 120s;
         proxy_read_timeout 120s;

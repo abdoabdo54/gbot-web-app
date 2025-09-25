@@ -4,7 +4,7 @@
 The app is getting "Network error: Server returned HTML instead of JSON. Status: 504" because nginx is configured with 30-second timeouts, but bulk operations take longer than that.
 
 ## Solution
-Increase nginx proxy timeouts to 120 seconds (or more).
+Increase nginx proxy timeouts to 120 seconds (2 minutes) to handle large user bases (10k+ users).
 
 ## Steps to Fix on Ubuntu Server
 

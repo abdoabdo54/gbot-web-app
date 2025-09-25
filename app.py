@@ -1318,8 +1318,8 @@ def api_retrieve_users():
         
         # Now try to retrieve users
         try:
-            # Use the google_api method to retrieve users
-            result = google_api.get_users(max_results=500)
+            # Use the google_api method to retrieve users (unlimited)
+            result = google_api.get_users()
             
             if not result['success']:
                 return jsonify({'success': False, 'error': result['error']})
@@ -2694,9 +2694,9 @@ def create_sqlalchemy_backup(filepath, include_data):
             f.write("-- Database: PostgreSQL\n\n")
             
             # Import all models
-            from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig
+            from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword
             
-            tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig]
+            tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword]
             
             total_records = 0
             
@@ -2839,8 +2839,8 @@ def diagnose_backup():
         # Check database tables and record counts
         table_status = {}
         try:
-            from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig
-            tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig]
+            from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword
+            tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword]
             
             for table in tables:
                 try:
@@ -2862,6 +2862,88 @@ def diagnose_backup():
         })
         
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/test-backup', methods=['POST'])
+@login_required
+def test_backup():
+    """Test backup functionality with minimal data"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin privileges required'})
+    
+    try:
+        import os
+        
+        # Create test backup directory
+        backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
+        
+        # Generate test filename
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"test_backup_{timestamp}.sql"
+        filepath = os.path.join(backup_dir, filename)
+        
+        app.logger.info(f"Testing backup creation: {filepath}")
+        
+        # Test database connection
+        try:
+            from sqlalchemy import text
+            result = db.session.execute(text('SELECT 1 as test'))
+            app.logger.info("Database connection test successful")
+        except Exception as e:
+            app.logger.error(f"Database connection test failed: {e}")
+            return jsonify({'success': False, 'error': f'Database connection failed: {str(e)}'})
+        
+        # Test table access
+        try:
+            from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword
+            tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword]
+            
+            table_counts = {}
+            total_records = 0
+            
+            for table in tables:
+                try:
+                    count = table.query.count()
+                    table_counts[table.__tablename__] = count
+                    total_records += count
+                    app.logger.info(f"Table {table.__tablename__}: {count} records")
+                except Exception as e:
+                    app.logger.error(f"Error accessing table {table.__tablename__}: {e}")
+                    table_counts[table.__tablename__] = f'ERROR: {str(e)}'
+            
+            # Create a simple test backup
+            with open(filepath, 'w') as f:
+                f.write("-- Test Backup\n")
+                f.write(f"-- Created: {datetime.now().isoformat()}\n")
+                f.write(f"-- Total records: {total_records}\n\n")
+                
+                for table_name, count in table_counts.items():
+                    f.write(f"-- Table: {table_name} ({count} records)\n")
+                
+                f.write("\n-- Test backup completed successfully\n")
+            
+            file_size = os.path.getsize(filepath)
+            app.logger.info(f"Test backup created: {filepath}, size: {file_size} bytes")
+            
+            # Clean up test file
+            os.remove(filepath)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Backup system test successful',
+                'table_counts': table_counts,
+                'total_records': total_records,
+                'test_file_size': file_size
+            })
+            
+        except Exception as e:
+            app.logger.error(f"Error in backup test: {e}")
+            return jsonify({'success': False, 'error': f'Backup test failed: {str(e)}'})
+        
+    except Exception as e:
+        app.logger.error(f"Error in test backup: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/create-database-backup', methods=['POST'])
@@ -2936,12 +3018,11 @@ def create_database_backup():
                     cmd.append('--data-only')
                 
                 app.logger.info(f"Executing pg_dump command: {' '.join(cmd)}")
+                app.logger.info(f"Database URL: {db_url}")
+                app.logger.info(f"Environment PGPASSWORD set: {'Yes' if env.get('PGPASSWORD') else 'No'}")
                 
                 # Execute pg_dump
                 try:
-                    app.logger.info(f"Executing pg_dump with command: {' '.join(cmd)}")
-                    app.logger.info(f"Database URL: {db_url}")
-                    app.logger.info(f"Environment PGPASSWORD set: {'Yes' if env.get('PGPASSWORD') else 'No'}")
                     
                     with open(filepath, 'w') as f:
                         result = subprocess.run(cmd, stdout=f, stderr=subprocess.PIPE, env=env, text=True, timeout=300)
@@ -2992,9 +3073,9 @@ def create_database_backup():
             backup_data = {}
             
             # Export all tables
-            from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig
+            from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword
             
-            tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig]
+            tables = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword]
             
             for table in tables:
                 table_name = table.__tablename__
@@ -5961,91 +6042,6 @@ def list_backups():
         app.logger.error(f"Error listing backups: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-def restore_from_json_backup(backup_path):
-    """Restore database from JSON backup file"""
-    try:
-        import json
-        
-        app.logger.info(f"Loading JSON backup from {backup_path}")
-        
-        # Load JSON backup
-        with open(backup_path, 'r') as f:
-            backup_data = json.load(f)
-        
-        app.logger.info(f"JSON backup loaded, tables: {list(backup_data.keys())}")
-        
-        # Import all models
-        from database import User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig
-        
-        # Clear existing data (optional - you might want to keep some data)
-        app.logger.info("Clearing existing data...")
-        
-        # Delete in reverse order to avoid foreign key constraints
-        tables_to_clear = [BackupServerConfig, ServerConfig, Scope, GoogleToken, GoogleAccount, UsedDomain, WhitelistedIP, User]
-        
-        for table in tables_to_clear:
-            try:
-                table.query.delete()
-                app.logger.info(f"Cleared table: {table.__tablename__}")
-            except Exception as e:
-                app.logger.warning(f"Could not clear table {table.__tablename__}: {e}")
-        
-        # Commit the deletions
-        db.session.commit()
-        
-        # Restore data
-        restored_records = 0
-        
-        # Restore in order to respect foreign key constraints
-        restore_order = [User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, BackupServerConfig]
-        
-        for table in restore_order:
-            table_name = table.__tablename__
-            if table_name in backup_data:
-                records = backup_data[table_name].get('records', [])
-                app.logger.info(f"Restoring {len(records)} records to {table_name}")
-                
-                for record_data in records:
-                    try:
-                        # Create new record instance
-                        record = table()
-                        
-                        # Set attributes
-                        for column_name, value in record_data.items():
-                            if hasattr(record, column_name):
-                                # Handle datetime fields
-                                if isinstance(value, str) and 'T' in value and ':' in value:
-                                    try:
-                                        from datetime import datetime
-                                        value = datetime.fromisoformat(value.replace('Z', '+00:00'))
-                                    except:
-                                        pass  # Keep as string if parsing fails
-                                
-                                setattr(record, column_name, value)
-                        
-                        db.session.add(record)
-                        restored_records += 1
-                        
-                    except Exception as e:
-                        app.logger.error(f"Error restoring record to {table_name}: {e}")
-                        continue
-        
-        # Commit all changes
-        db.session.commit()
-        
-        app.logger.info(f"JSON restore completed: {restored_records} records restored")
-        
-        return jsonify({
-            'success': True,
-            'message': f'Database restored successfully from JSON backup',
-            'restored_records': restored_records
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error restoring from JSON backup: {e}")
-        db.session.rollback()
-        return jsonify({'success': False, 'error': f'JSON restore failed: {str(e)}'})
-
 @app.route('/api/restore-backup', methods=['POST'])
 @login_required
 def restore_backup():
@@ -6122,10 +6118,6 @@ def restore_backup():
                 result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
                 if result.returncode != 0:
                     return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
-            elif backup_filename.endswith('.json'):
-                # JSON file restore
-                app.logger.info("Restoring from JSON backup file...")
-                return restore_from_json_backup(backup_path)
             else:
                 return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
         
@@ -6695,10 +6687,6 @@ def restore_from_base64():
                     result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
                     if result.returncode != 0:
                         return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
-                elif file_ext == '.json':
-                    # JSON file restore
-                    app.logger.info("Restoring from JSON backup file...")
-                    return restore_from_json_backup(decoded_path)
                 else:
                     return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
             else:
@@ -7028,10 +7016,6 @@ def restore_from_base64_chunks():
                     result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
                     if result.returncode != 0:
                         return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
-                elif file_ext == '.json':
-                    # JSON file restore
-                    app.logger.info("Restoring from JSON backup file...")
-                    return restore_from_json_backup(decoded_path)
                 else:
                     return jsonify({'success': False, 'error': 'Unsupported backup format for PostgreSQL restore'})
             else:

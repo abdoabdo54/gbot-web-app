@@ -1599,12 +1599,19 @@ function retrieveUsers() {
         <div class="status-info" style="background: #fff3cd; border-color: #ffeaa7;">
             <p><strong>📊 Loading Users</strong></p>
             <p>Retrieving user data from Google Admin API...</p>
-            <p><small>This may take a few moments depending on the number of users.</small></p>
+            <p><small>This may take up to 2 minutes for large user bases (10k+ users).</small></p>
+            <div style="margin-top: 10px;">
+                <div class="progress-bar" style="width: 100%; background-color: #f0f0f0; border-radius: 5px; overflow: hidden;">
+                    <div class="progress-fill" style="width: 0%; height: 20px; background-color: #007bff; transition: width 0.3s ease;"></div>
+                </div>
+                <p style="margin-top: 5px; font-size: 12px; color: #666;">Please wait while we retrieve all users...</p>
+            </div>
         </div>`;
     
     fetch('/api/retrieve-users', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'}
+        headers: {'Content-Type': 'application/json'},
+        signal: AbortSignal.timeout(120000) // 2 minutes timeout
     })
     .then(response => response.json())
     .then(data => {
@@ -1664,11 +1671,25 @@ function retrieveUsers() {
         }
     })
     .catch(error => {
+        let errorMessage = 'Failed to connect to the server';
+        let errorDetails = 'Please check your connection and try again.';
+        
+        if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
+            errorMessage = 'Request Timeout';
+            errorDetails = 'The request took longer than 2 minutes. For very large user bases (10k+ users), this is normal. Please try again.';
+        } else if (error.name === 'AbortError') {
+            errorMessage = 'Request Aborted';
+            errorDetails = 'The request was cancelled. Please try again.';
+        } else {
+            errorMessage = 'Network Error';
+            errorDetails = `Failed to connect to the server: ${error.message}`;
+        }
+        
         document.getElementById('user-display').innerHTML = `
             <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
-                <p><strong>❌ Network Error</strong></p>
-                <p>Failed to connect to the server: ${error}</p>
-                <p><small>Please check your connection and try again.</small></p>
+                <p><strong>❌ ${errorMessage}</strong></p>
+                <p>${errorDetails}</p>
+                <p><small>If you have a very large user base (10k+ users), this timeout is expected. The system is designed to handle up to 50k users.</small></p>
             </div>`;
     });
 }
