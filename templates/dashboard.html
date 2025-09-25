@@ -1843,7 +1843,7 @@ function retrieveDomains() {
     const progressFill = document.querySelector('.progress-fill');
 
     const fetchBatch = async () => {
-        const payload = { mode: 'batched', max_results: 1000 };
+        const payload = { mode: 'batched' };
         if (nextToken) payload.page_token = nextToken;
         
         const resp = await fetch('/api/retrieve-domains', {
@@ -3508,7 +3508,7 @@ function retrieveAvailableDomains() {
     let batches = 0;
 
     const fetchBatch = async () => {
-        const payload = { mode: 'batched', max_results: 1000 };
+        const payload = { mode: 'batched' };
         if (nextToken) payload.page_token = nextToken;
         
         const resp = await fetch('/api/retrieve-domains', {

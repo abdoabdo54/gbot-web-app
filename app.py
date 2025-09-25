@@ -1469,11 +1469,10 @@ def api_retrieve_domains():
         req = request.get_json(silent=True) or {}
         mode = req.get('mode')
         page_token = req.get('page_token')
-        max_results = int(req.get('max_results') or 1000)
 
         try:
             if mode == 'batched':
-                result = google_api.get_domains_batch(page_token=page_token, max_results=max_results)
+                result = google_api.get_domains_batch(page_token=page_token)
                 if not result['success']:
                     return jsonify({'success': False, 'error': result.get('error', 'Unknown error')})
 

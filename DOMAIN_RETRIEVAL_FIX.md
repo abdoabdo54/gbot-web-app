@@ -31,11 +31,10 @@ The `get_domain_info()` method was making a single API call to Google's domains 
 
 #### 1. Core Logic (`core_logic.py`)
 ```python
-def get_domains_batch(self, page_token=None, max_results=1000):
+def get_domains_batch(self, page_token=None):
     """Retrieve domains in batches to avoid timeouts with large domain lists."""
     request_params = {
-        'customer': 'my_customer',
-        'maxResults': min(max_results, 1000)  # Google's maximum
+        'customer': 'my_customer'
     }
     if page_token:
         request_params['pageToken'] = page_token
@@ -55,10 +54,9 @@ def get_domains_batch(self, page_token=None, max_results=1000):
 req = request.get_json(silent=True) or {}
 mode = req.get('mode')
 page_token = req.get('page_token')
-max_results = int(req.get('max_results') or 1000)
 
 if mode == 'batched':
-    result = google_api.get_domains_batch(page_token=page_token, max_results=max_results)
+    result = google_api.get_domains_batch(page_token=page_token)
     return jsonify({
         'success': True,
         'domains': result['domains'],
@@ -71,9 +69,9 @@ if mode == 'batched':
 
 #### 1. Batched Retrieval Loop
 ```javascript
-const fetchBatch = async () => {
-    const payload = { mode: 'batched', max_results: 1000 };
-    if (nextToken) payload.page_token = nextToken;
+    const fetchBatch = async () => {
+        const payload = { mode: 'batched' };
+        if (nextToken) payload.page_token = nextToken;
     
     const resp = await fetch('/api/retrieve-domains', {
         method: 'POST',

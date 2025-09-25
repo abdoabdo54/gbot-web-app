@@ -230,12 +230,11 @@ class WebGoogleAPI:
         except HttpError as e:
             return {"success": False, "error": str(e)}
 
-    def get_domains_batch(self, page_token=None, max_results=1000):
+    def get_domains_batch(self, page_token=None):
         """Retrieve domains in batches to avoid timeouts with large domain lists.
         
         Args:
             page_token: Optional page token to start from.
-            max_results: Maximum number of domains to fetch in this call.
             
         Returns:
             dict: { success, domains, next_page_token, total_fetched }
@@ -245,8 +244,7 @@ class WebGoogleAPI:
         
         try:
             request_params = {
-                'customer': 'my_customer',
-                'maxResults': min(max_results, 1000)  # Google's maximum per request
+                'customer': 'my_customer'
             }
             
             if page_token:
