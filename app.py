@@ -1465,8 +1465,27 @@ def api_retrieve_domains():
             else:
                 return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
         
+        # Support batched mode to avoid timeouts with large domain lists
+        req = request.get_json(silent=True) or {}
+        mode = req.get('mode')
+        page_token = req.get('page_token')
+        max_results = int(req.get('max_results') or 1000)
+
         try:
-            # Use the existing get_domain_info method
+            if mode == 'batched':
+                result = google_api.get_domains_batch(page_token=page_token, max_results=max_results)
+                if not result['success']:
+                    return jsonify({'success': False, 'error': result.get('error', 'Unknown error')})
+
+                domains = result['domains']
+                return jsonify({
+                    'success': True,
+                    'domains': domains,
+                    'next_page_token': result.get('next_page_token'),
+                    'total_fetched': result.get('total_fetched')
+                })
+
+            # Fallback: full domain retrieval (may be long for 500+ domains)
             result = google_api.get_domain_info()
             
             if not result['success']:

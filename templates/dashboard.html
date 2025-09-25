@@ -1823,31 +1823,66 @@ function retrieveDomains() {
         return;
     }
     
-    document.getElementById('domain-display').innerHTML = '<p>Loading domains...</p>';
+    document.getElementById('domain-display').innerHTML = `
+        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 10px 0;">
+            <p><strong>🔍 Loading Domains</strong></p>
+            <p>Retrieving domain data from Google Admin API...</p>
+            <p><small>This may take a moment for large domain lists (500+ domains).</small></p>
+            <div style="margin-top: 10px;">
+                <div class="progress-bar" style="width: 100%; background-color: #f0f0f0; border-radius: 5px; overflow: hidden;">
+                    <div class="progress-fill" style="width: 0%; height: 20px; background-color: #007bff; transition: width 0.3s ease;"></div>
+                </div>
+                <p style="margin-top: 5px; font-size: 12px; color: #666;">Please wait while we retrieve all domains...</p>
+            </div>
+        </div>`;
     
-    fetch('/api/retrieve-domains', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(async response => {
-        const text = await response.text();
-        try { return JSON.parse(text); }
-        catch(e) { throw new Error('SERVER_HTML:' + text.slice(0,200)); }
-    })
-    .then(data => {
-        if (data.success) {
-            let html = '';
-            data.domains.forEach(domain => {
-                html += `<div class="domain-item">
-                    <span class="domain-name">${domain.domain_name}</span>
-                    <span class="user-count">${domain.user_count} users</span>
-                    ${domain.verified ? '<span class="badge verified">✅ Verified</span>' : '<span class="badge unverified">❌ Not Verified</span>'}
-                </div>`;
-            });
-            document.getElementById('domain-display').innerHTML = html;
-        } else {
-            document.getElementById('domain-display').innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+    // Batched retrieval to avoid timeouts with large domain lists
+    const allDomains = [];
+    let nextToken = null;
+    let batches = 0;
+    const progressFill = document.querySelector('.progress-fill');
+
+    const fetchBatch = async () => {
+        const payload = { mode: 'batched', max_results: 1000 };
+        if (nextToken) payload.page_token = nextToken;
+        
+        const resp = await fetch('/api/retrieve-domains', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        const text = await resp.text();
+        let data;
+        try { data = JSON.parse(text); } catch(e) { throw new Error('SERVER_HTML:' + text.slice(0,200)); }
+        
+        if (!data.success) throw new Error(data.error || 'Unknown error');
+        
+        allDomains.push(...data.domains);
+        nextToken = data.next_page_token || null;
+        batches += 1;
+        
+        if (progressFill) progressFill.style.width = Math.min(95, 10 + batches * 15) + '%';
+        
+        if (nextToken) {
+            await new Promise(r => setTimeout(r, 200));
+            return fetchBatch();
         }
+        
+        if (progressFill) progressFill.style.width = '100%';
+        return allDomains;
+    };
+
+    fetchBatch().then(domains => {
+        let html = '';
+        domains.forEach(domain => {
+            html += `<div class="domain-item">
+                <span class="domain-name">${domain.domainName || domain.domain_name}</span>
+                <span class="user-count">${domain.user_count || 0} users</span>
+                ${domain.verified ? '<span class="badge verified">✅ Verified</span>' : '<span class="badge unverified">❌ Not Verified</span>'}
+            </div>`;
+        });
+        document.getElementById('domain-display').innerHTML = html;
     })
     .catch(error => {
         if (error.message && error.message.startsWith('SERVER_HTML:')) {
@@ -3465,27 +3500,59 @@ function retrieveAvailableDomains() {
     
     // Show loading state
     const domainList = document.getElementById('available-domains');
-    domainList.innerHTML = '<div class="domain-loading">Retrieving domains from Google API...</div>';
+    domainList.innerHTML = '<div class="domain-loading">Retrieving domains from Google API... (This may take a moment for large domain lists)</div>';
     
-    fetch('/api/retrieve-domains', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.domains) {
-            displayAvailableDomains(data.domains);
-            logBulkDomain(`✅ Retrieved ${data.domains.length} available domains`);
+    // Batched retrieval to avoid timeouts with large domain lists
+    const allDomains = [];
+    let nextToken = null;
+    let batches = 0;
+
+    const fetchBatch = async () => {
+        const payload = { mode: 'batched', max_results: 1000 };
+        if (nextToken) payload.page_token = nextToken;
+        
+        const resp = await fetch('/api/retrieve-domains', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        const text = await resp.text();
+        let data;
+        try { data = JSON.parse(text); } catch(e) { throw new Error('SERVER_HTML:' + text.slice(0,200)); }
+        
+        if (!data.success) throw new Error(data.error || 'Unknown error');
+        
+        allDomains.push(...data.domains);
+        nextToken = data.next_page_token || null;
+        batches += 1;
+        
+        if (nextToken) {
+            await new Promise(r => setTimeout(r, 200));
+            return fetchBatch();
+        }
+        
+        return allDomains;
+    };
+
+    fetchBatch().then(domains => {
+        if (domains && domains.length > 0) {
+            displayAvailableDomains(domains);
+            logBulkDomain(`✅ Retrieved ${domains.length} available domains`);
         } else {
-            logBulkDomain(`❌ Failed to retrieve domains: ${data.error}`);
-            domainList.innerHTML = `<div class="domain-error">❌ Failed to retrieve domains: ${data.error}</div>`;
-            alert('Failed to retrieve domains: ' + data.error);
+            logBulkDomain(`❌ No domains found`);
+            domainList.innerHTML = `<div class="domain-error">❌ No domains found</div>`;
         }
     })
     .catch(error => {
-        logBulkDomain(`❌ Network error: ${error}`);
-        domainList.innerHTML = `<div class="domain-error">❌ Network error: ${error}</div>`;
-        alert('Network error: ' + error);
+        if (error.message && error.message.startsWith('SERVER_HTML:')) {
+            const snippet = error.message.replace('SERVER_HTML:', '');
+            logBulkDomain(`❌ Server Error: HTML error page returned`);
+            domainList.innerHTML = `<div class="domain-error">❌ Server Error: HTML error page returned<pre style="white-space: pre-wrap; max-height: 160px; overflow:auto; background:#fff; padding:8px; border:1px solid #eee;">${snippet}</pre></div>`;
+        } else {
+            logBulkDomain(`❌ Network error: ${error}`);
+            domainList.innerHTML = `<div class="domain-error">❌ Network error: ${error}</div>`;
+        }
     });
 }
 

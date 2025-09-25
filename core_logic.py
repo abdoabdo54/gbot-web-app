@@ -230,6 +230,43 @@ class WebGoogleAPI:
         except HttpError as e:
             return {"success": False, "error": str(e)}
 
+    def get_domains_batch(self, page_token=None, max_results=1000):
+        """Retrieve domains in batches to avoid timeouts with large domain lists.
+        
+        Args:
+            page_token: Optional page token to start from.
+            max_results: Maximum number of domains to fetch in this call.
+            
+        Returns:
+            dict: { success, domains, next_page_token, total_fetched }
+        """
+        if not self.service:
+            raise Exception("Not authenticated or session expired.")
+        
+        try:
+            request_params = {
+                'customer': 'my_customer',
+                'maxResults': min(max_results, 1000)  # Google's maximum per request
+            }
+            
+            if page_token:
+                request_params['pageToken'] = page_token
+            
+            domains_result = self.service.domains().list(**request_params).execute()
+            domains = domains_result.get('domains', [])
+            next_token = domains_result.get('nextPageToken')
+            
+            logging.info(f"Retrieved {len(domains)} domains in batch")
+            
+            return {
+                'success': True,
+                'domains': domains,
+                'next_page_token': next_token,
+                'total_fetched': len(domains)
+            }
+        except HttpError as e:
+            return {"success": False, "error": str(e)}
+
     def add_domain_alias(self, domain_alias):
         if not self.service:
             raise Exception("Not authenticated or session expired.")
