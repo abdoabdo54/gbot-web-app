@@ -48,10 +48,13 @@ MAX_USERS_PER_OPERATION = 50000  # Support up to 50k users
 # Logging
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
 
-# Google API Scopes (same as V13)
+# Google API Scopes (updated for admin role management)
 SCOPES = [
     'https://www.googleapis.com/auth/admin.directory.user',
-    'https://www.googleapis.com/auth/admin.directory.domain'
+    'https://www.googleapis.com/auth/admin.directory.domain',
+    'https://www.googleapis.com/auth/admin.directory.rolemanagement',
+    'https://www.googleapis.com/auth/admin.directory.orgunit',
+    'https://www.googleapis.com/auth/admin.directory.group'
 ]
 
 # Debug - Check if values are loaded

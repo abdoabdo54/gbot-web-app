@@ -69,7 +69,10 @@ class WebGoogleAPI:
         }
         flow = InstalledAppFlow.from_client_config(flow_config, scopes=[
             'https://www.googleapis.com/auth/admin.directory.user',
-            'https://www.googleapis.com/auth/admin.directory.domain'
+            'https://www.googleapis.com/auth/admin.directory.domain',
+            'https://www.googleapis.com/auth/admin.directory.rolemanagement',
+            'https://www.googleapis.com/auth/admin.directory.orgunit',
+            'https://www.googleapis.com/auth/admin.directory.group'
         ])
         flow.redirect_uri = "https://g-workspace.ecochain.site/oauth-callback"
         auth_url, state = flow.authorization_url(
