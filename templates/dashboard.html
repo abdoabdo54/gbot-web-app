@@ -471,6 +471,58 @@
         </div>
     </div>
 
+    <!-- Create Random Admin Users -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-user-shield"></i>
+                Create Random Admin Users
+            </h3>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 16px; align-items: end;">
+            <div class="form-group-github">
+                <label for="random-admin-count" class="form-label-github">
+                    <i class="fas fa-hashtag"></i> Number of Admins
+                </label>
+                <input type="number" id="random-admin-count" class="form-control-github" min="1" max="50" placeholder="e.g., 5">
+            </div>
+            <div class="form-group-github">
+                <label for="random-admin-domain" class="form-label-github">
+                    <i class="fas fa-globe"></i> Domain
+                </label>
+                <input type="text" id="random-admin-domain" class="form-control-github" placeholder="example.com">
+            </div>
+            <div class="form-group-github">
+                <label for="random-admin-password" class="form-label-github">
+                    <i class="fas fa-lock"></i> Password
+                </label>
+                <input type="text" id="random-admin-password" class="form-control-github" placeholder="Password for all admins">
+            </div>
+            <div class="form-group-github">
+                <label for="admin-role" class="form-label-github">
+                    <i class="fas fa-crown"></i> Admin Role
+                </label>
+                <select id="admin-role" class="form-control-github">
+                    <option value="SUPER_ADMIN">Super Admin (Full Access)</option>
+                    <option value="USER_MANAGEMENT_ADMIN">User Management Admin</option>
+                    <option value="HELP_DESK_ADMIN">Help Desk Admin</option>
+                    <option value="SERVICE_ADMIN">Service Admin</option>
+                    <option value="BILLING_ADMIN">Billing Admin</option>
+                    <option value="SECURITY_ADMIN">Security Admin</option>
+                </select>
+            </div>
+            <button onclick="createRandomAdminUsers()" class="btn-github btn-github-warning">
+                <i class="fas fa-user-shield"></i> Create Admin Users
+            </button>
+        </div>
+        <div style="margin-top: 12px; padding: 12px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px;">
+            <i class="fas fa-exclamation-triangle" style="color: #f39c12; margin-right: 8px;"></i>
+            <span style="color: #856404; font-size: 14px;">
+                <strong>Warning:</strong> Admin users have elevated permissions. Use with caution.
+            </span>
+        </div>
+    </div>
+
     <!-- Update Passwords for Specific Users -->
     <div class="github-card">
         <div class="github-card-header">
@@ -2900,6 +2952,117 @@ function createRandomUsers() {
                 logResult(`📊 Target domain: ${domain}`);
             } else {
                 logResult(`❌ Random user creation failed: ${data.error}`);
+            }
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error.message}`);
+        logResult(`💡 Solution: Check your internet connection and try again`);
+    });
+}
+
+function createRandomAdminUsers() {
+    const count = document.getElementById('random-admin-count').value;
+    const domain = document.getElementById('random-admin-domain').value;
+    const password = document.getElementById('random-admin-password').value;
+    const adminRole = document.getElementById('admin-role').value;
+    
+    if (!count || count <= 0) {
+        alert('Please enter a valid number of admin users');
+        return;
+    }
+    
+    if (!domain || !domain.includes('.')) {
+        alert('Please enter a valid domain');
+        return;
+    }
+    
+    if (!password || password.length < 8) {
+        alert('Please enter a password (minimum 8 characters)');
+        return;
+    }
+    
+    if (!adminRole) {
+        alert('Please select an admin role');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    // Confirm admin creation due to elevated permissions
+    if (!confirm(`⚠️ WARNING: You are about to create ${count} admin users with ${adminRole} permissions.\n\nThis will give them elevated access to your Google Workspace.\n\nAre you sure you want to continue?`)) {
+        return;
+    }
+    
+    logResult(`👑 Creating ${count} random admin users for ${domain} with ${adminRole} permissions...`);
+    
+    fetch('/api/create-random-admin-users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            num_users: parseInt(count),
+            domain: domain,
+            password: password,
+            admin_role: adminRole
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ Random admin user creation completed. Password: ${data.password}`);
+            if (data.results) {
+                let successCount = 0;
+                let failureCount = 0;
+                
+                data.results.forEach(result => {
+                    if (result.result.success) {
+                        logResult(`✅ Created Admin: ${result.email} (${result.admin_role})`);
+                        successCount++;
+                    } else {
+                        if (result.result.error_type === 'domain_limit') {
+                            logResult(`🚫 DOMAIN LIMIT: ${result.email} - ${result.result.error}`);
+                            logResult(`💡 Solution: Upgrade to paid Google Workspace subscription`);
+                        } else if (result.result.error_type === 'duplicate_user') {
+                            logResult(`👤 DUPLICATE: ${result.email} - ${result.result.error}`);
+                            logResult(`💡 Solution: User already exists, skipping`);
+                        } else if (result.result.error_type === 'admin_permission_error') {
+                            logResult(`🔒 ADMIN PERMISSION ERROR: ${result.email} - ${result.result.error}`);
+                            logResult(`💡 Solution: Check if you have permission to assign admin roles`);
+                        } else {
+                            logResult(`❌ Failed: ${result.email} - ${result.result.error}`);
+                        }
+                        failureCount++;
+                    }
+                });
+                
+                logResult(`📊 Summary: ${successCount} admin users created, ${failureCount} failed`);
+                
+                if (successCount > 0) {
+                    logResult(`⚠️ IMPORTANT: Admin users have been created with elevated permissions!`);
+                    logResult(`🔐 Please ensure these accounts are properly secured and monitored.`);
+                }
+                
+                if (failureCount > 0) {
+                    logResult(`💡 Note: Some admin users failed due to domain limits, duplicates, or permission issues`);
+                }
+            }
+        } else {
+            if (data.error_type === 'domain_limit') {
+                logResult(`🚫 DOMAIN LIMIT REACHED: ${data.error}`);
+                logResult(`💡 Solution: Upgrade to a paid Google Workspace subscription`);
+            } else if (data.error_type === 'admin_permission_error') {
+                logResult(`🔒 ADMIN PERMISSION ERROR: ${data.error}`);
+                logResult(`💡 Solution: Ensure you have permission to create admin users`);
+            } else {
+                logResult(`❌ Random admin user creation failed: ${data.error}`);
             }
         }
     })

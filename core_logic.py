@@ -446,6 +446,157 @@ class WebGoogleAPI:
             'results': results
         }
 
+    def create_random_admin_users(self, num_users, domain, password=None, admin_role='SUPER_ADMIN'):
+        """Create multiple random admin users with specified admin roles"""
+        if not self.service:
+            raise Exception("Not authenticated or session expired.")
+        
+        import random
+        import string
+        
+        # Use provided password or generate a random one
+        if not password:
+            password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+        
+        # Common first and last names for random generation
+        first_names = [
+            "James", "John", "Robert", "Michael", "William", "David", "Richard", "Charles", "Joseph", "Thomas",
+            "Christopher", "Daniel", "Paul", "Mark", "Donald", "George", "Kenneth", "Steven", "Edward", "Brian",
+            "Ronald", "Anthony", "Kevin", "Jason", "Matthew", "Gary", "Timothy", "Jose", "Larry", "Jeffrey",
+            "Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan", "Jessica", "Sarah", "Karen",
+            "Nancy", "Lisa", "Betty", "Helen", "Sandra", "Donna", "Carol", "Ruth", "Sharon", "Michelle",
+            "Laura", "Sarah", "Kimberly", "Deborah", "Dorothy", "Lisa", "Nancy", "Karen", "Betty", "Helen"
+        ]
+        
+        last_names = [
+            "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
+            "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
+            "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
+            "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores",
+            "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera", "Campbell", "Mitchell", "Carter", "Roberts"
+        ]
+        
+        results = []
+        successful_count = 0
+        
+        for i in range(num_users):
+            try:
+                # Generate random name
+                first_name = random.choice(first_names)
+                last_name = random.choice(last_names)
+                
+                # Generate unique email
+                base_email = f"{first_name.lower()}.{last_name.lower()}"
+                email = f"{base_email}@{domain}"
+                
+                # Add random number if email might be duplicate
+                counter = 1
+                while any(result.get('email') == email for result in results):
+                    email = f"{base_email}{counter}@{domain}"
+                    counter += 1
+                
+                # Create user with admin role
+                user_body = {
+                    'name': {
+                        'givenName': first_name,
+                        'familyName': last_name
+                    },
+                    'primaryEmail': email,
+                    'password': password,
+                    'changePasswordAtNextLogin': False,
+                    'orgUnitPath': '/',
+                    'isAdmin': True,  # Set as admin user
+                    'isDelegatedAdmin': False
+                }
+                
+                # Create the user
+                created_user = self.service.users().insert(body=user_body).execute()
+                
+                # Assign admin role
+                try:
+                    role_body = {
+                        'roleId': admin_role,
+                        'roleName': admin_role,
+                        'roleDescription': f'Admin role: {admin_role}'
+                    }
+                    
+                    # Assign the admin role to the user
+                    self.service.roleAssignments().insert(
+                        customer='my_customer',
+                        body={
+                            'assignedTo': email,
+                            'roleId': admin_role,
+                            'scopeType': 'CUSTOMER'
+                        }
+                    ).execute()
+                    
+                    results.append({
+                        'email': email,
+                        'admin_role': admin_role,
+                        'result': {
+                            'success': True,
+                            'user_id': created_user.get('id'),
+                            'message': f'Admin user created successfully with {admin_role} role'
+                        }
+                    })
+                    successful_count += 1
+                    
+                except Exception as role_error:
+                    # User was created but role assignment failed
+                    results.append({
+                        'email': email,
+                        'admin_role': admin_role,
+                        'result': {
+                            'success': False,
+                            'error': f'User created but role assignment failed: {str(role_error)}',
+                            'error_type': 'admin_permission_error'
+                        }
+                    })
+                
+                # Small delay to avoid rate limiting
+                import time
+                time.sleep(0.2)
+                
+            except HttpError as e:
+                error_type = 'unknown'
+                if 'domain' in str(e).lower() and 'limit' in str(e).lower():
+                    error_type = 'domain_limit'
+                elif 'duplicate' in str(e).lower() or 'already exists' in str(e).lower():
+                    error_type = 'duplicate_user'
+                elif 'permission' in str(e).lower() or 'admin' in str(e).lower():
+                    error_type = 'admin_permission_error'
+                
+                results.append({
+                    'email': email if 'email' in locals() else f'user{i+1}@{domain}',
+                    'admin_role': admin_role,
+                    'result': {
+                        'success': False,
+                        'error': str(e),
+                        'error_type': error_type
+                    }
+                })
+                
+            except Exception as e:
+                results.append({
+                    'email': email if 'email' in locals() else f'user{i+1}@{domain}',
+                    'admin_role': admin_role,
+                    'result': {
+                        'success': False,
+                        'error': str(e),
+                        'error_type': 'unknown'
+                    }
+                })
+        
+        return {
+            'success': True,
+            'password': password,
+            'admin_role': admin_role,
+            'total_requested': num_users,
+            'successful_count': successful_count,
+            'failed_count': num_users - successful_count,
+            'results': results
+        }
+
     def update_user_passwords(self, users, new_password):
         """Update passwords for specific users"""
         if not self.service:

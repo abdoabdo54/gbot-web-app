@@ -1154,6 +1154,77 @@ def api_create_gsuite_user():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/create-random-admin-users', methods=['POST'])
+@login_required
+def api_create_random_admin_users():
+    """Create random admin users with specified admin roles"""
+    try:
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
+        
+        account_name = session.get('current_account_name')
+        
+        # Check if we have valid tokens for this account
+        if not google_api.service:
+            if google_api.is_token_valid(account_name):
+                success = google_api.authenticate_with_tokens(account_name)
+                if not success:
+                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
+            else:
+                return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
+        
+        req = request.get_json(silent=True) or {}
+        num_users = req.get('num_users', 1)
+        domain = req.get('domain', '')
+        password = req.get('password', '')
+        admin_role = req.get('admin_role', 'SUPER_ADMIN')
+        
+        if not domain or '.' not in domain:
+            return jsonify({'success': False, 'error': 'Please provide a valid domain'})
+        
+        if not password or len(password) < 8:
+            return jsonify({'success': False, 'error': 'Password must be at least 8 characters long'})
+        
+        if num_users <= 0 or num_users > 50:
+            return jsonify({'success': False, 'error': 'Number of admin users must be between 1 and 50'})
+        
+        # Validate admin role
+        valid_roles = [
+            'SUPER_ADMIN', 'USER_MANAGEMENT_ADMIN', 'HELP_DESK_ADMIN',
+            'SERVICE_ADMIN', 'BILLING_ADMIN', 'SECURITY_ADMIN'
+        ]
+        if admin_role not in valid_roles:
+            return jsonify({'success': False, 'error': f'Invalid admin role. Must be one of: {", ".join(valid_roles)}'})
+        
+        logging.info(f"Creating {num_users} random admin users for domain {domain} with role {admin_role}")
+        
+        # Create random admin users
+        result = google_api.create_random_admin_users(
+            num_users=num_users,
+            domain=domain,
+            password=password,
+            admin_role=admin_role
+        )
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'message': f'Successfully created {num_users} random admin users',
+                'password': password,
+                'admin_role': admin_role,
+                'results': result.get('results', [])
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Unknown error'),
+                'error_type': result.get('error_type', 'unknown')
+            })
+            
+    except Exception as e:
+        logging.error(f"Create random admin users error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/create-random-users', methods=['POST'])
 @login_required
 def api_create_random_users():
