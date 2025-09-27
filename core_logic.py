@@ -617,4 +617,107 @@ class WebGoogleAPI:
             'results': results
         }
 
+    def suspend_user(self, email):
+        """Suspend a user account"""
+        if not self.service:
+            raise Exception("Not authenticated or session expired.")
+        
+        try:
+            # Suspend user by setting suspended to True
+            user_body = {
+                'suspended': True,
+                'suspensionReason': 'Suspended via GBot Web App'
+            }
+            
+            self.service.users().update(
+                userKey=email,
+                body=user_body
+            ).execute()
+            
+            return {
+                'success': True,
+                'email': email,
+                'message': f'User {email} has been suspended successfully'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'email': email,
+                'error': str(e)
+            }
+
+    def unsuspend_user(self, email):
+        """Unsuspend a user account"""
+        if not self.service:
+            raise Exception("Not authenticated or session expired.")
+        
+        try:
+            # Unsuspend user by setting suspended to False
+            user_body = {
+                'suspended': False
+            }
+            
+            self.service.users().update(
+                userKey=email,
+                body=user_body
+            ).execute()
+            
+            return {
+                'success': True,
+                'email': email,
+                'message': f'User {email} has been unsuspended successfully'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'email': email,
+                'error': str(e)
+            }
+
+    def get_suspended_users(self):
+        """Get all suspended users"""
+        if not self.service:
+            raise Exception("Not authenticated or session expired.")
+        
+        try:
+            # Get all users with suspended status
+            users_result = self.service.users().list(
+                customer='my_customer',
+                maxResults=500,
+                orderBy='email'
+            ).execute()
+            
+            users = users_result.get('users', [])
+            suspended_users = []
+            
+            for user in users:
+                if user.get('suspended', False):
+                    suspended_users.append({
+                        'email': user.get('primaryEmail', ''),
+                        'name': user.get('name', {}).get('fullName', ''),
+                        'firstName': user.get('name', {}).get('givenName', ''),
+                        'lastName': user.get('name', {}).get('familyName', ''),
+                        'suspended': user.get('suspended', False),
+                        'suspensionReason': user.get('suspensionReason', 'No reason provided'),
+                        'lastLoginTime': user.get('lastLoginTime', 'Never'),
+                        'creationTime': user.get('creationTime', ''),
+                        'orgUnitPath': user.get('orgUnitPath', '/'),
+                        'isAdmin': user.get('isAdmin', False),
+                        'isDelegatedAdmin': user.get('isDelegatedAdmin', False)
+                    })
+            
+            return {
+                'success': True,
+                'suspended_users': suspended_users,
+                'total_count': len(suspended_users)
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
 google_api = WebGoogleAPI()

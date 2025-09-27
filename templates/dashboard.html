@@ -274,6 +274,30 @@
         </div>
         </div>
         
+        <!-- Individual User Actions -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end; margin-top: 16px;">
+            <div class="form-group-github">
+                <label for="suspend-user-email" class="form-label-github">
+                    <i class="fas fa-user-slash"></i> Suspend User
+                </label>
+                <input type="email" id="suspend-user-email" class="form-control-github" placeholder="user@domain.com">
+            </div>
+            <div class="form-group-github">
+                <label for="unsuspend-user-email" class="form-label-github">
+                    <i class="fas fa-user-check"></i> Unsuspend User
+                </label>
+                <input type="email" id="unsuspend-user-email" class="form-control-github" placeholder="user@domain.com">
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="suspendUser()" class="btn-github btn-github-warning">
+                    <i class="fas fa-user-slash"></i> Suspend
+                </button>
+                <button onclick="unsuspendUser()" class="btn-github btn-github-success">
+                    <i class="fas fa-user-check"></i> Unsuspend
+                </button>
+            </div>
+        </div>
+        
         <div id="user-count" class="count-display">Total Users: 0</div>
         
     <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; margin-top: 16px;">
@@ -333,7 +357,33 @@
             <p>Click "Load Suspended Users" to check for suspended accounts in your Google Workspace.</p>
             <p><small>This will show all users with suspended status, including their names, emails, and admin privileges.</small></p>
         </div>
-    </div>
+        </div>
+        
+        <div id="suspended-count" class="count-display">Suspended Users: 0</div>
+        
+        <!-- Bulk Suspension Actions -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end; margin-top: 16px;">
+            <div class="form-group-github">
+                <label for="bulk-suspend-emails" class="form-label-github">
+                    <i class="fas fa-user-slash"></i> Bulk Suspend Users
+                </label>
+                <textarea id="bulk-suspend-emails" class="form-control-github" rows="3" placeholder="Enter email addresses (one per line)&#10;user1@domain.com&#10;user2@domain.com"></textarea>
+            </div>
+            <div class="form-group-github">
+                <label for="bulk-unsuspend-emails" class="form-label-github">
+                    <i class="fas fa-user-check"></i> Bulk Unsuspend Users
+                </label>
+                <textarea id="bulk-unsuspend-emails" class="form-control-github" rows="3" placeholder="Enter email addresses (one per line)&#10;user1@domain.com&#10;user2@domain.com"></textarea>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button onclick="bulkSuspendUsers()" class="btn-github btn-github-warning">
+                    <i class="fas fa-user-slash"></i> Bulk Suspend
+                </button>
+                <button onclick="bulkUnsuspendUsers()" class="btn-github btn-github-success">
+                    <i class="fas fa-user-check"></i> Bulk Unsuspend
+                </button>
+            </div>
+        </div>
 </div>
 </div>
 
@@ -3145,6 +3195,348 @@ function updateUserPasswords() {
         logResult(`❌ Network error: ${error.message}`);
         logResult(`💡 Solution: Check your internet connection and try again`);
     });
+}
+
+// User Suspension Functions
+function suspendUser() {
+    const email = document.getElementById('suspend-user-email').value.trim();
+    
+    if (!email) {
+        alert('Please enter an email address');
+        return;
+    }
+    
+    if (!email.includes('@')) {
+        alert('Please enter a valid email address');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    if (!confirm(`⚠️ Are you sure you want to suspend user: ${email}?\n\nThis will prevent them from accessing their account.`)) {
+        return;
+    }
+    
+    logResult(`🚫 Suspending user: ${email}...`);
+    
+    fetch('/api/suspend-user', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email: email })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ ${data.message}`);
+            document.getElementById('suspend-user-email').value = '';
+        } else {
+            logResult(`❌ Failed to suspend user: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error.message}`);
+    });
+}
+
+function unsuspendUser() {
+    const email = document.getElementById('unsuspend-user-email').value.trim();
+    
+    if (!email) {
+        alert('Please enter an email address');
+        return;
+    }
+    
+    if (!email.includes('@')) {
+        alert('Please enter a valid email address');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    if (!confirm(`✅ Are you sure you want to unsuspend user: ${email}?\n\nThis will restore their account access.`)) {
+        return;
+    }
+    
+    logResult(`✅ Unsuspending user: ${email}...`);
+    
+    fetch('/api/unsuspend-user', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email: email })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ ${data.message}`);
+            document.getElementById('unsuspend-user-email').value = '';
+        } else {
+            logResult(`❌ Failed to unsuspend user: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error.message}`);
+    });
+}
+
+function loadSuspendedUsers() {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    logResult('🔍 Loading suspended users...');
+    
+    fetch('/api/get-suspended-users')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displaySuspendedUsers(data.suspended_users);
+            document.getElementById('suspended-count').textContent = `Suspended Users: ${data.total_count}`;
+            logResult(`✅ Loaded ${data.total_count} suspended users`);
+        } else {
+            logResult(`❌ Failed to load suspended users: ${data.error}`);
+            document.getElementById('suspended-display').innerHTML = `<div class="error-message">❌ Error: ${data.error}</div>`;
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error.message}`);
+        document.getElementById('suspended-display').innerHTML = `<div class="error-message">❌ Network error: ${error.message}</div>`;
+    });
+}
+
+function displaySuspendedUsers(users) {
+    if (!users || users.length === 0) {
+        document.getElementById('suspended-display').innerHTML = '<div class="status-info"><p>✅ No suspended users found</p></div>';
+        return;
+    }
+    
+    let html = '<div class="suspended-users-list">';
+    html += '<h4 style="margin-bottom: 16px; color: #d73a49;">🚫 Suspended Users</h4>';
+    
+    users.forEach(user => {
+        const adminBadge = user.isAdmin ? '<span class="badge admin">👑 Admin</span>' : '';
+        const lastLogin = user.lastLoginTime === 'Never' ? 'Never' : new Date(user.lastLoginTime).toLocaleDateString();
+        
+        html += `
+            <div class="suspended-user-item" style="border: 1px solid #d73a49; border-radius: 6px; padding: 12px; margin-bottom: 8px; background: #ffeaea;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>${user.name || user.firstName + ' ' + user.lastName}</strong>
+                        <div style="color: #666; font-size: 14px;">${user.email}</div>
+                        <div style="color: #d73a49; font-size: 12px; margin-top: 4px;">
+                            🚫 Suspended | Last Login: ${lastLogin}
+                        </div>
+                        <div style="color: #666; font-size: 12px; margin-top: 2px;">
+                            Reason: ${user.suspensionReason}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        ${adminBadge}
+                        <button onclick="unsuspendUserFromList('${user.email}')" class="btn-github btn-github-success" style="font-size: 12px; padding: 4px 8px;">
+                            <i class="fas fa-user-check"></i> Unsuspend
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    document.getElementById('suspended-display').innerHTML = html;
+}
+
+function unsuspendUserFromList(email) {
+    if (!confirm(`✅ Are you sure you want to unsuspend user: ${email}?`)) {
+        return;
+    }
+    
+    logResult(`✅ Unsuspending user: ${email}...`);
+    
+    fetch('/api/unsuspend-user', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email: email })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ ${data.message}`);
+            // Refresh the suspended users list
+            loadSuspendedUsers();
+        } else {
+            logResult(`❌ Failed to unsuspend user: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error.message}`);
+    });
+}
+
+function bulkSuspendUsers() {
+    const emailsText = document.getElementById('bulk-suspend-emails').value.trim();
+    
+    if (!emailsText) {
+        alert('Please enter email addresses');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    const emails = emailsText.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0 && line.includes('@'));
+    
+    if (emails.length === 0) {
+        alert('Please enter valid email addresses');
+        return;
+    }
+    
+    if (!confirm(`⚠️ Are you sure you want to suspend ${emails.length} users?\n\nThis will prevent them from accessing their accounts.`)) {
+        return;
+    }
+    
+    logResult(`🚫 Suspending ${emails.length} users...`);
+    
+    let successCount = 0;
+    let failureCount = 0;
+    
+    const suspendPromises = emails.map(email => 
+        fetch('/api/suspend-user', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email: email })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                successCount++;
+                logResult(`✅ Suspended: ${email}`);
+            } else {
+                failureCount++;
+                logResult(`❌ Failed: ${email} - ${data.error}`);
+            }
+        })
+        .catch(error => {
+            failureCount++;
+            logResult(`❌ Error: ${email} - ${error.message}`);
+        })
+    );
+    
+    Promise.all(suspendPromises).then(() => {
+        logResult(`📊 Bulk suspension completed: ${successCount} successful, ${failureCount} failed`);
+        document.getElementById('bulk-suspend-emails').value = '';
+    });
+}
+
+function bulkUnsuspendUsers() {
+    const emailsText = document.getElementById('bulk-unsuspend-emails').value.trim();
+    
+    if (!emailsText) {
+        alert('Please enter email addresses');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    const emails = emailsText.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0 && line.includes('@'));
+    
+    if (emails.length === 0) {
+        alert('Please enter valid email addresses');
+        return;
+    }
+    
+    if (!confirm(`✅ Are you sure you want to unsuspend ${emails.length} users?\n\nThis will restore their account access.`)) {
+        return;
+    }
+    
+    logResult(`✅ Unsuspending ${emails.length} users...`);
+    
+    let successCount = 0;
+    let failureCount = 0;
+    
+    const unsuspendPromises = emails.map(email => 
+        fetch('/api/unsuspend-user', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email: email })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                successCount++;
+                logResult(`✅ Unsuspended: ${email}`);
+            } else {
+                failureCount++;
+                logResult(`❌ Failed: ${email} - ${data.error}`);
+            }
+        })
+        .catch(error => {
+            failureCount++;
+            logResult(`❌ Error: ${email} - ${error.message}`);
+        })
+    );
+    
+    Promise.all(unsuspendPromises).then(() => {
+        logResult(`📊 Bulk unsuspension completed: ${successCount} successful, ${failureCount} failed`);
+        document.getElementById('bulk-unsuspend-emails').value = '';
+        // Refresh the suspended users list
+        loadSuspendedUsers();
+    });
+}
+
+function copySuspendedUsers() {
+    const display = document.getElementById('suspended-display');
+    const userItems = display.querySelectorAll('.suspended-user-item');
+    
+    if (userItems.length === 0) {
+        alert('No suspended users to copy');
+        return;
+    }
+    
+    let emails = [];
+    userItems.forEach(item => {
+        const emailElement = item.querySelector('div[style*="color: #666"]');
+        if (emailElement) {
+            emails.push(emailElement.textContent.trim());
+        }
+    });
+    
+    if (emails.length > 0) {
+        navigator.clipboard.writeText(emails.join('\n')).then(() => {
+            logResult(`📋 Copied ${emails.length} suspended user emails to clipboard`);
+        }).catch(() => {
+            alert('Failed to copy to clipboard');
+        });
+    }
+}
+
+function refreshSuspendedUsers() {
+    loadSuspendedUsers();
+}
+
+function clearSuspendedUsers() {
+    document.getElementById('suspended-display').innerHTML = `
+        <div class="status-info">
+            <p><strong><i class="fas fa-user-slash"></i> Suspended User Management</strong></p>
+            <p>Click "Load Suspended Users" to check for suspended accounts in your Google Workspace.</p>
+            <p><small>This will show all users with suspended status, including their names, emails, and admin privileges.</small></p>
+        </div>
+    `;
+    document.getElementById('suspended-count').textContent = 'Suspended Users: 0';
 }
 
 function changeDomainForUsers() {
