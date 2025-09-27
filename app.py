@@ -7634,5 +7634,57 @@ def api_get_suspended_users():
         logging.error(f"Get suspended users error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/force-password-change', methods=['POST'])
+@login_required
+def api_force_password_change():
+    """Force a user to change password on next login (for WEB_LOGIN_REQUIRED users)"""
+    try:
+        if 'current_account_name' not in session:
+            return jsonify({'success': False, 'error': 'No account authenticated. Please authenticate first.'})
+        
+        account_name = session.get('current_account_name')
+        
+        # Check if we have valid tokens for this account
+        if not google_api.service:
+            if google_api.is_token_valid(account_name):
+                success = google_api.authenticate_with_tokens(account_name)
+                if not success:
+                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
+            else:
+                return jsonify({'success': False, 'error': 'No valid tokens found. Please re-authenticate.'})
+        
+        req = request.get_json(silent=True) or {}
+        email = req.get('email', '').strip()
+        new_password = req.get('new_password', '').strip()
+        
+        if not email:
+            return jsonify({'success': False, 'error': 'Email address is required'})
+        
+        if '@' not in email:
+            return jsonify({'success': False, 'error': 'Please provide a valid email address'})
+        
+        logging.info(f"Forcing password change for user: {email}")
+        
+        # Force password change
+        result = google_api.force_password_change(email, new_password if new_password else None)
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'message': result['message'],
+                'email': result['email'],
+                'temporary_password': result.get('temporary_password', '')
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Unknown error'),
+                'email': result.get('email', email)
+            })
+            
+    except Exception as e:
+        logging.error(f"Force password change error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 if __name__ == '__main__':
     app.run(debug=True)
