@@ -3470,7 +3470,12 @@ function forcePasswordChange() {
             document.getElementById('force-password-email').value = '';
             document.getElementById('force-password-new').value = '';
         } else {
-            logResult(`❌ Failed to force password reset: ${data.error}`);
+            if (data.error === 'ABUSE_SUSPENSION') {
+                logResult(`🚨 ABUSE SUSPENSION: ${data.message}`);
+                logResult(`📞 Contact Google Workspace support for assistance with this user`);
+            } else {
+                logResult(`❌ Failed to force password reset: ${data.error}`);
+            }
         }
     })
     .catch(error => {
@@ -3522,13 +3527,28 @@ function displaySuspendedUsers(users) {
                                  user.suspensionReason === 'WEB_LOGIN_REQUIRED' ||
                                  (user.lastLoginTime && new Date(user.lastLoginTime).getFullYear() === 1970);
         
-        // Different styling for WEB_LOGIN_REQUIRED users
-        const cardStyle = isWebLoginRequired ? 
-            'border: 1px solid #f39c12; background: #fff3cd;' : 
-            'border: 1px solid #d73a49; background: #ffeaea;';
+        // Check if this is an abuse-suspended user
+        const isAbuseSuspended = user.suspensionReason === 'ABUSE' || 
+                               user.suspensionReason === 'abuse' ||
+                               user.suspensionReason === 'ADMIN_ACTION' ||
+                               user.suspensionReason === 'admin_action';
         
-        const statusColor = isWebLoginRequired ? '#f39c12' : '#d73a49';
-        const statusIcon = isWebLoginRequired ? '🔐' : '🚫';
+        // Different styling based on suspension type
+        let cardStyle, statusColor, statusIcon;
+        
+        if (isAbuseSuspended) {
+            cardStyle = 'border: 1px solid #dc3545; background: #f8d7da;';
+            statusColor = '#dc3545';
+            statusIcon = '🚨';
+        } else if (isWebLoginRequired) {
+            cardStyle = 'border: 1px solid #f39c12; background: #fff3cd;';
+            statusColor = '#f39c12';
+            statusIcon = '🔐';
+        } else {
+            cardStyle = 'border: 1px solid #d73a49; background: #ffeaea;';
+            statusColor = '#d73a49';
+            statusIcon = '🚫';
+        }
         
         html += `
             <div class="suspended-user-item" style="${cardStyle} border-radius: 6px; padding: 12px; margin-bottom: 8px;">
@@ -3537,22 +3557,28 @@ function displaySuspendedUsers(users) {
                         <strong>${user.name || user.firstName + ' ' + user.lastName}</strong>
                         <div style="color: #666; font-size: 14px;">${user.email}</div>
                         <div style="color: ${statusColor}; font-size: 12px; margin-top: 4px;">
-                            ${statusIcon} ${isWebLoginRequired ? 'Password Reset Required' : 'Suspended'} | Last Login: ${lastLogin}
+                            ${statusIcon} ${isAbuseSuspended ? 'Abuse Suspended' : (isWebLoginRequired ? 'Password Reset Required' : 'Suspended')} | Last Login: ${lastLogin}
                         </div>
                         <div style="color: #666; font-size: 12px; margin-top: 2px;">
                             Reason: ${user.suspensionReason}
                         </div>
+                        ${isAbuseSuspended ? '<div style="color: #dc3545; font-size: 11px; margin-top: 2px; font-style: italic;">🚨 This user was suspended for abuse and cannot be restored through normal means</div>' : ''}
                         ${isWebLoginRequired ? '<div style="color: #f39c12; font-size: 11px; margin-top: 2px; font-style: italic;">⚠️ This user needs to reset their password</div>' : ''}
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         ${adminBadge}
-                        ${isWebLoginRequired ? 
-                            `<button onclick="forcePasswordChangeFromList('${user.email}')" class="btn-github btn-github-warning" style="font-size: 12px; padding: 4px 8px;">
-                                <i class="fas fa-key"></i> Force Password Reset
+                        ${isAbuseSuspended ? 
+                            `<button onclick="showAbuseSuspensionInfo('${user.email}')" class="btn-github btn-github-danger" style="font-size: 12px; padding: 4px 8px;" disabled>
+                                <i class="fas fa-ban"></i> Cannot Restore
                             </button>` :
-                            `<button onclick="unsuspendUserFromList('${user.email}')" class="btn-github btn-github-success" style="font-size: 12px; padding: 4px 8px;">
-                                <i class="fas fa-user-check"></i> Unsuspend
-                            </button>`
+                            (isWebLoginRequired ? 
+                                `<button onclick="forcePasswordChangeFromList('${user.email}')" class="btn-github btn-github-warning" style="font-size: 12px; padding: 4px 8px;">
+                                    <i class="fas fa-key"></i> Force Password Reset
+                                </button>` :
+                                `<button onclick="unsuspendUserFromList('${user.email}')" class="btn-github btn-github-success" style="font-size: 12px; padding: 4px 8px;">
+                                    <i class="fas fa-user-check"></i> Unsuspend
+                                </button>`
+                            )
                         }
                     </div>
                 </div>
@@ -3614,12 +3640,21 @@ function forcePasswordChangeFromList(email) {
             // Refresh the suspended users list
             loadSuspendedUsers();
         } else {
-            logResult(`❌ Failed to force password reset: ${data.error}`);
+            if (data.error === 'ABUSE_SUSPENSION') {
+                logResult(`🚨 ABUSE SUSPENSION: ${data.message}`);
+                logResult(`📞 Contact Google Workspace support for assistance with this user`);
+            } else {
+                logResult(`❌ Failed to force password reset: ${data.error}`);
+            }
         }
     })
     .catch(error => {
         logResult(`❌ Network error: ${error.message}`);
     });
+}
+
+function showAbuseSuspensionInfo(email) {
+    alert(`🚨 ABUSE SUSPENSION INFO\n\nUser: ${email}\n\nThis user was suspended for abuse and cannot be restored through normal administrative actions.\n\n📞 SOLUTION:\n1. Contact Google Workspace Support\n2. Provide the user's email and suspension details\n3. Request manual review and potential restoration\n4. Explain the circumstances if the suspension was in error\n\n⚠️ Note: Abuse suspensions are security measures and require Google's direct intervention.`);
 }
 
 function bulkSuspendUsers() {

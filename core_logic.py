@@ -709,11 +709,23 @@ class WebGoogleAPI:
             }
             
         except Exception as e:
-            return {
-                'success': False,
-                'email': email,
-                'error': str(e)
-            }
+            error_str = str(e)
+            
+            # Check for abuse suspension error
+            if 'Cannot restore a user suspended for abuse' in error_str or 'adminCannotUnsuspend' in error_str:
+                return {
+                    'success': False,
+                    'email': email,
+                    'error': 'ABUSE_SUSPENSION',
+                    'message': 'This user was suspended for abuse and cannot be restored through normal means. Contact Google Workspace support for assistance.',
+                    'suspension_type': 'abuse'
+                }
+            else:
+                return {
+                    'success': False,
+                    'email': email,
+                    'error': str(e)
+                }
 
     def get_suspended_users(self):
         """Get all suspended users"""
