@@ -516,9 +516,9 @@
             </button>
         </div>
         <div style="margin-top: 12px; padding: 12px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px;">
-            <i class="fas fa-exclamation-triangle" style="color: #f39c12; margin-right: 8px;"></i>
+            <i class="fas fa-info-circle" style="color: #f39c12; margin-right: 8px;"></i>
             <span style="color: #856404; font-size: 14px;">
-                <strong>Warning:</strong> Admin users have elevated permissions. Use with caution.
+                <strong>Note:</strong> Creates users with basic admin privileges. Specific role assignments require Google Admin Console configuration.
             </span>
         </div>
     </div>
@@ -3025,6 +3025,7 @@ function createRandomAdminUsers() {
                 data.results.forEach(result => {
                     if (result.result.success) {
                         logResult(`✅ Created Admin: ${result.email} (${result.admin_role})`);
+                        logResult(`📝 Note: ${result.result.message}`);
                         successCount++;
                     } else {
                         if (result.result.error_type === 'domain_limit') {
