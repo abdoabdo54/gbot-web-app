@@ -336,6 +336,50 @@
         </button>
         </div>
     </div>
+    
+    <!-- Activity Log Section -->
+    <div class="github-card" style="margin-top: 24px;">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-list-alt"></i>
+                Activity Log
+            </h3>
+            <div class="button-row">
+                <button onclick="clearLogs()" class="btn-github btn-github-secondary" style="font-size: 12px; padding: 4px 8px;">
+                    <i class="fas fa-trash"></i> Clear Logs
+                </button>
+                <button onclick="copyLogs()" class="btn-github" style="font-size: 12px; padding: 4px 8px;">
+                    <i class="fas fa-copy"></i> Copy Logs
+                </button>
+                <button onclick="downloadLogs()" class="btn-github" style="font-size: 12px; padding: 4px 8px;">
+                    <i class="fas fa-download"></i> Download
+                </button>
+            </div>
+        </div>
+        
+        <div id="activity-log" class="log-display" style="
+            background: #f8f9fa; 
+            border: 1px solid #e1e4e8; 
+            border-radius: 6px; 
+            padding: 12px; 
+            max-height: 300px; 
+            overflow-y: auto; 
+            font-family: 'Courier New', monospace; 
+            font-size: 12px; 
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        ">
+            <div style="color: #6a737d; font-style: italic;">
+                📝 Activity log will appear here...
+            </div>
+        </div>
+        
+        <div style="margin-top: 8px; font-size: 11px; color: #6a737d;">
+            <i class="fas fa-info-circle"></i> 
+            This log shows all user management activities, API calls, and system messages.
+        </div>
+    </div>
 
     <!-- Domain Info
     <div class="section">
@@ -1469,13 +1513,83 @@ function showTab(tabId) {
 // Results log functions
 function logResult(message) {
     const log = document.getElementById('results-log');
+    const activityLog = document.getElementById('activity-log');
     const timestamp = new Date().toLocaleTimeString();
-    log.textContent += `[${timestamp}] ${message}\n`;
+    const logEntry = `[${timestamp}] ${message}\n`;
+    
+    // Log to results log (existing functionality)
+    log.textContent += logEntry;
     log.scrollTop = log.scrollHeight;
+    
+    // Also log to activity log
+    if (activityLog) {
+        // Remove the placeholder text if it exists
+        if (activityLog.textContent.includes('📝 Activity log will appear here...')) {
+            activityLog.textContent = '';
+        }
+        activityLog.textContent += logEntry;
+        activityLog.scrollTop = activityLog.scrollHeight;
+    }
 }
 
 function clearResultsLog() {
     document.getElementById('results-log').textContent = '';
+}
+
+// Activity log management functions
+function clearLogs() {
+    if (confirm('🗑️ Are you sure you want to clear all activity logs?')) {
+        document.getElementById('activity-log').textContent = '📝 Activity log cleared. New activities will appear here...';
+        logResult('📝 Activity log cleared by user');
+    }
+}
+
+function copyLogs() {
+    const activityLog = document.getElementById('activity-log');
+    const logText = activityLog.textContent;
+    
+    if (!logText || logText.includes('📝 Activity log will appear here...') || logText.includes('📝 Activity log cleared.')) {
+        alert('📝 No logs to copy. Perform some actions first.');
+        return;
+    }
+    
+    navigator.clipboard.writeText(logText).then(() => {
+        logResult('📋 Activity logs copied to clipboard');
+    }).catch(err => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = logText;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        logResult('📋 Activity logs copied to clipboard (fallback method)');
+    });
+}
+
+function downloadLogs() {
+    const activityLog = document.getElementById('activity-log');
+    const logText = activityLog.textContent;
+    
+    if (!logText || logText.includes('📝 Activity log will appear here...') || logText.includes('📝 Activity log cleared.')) {
+        alert('📝 No logs to download. Perform some actions first.');
+        return;
+    }
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `gbot-activity-log-${timestamp}.txt`;
+    
+    const blob = new Blob([logText], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    logResult(`💾 Activity logs downloaded as ${filename}`);
 }
 
 async function copyToClipboard(text) {
