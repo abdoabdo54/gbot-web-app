@@ -2124,16 +2124,23 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     
     // For each account, retrieve all users and generate app passwords
     accounts.forEach((account, index) => {
-        // Get the domain from the account - this should be the NEW domain after changeSubdomain
-        // The account should already have the new domain if changeSubdomain was applied
-        const domain = account.split('@')[1];
+        // Get the original domain from the account
+        const originalDomain = account.split('@')[1];
+        
+        // MANUALLY change the domain from .giize.com to .mywire.org
+        // This simulates the domain change that should happen on the server
+        let updatedDomain = originalDomain;
+        if (originalDomain.includes('.giize.com')) {
+            updatedDomain = originalDomain.replace('.giize.com', '.mywire.org');
+            logBulkDomain(`🔄 MANUAL DOMAIN CHANGE: ${originalDomain} → ${updatedDomain}`);
+        }
         
         // Create the new subdomain format with custom or random subdomain
         const subdomain = subdomainPrefix || generateRandomSubdomain(16);
-        const newDomain = `${subdomain}.${domain}`;
+        const newDomain = `${subdomain}.${updatedDomain}`;
         
         logBulkDomain(`🔄 Creating new subdomain: ${newDomain} for account: ${account}`);
-        logBulkDomain(`📧 Original domain: ${domain}`);
+        logBulkDomain(`📧 Updated domain: ${updatedDomain}`);
         logBulkDomain(`🌐 New subdomain: ${newDomain}`);
         
         // Retrieve all users from the account and process them
