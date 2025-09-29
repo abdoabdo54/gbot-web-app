@@ -2131,25 +2131,29 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
         if (data.success && data.domains && data.domains.length > 0) {
             logBulkDomain(`✅ Retrieved ${data.domains.length} domains`);
             
-            // Find the domain that was just changed (look for the most recent IN USE or the one with users)
+            // Find the IN USE domain (the one with users that should be updated)
             let targetDomain = null;
             
-            // Look for domains with users (IN USE)
-            const domainsWithUsers = data.domains.filter(domain => domain.user_count > 0);
-            if (domainsWithUsers.length > 0) {
-                // Use the domain with the most users (likely the one just changed)
-                targetDomain = domainsWithUsers.reduce((prev, current) => 
+            // PRIORITY 1: Look for IN USE domains (these are the ones with users that need updating)
+            const inUseDomains = data.domains.filter(domain => domain.status === 'in_use' && domain.user_count > 0);
+            if (inUseDomains.length > 0) {
+                // Use the IN USE domain with the most users
+                targetDomain = inUseDomains.reduce((prev, current) => 
                     (current.user_count > prev.user_count) ? current : prev
                 ).domainName;
-                logBulkDomain(`🎯 Found domain with users: ${targetDomain} (${domainsWithUsers.find(d => d.domainName === targetDomain).user_count} users)`);
+                const userCount = inUseDomains.find(d => d.domainName === targetDomain).user_count;
+                logBulkDomain(`🎯 Found IN USE domain: ${targetDomain} (${userCount} users) - This will be used for updates`);
             } else {
-                // If no domains with users, look for IN USE status
-                const inUseDomain = data.domains.find(domain => domain.status === 'in_use');
-                if (inUseDomain) {
-                    targetDomain = inUseDomain.domainName;
-                    logBulkDomain(`🎯 Found IN USE domain: ${targetDomain}`);
+                // PRIORITY 2: Look for any domain with users
+                const domainsWithUsers = data.domains.filter(domain => domain.user_count > 0);
+                if (domainsWithUsers.length > 0) {
+                    targetDomain = domainsWithUsers.reduce((prev, current) => 
+                        (current.user_count > prev.user_count) ? current : prev
+                    ).domainName;
+                    const userCount = domainsWithUsers.find(d => d.domainName === targetDomain).user_count;
+                    logBulkDomain(`🎯 Found domain with users: ${targetDomain} (${userCount} users)`);
                 } else {
-                    // Fallback to first available domain
+                    // PRIORITY 3: Fallback to first available domain
                     const availableDomain = data.domains.find(domain => domain.status === 'available');
                     if (availableDomain) {
                         targetDomain = availableDomain.domainName;
@@ -2416,18 +2420,43 @@ function selectAndSaveSubdomain() {
         if (data.success && data.domains && data.domains.length > 0) {
             logBulkDomain(`✅ Retrieved ${data.domains.length} domains`);
             
-            // Find available domains
-            const availableDomains = data.domains.filter(domain => domain.status === 'available');
-            if (availableDomains.length > 0) {
-                // Select the first available domain
-                const selectedDomain = availableDomains[0].domainName;
-                
+            // PRIORITY 1: Look for IN USE domains (these have users and should be updated)
+            const inUseDomains = data.domains.filter(domain => domain.status === 'in_use' && domain.user_count > 0);
+            let selectedDomain = null;
+            
+            if (inUseDomains.length > 0) {
+                // Select the IN USE domain with the most users
+                selectedDomain = inUseDomains.reduce((prev, current) => 
+                    (current.user_count > prev.user_count) ? current : prev
+                ).domainName;
+                const userCount = inUseDomains.find(d => d.domainName === selectedDomain).user_count;
+                logBulkDomain(`🎯 Selected IN USE domain: ${selectedDomain} (${userCount} users)`);
+            } else {
+                // PRIORITY 2: Look for any domain with users
+                const domainsWithUsers = data.domains.filter(domain => domain.user_count > 0);
+                if (domainsWithUsers.length > 0) {
+                    selectedDomain = domainsWithUsers.reduce((prev, current) => 
+                        (current.user_count > prev.user_count) ? current : prev
+                    ).domainName;
+                    const userCount = domainsWithUsers.find(d => d.domainName === selectedDomain).user_count;
+                    logBulkDomain(`🎯 Selected domain with users: ${selectedDomain} (${userCount} users)`);
+                } else {
+                    // PRIORITY 3: Fallback to available domains
+                    const availableDomains = data.domains.filter(domain => domain.status === 'available');
+                    if (availableDomains.length > 0) {
+                        selectedDomain = availableDomains[0].domainName;
+                        logBulkDomain(`🎯 Selected AVAILABLE domain: ${selectedDomain}`);
+                    }
+                }
+            }
+            
+            if (selectedDomain) {
                 // Save the selected subdomain
                 window.selectedSubdomain = selectedDomain;
                 window.currentTargetDomain = selectedDomain;
                 
-                logBulkDomain(`🎯 Selected and saved subdomain: ${selectedDomain}`);
-                logBulkDomain(`💾 This subdomain will be used for all future operations`);
+                logBulkDomain(`💾 Saved selected subdomain: ${selectedDomain}`);
+                logBulkDomain(`🔄 This subdomain will be used for updating users and app passwords`);
                 
                 // Update the subdomain prefix input field
                 const subdomainPrefix = document.getElementById('mega-subdomain-prefix');
@@ -2436,9 +2465,8 @@ function selectAndSaveSubdomain() {
                     subdomainPrefix.value = subdomainPart;
                     logBulkDomain(`📝 Updated subdomain prefix field: ${subdomainPart}`);
                 }
-                
             } else {
-                logBulkDomain(`⚠️ No available domains found`);
+                logBulkDomain(`⚠️ No suitable domains found for selection`);
             }
         } else {
             logBulkDomain(`❌ Failed to retrieve domains`);
@@ -2447,6 +2475,29 @@ function selectAndSaveSubdomain() {
     .catch(error => {
         logBulkDomain(`❌ Error retrieving domains: ${error.message}`);
     });
+}
+
+// Function to update users and generate app passwords with the selected IN USE subdomain
+function updateUsersWithSelectedSubdomain() {
+    if (!window.selectedSubdomain) {
+        logBulkDomain(`❌ No subdomain selected. Please run selectAndSaveSubdomain() first.`);
+        return;
+    }
+    
+    logBulkDomain(`🔄 Updating users with selected subdomain: ${window.selectedSubdomain}`);
+    
+    // Get the current account from the Mega Upgrade modal
+    const accountEmail = document.getElementById('mega-single-account').value.trim();
+    if (!accountEmail) {
+        logBulkDomain(`❌ No account email found. Please enter an account email first.`);
+        return;
+    }
+    
+    const accounts = [accountEmail];
+    logBulkDomain(`📧 Processing account: ${accountEmail}`);
+    
+    // Generate app passwords with the selected IN USE subdomain
+    generateAppPasswordsWithTargetDomain(accounts, window.selectedSubdomain);
 }
 
 function generateRandomPassword(length) {
