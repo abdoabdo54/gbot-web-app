@@ -914,12 +914,15 @@
         
         <!-- Test Buttons -->
         <div style="margin-top: 16px; display: flex; gap: 8px;">
-            <button onclick="testModalOpen()" class="btn-github" style="background-color: #28a745; border-color: #28a745; color: white;">
-                <i class="fas fa-vial"></i> Test Modal
-            </button>
-            <button onclick="testFeatures()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
-                <i class="fas fa-cog"></i> Test Features
-            </button>
+        <button onclick="testModalOpen()" class="btn-github" style="background-color: #28a745; border-color: #28a745; color: white;">
+            <i class="fas fa-vial"></i> Test Modal
+        </button>
+        <button onclick="testFeatures()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
+            <i class="fas fa-cog"></i> Test Features
+        </button>
+        <button onclick="testJavaScript()" class="btn-github" style="background-color: #d73a49; border-color: #d73a49; color: white;">
+            <i class="fas fa-bug"></i> Test JS
+        </button>
         </div>
     </div>
 
@@ -1151,6 +1154,12 @@
 
 
 <script>
+// Test function to verify JavaScript is working
+function testJavaScript() {
+    console.log('JavaScript is working!');
+    alert('JavaScript is working!');
+}
+
 let currentAccount = null;
 let isAuthenticated = false;
 let selectedAccountFromList = null;
@@ -1808,73 +1817,69 @@ function syncSMTPToAppPasswords() {
         }
         
         if (email && password && email.includes('@')) {
-                console.log(`Syncing credential: ${email} -> ${password.substring(0, 4)}...`);
-                logResult(`🔄 Syncing: ${email}`);
-                
-                // Store each credential as an app password
-                fetch('/api/store-app-password', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        user_alias: email,
-                        app_password: password,
-                        domain: domain || email.split('@')[1] // Use extracted domain or fallback
-                    })
+            console.log(`Syncing credential: ${email} -> ${password.substring(0, 4)}...`);
+            logResult(`🔄 Syncing: ${email}`);
+            
+            // Store each credential as an app password
+            fetch('/api/store-app-password', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    user_alias: email,
+                    app_password: password,
+                    domain: domain || email.split('@')[1] // Use extracted domain or fallback
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        syncedCount++;
-                        logResult(`✅ Synced: ${email}`);
-                    } else {
-                        errorCount++;
-                        logResult(`❌ Failed to sync ${email}: ${data.error}`);
-                    }
-                    
-                    // If this is the last credential, show summary
-                    if (index === credentialLines.length - 1) {
-                        logResult(`📊 Sync Complete: ${syncedCount} synced, ${errorCount} failed`);
-                        
-                        // Update status indicator
-                        if (statusElement) {
-                            if (errorCount === 0) {
-                                statusElement.innerHTML = '<i class="fas fa-check"></i> Synced';
-                                statusElement.style.color = '#28a745';
-                            } else {
-                                statusElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${syncedCount} synced, ${errorCount} failed`;
-                                statusElement.style.color = '#d73a49';
-                            }
-                        }
-                        
-                        // Refresh the app passwords display
-                        loadAllAppPasswords();
-                    }
-                })
-                .catch(error => {
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    syncedCount++;
+                    logResult(`✅ Synced: ${email}`);
+                } else {
                     errorCount++;
-                    logResult(`❌ Error syncing ${email}: ${error.message}`);
+                    logResult(`❌ Failed to sync ${email}: ${data.error}`);
+                }
+                
+                // If this is the last credential, show summary
+                if (index === credentialLines.length - 1) {
+                    logResult(`📊 Sync Complete: ${syncedCount} synced, ${errorCount} failed`);
                     
-                    if (index === credentialLines.length - 1) {
-                        logResult(`📊 Sync Complete: ${syncedCount} synced, ${errorCount} failed`);
-                        
-                        // Update status indicator
-                        if (statusElement) {
-                            if (errorCount === 0) {
-                                statusElement.innerHTML = '<i class="fas fa-check"></i> Synced';
-                                statusElement.style.color = '#28a745';
-                            } else {
-                                statusElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${syncedCount} synced, ${errorCount} failed`;
-                                statusElement.style.color = '#d73a49';
-                            }
+                    // Update status indicator
+                    if (statusElement) {
+                        if (errorCount === 0) {
+                            statusElement.innerHTML = '<i class="fas fa-check"></i> Synced';
+                            statusElement.style.color = '#28a745';
+                        } else {
+                            statusElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${syncedCount} synced, ${errorCount} failed`;
+                            statusElement.style.color = '#d73a49';
                         }
-                        
-                        loadAllAppPasswords();
                     }
-                });
-            } else {
+                    
+                    // Refresh the app passwords display
+                    loadAllAppPasswords();
+                }
+            })
+            .catch(error => {
                 errorCount++;
-                logResult(`❌ Invalid format: ${line}`);
-            }
+                logResult(`❌ Error syncing ${email}: ${error.message}`);
+                
+                if (index === credentialLines.length - 1) {
+                    logResult(`📊 Sync Complete: ${syncedCount} synced, ${errorCount} failed`);
+                    
+                    // Update status indicator
+                    if (statusElement) {
+                        if (errorCount === 0) {
+                            statusElement.innerHTML = '<i class="fas fa-check"></i> Synced';
+                            statusElement.style.color = '#28a745';
+                        } else {
+                            statusElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${syncedCount} synced, ${errorCount} failed`;
+                            statusElement.style.color = '#d73a49';
+                        }
+                    }
+                    
+                    loadAllAppPasswords();
+                }
+            });
         } else {
             errorCount++;
             logResult(`❌ Invalid format: ${line}`);
