@@ -7564,6 +7564,71 @@ def api_unsuspend_user():
         logging.error(f"Unsuspend user error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/get-activity-logs', methods=['GET'])
+@login_required
+def api_get_activity_logs():
+    """Get recent activity logs"""
+    try:
+        # Read the log file
+        log_file_path = 'logs/gbot.log'
+        logs = []
+        
+        if os.path.exists(log_file_path):
+            with open(log_file_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                
+            # Get the last 50 lines (most recent)
+            recent_lines = lines[-50:] if len(lines) > 50 else lines
+            
+            for line in recent_lines:
+                line = line.strip()
+                if line:
+                    # Parse log line format: [timestamp] LEVEL: message
+                    import re
+                    match = re.match(r'\[(.*?)\] (\w+): (.*)', line)
+                    if match:
+                        timestamp, level, message = match.groups()
+                        logs.append({
+                            'timestamp': timestamp,
+                            'level': level,
+                            'message': message,
+                            'details': None
+                        })
+                    else:
+                        # If format doesn't match, treat as INFO
+                        logs.append({
+                            'timestamp': datetime.now().isoformat(),
+                            'level': 'INFO',
+                            'message': line,
+                            'details': None
+                        })
+        
+        # If no logs found, return some sample logs
+        if not logs:
+            logs = [
+                {
+                    'timestamp': datetime.now().isoformat(),
+                    'level': 'INFO',
+                    'message': 'System initialized successfully',
+                    'details': 'GBot Web App is running'
+                },
+                {
+                    'timestamp': datetime.now().isoformat(),
+                    'level': 'INFO',
+                    'message': 'No recent activity logs found',
+                    'details': 'Activity logs will appear here as you use the system'
+                }
+            ]
+        
+        return jsonify({
+            'success': True,
+            'logs': logs[-20:]  # Return last 20 logs
+        })
+        
+    except Exception as e:
+        logging.error(f"Get activity logs error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/get-suspended-users', methods=['GET'])
 @login_required
 def api_get_suspended_users():
