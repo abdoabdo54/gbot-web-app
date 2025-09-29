@@ -2124,13 +2124,17 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     
     // For each account, retrieve all users and generate app passwords
     accounts.forEach((account, index) => {
+        // Get the domain from the account - this should be the NEW domain after changeSubdomain
+        // The account should already have the new domain if changeSubdomain was applied
         const domain = account.split('@')[1];
         
-        // Create the new domain format with custom or random subdomain
+        // Create the new subdomain format with custom or random subdomain
         const subdomain = subdomainPrefix || generateRandomSubdomain(16);
         const newDomain = `${subdomain}.${domain}`;
         
-        logBulkDomain(`🔄 Creating new domain: ${newDomain} for account: ${account}`);
+        logBulkDomain(`🔄 Creating new subdomain: ${newDomain} for account: ${account}`);
+        logBulkDomain(`📧 Original domain: ${domain}`);
+        logBulkDomain(`🌐 New subdomain: ${newDomain}`);
         
         // Retrieve all users from the account and process them
         retrieveAllUsersForWorkflow(account, newDomain, appPasswords, () => {
@@ -2236,6 +2240,33 @@ function storeAppPasswordForUser(newAccount, appPassword, newDomain, appPassword
     .catch(error => {
         logBulkDomain(`❌ Error storing app password for ${newAccount}: ${error.message}`);
         onComplete();
+    });
+}
+
+function generateAppPasswordsWithUpdatedDomain(accounts, updatedDomain) {
+    logBulkDomain(`🔑 Generating app passwords with updated domain: ${updatedDomain}`);
+    
+    const appPasswords = [];
+    let completedAccounts = 0;
+    const totalAccounts = accounts.length;
+    
+    // Get subdomain prefix from input field
+    const subdomainPrefix = document.getElementById('mega-subdomain-prefix').value.trim();
+    
+    accounts.forEach((account, index) => {
+        // Create the new subdomain format with custom or random subdomain
+        const subdomain = subdomainPrefix || generateRandomSubdomain(16);
+        const newDomain = `${subdomain}.${updatedDomain}`;
+        
+        logBulkDomain(`🔄 Creating new subdomain: ${newDomain} for account: ${account}`);
+        
+        // Retrieve all users from the account and process them
+        retrieveAllUsersForWorkflow(account, newDomain, appPasswords, () => {
+            completedAccounts++;
+            if (completedAccounts >= totalAccounts) {
+                displayAppPasswordsInWorkflow(appPasswords);
+            }
+        });
     });
 }
 
@@ -6221,19 +6252,10 @@ function runMegaUpgradeWorkflow(accounts, features) {
     updateMegaProgress(30, 'Changing subdomains...');
     logBulkDomain('🔄 Step 3: Changing subdomains...');
     
-    updateMegaProgress(40, 'Generating app passwords...');
-    logBulkDomain('🔑 Step 4: Generating app passwords with new domains...');
-    
-    // Store app passwords for the workflow and display them
-    storeAndDisplayAppPasswordsForWorkflow(accounts);
-    logBulkDomain('─'.repeat(50));
+    updateMegaProgress(40, 'Preparing for server request...');
+    logBulkDomain('🔑 Step 4: Preparing app password generation...');
     
     updateMegaProgress(50, 'Sending request to server...');
-    
-    // Add a small delay to ensure app passwords are displayed before server request
-    setTimeout(() => {
-        logBulkDomain('⏳ Proceeding with server request...');
-    }, 1000);
     
     // Start the mega upgrade process
     fetch('/api/mega-upgrade', {
@@ -6283,6 +6305,17 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 const display = document.getElementById('app-passwords-display');
                 display.value = data.smtp_results.join('\n');
                 logBulkDomain(`📋 ${data.smtp_results.length} SMTP results displayed in textarea`);
+            } else {
+                // If no SMTP results from server, generate app passwords with updated domain
+                logBulkDomain('─'.repeat(50));
+                logBulkDomain('🔑 Generating app passwords with updated domain...');
+                
+                // Get the updated domain from the server response
+                const updatedDomain = data.updated_domain || accounts[0].split('@')[1];
+                logBulkDomain(`🌐 Using updated domain: ${updatedDomain}`);
+                
+                // Generate app passwords with the updated domain
+                generateAppPasswordsWithUpdatedDomain(accounts, updatedDomain);
             }
 
             // Display failed details if any
