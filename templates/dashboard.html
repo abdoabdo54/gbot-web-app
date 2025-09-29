@@ -3481,42 +3481,37 @@ function copySuspendedUsers() {
         return;
     }
     
-    let userData = [];
+    let emails = [];
     userItems.forEach(item => {
-        // Extract user information from the item
-        const nameElement = item.querySelector('strong');
+        // Extract only the email address from the item
         const emailElement = item.querySelector('div[style*="color: #666"]');
-        const statusElement = item.querySelector('div[style*="color: #d73a49"]');
-        const reasonElement = item.querySelector('div[style*="color: #666"]:last-child');
         
-        const name = nameElement ? nameElement.textContent.trim() : 'Unknown';
-        const email = emailElement ? emailElement.textContent.trim() : '';
-        const status = statusElement ? statusElement.textContent.trim() : '';
-        const reason = reasonElement ? reasonElement.textContent.trim() : '';
-        
-        if (email && email.includes('@')) {
-            userData.push(`${name} - ${email} - ${status} - ${reason}`);
+        if (emailElement) {
+            const email = emailElement.textContent.trim();
+            if (email && email.includes('@')) {
+                emails.push(email);
+            }
         }
     });
     
-    if (userData.length > 0) {
-        const textToCopy = userData.join('\n');
+    if (emails.length > 0) {
+        const textToCopy = emails.join('\n');
         
         // Try modern clipboard API first
         if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard.writeText(textToCopy).then(() => {
-                logResult(`📋 Copied ${userData.length} suspended users to clipboard`);
-                alert(`✅ Copied ${userData.length} suspended users to clipboard!`);
+                logResult(`📋 Copied ${emails.length} suspended user emails to clipboard`);
+                alert(`✅ Copied ${emails.length} suspended user emails to clipboard!`);
             }).catch(() => {
                 // Fallback method
-                copyToClipboardFallback(textToCopy, userData.length);
+                copyToClipboardFallback(textToCopy, emails.length);
             });
         } else {
             // Fallback for older browsers
-            copyToClipboardFallback(textToCopy, userData.length);
+            copyToClipboardFallback(textToCopy, emails.length);
         }
     } else {
-        alert('No valid suspended users found to copy');
+        alert('No valid email addresses found to copy');
     }
 }
 
@@ -3533,8 +3528,8 @@ function copyToClipboardFallback(text, count) {
     try {
         const successful = document.execCommand('copy');
         if (successful) {
-            logResult(`📋 Copied ${count} suspended users to clipboard (fallback method)`);
-            alert(`✅ Copied ${count} suspended users to clipboard!`);
+            logResult(`📋 Copied ${count} suspended user emails to clipboard (fallback method)`);
+            alert(`✅ Copied ${count} suspended user emails to clipboard!`);
         } else {
             throw new Error('Copy command failed');
         }
