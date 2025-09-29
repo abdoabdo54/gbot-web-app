@@ -77,7 +77,7 @@
             
             <div id="account-list-area" class="account-list">
                 {% for account in accounts %}
-                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name }}', '{{ account.id }}')" data-account-id="{{ account.id }}">
+                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name }}', {{ account.id }})" data-account-id="{{ account.id }}">
                     {{ account.account_name }}
                 </div>
                 {% endfor %}
@@ -408,37 +408,6 @@
         <div id="suspended-count" class="count-display">Suspended Users: 0</div>
         
 </div>
-
-<!-- Activity Logs -->
-<div class="github-card">
-    <div class="github-card-header">
-        <h3 class="github-card-title">
-            <i class="fas fa-list-alt"></i>
-            Activity Logs
-        </h3>
-    </div>
-    
-    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-        <button onclick="refreshLogs()" class="btn-github btn-github-primary">
-            <i class="fas fa-sync-alt"></i> Refresh Logs
-        </button>
-        <button onclick="clearLogs()" class="btn-github">
-            <i class="fas fa-broom"></i> Clear Logs
-        </button>
-        <button onclick="downloadLogs()" class="btn-github">
-            <i class="fas fa-download"></i> Download Logs
-        </button>
-    </div>
-    
-    <div id="activity-logs" class="data-display" style="font-family: monospace; font-size: 13px; max-height: 400px; overflow-y: auto; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 12px;">
-        <div class="status-info">
-            <p><strong><i class="fas fa-list-alt"></i> Activity Logs</strong></p>
-            <p>Click "Refresh Logs" to view recent activity and system logs.</p>
-            <p><small>This will show all recent operations, errors, and system events.</small></p>
-        </div>
-    </div>
-</div>
-</div>
 </div>
 
 <!-- Tab 2: User Create/Delete/Domain -->
@@ -725,7 +694,6 @@
         <div id="results-log" class="data-display" style="font-family: monospace; font-size: 13px;"></div>
     </div>
 </div>
-</div>
 
 <!-- Tab 3: Bulk Domain Change -->
 <div id="tab3" class="tab-content">
@@ -898,6 +866,87 @@
         </div>
     </div>
 
+    <!-- App Password Management -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-key"></i>
+                App Password Management
+            </h3>
+        </div>
+        
+        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
+            Upload and manage app passwords for SMTP authentication. When retrieving, the system automatically 
+            updates the domain part to match your current domain and formats output as SMTP configuration 
+            (user@domain,app_password,smtp.gmail.com,587) ready for direct use in email clients.
+        </p>
+        
+        <!-- Upload Section -->
+        <div style="margin-bottom: 24px;">
+            <h4 style="margin-bottom: 16px; color: #24292f;">
+                <i class="fas fa-upload"></i> Upload App Passwords
+            </h4>
+            <div class="form-group-github">
+                <label for="app-password-file" class="form-label-github">
+                    <i class="fas fa-file-text"></i> App Password File (.txt)
+                </label>
+                <input type="file" id="app-password-file" class="form-control-github" accept=".txt" 
+                       style="padding: 12px; border: 2px dashed #d0d7de; background: #f6f8fa;">
+                <small style="color: #656d76; font-size: 12px;">
+                    Upload a .txt file with format: user@domain.com:app_password (one per line)<br>
+                    Output will be formatted as: user@domain.com,app_password,smtp.gmail.com,587
+                </small>
+            </div>
+            <button onclick="uploadAppPasswords()" class="btn-github btn-github-primary">
+                <i class="fas fa-upload"></i> Upload App Passwords
+            </button>
+        </div>
+        
+        <!-- Retrieve Section -->
+        <div style="margin-bottom: 24px;">
+            <h4 style="margin-bottom: 16px; color: #24292f;">
+                <i class="fas fa-download"></i> Retrieve App Passwords
+            </h4>
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end;">
+                <div class="form-group-github">
+                    <label for="retrieve-domain" class="form-label-github">
+                        <i class="fas fa-globe"></i> New Domain
+                    </label>
+                    <input type="text" id="retrieve-domain" class="form-control-github" 
+                           placeholder="newdomain.com" value="">
+                    <small style="color: #656d76; font-size: 12px;">
+                        Enter the domain you want to use for all usernames
+                    </small>
+                </div>
+                <button onclick="retrieveAppPasswords()" class="btn-github btn-github-primary">
+                    <i class="fas fa-sync-alt"></i> Update & Optimize
+                </button>
+            </div>
+        </div>
+        
+        <!-- Display Section -->
+        <div style="margin-bottom: 24px;">
+            <h4 style="margin-bottom: 16px; color: #24292f;">
+                <i class="fas fa-list"></i> App Passwords Display
+            </h4>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <button onclick="copyAppPasswords()" class="btn-github">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+                <button onclick="clearAppPasswordsDisplay()" class="btn-github">
+                    <i class="fas fa-broom"></i> Clear Display
+                </button>
+                <button onclick="deleteAllAppPasswords()" class="btn-github" 
+                        style="background-color: #d73a49; border-color: #d73a49; color: white;"
+                        id="delete-all-btn">
+                    <i class="fas fa-trash-alt"></i> Delete All (Admin Only)
+                </button>
+            </div>
+            <textarea id="app-passwords-display" class="form-control-github" rows="8" 
+                      placeholder="SMTP configuration will appear here in format: user@domain.com,app_password,smtp.gmail.com,587" readonly
+                      style="font-family: monospace; font-size: 13px; background: #f6f8fa;"></textarea>
+        </div>
+    </div>
 
     <!-- Results Log (Covers Both Workflows) -->
     <div class="github-card">
@@ -1039,7 +1088,6 @@
         
         <div id="csv-preview-area" class="csv-preview"></div>
     </div>
-</div>
 </div>
 </div>
 
@@ -2062,8 +2110,7 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     logBulkDomain('💾 Storing and displaying app passwords for workflow...');
     
     const appPasswords = [];
-    let completedAccounts = 0;
-    const totalAccounts = accounts.length;
+    let completedCount = 0;
     
     // Get subdomain prefix from input field
     const subdomainPrefix = document.getElementById('mega-subdomain-prefix').value.trim();
@@ -2074,120 +2121,61 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
         logBulkDomain(`🌐 Using random subdomain generation`);
     }
     
-    // For each account, retrieve all users and generate app passwords
     accounts.forEach((account, index) => {
+        const username = account.split('@')[0];
         const domain = account.split('@')[1];
+        
+        // Generate a random app password
+        const appPassword = generateRandomPassword(16);
         
         // Create the new domain format with custom or random subdomain
         const subdomain = subdomainPrefix || generateRandomSubdomain(16);
         const newDomain = `${subdomain}.${domain}`;
+        const newAccount = `${username}@${newDomain}`;
         
-        logBulkDomain(`🔄 Creating new domain: ${newDomain} for account: ${account}`);
+        logBulkDomain(`🔄 Creating new domain: ${newDomain} for user: ${username}`);
         
-        // Retrieve all users from the account and process them
-        retrieveAllUsersForWorkflow(account, newDomain, appPasswords, () => {
-            completedAccounts++;
-            if (completedAccounts >= totalAccounts) {
+        // Store the app password with new domain
+        fetch('/api/store-app-password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                user_alias: newAccount,
+                app_password: appPassword,
+                domain: newDomain
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                logBulkDomain(`✅ Stored app password for ${newAccount}`);
+                
+                // Add to display format
+                appPasswords.push(`${newAccount},${appPassword},smtp.gmail.com,587`);
+                
+                completedCount++;
+                
+                // If this is the last account, display all passwords
+                if (completedCount === accounts.length) {
+                    displayAppPasswordsInWorkflow(appPasswords);
+                }
+            } else {
+                logBulkDomain(`❌ Failed to store app password for ${newAccount}: ${data.error}`);
+                completedCount++;
+                
+                if (completedCount === accounts.length) {
+                    displayAppPasswordsInWorkflow(appPasswords);
+                }
+            }
+        })
+        .catch(error => {
+            logBulkDomain(`❌ Error storing app password for ${newAccount}: ${error.message}`);
+            completedCount++;
+            
+            if (completedCount === accounts.length) {
                 displayAppPasswordsInWorkflow(appPasswords);
             }
         });
-    });
-}
-
-function retrieveAllUsersForWorkflow(account, newDomain, appPasswords, onComplete) {
-    logBulkDomain(`👥 Retrieving all users from account: ${account}`);
-    
-    // Retrieve all users from the account
-    fetch('/api/retrieve-users', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            domain: account.split('@')[1],
-            batched: true
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.users && data.users.length > 0) {
-            logBulkDomain(`✅ Retrieved ${data.users.length} users from ${account}`);
-            
-            // Generate app passwords for each user
-            generateAppPasswordsForUsers(data.users, newDomain, appPasswords, onComplete);
-        } else {
-            logBulkDomain(`⚠️ No users found for account ${account}, using admin account only`);
-            
-            // Fallback to admin account only
-            const username = account.split('@')[0];
-            const appPassword = generateRandomPassword(16);
-            const newAccount = `${username}@${newDomain}`;
-            
-            storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, onComplete);
-        }
-    })
-    .catch(error => {
-        logBulkDomain(`❌ Error retrieving users from ${account}: ${error.message}`);
-        
-        // Fallback to admin account only
-        const username = account.split('@')[0];
-        const appPassword = generateRandomPassword(16);
-        const newAccount = `${username}@${newDomain}`;
-        
-        storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, onComplete);
-    });
-}
-
-function generateAppPasswordsForUsers(users, newDomain, appPasswords, onComplete) {
-    let completedUsers = 0;
-    const totalUsers = users.length;
-    
-    if (totalUsers === 0) {
-        onComplete();
-        return;
-    }
-    
-    users.forEach((user, userIndex) => {
-        const username = user.email.split('@')[0];
-        const appPassword = generateRandomPassword(16);
-        const newAccount = `${username}@${newDomain}`;
-        
-        logBulkDomain(`👤 Processing user ${userIndex + 1}/${totalUsers}: ${username}`);
-        
-        storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, () => {
-            completedUsers++;
-            if (completedUsers >= totalUsers) {
-                onComplete();
-            }
-        });
-    });
-}
-
-function storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, onComplete) {
-    // Store the app password with new domain
-    fetch('/api/store-app-password', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            user_alias: newAccount,
-            app_password: appPassword,
-            domain: newDomain
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            logBulkDomain(`✅ Stored app password for ${newAccount}`);
-            
-            // Add to display format
-            appPasswords.push(`${newAccount},${appPassword},smtp.gmail.com,587`);
-        } else {
-            logBulkDomain(`❌ Failed to store app password for ${newAccount}: ${data.error}`);
-        }
-        
-        onComplete();
-    })
-    .catch(error => {
-        logBulkDomain(`❌ Error storing app password for ${newAccount}: ${error.message}`);
-        onComplete();
     });
 }
 
@@ -2197,25 +2185,10 @@ function displayAppPasswordsInWorkflow(appPasswords) {
     // Display in the App Passwords Display field
     const display = document.getElementById('app-passwords-display');
     if (display) {
-        // Format app passwords in SMTP format: user@domain,app_password,smtp.gmail.com,587
-        const smtpFormat = appPasswords.map(password => {
-            // If password is already in SMTP format, use it as is
-            if (password.includes(',') && password.includes('smtp.gmail.com')) {
-                return password;
-            }
-            // Otherwise, format it properly
-            const parts = password.split(',');
-            if (parts.length >= 2) {
-                const email = parts[0];
-                const appPassword = parts[1];
-                return `${email},${appPassword},smtp.gmail.com,587`;
-            }
-            return password;
-        }).join('\n');
-        
-        display.value = smtpFormat;
+        const passwordText = appPasswords.join('\n');
+        display.value = passwordText;
         logBulkDomain('✅ App passwords displayed in App Passwords Display field');
-        logBulkDomain(`📝 Content: ${smtpFormat}`);
+        logBulkDomain(`📝 Content: ${passwordText}`);
         
         // Also trigger a change event to ensure the display updates
         display.dispatchEvent(new Event('change', { bubbles: true }));
@@ -2251,23 +2224,10 @@ function displayWorkflowAppPasswords(appPasswords) {
     const display = document.getElementById('app-passwords-display');
     if (!display) return;
     
-    // Format app passwords in SMTP format: user@domain,app_password,smtp.gmail.com,587
-    const smtpFormat = appPasswords.map(password => {
-        const email = password.user_alias.includes('@') ? password.user_alias : `${password.user_alias}@${password.domain}`;
-        return `${email},${password.app_password},smtp.gmail.com,587`;
-    }).join('\n');
-    
-    // Set the textarea value with SMTP format
-    display.value = smtpFormat;
-    
-    // Also display in HTML format for better visualization
     let html = '<div class="workflow-app-passwords">';
-    html += '<h4 style="margin-bottom: 16px; color: #24292f;">🔐 App Passwords for Workflow (SMTP Format)</h4>';
+    html += '<h4 style="margin-bottom: 16px; color: #24292f;">🔐 App Passwords for Workflow</h4>';
     
     appPasswords.forEach(password => {
-        const email = password.user_alias.includes('@') ? password.user_alias : `${password.user_alias}@${password.domain}`;
-        const smtpLine = `${email},${password.app_password},smtp.gmail.com,587`;
-        
         html += `
             <div class="workflow-password-item" style="border: 1px solid #28a745; border-radius: 6px; padding: 12px; margin-bottom: 8px; background: #d4edda;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -2277,9 +2237,6 @@ function displayWorkflowAppPasswords(appPasswords) {
                             🔑 ${password.app_password}
                         </div>
                         ${password.domain ? `<div style="color: #155724; font-size: 12px; margin-top: 2px;">🌐 ${password.domain}</div>` : ''}
-                        <div style="color: #155724; font-size: 11px; margin-top: 4px; font-family: monospace; background: #f8f9fa; padding: 4px; border-radius: 3px;">
-                            📧 ${smtpLine}
-                        </div>
                     </div>
                     <div style="color: #28a745; font-size: 12px;">
                         ✅ Ready
@@ -2966,135 +2923,6 @@ function clearSuspendedUsers() {
             <p>Click "🔍 Load Suspended Users" to check for suspended accounts in your Google Workspace.</p>
             <p><small>This will show all users with suspended status, including their names, emails, and admin privileges.</small></p>
         </div>`;
-}
-
-// Activity Logs Functions
-function refreshLogs() {
-    const logsContainer = document.getElementById('activity-logs');
-    
-    // Show loading state
-    logsContainer.innerHTML = `
-        <div class="status-info" style="background: #fff3cd; border-color: #ffeaa7;">
-            <p><strong>🔄 Loading Activity Logs</strong></p>
-            <p>Retrieving recent activity and system logs...</p>
-            <p><small>Please wait while we fetch the latest logs.</small></p>
-        </div>`;
-    
-    // Fetch logs from server
-    fetch('/api/get-activity-logs', {
-        method: 'GET',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.logs) {
-            displayLogs(data.logs);
-        } else {
-            logsContainer.innerHTML = `
-                <div class="status-info">
-                    <p><strong>📝 Activity Logs</strong></p>
-                    <p>No recent activity logs found.</p>
-                    <p><small>Activity logs will appear here as you use the system.</small></p>
-                </div>`;
-        }
-    })
-    .catch(error => {
-        logsContainer.innerHTML = `
-            <div class="error-message">
-                <p><strong>❌ Error Loading Logs</strong></p>
-                <p>Failed to load activity logs: ${error.message}</p>
-                <p><small>Please try again or check server connection.</small></p>
-            </div>`;
-    });
-}
-
-function displayLogs(logs) {
-    const logsContainer = document.getElementById('activity-logs');
-    
-    if (!logs || logs.length === 0) {
-        logsContainer.innerHTML = `
-            <div class="status-info">
-                <p><strong>📝 Activity Logs</strong></p>
-                <p>No recent activity logs found.</p>
-                <p><small>Activity logs will appear here as you use the system.</small></p>
-            </div>`;
-        return;
-    }
-    
-    let html = '<div class="logs-list">';
-    html += '<h4 style="margin-bottom: 16px; color: #24292f;">📋 Recent Activity Logs</h4>';
-    
-    logs.forEach(log => {
-        const timestamp = new Date(log.timestamp).toLocaleString();
-        const levelClass = log.level === 'ERROR' ? 'error' : log.level === 'WARNING' ? 'warning' : 'info';
-        
-        html += `
-            <div class="log-entry" style="border: 1px solid #e1e4e8; border-radius: 6px; padding: 12px; margin-bottom: 8px; background: #f8f9fa;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span class="log-level ${levelClass}" style="font-weight: bold; color: ${levelClass === 'error' ? '#d73a49' : levelClass === 'warning' ? '#f66a0a' : '#28a745'};">
-                        ${log.level}
-                    </span>
-                    <span class="log-timestamp" style="color: #666; font-size: 12px;">
-                        ${timestamp}
-                    </span>
-                </div>
-                <div class="log-message" style="color: #24292f; font-size: 14px;">
-                    ${log.message}
-                </div>
-                ${log.details ? `<div class="log-details" style="color: #666; font-size: 12px; margin-top: 4px;">${log.details}</div>` : ''}
-            </div>
-        `;
-    });
-    
-    html += '</div>';
-    logsContainer.innerHTML = html;
-}
-
-function clearLogs() {
-    document.getElementById('activity-logs').innerHTML = `
-        <div class="status-info">
-            <p><strong>📝 Activity Logs</strong></p>
-            <p>Click "Refresh Logs" to view recent activity and system logs.</p>
-            <p><small>This will show all recent operations, errors, and system events.</small></p>
-        </div>`;
-}
-
-function downloadLogs() {
-    const logsContainer = document.getElementById('activity-logs');
-    const logEntries = logsContainer.querySelectorAll('.log-entry');
-    
-    if (logEntries.length === 0) {
-        alert('No logs to download. Please refresh logs first.');
-        return;
-    }
-    
-    let logText = 'GBot Web App - Activity Logs\n';
-    logText += 'Generated: ' + new Date().toLocaleString() + '\n';
-    logText += '='.repeat(50) + '\n\n';
-    
-    logEntries.forEach(entry => {
-        const level = entry.querySelector('.log-level').textContent;
-        const timestamp = entry.querySelector('.log-timestamp').textContent;
-        const message = entry.querySelector('.log-message').textContent;
-        const details = entry.querySelector('.log-details');
-        
-        logText += `[${timestamp}] ${level}: ${message}\n`;
-        if (details) {
-            logText += `  Details: ${details.textContent}\n`;
-        }
-        logText += '\n';
-    });
-    
-    // Create and download file
-    const blob = new Blob([logText], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `gbot-logs-${new Date().toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
 }
 
 function debugAuthStatus() {
@@ -4228,12 +4056,7 @@ function unsuspendUser() {
             logResult(`✅ ${data.message}`);
             document.getElementById('unsuspend-user-email').value = '';
         } else {
-            if (data.requires_manual_action) {
-                logResult(`⚠️ ${data.error}`);
-                logResult(`💡 This user must be unsuspended manually through Google Admin Console.`);
-            } else {
-                logResult(`❌ Failed to unsuspend user: ${data.error}`);
-            }
+            logResult(`❌ Failed to unsuspend user: ${data.error}`);
         }
     })
     .catch(error => {
@@ -4333,12 +4156,7 @@ function unsuspendUserFromList(email) {
             // Refresh the suspended users list
             loadSuspendedUsers();
         } else {
-            if (data.requires_manual_action) {
-                logResult(`⚠️ ${data.error}`);
-                logResult(`💡 This user must be unsuspended manually through Google Admin Console.`);
-            } else {
-                logResult(`❌ Failed to unsuspend user: ${data.error}`);
-            }
+            logResult(`❌ Failed to unsuspend user: ${data.error}`);
         }
     })
     .catch(error => {
@@ -4369,8 +4187,8 @@ function copySuspendedUsers() {
     
     let emails = [];
     userItems.forEach(item => {
-        // Extract only the email address from the item - look for the email div specifically
-        const emailElement = item.querySelector('div[style*="color: #666; font-size: 14px"]');
+        // Extract only the email address from the item
+        const emailElement = item.querySelector('div[style*="color: #666"]');
         
         if (emailElement) {
             const email = emailElement.textContent.trim();

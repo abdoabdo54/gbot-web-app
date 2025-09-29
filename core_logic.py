@@ -653,19 +653,6 @@ class WebGoogleAPI:
             raise Exception("Not authenticated or session expired.")
         
         try:
-            # First, get the user's current status to check suspension reason
-            user_info = self.service.users().get(userKey=email).execute()
-            suspension_reason = user_info.get('suspensionReason', '')
-            
-            # Check if user is suspended for abuse (cannot be unsuspended via API)
-            if 'abuse' in suspension_reason.lower() or 'WEB_LOGIN_REQUIRED' in suspension_reason:
-                return {
-                    'success': False,
-                    'email': email,
-                    'error': f'Cannot unsuspend user suspended for abuse or requiring web login. Reason: {suspension_reason}. This user must be unsuspended manually through Google Admin Console.',
-                    'requires_manual_action': True
-                }
-            
             # Unsuspend user by setting suspended to False
             user_body = {
                 'suspended': False
@@ -683,19 +670,10 @@ class WebGoogleAPI:
             }
             
         except Exception as e:
-            error_message = str(e)
-            if 'adminCannotUnsuspend' in error_message or 'Cannot restore a user suspended for abuse' in error_message:
-                return {
-                    'success': False,
-                    'email': email,
-                    'error': 'Cannot unsuspend user suspended for abuse. This user must be unsuspended manually through Google Admin Console.',
-                    'requires_manual_action': True
-                }
-            
             return {
                 'success': False,
                 'email': email,
-                'error': error_message
+                'error': str(e)
             }
 
 
