@@ -66,6 +66,9 @@
         <button onclick="enterAuthorizationCode()" class="btn-github">
             <i class="fas fa-code"></i> Enter Authorization Code
         </button>
+        <button onclick="testTabSwitching()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
+            <i class="fas fa-bug"></i> Test Tabs
+        </button>
     </div>
     
     <!-- Search and Account List Area -->
@@ -1258,7 +1261,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing tabs...');
     
     // Check if all tabs exist
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 3; i++) {
         const tab = document.getElementById(`tab${i}`);
         console.log(`Tab ${i} exists:`, !!tab);
         if (tab) {
@@ -1266,11 +1269,27 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Test tab buttons
+    const tabButtons = document.querySelectorAll('.tab-button');
+    console.log('Tab buttons found:', tabButtons.length);
+    tabButtons.forEach((btn, index) => {
+        console.log(`Button ${index + 1}:`, btn.textContent.trim());
+    });
+    
     // Ensure tab1 is visible by default
     showTab('tab1');
     
     // 3-tab layout is now complete - no special initialization needed
 });
+
+// Debug function to test tab switching
+function testTabSwitching() {
+    console.log('Testing tab switching...');
+    showTab('tab1');
+    setTimeout(() => showTab('tab2'), 1000);
+    setTimeout(() => showTab('tab3'), 2000);
+    setTimeout(() => showTab('tab1'), 3000);
+}
 
 async function loadTokenStatusWithLive() {
     try {
@@ -1574,31 +1593,7 @@ async function checkCurrentAuthenticationStatus() {
 }
 
 
-// Tab switching function
-function showTab(tabId) {
-    // Hide all tabs
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // Remove active class from all buttons
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    // Show selected tab
-    document.getElementById(tabId).classList.add('active');
-    
-    // Mark button as active
-    event.target.classList.add('active');
-    
-    // Auto-refresh domain data when domains tab is shown
-    if (tabId === 'tab3' && isAuthenticated) {
-        setTimeout(() => {
-            retrieveAvailableDomains();
-        }, 500);
-    }
-}
+// Tab switching function (removed duplicate - using the main one above)
 
 // Results log functions
 function logResult(message) {
@@ -6881,3 +6876,6 @@ function runMegaUpgradeWorkflow(accounts, features) {
     transform: rotate(45deg);
 }
 </style>
+
+</body>
+</html>
