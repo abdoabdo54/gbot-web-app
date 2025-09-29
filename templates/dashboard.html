@@ -321,14 +321,17 @@
                 <i class="fas fa-key"></i>
                 App Password Management
             </h3>
-            <div class="button-row">
-                <button onclick="loadAllAppPasswords()" class="btn-github btn-github-primary" style="font-size: 12px; padding: 4px 8px;">
-                    <i class="fas fa-search"></i> Load All
-                </button>
-                <button onclick="clearAppPasswords()" class="btn-github btn-github-secondary" style="font-size: 12px; padding: 4px 8px;">
-                    <i class="fas fa-trash"></i> Clear Display
-                </button>
-            </div>
+                <div class="button-row">
+                    <button onclick="loadAllAppPasswords()" class="btn-github btn-github-primary" style="font-size: 12px; padding: 4px 8px;">
+                        <i class="fas fa-search"></i> Load All
+                    </button>
+                    <button onclick="syncSMTPToAppPasswords()" class="btn-github" style="font-size: 12px; padding: 4px 8px; background-color: #28a745; border-color: #28a745; color: white;">
+                        <i class="fas fa-sync"></i> Sync from SMTP
+                    </button>
+                    <button onclick="clearAppPasswords()" class="btn-github btn-github-secondary" style="font-size: 12px; padding: 4px 8px;">
+                        <i class="fas fa-trash"></i> Clear Display
+                    </button>
+                </div>
         </div>
         
         <!-- Add App Password -->
@@ -923,6 +926,12 @@
         <button onclick="testJavaScript()" class="btn-github" style="background-color: #d73a49; border-color: #d73a49; color: white;">
             <i class="fas fa-bug"></i> Test JS
         </button>
+        <button onclick="testAppPasswordSync()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
+            <i class="fas fa-key"></i> Test Sync
+        </button>
+        <button onclick="debugAppPasswords()" class="btn-github" style="background-color: #ff6b35; border-color: #ff6b35; color: white;">
+            <i class="fas fa-bug"></i> Debug
+        </button>
         </div>
     </div>
 
@@ -1158,6 +1167,105 @@
 function testJavaScript() {
     console.log('JavaScript is working!');
     alert('JavaScript is working!');
+}
+
+function testAppPasswordSync() {
+    console.log('Testing app password sync...');
+    
+    // Test storing a single app password
+    const testData = {
+        user_alias: 'test@example.com',
+        app_password: 'testpassword123',
+        domain: 'example.com'
+    };
+    
+    console.log('Sending test data:', testData);
+    logResult('🧪 Testing app password storage...');
+    
+    fetch('/api/store-app-password', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(testData)
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        logResult(`📊 Test result: ${JSON.stringify(data)}`);
+        
+        if (data.success) {
+            logResult('✅ Test app password stored successfully!');
+            // Now test retrieving all passwords
+            loadAllAppPasswords();
+        } else {
+            logResult(`❌ Test failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Test error:', error);
+        logResult(`❌ Test error: ${error.message}`);
+    });
+}
+
+function debugAppPasswords() {
+    console.log('🔍 Debugging app passwords...');
+    logResult('🔍 Debugging app password system...');
+    
+    // Check if we can access the SMTP credentials
+    const smtpCredentials = document.getElementById('smtp-credentials').value.trim();
+    console.log('SMTP credentials:', smtpCredentials);
+    logResult(`📝 SMTP credentials length: ${smtpCredentials.length}`);
+    
+    if (smtpCredentials) {
+        const lines = smtpCredentials.split('\n').filter(line => line.trim());
+        logResult(`📊 Found ${lines.length} credential lines`);
+        
+        lines.forEach((line, index) => {
+            logResult(`Line ${index + 1}: "${line}"`);
+            
+            // Parse the line
+            if (line.includes(',')) {
+                const parts = line.split(',');
+                logResult(`  CSV format: ${parts.length} parts`);
+                if (parts.length >= 2) {
+                    const email = parts[0].trim();
+                    const password = parts[1].trim();
+                    logResult(`  Email: ${email}, Password: ${password.substring(0, 4)}...`);
+                }
+            } else if (line.includes(':')) {
+                const parts = line.split(':');
+                logResult(`  Colon format: ${parts.length} parts`);
+                if (parts.length >= 2) {
+                    const email = parts[0].trim();
+                    const password = parts.slice(1).join(':').trim();
+                    logResult(`  Email: ${email}, Password: ${password.substring(0, 4)}...`);
+                }
+            } else {
+                logResult(`  ❌ Unknown format`);
+            }
+        });
+    } else {
+        logResult('❌ No SMTP credentials found');
+    }
+    
+    // Test the API endpoint
+    logResult('🧪 Testing API endpoint...');
+    fetch('/api/get-all-app-passwords')
+    .then(response => {
+        console.log('API response status:', response.status);
+        logResult(`📡 API response status: ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        console.log('API response data:', data);
+        logResult(`📊 API response: ${JSON.stringify(data, null, 2)}`);
+    })
+    .catch(error => {
+        console.error('API error:', error);
+        logResult(`❌ API error: ${error.message}`);
+    });
 }
 
 let currentAccount = null;
@@ -1821,6 +1929,9 @@ function syncSMTPToAppPasswords() {
             logResult(`🔄 Syncing: ${email}`);
             
             // Store each credential as an app password
+            console.log(`Storing app password for: ${email}`);
+            logResult(`📤 Storing: ${email} -> ${password.substring(0, 4)}...`);
+            
             fetch('/api/store-app-password', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -1830,8 +1941,12 @@ function syncSMTPToAppPasswords() {
                     domain: domain || email.split('@')[1] // Use extracted domain or fallback
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log(`Response for ${email}:`, response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log(`Data for ${email}:`, data);
                 if (data.success) {
                     syncedCount++;
                     logResult(`✅ Synced: ${email}`);
