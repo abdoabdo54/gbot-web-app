@@ -3465,6 +3465,15 @@ function unsuspendUserFromList(email) {
 
 function copySuspendedUsers() {
     const display = document.getElementById('suspended-display');
+    
+    // Check if there are any suspended users loaded
+    if (!display || display.textContent.includes('📝 Activity log will appear here...') || 
+        display.textContent.includes('No suspended users found') ||
+        display.textContent.includes('Click "Load Suspended Users"')) {
+        alert('No suspended users loaded. Please click "Load Suspended Users" first.');
+        return;
+    }
+    
     const userItems = display.querySelectorAll('.suspended-user-item');
     
     if (userItems.length === 0) {
@@ -3472,33 +3481,68 @@ function copySuspendedUsers() {
         return;
     }
     
-    let emails = [];
+    let userData = [];
     userItems.forEach(item => {
-        // Look for the email in the second div (which contains the email)
-        const divs = item.querySelectorAll('div');
-        if (divs.length >= 2) {
-            const emailText = divs[1].textContent.trim();
-            if (emailText.includes('@')) {
-                emails.push(emailText);
-            }
+        // Extract user information from the item
+        const nameElement = item.querySelector('strong');
+        const emailElement = item.querySelector('div[style*="color: #666"]');
+        const statusElement = item.querySelector('div[style*="color: #d73a49"]');
+        const reasonElement = item.querySelector('div[style*="color: #666"]:last-child');
+        
+        const name = nameElement ? nameElement.textContent.trim() : 'Unknown';
+        const email = emailElement ? emailElement.textContent.trim() : '';
+        const status = statusElement ? statusElement.textContent.trim() : '';
+        const reason = reasonElement ? reasonElement.textContent.trim() : '';
+        
+        if (email && email.includes('@')) {
+            userData.push(`${name} - ${email} - ${status} - ${reason}`);
         }
     });
     
-    if (emails.length > 0) {
-        navigator.clipboard.writeText(emails.join('\n')).then(() => {
-            logResult(`📋 Copied ${emails.length} suspended user emails to clipboard`);
-        }).catch(() => {
+    if (userData.length > 0) {
+        const textToCopy = userData.join('\n');
+        
+        // Try modern clipboard API first
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                logResult(`📋 Copied ${userData.length} suspended users to clipboard`);
+                alert(`✅ Copied ${userData.length} suspended users to clipboard!`);
+            }).catch(() => {
+                // Fallback method
+                copyToClipboardFallback(textToCopy, userData.length);
+            });
+        } else {
             // Fallback for older browsers
-            const textArea = document.createElement('textarea');
-            textArea.value = emails.join('\n');
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            logResult(`📋 Copied ${emails.length} suspended user emails to clipboard (fallback method)`);
-        });
+            copyToClipboardFallback(textToCopy, userData.length);
+        }
     } else {
-        alert('No valid email addresses found to copy');
+        alert('No valid suspended users found to copy');
+    }
+}
+
+function copyToClipboardFallback(text, count) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            logResult(`📋 Copied ${count} suspended users to clipboard (fallback method)`);
+            alert(`✅ Copied ${count} suspended users to clipboard!`);
+        } else {
+            throw new Error('Copy command failed');
+        }
+    } catch (err) {
+        logResult(`❌ Failed to copy to clipboard: ${err.message}`);
+        alert('❌ Copy failed. Please try manually selecting the text.');
+    } finally {
+        document.body.removeChild(textArea);
     }
 }
 
