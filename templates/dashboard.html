@@ -403,7 +403,7 @@
             <p>Click "Load Suspended Users" to check for suspended accounts in your Google Workspace.</p>
             <p><small>This will show all users with suspended status, including their names, emails, and admin privileges.</small></p>
         </div>
-        </div>
+    </div>
         
         <div id="suspended-count" class="count-display">Suspended Users: 0</div>
         
@@ -832,10 +832,10 @@
     <!-- Mega Upgrade: Multi-Account Workflow -->
     <div class="github-card">
         <div class="github-card-header">
-                <h3 class="github-card-title">
-                    <i class="fas fa-rocket"></i>
+            <h3 class="github-card-title">
+                <i class="fas fa-rocket"></i>
                     Mega Upgrade: Single Account Workflow
-                </h3>
+            </h3>
         </div>
         
         <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
@@ -2239,6 +2239,43 @@ function storeAppPasswordForUser(newAccount, appPassword, newDomain, appPassword
     });
 }
 
+function generateAppPasswordsAfterDomainChange(accounts, serverData) {
+    logBulkDomain('💾 Generating app passwords after domain change completion...');
+    
+    const appPasswords = [];
+    let completedAccounts = 0;
+    const totalAccounts = accounts.length;
+    
+    // Get subdomain prefix from input field
+    const subdomainPrefix = document.getElementById('mega-subdomain-prefix').value.trim();
+    
+    if (subdomainPrefix) {
+        logBulkDomain(`🌐 Using custom subdomain prefix: ${subdomainPrefix}`);
+    } else {
+        logBulkDomain(`🌐 Using random subdomain generation`);
+    }
+    
+    // For each account, retrieve all users and generate app passwords with NEW domain
+    accounts.forEach((account, index) => {
+        const domain = account.split('@')[1];
+        
+        // Create the new domain format with custom or random subdomain
+        const subdomain = subdomainPrefix || generateRandomSubdomain(16);
+        const newDomain = `${subdomain}.${domain}`;
+        
+        logBulkDomain(`🔄 Using NEW domain: ${newDomain} for account: ${account}`);
+        logBulkDomain(`📝 Domain change completed, now generating app passwords with NEW domain format`);
+        
+        // Retrieve all users from the account and process them with NEW domain
+        retrieveAllUsersForWorkflow(account, newDomain, appPasswords, () => {
+            completedAccounts++;
+            if (completedAccounts >= totalAccounts) {
+                displayAppPasswordsInWorkflow(appPasswords);
+            }
+        });
+    });
+}
+
 function displayAppPasswordsInWorkflow(appPasswords) {
     logBulkDomain(`📋 Generated ${appPasswords.length} app passwords with new domain`);
     
@@ -2576,7 +2613,7 @@ function retrieveUsers() {
         const payload = { mode: 'batched', max_pages: 6 };
         if (nextToken) payload.page_token = nextToken;
         const resp = await fetch('/api/retrieve-users', {
-            method: 'POST',
+        method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
@@ -2600,21 +2637,21 @@ function retrieveUsers() {
         const activeUsers = users.filter(user => !user.suspended).length;
         const suspendedUsers = users.filter(user => user.suspended).length;
         const adminUsers = users.filter(user => user.admin).length;
-        let html = `<div class="status-summary">
+            let html = `<div class="status-summary">
             <div class="status-item"><span class="status-label">📊 Total Users:</span><span class="status-value">${users.length}</span></div>
             <div class="status-item"><span class="status-label">✅ Active Users:</span><span class="status-value">${activeUsers}</span></div>
             <div class="status-item"><span class="status-label">🚫 Suspended Users:</span><span class="status-value">${suspendedUsers}</span></div>
             <div class="status-item"><span class="status-label">👑 Admin Users:</span><span class="status-value">${adminUsers}</span></div>
-        </div>`;
+            </div>`;
         users.forEach(user => {
             const statusBadge = user.suspended ? '<span class="badge suspended">🚫 Suspended</span>' : '<span class="badge active">✅ Active</span>';
-            html += `<div class="user-item ${user.suspended ? 'suspended-user-item' : ''}">
-                <span class="email">${user.email}</span>
-                <span class="name">${user.first_name} ${user.last_name}</span>
+                html += `<div class="user-item ${user.suspended ? 'suspended-user-item' : ''}">
+                    <span class="email">${user.email}</span>
+                    <span class="name">${user.first_name} ${user.last_name}</span>
                 <span class="status-badges">${user.admin ? '<span class="badge admin">👑 Admin</span>' : ''}${statusBadge}</span>
-            </div>`;
-        });
-        document.getElementById('user-display').innerHTML = html;
+                </div>`;
+            });
+            document.getElementById('user-display').innerHTML = html;
         document.getElementById('user-count').textContent = `Total Users: ${users.length}`;
         setTimeout(() => { loadSuspendedUsers(); }, 500);
     })
@@ -2642,12 +2679,12 @@ function retrieveUsers() {
                     <pre style="white-space: pre-wrap; max-height: 160px; overflow:auto; background:#fff; padding:8px; border:1px solid #eee;">${snippet}</pre>
                 </div>`;
         } else {
-            document.getElementById('user-display').innerHTML = `
-                <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
+        document.getElementById('user-display').innerHTML = `
+            <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
                     <p><strong>❌ ${errorMessage}</strong></p>
                     <p>${errorDetails}</p>
                     <p><small>If you have a very large user base (10k+ users), this may be a timeout. We’ve raised server timeouts to handle this.</small></p>
-                </div>`;
+            </div>`;
         }
     });
 }
@@ -2805,7 +2842,7 @@ function retrieveDomains() {
         if (nextToken) payload.page_token = nextToken;
         
         const resp = await fetch('/api/retrieve-domains', {
-            method: 'POST',
+        method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
@@ -2832,7 +2869,7 @@ function retrieveDomains() {
     };
 
     fetchBatch().then(domains => {
-        let html = '';
+            let html = '';
         domains.forEach(domain => {
             // Extract domain information
             const domainName = domain.domainName || domain.domain_name || domain.domain || 'Unknown Domain';
@@ -2852,21 +2889,21 @@ function retrieveDomains() {
                 statusBadge = `<span class="badge available" style="background-color: #4CAF50; color: white;">🟢 AVAILABLE</span>`;
             }
             
-            html += `<div class="domain-item">
+                html += `<div class="domain-item">
                 <span class="domain-name">${domainName}</span>
                 <span class="user-count">${userCount} users</span>
                 ${isVerified ? '<span class="badge verified">✅ Verified</span>' : '<span class="badge unverified">❌ Not Verified</span>'}
                 ${statusBadge}
-            </div>`;
-        });
-        document.getElementById('domain-display').innerHTML = html;
+                </div>`;
+            });
+            document.getElementById('domain-display').innerHTML = html;
     })
     .catch(error => {
         if (error.message && error.message.startsWith('SERVER_HTML:')) {
             const snippet = error.message.replace('SERVER_HTML:', '');
             document.getElementById('domain-display').innerHTML = `<div class="domain-error">❌ Server Error: HTML error page returned<pre style="white-space: pre-wrap; max-height: 160px; overflow:auto; background:#fff; padding:8px; border:1px solid #eee;">${snippet}</pre></div>`;
         } else {
-            document.getElementById('domain-display').innerHTML = `<p style="color: red;">Network error: ${error}</p>`;
+        document.getElementById('domain-display').innerHTML = `<p style="color: red;">Network error: ${error}</p>`;
         }
     });
 }
@@ -4868,7 +4905,7 @@ function retrieveAvailableDomains() {
         if (nextToken) payload.page_token = nextToken;
         
         const resp = await fetch('/api/retrieve-domains', {
-            method: 'POST',
+        method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
@@ -4910,8 +4947,8 @@ function retrieveAvailableDomains() {
             logBulkDomain(`❌ Server Error: HTML error page returned`);
             domainList.innerHTML = `<div class="domain-error">❌ Server Error: HTML error page returned<pre style="white-space: pre-wrap; max-height: 160px; overflow:auto; background:#fff; padding:8px; border:1px solid #eee;">${snippet}</pre></div>`;
         } else {
-            logBulkDomain(`❌ Network error: ${error}`);
-            domainList.innerHTML = `<div class="domain-error">❌ Network error: ${error}</div>`;
+        logBulkDomain(`❌ Network error: ${error}`);
+        domainList.innerHTML = `<div class="domain-error">❌ Network error: ${error}</div>`;
         }
     });
 }
@@ -6221,19 +6258,10 @@ function runMegaUpgradeWorkflow(accounts, features) {
     updateMegaProgress(30, 'Changing subdomains...');
     logBulkDomain('🔄 Step 3: Changing subdomains...');
     
-    updateMegaProgress(40, 'Generating app passwords...');
-    logBulkDomain('🔑 Step 4: Generating app passwords with new domains...');
-    
-    // Store app passwords for the workflow and display them
-    storeAndDisplayAppPasswordsForWorkflow(accounts);
-    logBulkDomain('─'.repeat(50));
+    updateMegaProgress(40, 'Preparing domain change...');
+    logBulkDomain('🔑 Step 4: Preparing for domain change and app password generation...');
     
     updateMegaProgress(50, 'Sending request to server...');
-    
-    // Add a small delay to ensure app passwords are displayed before server request
-    setTimeout(() => {
-        logBulkDomain('⏳ Proceeding with server request...');
-    }, 1000);
     
     // Start the mega upgrade process
     fetch('/api/mega-upgrade', {
@@ -6283,6 +6311,12 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 const display = document.getElementById('app-passwords-display');
                 display.value = data.smtp_results.join('\n');
                 logBulkDomain(`📋 ${data.smtp_results.length} SMTP results displayed in textarea`);
+            } else {
+                // If no SMTP results from server, generate app passwords for all users with new domain
+                logBulkDomain('─'.repeat(50));
+                logBulkDomain('🔑 Generating app passwords for all users with new domain...');
+                logBulkDomain('📊 Server response data:', JSON.stringify(data, null, 2));
+                generateAppPasswordsAfterDomainChange(accounts, data);
             }
 
             // Display failed details if any
