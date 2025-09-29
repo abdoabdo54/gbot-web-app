@@ -66,9 +66,6 @@
         <button onclick="enterAuthorizationCode()" class="btn-github">
             <i class="fas fa-code"></i> Enter Authorization Code
         </button>
-        <button onclick="testTabSwitching()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
-            <i class="fas fa-bug"></i> Test Tabs
-        </button>
     </div>
     
     <!-- Search and Account List Area -->
@@ -1261,7 +1258,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing tabs...');
     
     // Check if all tabs exist
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= 4; i++) {
         const tab = document.getElementById(`tab${i}`);
         console.log(`Tab ${i} exists:`, !!tab);
         if (tab) {
@@ -1269,27 +1266,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Test tab buttons
-    const tabButtons = document.querySelectorAll('.tab-button');
-    console.log('Tab buttons found:', tabButtons.length);
-    tabButtons.forEach((btn, index) => {
-        console.log(`Button ${index + 1}:`, btn.textContent.trim());
-    });
-    
     // Ensure tab1 is visible by default
     showTab('tab1');
     
     // 3-tab layout is now complete - no special initialization needed
 });
-
-// Debug function to test tab switching
-function testTabSwitching() {
-    console.log('Testing tab switching...');
-    showTab('tab1');
-    setTimeout(() => showTab('tab2'), 1000);
-    setTimeout(() => showTab('tab3'), 2000);
-    setTimeout(() => showTab('tab1'), 3000);
-}
 
 async function loadTokenStatusWithLive() {
     try {
@@ -1593,7 +1574,31 @@ async function checkCurrentAuthenticationStatus() {
 }
 
 
-// Tab switching function (removed duplicate - using the main one above)
+// Tab switching function
+function showTab(tabId) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Remove active class from all buttons
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab
+    document.getElementById(tabId).classList.add('active');
+    
+    // Mark button as active
+    event.target.classList.add('active');
+    
+    // Auto-refresh domain data when domains tab is shown
+    if (tabId === 'tab3' && isAuthenticated) {
+        setTimeout(() => {
+            retrieveAvailableDomains();
+        }, 500);
+    }
+}
 
 // Results log functions
 function logResult(message) {
@@ -2176,8 +2181,8 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
 }
 
 function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
-    logBulkDomain(`🔑 Generating app passwords with REAL existing domain: ${targetDomain}`);
-    logBulkDomain(`📋 This REAL subdomain will be used for all users and app passwords`);
+    logBulkDomain(`🔑 Generating app passwords with target domain: ${targetDomain}`);
+    logBulkDomain(`📋 This subdomain will be used for all users and app passwords`);
     
     const appPasswords = [];
     let completedAccounts = 0;
@@ -2187,13 +2192,13 @@ function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
     window.currentTargetDomain = targetDomain;
     
     accounts.forEach((account, index) => {
-        logBulkDomain(`🔄 Processing account: ${account} with REAL domain: ${targetDomain}`);
+        logBulkDomain(`🔄 Processing account: ${account} with saved domain: ${targetDomain}`);
         
-        // Retrieve REAL users from the account and process them with the REAL subdomain
-        retrieveRealUsersForWorkflow(account, targetDomain, appPasswords, () => {
+        // Retrieve all users from the account and process them with the saved subdomain
+        retrieveAllUsersForWorkflow(account, targetDomain, appPasswords, () => {
             completedAccounts++;
             if (completedAccounts >= totalAccounts) {
-                logBulkDomain(`✅ Completed processing all accounts with REAL subdomain: ${targetDomain}`);
+                logBulkDomain(`✅ Completed processing all accounts with subdomain: ${targetDomain}`);
                 displayAppPasswordsInWorkflow(appPasswords);
             }
         });
@@ -2204,39 +2209,6 @@ function generateAppPasswordsWithManualDomainChange(accounts) {
     logBulkDomain(`❌ Manual domain change is disabled - only real existing domains are allowed`);
     logBulkDomain(`⚠️ Please ensure your domain list contains real domains before proceeding`);
     logBulkDomain(`🔍 The app will only use domains that exist in your domain list`);
-}
-
-function retrieveRealUsersForWorkflow(account, realDomain, appPasswords, onComplete) {
-    logBulkDomain(`👥 Retrieving REAL users from account: ${account}`);
-    logBulkDomain(`🌐 Will use REAL domain: ${realDomain}`);
-    
-    // Retrieve REAL users from the account
-    fetch('/api/retrieve-users', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            domain: account.split('@')[1],
-            batched: true
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.users && data.users.length > 0) {
-            logBulkDomain(`✅ Retrieved ${data.users.length} REAL users from ${account}`);
-            logBulkDomain(`🔍 These are the ACTUAL users in your account`);
-            
-            // Generate app passwords for REAL users with the REAL domain
-            generateAppPasswordsForRealUsers(data.users, realDomain, appPasswords, onComplete);
-        } else {
-            logBulkDomain(`⚠️ No REAL users found for account: ${account}`);
-            onComplete();
-        }
-    })
-    .catch(error => {
-        logBulkDomain(`❌ Error retrieving REAL users from ${account}: ${error.message}`);
-        logBulkDomain(`⚠️ Cannot generate app passwords without real users`);
-        onComplete();
-    });
 }
 
 function retrieveAllUsersForWorkflow(account, newDomain, appPasswords, onComplete) {
@@ -2278,39 +2250,6 @@ function retrieveAllUsersForWorkflow(account, newDomain, appPasswords, onComplet
         const newAccount = `${username}@${newDomain}`;
         
         storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, onComplete);
-    });
-}
-
-function generateAppPasswordsForRealUsers(users, realDomain, appPasswords, onComplete) {
-    let completedUsers = 0;
-    const totalUsers = users.length;
-    
-    if (totalUsers === 0) {
-        onComplete();
-        return;
-    }
-    
-    logBulkDomain(`🔑 Generating app passwords for ${totalUsers} REAL users with REAL domain: ${realDomain}`);
-    
-    users.forEach((user, userIndex) => {
-        // Use the ACTUAL user email from the account
-        const realUsername = user.email.split('@')[0];
-        const appPassword = generateRandomPassword(16);
-        
-        // Create the REAL account using the REAL domain
-        const realAccount = `${realUsername}@${realDomain}`;
-        
-        logBulkDomain(`👤 Processing REAL user ${userIndex + 1}/${totalUsers}: ${realUsername}`);
-        logBulkDomain(`🌐 Using REAL domain: ${realDomain}`);
-        logBulkDomain(`📧 REAL account: ${realAccount}`);
-        
-        storeAppPasswordForUser(realAccount, appPassword, realDomain, appPasswords, () => {
-            completedUsers++;
-            if (completedUsers >= totalUsers) {
-                logBulkDomain(`✅ Completed processing ${totalUsers} REAL users with REAL domain: ${realDomain}`);
-                onComplete();
-            }
-        });
     });
 }
 
@@ -6876,6 +6815,3 @@ function runMegaUpgradeWorkflow(accounts, features) {
     transform: rotate(45deg);
 }
 </style>
-
-</body>
-</html>
