@@ -4964,12 +4964,10 @@ def retrieve_app_passwords():
         if not new_domain:
             return jsonify({'success': False, 'error': 'Domain is required'})
         
-        from database import UserAppPassword
+        # Get app passwords from the SQLite app_passwords table
+        result = google_api.get_all_app_passwords()
         
-        # Get ALL app passwords (regardless of stored domain)
-        all_app_passwords = UserAppPassword.query.all()
-        
-        if not all_app_passwords:
+        if not result['success'] or not result['app_passwords']:
             return jsonify({
                 'success': True,
                 'domain': new_domain,
@@ -4979,35 +4977,26 @@ def retrieve_app_passwords():
             })
         
         # Store the data before clearing
-        old_count = len(all_app_passwords)
+        old_count = len(result['app_passwords'])
         password_data = []
         results = []
         
-        for record in all_app_passwords:
+        for record in result['app_passwords']:
+            # Extract username from user_alias (email format)
+            username = record['user_alias'].split('@')[0] if '@' in record['user_alias'] else record['user_alias']
             password_data.append({
-                'username': record.username,
-                'app_password': record.app_password
+                'username': username,
+                'app_password': record['app_password']
             })
             # Format for SMTP display: user@domain,app_password,smtp.gmail.com,587
-            results.append(f"{record.username}@{new_domain},{record.app_password},smtp.gmail.com,587")
+            results.append(f"{username}@{new_domain},{record['app_password']},smtp.gmail.com,587")
         
-        # Clear ALL existing app passwords to prevent accumulation
-        UserAppPassword.query.delete()
-        db.session.commit()  # Commit the deletion first
-        
-        # Create new records with the NEW domain
-        new_records = []
-        for data in password_data:
-            new_record = UserAppPassword(
-                username=data['username'],
-                domain=new_domain,  # Use the new domain
-                app_password=data['app_password']
-            )
-            new_records.append(new_record)
-        
-        # Add all new records to database
-        db.session.add_all(new_records)
-        db.session.commit()
+        # Update the app passwords with new domain
+        for record in result['app_passwords']:
+            username = record['user_alias'].split('@')[0] if '@' in record['user_alias'] else record['user_alias']
+            new_alias = f"{username}@{new_domain}"
+            # Update the user alias with new domain
+            google_api.store_app_password(new_alias, record['app_password'], new_domain)
         
         return jsonify({
             'success': True,
@@ -5015,7 +5004,7 @@ def retrieve_app_passwords():
             'count': len(results),
             'app_passwords': results,
             'message': f"Updated {len(results)} app passwords to domain {new_domain}. Old entries cleared for optimization.",
-            'optimization': f"Cleared {old_count} old entries, created {len(new_records)} new entries"
+            'optimization': f"Cleared {old_count} old entries, created {len(results)} new entries."
         })
         
     except Exception as e:

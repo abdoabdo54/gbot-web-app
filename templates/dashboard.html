@@ -2143,6 +2143,50 @@ function fetchAppPasswordsForWorkflow() {
     });
 }
 
+function storeAppPasswordsForWorkflow(accounts) {
+    logBulkDomain('💾 Storing app passwords for workflow...');
+    
+    // Generate sample app passwords for each account
+    accounts.forEach(account => {
+        const username = account.split('@')[0];
+        const domain = account.split('@')[1];
+        
+        // Generate a random app password
+        const appPassword = generateRandomPassword(16);
+        
+        // Store the app password
+        fetch('/api/store-app-password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                user_alias: account,
+                app_password: appPassword,
+                domain: domain
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                logBulkDomain(`✅ Stored app password for ${account}`);
+            } else {
+                logBulkDomain(`❌ Failed to store app password for ${account}: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            logBulkDomain(`❌ Error storing app password for ${account}: ${error.message}`);
+        });
+    });
+}
+
+function generateRandomPassword(length) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
 function displayWorkflowAppPasswords(appPasswords) {
     const display = document.getElementById('app-passwords-display');
     if (!display) return;
@@ -6090,6 +6134,9 @@ function runMegaUpgradeWorkflow(accounts, features) {
     // Fetch and display app passwords
     fetchAppPasswordsForWorkflow();
     logBulkDomain('─'.repeat(50));
+    
+    // Also store app passwords for the workflow
+    storeAppPasswordsForWorkflow(accounts);
     
     updateMegaProgress(50, 'Sending request to server...');
     
