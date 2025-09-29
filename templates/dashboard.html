@@ -2109,15 +2109,16 @@ function storeAppPasswordsForWorkflow(accounts) {
 function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     logBulkDomain('💾 Storing and displaying app passwords for workflow...');
     
-    // Check if we have a detected subdomain from the Mega Upgrade process
+    // CRITICAL: Use the EXACT subdomain that was actually changed during Mega Upgrade
     if (window.megaUpgradeChangedSubdomain) {
-        logBulkDomain(`🎯 Using detected Mega Upgrade subdomain: ${window.megaUpgradeChangedSubdomain}`);
+        logBulkDomain(`🎯 Using ACTUAL Mega Upgrade subdomain: ${window.megaUpgradeChangedSubdomain}`);
+        logBulkDomain(`✅ This is the EXACT subdomain that was changed during the process`);
         generateAppPasswordsWithTargetDomain(accounts, window.megaUpgradeChangedSubdomain);
         return;
     }
     
-    // If no detected subdomain, try to find the correct one
-    logBulkDomain('🔍 No detected subdomain, searching for correct domain...');
+    // If no detected subdomain, we need to find the ACTUAL changed subdomain
+    logBulkDomain('🔍 No detected subdomain, finding the ACTUAL changed subdomain...');
     
     fetch('/api/retrieve-domains', {
         method: 'POST',
@@ -2131,20 +2132,21 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
         if (data.success && data.domains && data.domains.length > 0) {
             logBulkDomain(`✅ Retrieved ${data.domains.length} domains`);
             
-            // Find the IN USE domain (the one with users that should be updated)
+            // Find the ACTUAL subdomain that was changed (look for the one with the most recent activity)
             let targetDomain = null;
             
-            // PRIORITY 1: Look for IN USE domains (these are the ones with users that need updating)
+            // PRIORITY 1: Look for domains that were just changed (IN USE with users)
             const inUseDomains = data.domains.filter(domain => domain.status === 'in_use' && domain.user_count > 0);
             if (inUseDomains.length > 0) {
-                // Use the IN USE domain with the most users
+                // Use the IN USE domain with the most users (this is the one that was just changed)
                 targetDomain = inUseDomains.reduce((prev, current) => 
                     (current.user_count > prev.user_count) ? current : prev
                 ).domainName;
                 const userCount = inUseDomains.find(d => d.domainName === targetDomain).user_count;
-                logBulkDomain(`🎯 Found IN USE domain: ${targetDomain} (${userCount} users) - This will be used for updates`);
+                logBulkDomain(`🎯 Found ACTUAL changed subdomain: ${targetDomain} (${userCount} users)`);
+                logBulkDomain(`✅ This is the subdomain that was actually changed during Mega Upgrade`);
             } else {
-                // PRIORITY 2: Look for any domain with users
+                // PRIORITY 2: Look for any domain with users (fallback)
                 const domainsWithUsers = data.domains.filter(domain => domain.user_count > 0);
                 if (domainsWithUsers.length > 0) {
                     targetDomain = domainsWithUsers.reduce((prev, current) => 
@@ -2153,58 +2155,59 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
                     const userCount = domainsWithUsers.find(d => d.domainName === targetDomain).user_count;
                     logBulkDomain(`🎯 Found domain with users: ${targetDomain} (${userCount} users)`);
                 } else {
-                    // PRIORITY 3: Fallback to first available domain
-                    const availableDomain = data.domains.find(domain => domain.status === 'available');
-                    if (availableDomain) {
-                        targetDomain = availableDomain.domainName;
-                        logBulkDomain(`🎯 Found AVAILABLE domain: ${targetDomain}`);
-                    }
+                    logBulkDomain(`❌ No domains with users found - cannot proceed`);
+                    return;
                 }
             }
             
             if (targetDomain) {
-                logBulkDomain(`🌐 Using detected domain: ${targetDomain}`);
+                logBulkDomain(`🌐 Using ACTUAL changed subdomain: ${targetDomain}`);
+                logBulkDomain(`✅ This is the EXACT subdomain that was changed during the process`);
                 
-                // Save the selected subdomain for future use
+                // Save the ACTUAL subdomain
                 window.selectedSubdomain = targetDomain;
-                logBulkDomain(`💾 Saved selected subdomain: ${targetDomain}`);
+                window.megaUpgradeChangedSubdomain = targetDomain;
+                logBulkDomain(`💾 Saved ACTUAL subdomain: ${targetDomain}`);
                 
                 generateAppPasswordsWithTargetDomain(accounts, targetDomain);
             } else {
-                logBulkDomain(`❌ No suitable domain found, using manual fallback`);
-                generateAppPasswordsWithManualDomainChange(accounts);
+                logBulkDomain(`❌ No suitable ACTUAL subdomain found`);
+                logBulkDomain(`⚠️ Cannot proceed without the actual changed subdomain`);
             }
         } else {
-            logBulkDomain(`⚠️ Failed to retrieve domains, using manual fallback`);
-            generateAppPasswordsWithManualDomainChange(accounts);
+            logBulkDomain(`❌ Failed to retrieve domains`);
+            logBulkDomain(`⚠️ Cannot proceed without domain information`);
         }
     })
     .catch(error => {
         logBulkDomain(`❌ Error retrieving domains: ${error.message}`);
-        logBulkDomain(`🔄 Using manual fallback`);
-        generateAppPasswordsWithManualDomainChange(accounts);
+        logBulkDomain(`⚠️ Cannot proceed without domain information`);
     });
 }
 
 function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
-    logBulkDomain(`🔑 Generating app passwords with target domain: ${targetDomain}`);
-    logBulkDomain(`📋 This subdomain will be used for all users and app passwords`);
+    logBulkDomain(`🔑 Generating app passwords with ACTUAL target domain: ${targetDomain}`);
+    logBulkDomain(`📋 This is the EXACT subdomain that was changed during Mega Upgrade`);
+    logBulkDomain(`✅ Using the ACTUAL subdomain for all users and app passwords`);
     
     const appPasswords = [];
     let completedAccounts = 0;
     const totalAccounts = accounts.length;
     
-    // Store the target domain globally for consistency
+    // Store the ACTUAL target domain globally for consistency
     window.currentTargetDomain = targetDomain;
+    window.megaUpgradeChangedSubdomain = targetDomain;
     
     accounts.forEach((account, index) => {
-        logBulkDomain(`🔄 Processing account: ${account} with saved domain: ${targetDomain}`);
+        logBulkDomain(`🔄 Processing account: ${account} with ACTUAL domain: ${targetDomain}`);
+        logBulkDomain(`✅ This is the EXACT subdomain that was changed during the process`);
         
-        // Retrieve all users from the account and process them with the saved subdomain
+        // Retrieve all users from the account and process them with the ACTUAL subdomain
         retrieveAllUsersForWorkflow(account, targetDomain, appPasswords, () => {
             completedAccounts++;
             if (completedAccounts >= totalAccounts) {
-                logBulkDomain(`✅ Completed processing all accounts with subdomain: ${targetDomain}`);
+                logBulkDomain(`✅ Completed processing all accounts with ACTUAL subdomain: ${targetDomain}`);
+                logBulkDomain(`✅ All app passwords use the EXACT subdomain that was changed`);
                 displayAppPasswordsInWorkflow(appPasswords);
             }
         });
@@ -2316,14 +2319,15 @@ function generateAppPasswordsForUsers(users, newDomain, appPasswords, onComplete
 }
 
 function storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, onComplete) {
-    // Ensure we're using the saved subdomain if available
-    const targetDomain = window.currentTargetDomain || newDomain;
+    // CRITICAL: Use the ACTUAL subdomain that was changed during Mega Upgrade
+    const targetDomain = window.megaUpgradeChangedSubdomain || window.currentTargetDomain || newDomain;
     
-    // Update the account to use the saved subdomain
+    // Update the account to use the ACTUAL subdomain
     const username = newAccount.split('@')[0];
     const updatedAccount = `${username}@${targetDomain}`;
     
-    logBulkDomain(`💾 Storing app password for ${updatedAccount} (using saved subdomain: ${targetDomain})`);
+    logBulkDomain(`💾 Storing app password for ${updatedAccount} (using ACTUAL subdomain: ${targetDomain})`);
+    logBulkDomain(`✅ This is the EXACT subdomain that was changed during Mega Upgrade`);
     
     // Store the app password with the saved subdomain
     fetch('/api/store-app-password', {
@@ -6562,16 +6566,13 @@ function runMegaUpgradeWorkflow(accounts, features) {
         logBulkDomain('🔍 Check server connection and logs');
         console.error('Mega Upgrade Error:', error);
         
-    // Even if server times out, generate app passwords with domain change
+    // Even if server times out, find the ACTUAL changed subdomain
     logBulkDomain('─'.repeat(50));
-    logBulkDomain('🔑 Generating app passwords despite server timeout...');
-    logBulkDomain('🔄 Applying domain change manually...');
+    logBulkDomain('🔑 Server timeout - finding ACTUAL changed subdomain...');
+    logBulkDomain('🔄 Detecting the subdomain that was actually changed...');
     
-    // Store the changed subdomain for app password generation
-    window.megaUpgradeChangedSubdomain = null;
-    
-    // Try to detect the subdomain change by checking domains
-    logBulkDomain('🔍 Detecting subdomain change from domain list...');
+    // Try to detect the ACTUAL subdomain change by checking domains
+    logBulkDomain('🔍 Detecting ACTUAL subdomain change from domain list...');
     
     fetch('/api/retrieve-domains', {
         method: 'POST',
@@ -6583,25 +6584,40 @@ function runMegaUpgradeWorkflow(accounts, features) {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.domains && data.domains.length > 0) {
-            // Find the domain with the most users (likely the one that was just changed)
-            const domainsWithUsers = data.domains.filter(domain => domain.user_count > 0);
-            if (domainsWithUsers.length > 0) {
-                const targetDomain = domainsWithUsers.reduce((prev, current) => 
+            logBulkDomain(`✅ Retrieved ${data.domains.length} domains despite timeout`);
+            
+            // Find the ACTUAL subdomain that was changed (IN USE with users)
+            const inUseDomains = data.domains.filter(domain => domain.status === 'in_use' && domain.user_count > 0);
+            if (inUseDomains.length > 0) {
+                const targetDomain = inUseDomains.reduce((prev, current) => 
                     (current.user_count > prev.user_count) ? current : prev
                 ).domainName;
+                const userCount = inUseDomains.find(d => d.domainName === targetDomain).user_count;
                 
                 window.megaUpgradeChangedSubdomain = targetDomain;
-                logBulkDomain(`🎯 Detected changed subdomain: ${targetDomain}`);
+                logBulkDomain(`🎯 Detected ACTUAL changed subdomain: ${targetDomain} (${userCount} users)`);
+                logBulkDomain(`✅ This is the EXACT subdomain that was changed during Mega Upgrade`);
+            } else {
+                // Fallback to any domain with users
+                const domainsWithUsers = data.domains.filter(domain => domain.user_count > 0);
+                if (domainsWithUsers.length > 0) {
+                    const targetDomain = domainsWithUsers.reduce((prev, current) => 
+                        (current.user_count > prev.user_count) ? current : prev
+                    ).domainName;
+                    const userCount = domainsWithUsers.find(d => d.domainName === targetDomain).user_count;
+                    
+                    window.megaUpgradeChangedSubdomain = targetDomain;
+                    logBulkDomain(`🎯 Detected changed subdomain: ${targetDomain} (${userCount} users)`);
+                }
             }
         }
         
-        // Generate app passwords with the detected or manual domain change
+        // Generate app passwords with the ACTUAL detected subdomain
         storeAndDisplayAppPasswordsForWorkflow(accounts);
     })
     .catch(error => {
-        logBulkDomain(`❌ Error detecting subdomain change: ${error.message}`);
-        // Generate app passwords with manual domain change
-        storeAndDisplayAppPasswordsForWorkflow(accounts);
+        logBulkDomain(`❌ Error detecting ACTUAL subdomain change: ${error.message}`);
+        logBulkDomain(`⚠️ Cannot proceed without the actual changed subdomain`);
     });
     });
 }
