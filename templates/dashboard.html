@@ -2160,6 +2160,11 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
             
             if (targetDomain) {
                 logBulkDomain(`🌐 Using detected domain: ${targetDomain}`);
+                
+                // Save the selected subdomain for future use
+                window.selectedSubdomain = targetDomain;
+                logBulkDomain(`💾 Saved selected subdomain: ${targetDomain}`);
+                
                 generateAppPasswordsWithTargetDomain(accounts, targetDomain);
             } else {
                 logBulkDomain(`❌ No suitable domain found, using manual fallback`);
@@ -2179,18 +2184,23 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
 
 function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
     logBulkDomain(`🔑 Generating app passwords with target domain: ${targetDomain}`);
+    logBulkDomain(`📋 This subdomain will be used for all users and app passwords`);
     
     const appPasswords = [];
     let completedAccounts = 0;
     const totalAccounts = accounts.length;
     
+    // Store the target domain globally for consistency
+    window.currentTargetDomain = targetDomain;
+    
     accounts.forEach((account, index) => {
-        logBulkDomain(`🔄 Processing account: ${account} with domain: ${targetDomain}`);
+        logBulkDomain(`🔄 Processing account: ${account} with saved domain: ${targetDomain}`);
         
-        // Retrieve all users from the account and process them
+        // Retrieve all users from the account and process them with the saved subdomain
         retrieveAllUsersForWorkflow(account, targetDomain, appPasswords, () => {
             completedAccounts++;
             if (completedAccounts >= totalAccounts) {
+                logBulkDomain(`✅ Completed processing all accounts with subdomain: ${targetDomain}`);
                 displayAppPasswordsInWorkflow(appPasswords);
             }
         });
@@ -2302,31 +2312,40 @@ function generateAppPasswordsForUsers(users, newDomain, appPasswords, onComplete
 }
 
 function storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, onComplete) {
-    // Store the app password with new domain
+    // Ensure we're using the saved subdomain if available
+    const targetDomain = window.currentTargetDomain || newDomain;
+    
+    // Update the account to use the saved subdomain
+    const username = newAccount.split('@')[0];
+    const updatedAccount = `${username}@${targetDomain}`;
+    
+    logBulkDomain(`💾 Storing app password for ${updatedAccount} (using saved subdomain: ${targetDomain})`);
+    
+    // Store the app password with the saved subdomain
     fetch('/api/store-app-password', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-            user_alias: newAccount,
+            user_alias: updatedAccount,
             app_password: appPassword,
-            domain: newDomain
+            domain: targetDomain
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            logBulkDomain(`✅ Stored app password for ${newAccount}`);
+            logBulkDomain(`✅ Stored app password for ${updatedAccount}`);
             
-            // Add to display format
-            appPasswords.push(`${newAccount},${appPassword},smtp.gmail.com,587`);
+            // Add to display format with the saved subdomain
+            appPasswords.push(`${updatedAccount},${appPassword},smtp.gmail.com,587`);
         } else {
-            logBulkDomain(`❌ Failed to store app password for ${newAccount}: ${data.error}`);
+            logBulkDomain(`❌ Failed to store app password for ${updatedAccount}: ${data.error}`);
         }
         
         onComplete();
     })
     .catch(error => {
-        logBulkDomain(`❌ Error storing app password for ${newAccount}: ${error.message}`);
+        logBulkDomain(`❌ Error storing app password for ${updatedAccount}: ${error.message}`);
         onComplete();
     });
 }
@@ -2378,6 +2397,55 @@ function displayAppPasswordsInWorkflow(appPasswords) {
     // Also log each password for reference
     appPasswords.forEach((password, index) => {
         logBulkDomain(`   ${index + 1}. ${password}`);
+    });
+}
+
+// Function to manually select and save a subdomain
+function selectAndSaveSubdomain() {
+    logBulkDomain('🔍 Retrieving available domains for manual selection...');
+    
+    fetch('/api/retrieve-domains', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            batched: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.domains && data.domains.length > 0) {
+            logBulkDomain(`✅ Retrieved ${data.domains.length} domains`);
+            
+            // Find available domains
+            const availableDomains = data.domains.filter(domain => domain.status === 'available');
+            if (availableDomains.length > 0) {
+                // Select the first available domain
+                const selectedDomain = availableDomains[0].domainName;
+                
+                // Save the selected subdomain
+                window.selectedSubdomain = selectedDomain;
+                window.currentTargetDomain = selectedDomain;
+                
+                logBulkDomain(`🎯 Selected and saved subdomain: ${selectedDomain}`);
+                logBulkDomain(`💾 This subdomain will be used for all future operations`);
+                
+                // Update the subdomain prefix input field
+                const subdomainPrefix = document.getElementById('mega-subdomain-prefix');
+                if (subdomainPrefix) {
+                    const subdomainPart = selectedDomain.split('.')[0];
+                    subdomainPrefix.value = subdomainPart;
+                    logBulkDomain(`📝 Updated subdomain prefix field: ${subdomainPart}`);
+                }
+                
+            } else {
+                logBulkDomain(`⚠️ No available domains found`);
+            }
+        } else {
+            logBulkDomain(`❌ Failed to retrieve domains`);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Error retrieving domains: ${error.message}`);
     });
 }
 
