@@ -2106,8 +2106,106 @@ function storeAppPasswordsForWorkflow(accounts) {
     });
 }
 
+function storeAndDisplayAppPasswordsForWorkflow(accounts) {
+    logBulkDomain('💾 Storing and displaying app passwords for workflow...');
+    
+    const appPasswords = [];
+    let completedCount = 0;
+    
+    // Get subdomain prefix from input field
+    const subdomainPrefix = document.getElementById('mega-subdomain-prefix').value.trim();
+    
+    if (subdomainPrefix) {
+        logBulkDomain(`🌐 Using custom subdomain prefix: ${subdomainPrefix}`);
+    } else {
+        logBulkDomain(`🌐 Using random subdomain generation`);
+    }
+    
+    accounts.forEach((account, index) => {
+        const username = account.split('@')[0];
+        const domain = account.split('@')[1];
+        
+        // Generate a random app password
+        const appPassword = generateRandomPassword(16);
+        
+        // Create the new domain format with custom or random subdomain
+        const subdomain = subdomainPrefix || generateRandomSubdomain(16);
+        const newDomain = `${subdomain}.${domain}`;
+        const newAccount = `${username}@${newDomain}`;
+        
+        logBulkDomain(`🔄 Creating new domain: ${newDomain} for user: ${username}`);
+        
+        // Store the app password with new domain
+        fetch('/api/store-app-password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                user_alias: newAccount,
+                app_password: appPassword,
+                domain: newDomain
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                logBulkDomain(`✅ Stored app password for ${newAccount}`);
+                
+                // Add to display format
+                appPasswords.push(`${newAccount},${appPassword},smtp.gmail.com,587`);
+                
+                completedCount++;
+                
+                // If this is the last account, display all passwords
+                if (completedCount === accounts.length) {
+                    displayAppPasswordsInWorkflow(appPasswords);
+                }
+            } else {
+                logBulkDomain(`❌ Failed to store app password for ${newAccount}: ${data.error}`);
+                completedCount++;
+                
+                if (completedCount === accounts.length) {
+                    displayAppPasswordsInWorkflow(appPasswords);
+                }
+            }
+        })
+        .catch(error => {
+            logBulkDomain(`❌ Error storing app password for ${newAccount}: ${error.message}`);
+            completedCount++;
+            
+            if (completedCount === accounts.length) {
+                displayAppPasswordsInWorkflow(appPasswords);
+            }
+        });
+    });
+}
+
+function displayAppPasswordsInWorkflow(appPasswords) {
+    logBulkDomain(`📋 Generated ${appPasswords.length} app passwords with new domain`);
+    
+    // Display in the App Passwords Display field
+    const display = document.getElementById('app-passwords-display');
+    if (display) {
+        display.value = appPasswords.join('\n');
+        logBulkDomain('✅ App passwords displayed in App Passwords Display field');
+    }
+    
+    // Also log each password for reference
+    appPasswords.forEach((password, index) => {
+        logBulkDomain(`   ${index + 1}. ${password}`);
+    });
+}
+
 function generateRandomPassword(length) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
+function generateRandomSubdomain(length) {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
     for (let i = 0; i < length; i++) {
         result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -6056,15 +6154,12 @@ function runMegaUpgradeWorkflow(accounts, features) {
     updateMegaProgress(30, 'Changing subdomains...');
     logBulkDomain('🔄 Step 3: Changing subdomains...');
     
-    updateMegaProgress(40, 'Fetching app passwords...');
-    logBulkDomain('🔑 Step 4: Fetching stored app passwords...');
+    updateMegaProgress(40, 'Generating app passwords...');
+    logBulkDomain('🔑 Step 4: Generating app passwords with new domains...');
     
-    // Fetch and display app passwords
-    fetchAppPasswordsForWorkflow();
+    // Store app passwords for the workflow and display them
+    storeAndDisplayAppPasswordsForWorkflow(accounts);
     logBulkDomain('─'.repeat(50));
-    
-    // Also store app passwords for the workflow
-    storeAppPasswordsForWorkflow(accounts);
     
     updateMegaProgress(50, 'Sending request to server...');
     
@@ -6206,6 +6301,18 @@ function runMegaUpgradeWorkflow(accounts, features) {
                            style="font-family: monospace; font-size: 13px;">
                     <small style="color: #656d76; font-size: 12px;">
                         Enter the email address of the account to process. The system will apply selected features to this single account.
+                    </small>
+                </div>
+                
+                <div class="form-group-github">
+                    <label for="mega-subdomain-prefix" class="form-label-github">
+                        <i class="fas fa-globe"></i> Subdomain Prefix (Optional)
+                    </label>
+                    <input type="text" id="mega-subdomain-prefix" class="form-control-github" 
+                           placeholder="5fgckso88gxtvm5a (leave empty for random)"
+                           style="font-family: monospace; font-size: 13px;">
+                    <small style="color: #656d76; font-size: 12px;">
+                        Enter a custom subdomain prefix or leave empty for random generation. Format: prefix.domain.com
                     </small>
                 </div>
             </div>
