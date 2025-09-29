@@ -6259,12 +6259,8 @@ function runMegaUpgradeWorkflow(accounts, features) {
     updateMegaProgress(30, 'Changing subdomains...');
     logBulkDomain('🔄 Step 3: Changing subdomains...');
     
-    updateMegaProgress(40, 'Generating app passwords...');
-    logBulkDomain('🔑 Step 4: Generating app passwords with new domains...');
-    
-    // Generate app passwords immediately (before server request to avoid timeout)
-    storeAndDisplayAppPasswordsForWorkflow(accounts);
-    logBulkDomain('─'.repeat(50));
+    updateMegaProgress(40, 'Preparing for server request...');
+    logBulkDomain('🔑 Step 4: Preparing app password generation...');
     
     updateMegaProgress(50, 'Sending request to server...');
     
@@ -6365,6 +6361,14 @@ function runMegaUpgradeWorkflow(accounts, features) {
         logBulkDomain('─'.repeat(50));
         logBulkDomain('🔍 Check server connection and logs');
         console.error('Mega Upgrade Error:', error);
+        
+        // Even if server times out, generate app passwords with domain change
+        logBulkDomain('─'.repeat(50));
+        logBulkDomain('🔑 Generating app passwords despite server timeout...');
+        logBulkDomain('🔄 Applying domain change manually...');
+        
+        // Generate app passwords with manual domain change
+        storeAndDisplayAppPasswordsForWorkflow(accounts);
     });
 }
 
