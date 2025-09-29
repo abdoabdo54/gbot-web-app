@@ -325,6 +325,9 @@
                     <button onclick="loadAllAppPasswords()" class="btn-github btn-github-primary" style="font-size: 12px; padding: 4px 8px;">
                         <i class="fas fa-search"></i> Load All
                     </button>
+                    <button onclick="autoLoadAppPasswords()" class="btn-github" style="font-size: 12px; padding: 4px 8px; background-color: #6f42c1; border-color: #6f42c1; color: white;">
+                        <i class="fas fa-refresh"></i> Auto Load
+                    </button>
                     <button onclick="syncSMTPToAppPasswords()" class="btn-github" style="font-size: 12px; padding: 4px 8px; background-color: #28a745; border-color: #28a745; color: white;">
                         <i class="fas fa-sync"></i> Sync from SMTP
                     </button>
@@ -1802,27 +1805,39 @@ function storeAppPassword() {
 }
 
 function loadAllAppPasswords() {
+    console.log('Loading all app passwords...');
     logResult('🔍 Loading all app passwords...');
     
     fetch('/api/get-all-app-passwords')
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
     .then(data => {
+        console.log('App passwords response:', data);
         if (data.success) {
+            console.log('App passwords data:', data.app_passwords);
             displayAppPasswords(data.app_passwords);
             logResult(`📋 Loaded ${data.total_count} app passwords`);
         } else {
+            console.error('Failed to load app passwords:', data.error);
             logResult(`❌ Failed to load app passwords: ${data.error}`);
             document.getElementById('app-passwords-display').innerHTML = `<div class="error-message">❌ Error: ${data.error}</div>`;
         }
     })
     .catch(error => {
+        console.error('Network error:', error);
         logResult(`❌ Network error: ${error.message}`);
         document.getElementById('app-passwords-display').innerHTML = `<div class="error-message">❌ Network error: ${error.message}</div>`;
     });
 }
 
 function displayAppPasswords(appPasswords) {
+    console.log('Displaying app passwords:', appPasswords);
+    logResult(`🎨 Displaying ${appPasswords ? appPasswords.length : 0} app passwords`);
+    
     if (!appPasswords || appPasswords.length === 0) {
+        console.log('No app passwords to display');
         document.getElementById('app-passwords-display').innerHTML = '<div class="status-info"><p>✅ No app passwords stored</p></div>';
         return;
     }
@@ -1851,7 +1866,21 @@ function displayAppPasswords(appPasswords) {
     
     html += '</div>';
     document.getElementById('app-passwords-display').innerHTML = html;
+    console.log('App passwords display updated');
+    logResult('✅ App passwords display updated');
 }
+
+// Auto-load app passwords when page loads
+function autoLoadAppPasswords() {
+    console.log('Auto-loading app passwords...');
+    loadAllAppPasswords();
+}
+
+// Auto-load when page is ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Page loaded, auto-loading app passwords...');
+    setTimeout(autoLoadAppPasswords, 1000); // Wait 1 second for page to fully load
+});
 
 function clearAppPasswords() {
     document.getElementById('app-passwords-display').innerHTML = '<div style="color: #6a737d; font-style: italic;">📝 App passwords will appear here...</div>';
