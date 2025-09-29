@@ -7634,6 +7634,100 @@ def api_get_suspended_users():
         logging.error(f"Get suspended users error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/store-app-password', methods=['POST'])
+@login_required
+def api_store_app_password():
+    """Store app password for a user alias"""
+    try:
+        req = request.get_json(silent=True) or {}
+        user_alias = req.get('user_alias', '').strip()
+        app_password = req.get('app_password', '').strip()
+        domain = req.get('domain', '').strip()
+        
+        if not user_alias:
+            return jsonify({'success': False, 'error': 'User alias is required'})
+        
+        if not app_password:
+            return jsonify({'success': False, 'error': 'App password is required'})
+        
+        logging.info(f"Storing app password for user alias: {user_alias}")
+        
+        # Store app password
+        result = google_api.store_app_password(user_alias, app_password, domain)
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'message': result['message']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Unknown error')
+            })
+            
+    except Exception as e:
+        logging.error(f"Store app password error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/get-app-password', methods=['POST'])
+@login_required
+def api_get_app_password():
+    """Get app password for a user alias"""
+    try:
+        req = request.get_json(silent=True) or {}
+        user_alias = req.get('user_alias', '').strip()
+        
+        if not user_alias:
+            return jsonify({'success': False, 'error': 'User alias is required'})
+        
+        logging.info(f"Getting app password for user alias: {user_alias}")
+        
+        # Get app password
+        result = google_api.get_app_password(user_alias)
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'app_password': result['app_password'],
+                'domain': result.get('domain', '')
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Unknown error')
+            })
+            
+    except Exception as e:
+        logging.error(f"Get app password error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/get-all-app-passwords', methods=['GET'])
+@login_required
+def api_get_all_app_passwords():
+    """Get all stored app passwords"""
+    try:
+        logging.info("Getting all app passwords")
+        
+        # Get all app passwords
+        result = google_api.get_all_app_passwords()
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'app_passwords': result['app_passwords'],
+                'total_count': result['total_count']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Unknown error')
+            })
+            
+    except Exception as e:
+        logging.error(f"Get all app passwords error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 
 if __name__ == '__main__':
     app.run(debug=True)

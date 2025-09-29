@@ -314,6 +314,73 @@
         </div>
     </div>
     
+    <!-- App Password Management Section -->
+    <div class="github-card" style="margin-top: 24px;">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-key"></i>
+                App Password Management
+            </h3>
+            <div class="button-row">
+                <button onclick="loadAllAppPasswords()" class="btn-github btn-github-primary" style="font-size: 12px; padding: 4px 8px;">
+                    <i class="fas fa-search"></i> Load All
+                </button>
+                <button onclick="clearAppPasswords()" class="btn-github btn-github-secondary" style="font-size: 12px; padding: 4px 8px;">
+                    <i class="fas fa-trash"></i> Clear Display
+                </button>
+            </div>
+        </div>
+        
+        <!-- Add App Password -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 16px; align-items: end; margin-bottom: 16px;">
+            <div class="form-group-github">
+                <label for="app-password-alias" class="form-label-github">
+                    <i class="fas fa-user"></i> User Alias
+                </label>
+                <input type="text" id="app-password-alias" class="form-control-github" placeholder="user@domain.com">
+            </div>
+            <div class="form-group-github">
+                <label for="app-password-value" class="form-label-github">
+                    <i class="fas fa-lock"></i> App Password
+                </label>
+                <input type="password" id="app-password-value" class="form-control-github" placeholder="Enter app password">
+            </div>
+            <div class="form-group-github">
+                <label for="app-password-domain" class="form-label-github">
+                    <i class="fas fa-globe"></i> Domain (Optional)
+                </label>
+                <input type="text" id="app-password-domain" class="form-control-github" placeholder="domain.com">
+            </div>
+            <button onclick="storeAppPassword()" class="btn-github btn-github-success">
+                <i class="fas fa-save"></i> Store
+            </button>
+        </div>
+        
+        <!-- App Passwords Display -->
+        <div id="app-passwords-display" class="data-display" style="
+            background: #f8f9fa; 
+            border: 1px solid #e1e4e8; 
+            border-radius: 6px; 
+            padding: 12px; 
+            max-height: 300px; 
+            overflow-y: auto; 
+            font-family: 'Courier New', monospace; 
+            font-size: 12px; 
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        ">
+            <div style="color: #6a737d; font-style: italic;">
+                📝 App passwords will appear here...
+            </div>
+        </div>
+        
+        <div style="margin-top: 8px; font-size: 11px; color: #6a737d;">
+            <i class="fas fa-info-circle"></i> 
+            Store app passwords for users to use during mega workflow execution.
+        </div>
+    </div>
+
     <!-- Activity Log Section -->
     <div class="github-card" style="margin-top: 24px;">
         <div class="github-card-header">
@@ -831,14 +898,14 @@
     <!-- Mega Upgrade: Multi-Account Workflow -->
     <div class="github-card">
         <div class="github-card-header">
-            <h3 class="github-card-title">
-                <i class="fas fa-rocket"></i>
-                Mega Upgrade: Multi-Account Workflow
-            </h3>
+                <h3 class="github-card-title">
+                    <i class="fas fa-rocket"></i>
+                    Mega Upgrade: Single Account Workflow
+                </h3>
         </div>
         
         <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
-            Process multiple accounts simultaneously with automated workflows. Select which features to apply to all accounts.
+            Process a single account with automated workflows. Select which features to apply to the account.
         </p>
         
         <button onclick="openMegaUpgradeModal()" class="btn-github btn-github-primary" style="width: 100%; padding: 16px; font-size: 16px;">
@@ -1544,6 +1611,167 @@ function downloadLogs() {
     window.URL.revokeObjectURL(url);
     
     logResult(`💾 Activity logs downloaded as ${filename}`);
+}
+
+// App Password Management Functions
+function storeAppPassword() {
+    const userAlias = document.getElementById('app-password-alias').value.trim();
+    const appPassword = document.getElementById('app-password-value').value.trim();
+    const domain = document.getElementById('app-password-domain').value.trim();
+    
+    if (!userAlias) {
+        alert('Please enter a user alias');
+        return;
+    }
+    
+    if (!appPassword) {
+        alert('Please enter an app password');
+        return;
+    }
+    
+    if (!userAlias.includes('@')) {
+        alert('Please enter a valid email address as user alias');
+        return;
+    }
+    
+    logResult(`🔐 Storing app password for user: ${userAlias}...`);
+    
+    fetch('/api/store-app-password', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ 
+            user_alias: userAlias,
+            app_password: appPassword,
+            domain: domain || null
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logResult(`✅ ${data.message}`);
+            document.getElementById('app-password-alias').value = '';
+            document.getElementById('app-password-value').value = '';
+            document.getElementById('app-password-domain').value = '';
+            // Refresh the display
+            loadAllAppPasswords();
+        } else {
+            logResult(`❌ Failed to store app password: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error.message}`);
+    });
+}
+
+function loadAllAppPasswords() {
+    logResult('🔍 Loading all app passwords...');
+    
+    fetch('/api/get-all-app-passwords')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayAppPasswords(data.app_passwords);
+            logResult(`📋 Loaded ${data.total_count} app passwords`);
+        } else {
+            logResult(`❌ Failed to load app passwords: ${data.error}`);
+            document.getElementById('app-passwords-display').innerHTML = `<div class="error-message">❌ Error: ${data.error}</div>`;
+        }
+    })
+    .catch(error => {
+        logResult(`❌ Network error: ${error.message}`);
+        document.getElementById('app-passwords-display').innerHTML = `<div class="error-message">❌ Network error: ${error.message}</div>`;
+    });
+}
+
+function displayAppPasswords(appPasswords) {
+    if (!appPasswords || appPasswords.length === 0) {
+        document.getElementById('app-passwords-display').innerHTML = '<div class="status-info"><p>✅ No app passwords stored</p></div>';
+        return;
+    }
+    
+    let html = '<div class="app-passwords-list">';
+    html += '<h4 style="margin-bottom: 16px; color: #24292f;">🔐 Stored App Passwords</h4>';
+    
+    appPasswords.forEach(password => {
+        html += `
+            <div class="app-password-item" style="border: 1px solid #e1e4e8; border-radius: 6px; padding: 12px; margin-bottom: 8px; background: #f8f9fa;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>${password.user_alias}</strong>
+                        <div style="color: #666; font-size: 14px; margin-top: 4px;">
+                            🔑 App Password: ${password.app_password}
+                        </div>
+                        ${password.domain ? `<div style="color: #666; font-size: 12px; margin-top: 2px;">🌐 Domain: ${password.domain}</div>` : ''}
+                        <div style="color: #666; font-size: 11px; margin-top: 4px;">
+                            📅 Updated: ${password.updated_at}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    document.getElementById('app-passwords-display').innerHTML = html;
+}
+
+function clearAppPasswords() {
+    document.getElementById('app-passwords-display').innerHTML = '<div style="color: #6a737d; font-style: italic;">📝 App passwords will appear here...</div>';
+    logResult('🧹 App passwords display cleared');
+}
+
+function fetchAppPasswordsForWorkflow() {
+    logBulkDomain('🔍 Fetching stored app passwords...');
+    
+    fetch('/api/get-all-app-passwords')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.app_passwords.length > 0) {
+            logBulkDomain(`📋 Found ${data.app_passwords.length} stored app passwords:`);
+            data.app_passwords.forEach(password => {
+                logBulkDomain(`   🔑 ${password.user_alias} - ${password.app_password} ${password.domain ? `(${password.domain})` : ''}`);
+            });
+            
+            // Display in the App Passwords Display field
+            displayWorkflowAppPasswords(data.app_passwords);
+        } else {
+            logBulkDomain('⚠️ No app passwords found in storage');
+            logBulkDomain('💡 Tip: Store app passwords in the App Password Management section first');
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Error fetching app passwords: ${error.message}`);
+    });
+}
+
+function displayWorkflowAppPasswords(appPasswords) {
+    const display = document.getElementById('app-passwords-display');
+    if (!display) return;
+    
+    let html = '<div class="workflow-app-passwords">';
+    html += '<h4 style="margin-bottom: 16px; color: #24292f;">🔐 App Passwords for Workflow</h4>';
+    
+    appPasswords.forEach(password => {
+        html += `
+            <div class="workflow-password-item" style="border: 1px solid #28a745; border-radius: 6px; padding: 12px; margin-bottom: 8px; background: #d4edda;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: #155724;">${password.user_alias}</strong>
+                        <div style="color: #155724; font-size: 14px; margin-top: 4px;">
+                            🔑 ${password.app_password}
+                        </div>
+                        ${password.domain ? `<div style="color: #155724; font-size: 12px; margin-top: 2px;">🌐 ${password.domain}</div>` : ''}
+                    </div>
+                    <div style="color: #28a745; font-size: 12px;">
+                        ✅ Ready
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    display.innerHTML = html;
 }
 
 async function copyToClipboard(text) {
@@ -5235,22 +5463,20 @@ function closeMegaUpgradeModal() {
 }
 
 function startMegaUpgrade() {
-    const accountsText = document.getElementById('mega-accounts-list').value.trim();
+    const accountEmail = document.getElementById('mega-single-account').value.trim();
     
-    if (!accountsText) {
-        alert('Please enter at least one account');
+    if (!accountEmail) {
+        alert('Please enter an account email address');
         return;
     }
     
-    // Parse accounts from textarea (one per line)
-    const accounts = accountsText.split('\n')
-        .map(line => line.trim())
-        .filter(line => line && line.includes('@')); // Filter out empty lines and invalid emails
-    
-    if (accounts.length === 0) {
-        alert('Please enter valid email addresses (one per line)');
+    if (!accountEmail.includes('@')) {
+        alert('Please enter a valid email address');
         return;
     }
+    
+    // Single account processing
+    const accounts = [accountEmail];
     
     // Get selected features
     const features = {
@@ -5448,8 +5674,11 @@ function runMegaUpgradeWorkflow(accounts, features) {
     updateMegaProgress(30, 'Changing subdomains...');
     logBulkDomain('🔄 Step 3: Changing subdomains...');
     
-    updateMegaProgress(40, 'Generating app passwords...');
-    logBulkDomain('🔑 Step 4: Generating app passwords...');
+    updateMegaProgress(40, 'Fetching app passwords...');
+    logBulkDomain('🔑 Step 4: Fetching stored app passwords...');
+    
+    // Fetch and display app passwords
+    fetchAppPasswordsForWorkflow();
     logBulkDomain('─'.repeat(50));
     
     updateMegaProgress(50, 'Sending request to server...');
@@ -5549,7 +5778,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
 <div id="megaUpgradeModal" class="modal" style="display: none;">
     <div class="modal-content" style="max-width: 1200px; width: 95%;">
         <div class="modal-header">
-            <h2><i class="fas fa-rocket"></i> Mega Upgrade: Multi-Account Workflow</h2>
+            <h2><i class="fas fa-rocket"></i> Mega Upgrade: Single Account Workflow</h2>
             <span class="close" onclick="closeMegaUpgradeModal()">&times;</span>
         </div>
         
@@ -5575,28 +5804,23 @@ function runMegaUpgradeWorkflow(accounts, features) {
                         <span class="checkmark"></span>
                         <i class="fas fa-download"></i> Retrieve App Passwords
                     </label>
-                    <label class="checkbox-container">
-                        <input type="checkbox" id="feature-update-passwords" checked>
-                        <span class="checkmark"></span>
-                        <i class="fas fa-sync-alt"></i> Update Domain in Passwords
-                    </label>
                 </div>
             </div>
             
-            <!-- Account Input -->
+            <!-- Single Account Input -->
             <div style="margin-bottom: 24px;">
                 <h3 style="margin-bottom: 16px; color: #24292f;">
-                    <i class="fas fa-users"></i> Account List (One per line)
+                    <i class="fas fa-user"></i> Single Account Processing
                 </h3>
                 <div class="form-group-github">
-                    <label for="mega-accounts-list" class="form-label-github">
-                        <i class="fas fa-list"></i> Accounts (One email per line)
+                    <label for="mega-single-account" class="form-label-github">
+                        <i class="fas fa-envelope"></i> Account Email
                     </label>
-                    <textarea id="mega-accounts-list" class="form-control-github" rows="8" 
-                              placeholder="Enter accounts one per line:&#10;admin@domain1.com&#10;support@domain2.com&#10;mailer@domain3.com&#10;...&#10;&#10;Supports unlimited accounts for processing"
-                              style="font-family: monospace; font-size: 13px;"></textarea>
+                    <input type="email" id="mega-single-account" class="form-control-github" 
+                           placeholder="account@domain.com"
+                           style="font-family: monospace; font-size: 13px;">
                     <small style="color: #656d76; font-size: 12px;">
-                        Enter one email address per line. The system will process all accounts with the selected features.
+                        Enter the email address of the account to process. The system will apply selected features to this single account.
                     </small>
                 </div>
             </div>

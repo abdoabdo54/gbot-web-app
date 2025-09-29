@@ -721,4 +721,112 @@ class WebGoogleAPI:
                 'error': str(e)
             }
 
+    def store_app_password(self, user_alias, app_password, domain=None):
+        """Store app password for a user alias"""
+        try:
+            import sqlite3
+            import os
+            
+            db_path = os.path.join('instance', 'gbot.db')
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # Insert or update app password
+            cursor.execute('''
+                INSERT OR REPLACE INTO app_passwords 
+                (user_alias, app_password, domain, updated_at) 
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (user_alias, app_password, domain))
+            
+            conn.commit()
+            conn.close()
+            
+            return {
+                'success': True,
+                'message': f'App password stored for user alias: {user_alias}'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def get_app_password(self, user_alias):
+        """Get app password for a user alias"""
+        try:
+            import sqlite3
+            import os
+            
+            db_path = os.path.join('instance', 'gbot.db')
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT app_password, domain FROM app_passwords 
+                WHERE user_alias = ?
+            ''', (user_alias,))
+            
+            result = cursor.fetchone()
+            conn.close()
+            
+            if result:
+                return {
+                    'success': True,
+                    'app_password': result[0],
+                    'domain': result[1]
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': f'No app password found for alias: {user_alias}'
+                }
+                
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def get_all_app_passwords(self):
+        """Get all stored app passwords"""
+        try:
+            import sqlite3
+            import os
+            
+            db_path = os.path.join('instance', 'gbot.db')
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT user_alias, app_password, domain, created_at, updated_at 
+                FROM app_passwords 
+                ORDER BY updated_at DESC
+            ''')
+            
+            results = cursor.fetchall()
+            conn.close()
+            
+            app_passwords = []
+            for row in results:
+                app_passwords.append({
+                    'user_alias': row[0],
+                    'app_password': row[1],
+                    'domain': row[2],
+                    'created_at': row[3],
+                    'updated_at': row[4]
+                })
+            
+            return {
+                'success': True,
+                'app_passwords': app_passwords,
+                'total_count': len(app_passwords)
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
 google_api = WebGoogleAPI()
