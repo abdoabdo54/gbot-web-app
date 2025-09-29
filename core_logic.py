@@ -676,56 +676,6 @@ class WebGoogleAPI:
                 'error': str(e)
             }
 
-    def force_password_change(self, email, new_password=None):
-        """Force a user to change password on next login (for WEB_LOGIN_REQUIRED users)"""
-        if not self.service:
-            raise Exception("Not authenticated or session expired.")
-        
-        try:
-            import random
-            import string
-            
-            # Generate a temporary password if none provided
-            if not new_password:
-                new_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
-            
-            # Update user to force password change
-            user_body = {
-                'suspended': False,
-                'changePasswordAtNextLogin': True,
-                'password': new_password
-            }
-            
-            self.service.users().update(
-                userKey=email,
-                body=user_body
-            ).execute()
-            
-            return {
-                'success': True,
-                'email': email,
-                'message': f'User {email} has been unsuspended and will be forced to change password on next login',
-                'temporary_password': new_password
-            }
-            
-        except Exception as e:
-            error_str = str(e)
-            
-            # Check for abuse suspension error
-            if 'Cannot restore a user suspended for abuse' in error_str or 'adminCannotUnsuspend' in error_str:
-                return {
-                    'success': False,
-                    'email': email,
-                    'error': 'ABUSE_SUSPENSION',
-                    'message': 'This user was suspended for abuse and cannot be restored through normal means. Contact Google Workspace support for assistance.',
-                    'suspension_type': 'abuse'
-                }
-            else:
-                return {
-                    'success': False,
-                    'email': email,
-                    'error': str(e)
-                }
 
     def get_suspended_users(self):
         """Get all suspended users"""

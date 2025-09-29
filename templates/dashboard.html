@@ -298,29 +298,6 @@
             </div>
         </div>
         
-        <!-- Special Action for WEB_LOGIN_REQUIRED Users -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end; margin-top: 16px; padding: 16px; background: #fff3cd; border: 1px solid #f39c12; border-radius: 6px;">
-            <div class="form-group-github">
-                <label for="force-password-email" class="form-label-github">
-                    <i class="fas fa-key"></i> Force Password Reset (WEB_LOGIN_REQUIRED)
-                </label>
-                <input type="email" id="force-password-email" class="form-control-github" placeholder="user@domain.com">
-            </div>
-            <div class="form-group-github">
-                <label for="force-password-new" class="form-label-github">
-                    <i class="fas fa-lock"></i> New Password (Optional)
-                </label>
-                <input type="password" id="force-password-new" class="form-control-github" placeholder="Leave empty for auto-generated">
-            </div>
-            <div style="display: flex; gap: 8px;">
-                <button onclick="forcePasswordChange()" class="btn-github btn-github-warning">
-                    <i class="fas fa-key"></i> Force Reset
-                </button>
-            </div>
-        </div>
-        <div style="margin-top: 8px; padding: 8px; background: #e8f4fd; border: 1px solid #bee5eb; border-radius: 4px; font-size: 12px; color: #0c5460;">
-            <i class="fas fa-info-circle"></i> <strong>For WEB_LOGIN_REQUIRED users:</strong> This will unsuspend the user and force them to change their password on next login. If no password is provided, a temporary password will be generated.
-        </div>
         
         <div id="user-count" class="count-display">Total Users: 0</div>
         
@@ -3422,66 +3399,6 @@ function unsuspendUser() {
     });
 }
 
-function forcePasswordChange() {
-    const email = document.getElementById('force-password-email').value.trim();
-    const newPassword = document.getElementById('force-password-new').value.trim();
-    
-    if (!email) {
-        alert('Please enter an email address');
-        return;
-    }
-    
-    if (!email.includes('@')) {
-        alert('Please enter a valid email address');
-        return;
-    }
-    
-    if (!isAuthenticated) {
-        alert('Please authenticate an account first');
-        return;
-    }
-    
-    const confirmMessage = newPassword ? 
-        `🔐 Are you sure you want to force password reset for user: ${email}?\n\nThis will set the password to: ${newPassword}\nThe user will be forced to change it on next login.` :
-        `🔐 Are you sure you want to force password reset for user: ${email}?\n\nA temporary password will be generated and the user will be forced to change it on next login.`;
-    
-    if (!confirm(confirmMessage)) {
-        return;
-    }
-    
-    logResult(`🔐 Forcing password reset for user: ${email}...`);
-    
-    fetch('/api/force-password-change', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ 
-            email: email,
-            new_password: newPassword || null
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            logResult(`✅ ${data.message}`);
-            if (data.temporary_password) {
-                logResult(`🔑 Temporary password: ${data.temporary_password}`);
-                logResult(`📧 Share this password with the user for their next login`);
-            }
-            document.getElementById('force-password-email').value = '';
-            document.getElementById('force-password-new').value = '';
-        } else {
-            if (data.error === 'ABUSE_SUSPENSION') {
-                logResult(`🚨 ABUSE SUSPENSION: ${data.message}`);
-                logResult(`📞 Contact Google Workspace support for assistance with this user`);
-            } else {
-                logResult(`❌ Failed to force password reset: ${data.error}`);
-            }
-        }
-    })
-    .catch(error => {
-        logResult(`❌ Network error: ${error.message}`);
-    });
-}
 
 function loadSuspendedUsers() {
     if (!isAuthenticated) {
@@ -3522,33 +3439,10 @@ function displaySuspendedUsers(users) {
         const adminBadge = user.isAdmin ? '<span class="badge admin">👑 Admin</span>' : '';
         const lastLogin = user.lastLoginTime === 'Never' ? 'Never' : new Date(user.lastLoginTime).toLocaleDateString();
         
-        // Check if this is a WEB_LOGIN_REQUIRED user
-        const isWebLoginRequired = user.suspensionReason === 'WEB_LOGIN_REQUIRED' || 
-                                 user.suspensionReason === 'WEB_LOGIN_REQUIRED' ||
-                                 (user.lastLoginTime && new Date(user.lastLoginTime).getFullYear() === 1970);
-        
-        // Check if this is an abuse-suspended user
-        const isAbuseSuspended = user.suspensionReason === 'ABUSE' || 
-                               user.suspensionReason === 'abuse' ||
-                               user.suspensionReason === 'ADMIN_ACTION' ||
-                               user.suspensionReason === 'admin_action';
-        
-        // Different styling based on suspension type
-        let cardStyle, statusColor, statusIcon;
-        
-        if (isAbuseSuspended) {
-            cardStyle = 'border: 1px solid #dc3545; background: #f8d7da;';
-            statusColor = '#dc3545';
-            statusIcon = '🚨';
-        } else if (isWebLoginRequired) {
-            cardStyle = 'border: 1px solid #f39c12; background: #fff3cd;';
-            statusColor = '#f39c12';
-            statusIcon = '🔐';
-        } else {
-            cardStyle = 'border: 1px solid #d73a49; background: #ffeaea;';
-            statusColor = '#d73a49';
-            statusIcon = '🚫';
-        }
+        // Standard suspended user styling
+        const cardStyle = 'border: 1px solid #d73a49; background: #ffeaea;';
+        const statusColor = '#d73a49';
+        const statusIcon = '🚫';
         
         html += `
             <div class="suspended-user-item" style="${cardStyle} border-radius: 6px; padding: 12px; margin-bottom: 8px;">
@@ -3557,29 +3451,17 @@ function displaySuspendedUsers(users) {
                         <strong>${user.name || user.firstName + ' ' + user.lastName}</strong>
                         <div style="color: #666; font-size: 14px;">${user.email}</div>
                         <div style="color: ${statusColor}; font-size: 12px; margin-top: 4px;">
-                            ${statusIcon} ${isAbuseSuspended ? 'Abuse Suspended' : (isWebLoginRequired ? 'Password Reset Required' : 'Suspended')} | Last Login: ${lastLogin}
+                            ${statusIcon} Suspended | Last Login: ${lastLogin}
                         </div>
                         <div style="color: #666; font-size: 12px; margin-top: 2px;">
                             Reason: ${user.suspensionReason}
                         </div>
-                        ${isAbuseSuspended ? '<div style="color: #dc3545; font-size: 11px; margin-top: 2px; font-style: italic;">🚨 This user was suspended for abuse and cannot be restored through normal means</div>' : ''}
-                        ${isWebLoginRequired ? '<div style="color: #f39c12; font-size: 11px; margin-top: 2px; font-style: italic;">⚠️ This user needs to reset their password</div>' : ''}
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         ${adminBadge}
-                        ${isAbuseSuspended ? 
-                            `<button onclick="showAbuseSuspensionInfo('${user.email}')" class="btn-github btn-github-danger" style="font-size: 12px; padding: 4px 8px;" disabled>
-                                <i class="fas fa-ban"></i> Cannot Restore
-                            </button>` :
-                            (isWebLoginRequired ? 
-                                `<button onclick="forcePasswordChangeFromList('${user.email}')" class="btn-github btn-github-warning" style="font-size: 12px; padding: 4px 8px;">
-                                    <i class="fas fa-key"></i> Force Password Reset
-                                </button>` :
-                                `<button onclick="unsuspendUserFromList('${user.email}')" class="btn-github btn-github-success" style="font-size: 12px; padding: 4px 8px;">
-                                    <i class="fas fa-user-check"></i> Unsuspend
-                                </button>`
-                            )
-                        }
+                        <button onclick="unsuspendUserFromList('${user.email}')" class="btn-github btn-github-success" style="font-size: 12px; padding: 4px 8px;">
+                            <i class="fas fa-user-check"></i> Unsuspend
+                        </button>
                     </div>
                 </div>
             </div>
@@ -3617,45 +3499,7 @@ function unsuspendUserFromList(email) {
     });
 }
 
-function forcePasswordChangeFromList(email) {
-    if (!confirm(`🔐 Are you sure you want to force password reset for user: ${email}?\n\nThis will unsuspend the user and force them to change their password on next login.`)) {
-        return;
-    }
-    
-    logResult(`🔐 Forcing password reset for user: ${email}...`);
-    
-    fetch('/api/force-password-change', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ email: email })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            logResult(`✅ ${data.message}`);
-            if (data.temporary_password) {
-                logResult(`🔑 Temporary password: ${data.temporary_password}`);
-                logResult(`📧 Share this password with the user for their next login`);
-            }
-            // Refresh the suspended users list
-            loadSuspendedUsers();
-        } else {
-            if (data.error === 'ABUSE_SUSPENSION') {
-                logResult(`🚨 ABUSE SUSPENSION: ${data.message}`);
-                logResult(`📞 Contact Google Workspace support for assistance with this user`);
-            } else {
-                logResult(`❌ Failed to force password reset: ${data.error}`);
-            }
-        }
-    })
-    .catch(error => {
-        logResult(`❌ Network error: ${error.message}`);
-    });
-}
 
-function showAbuseSuspensionInfo(email) {
-    alert(`🚨 ABUSE SUSPENSION INFO\n\nUser: ${email}\n\nThis user was suspended for abuse and cannot be restored through normal administrative actions.\n\n📞 SOLUTION:\n1. Contact Google Workspace Support\n2. Provide the user's email and suspension details\n3. Request manual review and potential restoration\n4. Explain the circumstances if the suspension was in error\n\n⚠️ Note: Abuse suspensions are security measures and require Google's direct intervention.`);
-}
 
 function bulkSuspendUsers() {
     const emailsText = document.getElementById('bulk-suspend-emails').value.trim();
