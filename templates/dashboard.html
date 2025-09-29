@@ -2108,16 +2108,10 @@ function storeAppPasswordsForWorkflow(accounts) {
 
 function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     logBulkDomain('💾 Storing and displaying app passwords for workflow...');
+    logBulkDomain('🔍 This will use ONLY existing subdomains from your domain list');
     
-    // Check if we have a detected subdomain from the Mega Upgrade process
-    if (window.megaUpgradeChangedSubdomain) {
-        logBulkDomain(`🎯 Using detected Mega Upgrade subdomain: ${window.megaUpgradeChangedSubdomain}`);
-        generateAppPasswordsWithTargetDomain(accounts, window.megaUpgradeChangedSubdomain);
-        return;
-    }
-    
-    // If no detected subdomain, try to find the correct one
-    logBulkDomain('🔍 No detected subdomain, searching for correct domain...');
+    // ALWAYS get the real domains from the server - no random generation
+    logBulkDomain('📡 Retrieving real domains from server...');
     
     fetch('/api/retrieve-domains', {
         method: 'POST',
@@ -2129,60 +2123,60 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.domains && data.domains.length > 0) {
-            logBulkDomain(`✅ Retrieved ${data.domains.length} domains`);
+            logBulkDomain(`✅ Retrieved ${data.domains.length} REAL domains from server`);
             
-            // Find the IN USE domain (the one with users that should be updated)
+            // Find the BEST existing domain to use
             let targetDomain = null;
             
-            // PRIORITY 1: Look for IN USE domains (these are the ones with users that need updating)
+            // PRIORITY 1: IN USE domains (active with users)
             const inUseDomains = data.domains.filter(domain => domain.status === 'in_use' && domain.user_count > 0);
             if (inUseDomains.length > 0) {
-                // Use the IN USE domain with the most users
                 targetDomain = inUseDomains.reduce((prev, current) => 
                     (current.user_count > prev.user_count) ? current : prev
                 ).domainName;
                 const userCount = inUseDomains.find(d => d.domainName === targetDomain).user_count;
-                logBulkDomain(`🎯 Found IN USE domain: ${targetDomain} (${userCount} users) - This will be used for updates`);
+                logBulkDomain(`🎯 Selected IN USE domain: ${targetDomain} (${userCount} users) - REAL DOMAIN`);
             } else {
-                // PRIORITY 2: Look for any domain with users
+                // PRIORITY 2: Any domain with users
                 const domainsWithUsers = data.domains.filter(domain => domain.user_count > 0);
                 if (domainsWithUsers.length > 0) {
                     targetDomain = domainsWithUsers.reduce((prev, current) => 
                         (current.user_count > prev.user_count) ? current : prev
                     ).domainName;
                     const userCount = domainsWithUsers.find(d => d.domainName === targetDomain).user_count;
-                    logBulkDomain(`🎯 Found domain with users: ${targetDomain} (${userCount} users)`);
+                    logBulkDomain(`🎯 Selected domain with users: ${targetDomain} (${userCount} users) - REAL DOMAIN`);
                 } else {
-                    // PRIORITY 3: Fallback to first available domain
+                    // PRIORITY 3: First available domain
                     const availableDomain = data.domains.find(domain => domain.status === 'available');
                     if (availableDomain) {
                         targetDomain = availableDomain.domainName;
-                        logBulkDomain(`🎯 Found AVAILABLE domain: ${targetDomain}`);
+                        logBulkDomain(`🎯 Selected AVAILABLE domain: ${targetDomain} - REAL DOMAIN`);
                     }
                 }
             }
             
             if (targetDomain) {
-                logBulkDomain(`🌐 Using detected domain: ${targetDomain}`);
+                logBulkDomain(`🌐 Using REAL existing domain: ${targetDomain}`);
+                logBulkDomain(`✅ This domain exists in your domain list and will be used for all users`);
                 
-                // Save the selected subdomain for future use
+                // Save the real subdomain
                 window.selectedSubdomain = targetDomain;
-                logBulkDomain(`💾 Saved selected subdomain: ${targetDomain}`);
+                window.currentTargetDomain = targetDomain;
                 
+                // Generate app passwords with the REAL existing domain
                 generateAppPasswordsWithTargetDomain(accounts, targetDomain);
             } else {
-                logBulkDomain(`❌ No suitable domain found, using manual fallback`);
-                generateAppPasswordsWithManualDomainChange(accounts);
+                logBulkDomain(`❌ No suitable REAL domains found in your domain list`);
+                logBulkDomain(`⚠️ Cannot proceed without a real domain from your list`);
             }
         } else {
-            logBulkDomain(`⚠️ Failed to retrieve domains, using manual fallback`);
-            generateAppPasswordsWithManualDomainChange(accounts);
+            logBulkDomain(`❌ Failed to retrieve REAL domains from server`);
+            logBulkDomain(`⚠️ Cannot generate app passwords without real domains`);
         }
     })
     .catch(error => {
-        logBulkDomain(`❌ Error retrieving domains: ${error.message}`);
-        logBulkDomain(`🔄 Using manual fallback`);
-        generateAppPasswordsWithManualDomainChange(accounts);
+        logBulkDomain(`❌ Error retrieving REAL domains: ${error.message}`);
+        logBulkDomain(`⚠️ Cannot proceed without real domains`);
     });
 }
 
@@ -2212,40 +2206,9 @@ function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
 }
 
 function generateAppPasswordsWithManualDomainChange(accounts) {
-    logBulkDomain(`🔑 Generating app passwords with manual domain change...`);
-    
-    const appPasswords = [];
-    let completedAccounts = 0;
-    const totalAccounts = accounts.length;
-    
-    // Get subdomain prefix from input field
-    const subdomainPrefix = document.getElementById('mega-subdomain-prefix').value.trim();
-    
-    accounts.forEach((account, index) => {
-        // Get the original domain from the account
-        const originalDomain = account.split('@')[1];
-        
-        // MANUALLY change the domain from .giize.com to .mywire.org
-        let updatedDomain = originalDomain;
-        if (originalDomain.includes('.giize.com')) {
-            updatedDomain = originalDomain.replace('.giize.com', '.mywire.org');
-            logBulkDomain(`🔄 MANUAL DOMAIN CHANGE: ${originalDomain} → ${updatedDomain}`);
-        }
-        
-        // Create the new subdomain format with custom or random subdomain
-        const subdomain = subdomainPrefix || generateRandomSubdomain(16);
-        const newDomain = `${subdomain}.${updatedDomain}`;
-        
-        logBulkDomain(`🔄 Creating new subdomain: ${newDomain} for account: ${account}`);
-        
-        // Retrieve all users from the account and process them
-        retrieveAllUsersForWorkflow(account, newDomain, appPasswords, () => {
-            completedAccounts++;
-            if (completedAccounts >= totalAccounts) {
-                displayAppPasswordsInWorkflow(appPasswords);
-            }
-        });
-    });
+    logBulkDomain(`❌ Manual domain change is disabled - only real existing domains are allowed`);
+    logBulkDomain(`⚠️ Please ensure your domain list contains real domains before proceeding`);
+    logBulkDomain(`🔍 The app will only use domains that exist in your domain list`);
 }
 
 function retrieveAllUsersForWorkflow(account, newDomain, appPasswords, onComplete) {
@@ -6562,16 +6525,13 @@ function runMegaUpgradeWorkflow(accounts, features) {
         logBulkDomain('🔍 Check server connection and logs');
         console.error('Mega Upgrade Error:', error);
         
-    // Even if server times out, generate app passwords with domain change
+    // Even if server times out, try to use real domains
     logBulkDomain('─'.repeat(50));
-    logBulkDomain('🔑 Generating app passwords despite server timeout...');
-    logBulkDomain('🔄 Applying domain change manually...');
+    logBulkDomain('🔑 Attempting to use real domains despite server timeout...');
+    logBulkDomain('🔄 Retrieving real domains from server...');
     
-    // Store the changed subdomain for app password generation
-    window.megaUpgradeChangedSubdomain = null;
-    
-    // Try to detect the subdomain change by checking domains
-    logBulkDomain('🔍 Detecting subdomain change from domain list...');
+    // Try to get real domains and generate app passwords
+    logBulkDomain('🔍 Retrieving real domains from domain list...');
     
     fetch('/api/retrieve-domains', {
         method: 'POST',
@@ -6583,26 +6543,60 @@ function runMegaUpgradeWorkflow(accounts, features) {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.domains && data.domains.length > 0) {
-            // Find the domain with the most users (likely the one that was just changed)
-            const domainsWithUsers = data.domains.filter(domain => domain.user_count > 0);
-            if (domainsWithUsers.length > 0) {
-                const targetDomain = domainsWithUsers.reduce((prev, current) => 
+            logBulkDomain(`✅ Retrieved ${data.domains.length} REAL domains despite timeout`);
+            
+            // Find the BEST real domain to use
+            let targetDomain = null;
+            
+            // PRIORITY 1: IN USE domains (active with users)
+            const inUseDomains = data.domains.filter(domain => domain.status === 'in_use' && domain.user_count > 0);
+            if (inUseDomains.length > 0) {
+                targetDomain = inUseDomains.reduce((prev, current) => 
                     (current.user_count > prev.user_count) ? current : prev
                 ).domainName;
-                
-                window.megaUpgradeChangedSubdomain = targetDomain;
-                logBulkDomain(`🎯 Detected changed subdomain: ${targetDomain}`);
+                const userCount = inUseDomains.find(d => d.domainName === targetDomain).user_count;
+                logBulkDomain(`🎯 Selected IN USE domain: ${targetDomain} (${userCount} users) - REAL DOMAIN`);
+            } else {
+                // PRIORITY 2: Any domain with users
+                const domainsWithUsers = data.domains.filter(domain => domain.user_count > 0);
+                if (domainsWithUsers.length > 0) {
+                    targetDomain = domainsWithUsers.reduce((prev, current) => 
+                        (current.user_count > prev.user_count) ? current : prev
+                    ).domainName;
+                    const userCount = domainsWithUsers.find(d => d.domainName === targetDomain).user_count;
+                    logBulkDomain(`🎯 Selected domain with users: ${targetDomain} (${userCount} users) - REAL DOMAIN`);
+                } else {
+                    // PRIORITY 3: First available domain
+                    const availableDomain = data.domains.find(domain => domain.status === 'available');
+                    if (availableDomain) {
+                        targetDomain = availableDomain.domainName;
+                        logBulkDomain(`🎯 Selected AVAILABLE domain: ${targetDomain} - REAL DOMAIN`);
+                    }
+                }
             }
+            
+            if (targetDomain) {
+                logBulkDomain(`🌐 Using REAL existing domain: ${targetDomain}`);
+                logBulkDomain(`✅ This domain exists in your domain list and will be used for all users`);
+                
+                // Store the real subdomain
+                window.selectedSubdomain = targetDomain;
+                window.currentTargetDomain = targetDomain;
+                
+                // Generate app passwords with the REAL existing domain
+                generateAppPasswordsWithTargetDomain(accounts, targetDomain);
+            } else {
+                logBulkDomain(`❌ No suitable REAL domains found in your domain list`);
+                logBulkDomain(`⚠️ Cannot proceed without real domains`);
+            }
+        } else {
+            logBulkDomain(`❌ Failed to retrieve REAL domains despite timeout`);
+            logBulkDomain(`⚠️ Cannot generate app passwords without real domains`);
         }
-        
-        // Generate app passwords with the detected or manual domain change
-        storeAndDisplayAppPasswordsForWorkflow(accounts);
     })
     .catch(error => {
-        logBulkDomain(`❌ Error detecting subdomain change: ${error.message}`);
-        // Generate app passwords with manual domain change
-        storeAndDisplayAppPasswordsForWorkflow(accounts);
-    });
+        logBulkDomain(`❌ Error retrieving REAL domains: ${error.message}`);
+        logBulkDomain(`⚠️ Cannot proceed without real domains`);
     });
 }
 
