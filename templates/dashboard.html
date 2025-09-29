@@ -2109,6 +2109,86 @@ function storeAppPasswordsForWorkflow(accounts) {
 function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     logBulkDomain('💾 Storing and displaying app passwords for workflow...');
     
+    // First, retrieve the available domains to get the correct subdomain
+    logBulkDomain('🔍 Retrieving available domains to detect correct subdomain...');
+    
+    fetch('/api/retrieve-domains', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            batched: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.domains && data.domains.length > 0) {
+            logBulkDomain(`✅ Retrieved ${data.domains.length} domains`);
+            
+            // Find the IN USE domain or next available domain
+            let targetDomain = null;
+            
+            // First, look for IN USE domain
+            const inUseDomain = data.domains.find(domain => domain.status === 'in_use');
+            if (inUseDomain) {
+                targetDomain = inUseDomain.domainName;
+                logBulkDomain(`🎯 Found IN USE domain: ${targetDomain}`);
+            } else {
+                // If no IN USE domain, find the first AVAILABLE domain
+                const availableDomain = data.domains.find(domain => domain.status === 'available');
+                if (availableDomain) {
+                    targetDomain = availableDomain.domainName;
+                    logBulkDomain(`🎯 Found AVAILABLE domain: ${targetDomain}`);
+                } else {
+                    // Fallback to first domain
+                    targetDomain = data.domains[0].domainName;
+                    logBulkDomain(`🎯 Using first domain as fallback: ${targetDomain}`);
+                }
+            }
+            
+            if (targetDomain) {
+                logBulkDomain(`🌐 Using target domain: ${targetDomain}`);
+                
+                // Generate app passwords with the correct domain
+                generateAppPasswordsWithTargetDomain(accounts, targetDomain);
+            } else {
+                logBulkDomain(`❌ No target domain found, using manual domain change`);
+                generateAppPasswordsWithManualDomainChange(accounts);
+            }
+        } else {
+            logBulkDomain(`⚠️ Failed to retrieve domains, using manual domain change`);
+            generateAppPasswordsWithManualDomainChange(accounts);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Error retrieving domains: ${error.message}`);
+        logBulkDomain(`🔄 Falling back to manual domain change`);
+        generateAppPasswordsWithManualDomainChange(accounts);
+    });
+}
+
+function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
+    logBulkDomain(`🔑 Generating app passwords with target domain: ${targetDomain}`);
+    
+    const appPasswords = [];
+    let completedAccounts = 0;
+    const totalAccounts = accounts.length;
+    
+    accounts.forEach((account, index) => {
+        logBulkDomain(`🔄 Processing account: ${account} with domain: ${targetDomain}`);
+        
+        // Retrieve all users from the account and process them
+        retrieveAllUsersForWorkflow(account, targetDomain, appPasswords, () => {
+            completedAccounts++;
+            if (completedAccounts >= totalAccounts) {
+                displayAppPasswordsInWorkflow(appPasswords);
+            }
+        });
+    });
+}
+
+function generateAppPasswordsWithManualDomainChange(accounts) {
+    logBulkDomain(`🔑 Generating app passwords with manual domain change...`);
+    
     const appPasswords = [];
     let completedAccounts = 0;
     const totalAccounts = accounts.length;
@@ -2116,19 +2196,11 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     // Get subdomain prefix from input field
     const subdomainPrefix = document.getElementById('mega-subdomain-prefix').value.trim();
     
-    if (subdomainPrefix) {
-        logBulkDomain(`🌐 Using custom subdomain prefix: ${subdomainPrefix}`);
-    } else {
-        logBulkDomain(`🌐 Using random subdomain generation`);
-    }
-    
-    // For each account, retrieve all users and generate app passwords
     accounts.forEach((account, index) => {
         // Get the original domain from the account
         const originalDomain = account.split('@')[1];
         
         // MANUALLY change the domain from .giize.com to .mywire.org
-        // This simulates the domain change that should happen on the server
         let updatedDomain = originalDomain;
         if (originalDomain.includes('.giize.com')) {
             updatedDomain = originalDomain.replace('.giize.com', '.mywire.org');
@@ -2140,8 +2212,6 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
         const newDomain = `${subdomain}.${updatedDomain}`;
         
         logBulkDomain(`🔄 Creating new subdomain: ${newDomain} for account: ${account}`);
-        logBulkDomain(`📧 Updated domain: ${updatedDomain}`);
-        logBulkDomain(`🌐 New subdomain: ${newDomain}`);
         
         // Retrieve all users from the account and process them
         retrieveAllUsersForWorkflow(account, newDomain, appPasswords, () => {
