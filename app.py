@@ -6411,11 +6411,11 @@ def restore_backup():
                         f'--username={parsed.username or "postgres"}',
                         f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                         '--file', sql_backup_path
-                    ]
-                    
-                    result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
-                    if result.returncode != 0:
-                        return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+                ]
+                
+                result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                if result.returncode != 0:
+                    return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
                 else:
                     return jsonify({'success': False, 'error': 'Failed to convert JSON backup to SQL format'})
             else:
@@ -6572,11 +6572,11 @@ def upload_restore_backup():
                         f'--username={parsed.username or "postgres"}',
                         f'--dbname={parsed.path[1:] if parsed.path else "gbot_db"}',
                         '--file', sql_uploaded_path
-                    ]
-                    
-                    result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
-                    if result.returncode != 0:
-                        return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
+                ]
+                
+                result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True, timeout=300)
+                if result.returncode != 0:
+                    return jsonify({'success': False, 'error': f'Failed to restore database: {result.stderr}'})
                 else:
                     return jsonify({'success': False, 'error': 'Failed to convert JSON backup to SQL format'})
             else:
