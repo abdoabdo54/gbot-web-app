@@ -2191,22 +2191,6 @@ function loadSuspendedUsers() {
     });
 }
 
-function copySuspendedUsers() {
-    const suspendedItems = document.querySelectorAll('.suspended-user .email');
-    const emails = Array.from(suspendedItems).map(item => item.textContent.trim());
-    
-    if (emails.length > 0) {
-        copyToClipboard(emails.join('\n')).then(success => {
-            if (success) {
-                alert(`✅ Copied ${emails.length} suspended email addresses to clipboard!`);
-            } else {
-                alert('❌ Copy failed - please try manually selecting the text');
-            }
-        });
-    } else {
-        alert('No suspended users to copy');
-    }
-}
 
 function refreshSuspendedUsers() {
     if (!isAuthenticated) {
@@ -3490,9 +3474,13 @@ function copySuspendedUsers() {
     
     let emails = [];
     userItems.forEach(item => {
-        const emailElement = item.querySelector('div[style*="color: #666"]');
-        if (emailElement) {
-            emails.push(emailElement.textContent.trim());
+        // Look for the email in the second div (which contains the email)
+        const divs = item.querySelectorAll('div');
+        if (divs.length >= 2) {
+            const emailText = divs[1].textContent.trim();
+            if (emailText.includes('@')) {
+                emails.push(emailText);
+            }
         }
     });
     
@@ -3500,8 +3488,17 @@ function copySuspendedUsers() {
         navigator.clipboard.writeText(emails.join('\n')).then(() => {
             logResult(`📋 Copied ${emails.length} suspended user emails to clipboard`);
         }).catch(() => {
-            alert('Failed to copy to clipboard');
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = emails.join('\n');
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            logResult(`📋 Copied ${emails.length} suspended user emails to clipboard (fallback method)`);
         });
+    } else {
+        alert('No valid email addresses found to copy');
     }
 }
 
