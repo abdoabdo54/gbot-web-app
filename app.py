@@ -4868,8 +4868,6 @@ def upload_app_passwords():
         content = file.read().decode('utf-8')
         lines = content.strip().split('\n')
         
-        from database import UserAppPassword
-        
         uploaded_count = 0
         updated_count = 0
         error_count = 0
@@ -4902,36 +4900,21 @@ def upload_app_passwords():
                     error_count += 1
                     continue
                 
-                # Split email into username and domain
-                username, domain = user_email.split('@', 1)
+                # Store in SQLite app_passwords table
+                result = google_api.store_app_password(user_email, app_password, user_email.split('@')[1] if '@' in user_email else '')
                 
-                # Check if record already exists
-                existing = UserAppPassword.query.filter_by(username=username, domain=domain).first()
-                
-                if existing:
-                    # Update existing record
-                    existing.app_password = app_password
-                    existing.updated_at = db.func.current_timestamp()
-                    updated_count += 1
-                else:
-                    # Create new record
-                    new_record = UserAppPassword(
-                        username=username,
-                        domain=domain,
-                        app_password=app_password
-                    )
-                    db.session.add(new_record)
+                if result['success']:
                     uploaded_count += 1
+                else:
+                    errors.append(f"Line {line_num}: Failed to store - {result.get('error', 'Unknown error')}")
+                    error_count += 1
                 
             except Exception as e:
                 errors.append(f"Line {line_num}: Error processing - {str(e)}")
                 error_count += 1
                 continue
         
-        # Commit all changes
-        db.session.commit()
-        
-        message = f"App passwords uploaded successfully. New: {uploaded_count}, Updated: {updated_count}"
+        message = f"App passwords uploaded successfully. Stored: {uploaded_count}"
         if error_count > 0:
             message += f", Errors: {error_count}"
         
@@ -4939,13 +4922,11 @@ def upload_app_passwords():
             'success': True,
             'message': message,
             'uploaded_count': uploaded_count,
-            'updated_count': updated_count,
             'error_count': error_count,
             'errors': errors[:10]  # Return first 10 errors
         })
         
     except Exception as e:
-        db.session.rollback()
         logging.error(f"Upload app passwords error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
