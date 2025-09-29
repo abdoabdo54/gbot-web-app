@@ -2110,7 +2110,8 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     logBulkDomain('💾 Storing and displaying app passwords for workflow...');
     
     const appPasswords = [];
-    let completedCount = 0;
+    let completedAccounts = 0;
+    const totalAccounts = accounts.length;
     
     // Get subdomain prefix from input field
     const subdomainPrefix = document.getElementById('mega-subdomain-prefix').value.trim();
@@ -2121,61 +2122,120 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
         logBulkDomain(`🌐 Using random subdomain generation`);
     }
     
+    // For each account, retrieve all users and generate app passwords
     accounts.forEach((account, index) => {
-        const username = account.split('@')[0];
         const domain = account.split('@')[1];
-        
-        // Generate a random app password
-        const appPassword = generateRandomPassword(16);
         
         // Create the new domain format with custom or random subdomain
         const subdomain = subdomainPrefix || generateRandomSubdomain(16);
         const newDomain = `${subdomain}.${domain}`;
-        const newAccount = `${username}@${newDomain}`;
         
-        logBulkDomain(`🔄 Creating new domain: ${newDomain} for user: ${username}`);
+        logBulkDomain(`🔄 Creating new domain: ${newDomain} for account: ${account}`);
         
-        // Store the app password with new domain
-        fetch('/api/store-app-password', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                user_alias: newAccount,
-                app_password: appPassword,
-                domain: newDomain
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                logBulkDomain(`✅ Stored app password for ${newAccount}`);
-                
-                // Add to display format
-                appPasswords.push(`${newAccount},${appPassword},smtp.gmail.com,587`);
-                
-                completedCount++;
-                
-                // If this is the last account, display all passwords
-                if (completedCount === accounts.length) {
-                    displayAppPasswordsInWorkflow(appPasswords);
-                }
-            } else {
-                logBulkDomain(`❌ Failed to store app password for ${newAccount}: ${data.error}`);
-                completedCount++;
-                
-                if (completedCount === accounts.length) {
-                    displayAppPasswordsInWorkflow(appPasswords);
-                }
-            }
-        })
-        .catch(error => {
-            logBulkDomain(`❌ Error storing app password for ${newAccount}: ${error.message}`);
-            completedCount++;
-            
-            if (completedCount === accounts.length) {
+        // Retrieve all users from the account and process them
+        retrieveAllUsersForWorkflow(account, newDomain, appPasswords, () => {
+            completedAccounts++;
+            if (completedAccounts >= totalAccounts) {
                 displayAppPasswordsInWorkflow(appPasswords);
             }
         });
+    });
+}
+
+function retrieveAllUsersForWorkflow(account, newDomain, appPasswords, onComplete) {
+    logBulkDomain(`👥 Retrieving all users from account: ${account}`);
+    
+    // Retrieve all users from the account
+    fetch('/api/retrieve-users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            domain: account.split('@')[1],
+            batched: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.users && data.users.length > 0) {
+            logBulkDomain(`✅ Retrieved ${data.users.length} users from ${account}`);
+            
+            // Generate app passwords for each user
+            generateAppPasswordsForUsers(data.users, newDomain, appPasswords, onComplete);
+        } else {
+            logBulkDomain(`⚠️ No users found for account ${account}, using admin account only`);
+            
+            // Fallback to admin account only
+            const username = account.split('@')[0];
+            const appPassword = generateRandomPassword(16);
+            const newAccount = `${username}@${newDomain}`;
+            
+            storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, onComplete);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Error retrieving users from ${account}: ${error.message}`);
+        
+        // Fallback to admin account only
+        const username = account.split('@')[0];
+        const appPassword = generateRandomPassword(16);
+        const newAccount = `${username}@${newDomain}`;
+        
+        storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, onComplete);
+    });
+}
+
+function generateAppPasswordsForUsers(users, newDomain, appPasswords, onComplete) {
+    let completedUsers = 0;
+    const totalUsers = users.length;
+    
+    if (totalUsers === 0) {
+        onComplete();
+        return;
+    }
+    
+    users.forEach((user, userIndex) => {
+        const username = user.email.split('@')[0];
+        const appPassword = generateRandomPassword(16);
+        const newAccount = `${username}@${newDomain}`;
+        
+        logBulkDomain(`👤 Processing user ${userIndex + 1}/${totalUsers}: ${username}`);
+        
+        storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, () => {
+            completedUsers++;
+            if (completedUsers >= totalUsers) {
+                onComplete();
+            }
+        });
+    });
+}
+
+function storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, onComplete) {
+    // Store the app password with new domain
+    fetch('/api/store-app-password', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            user_alias: newAccount,
+            app_password: appPassword,
+            domain: newDomain
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logBulkDomain(`✅ Stored app password for ${newAccount}`);
+            
+            // Add to display format
+            appPasswords.push(`${newAccount},${appPassword},smtp.gmail.com,587`);
+        } else {
+            logBulkDomain(`❌ Failed to store app password for ${newAccount}: ${data.error}`);
+        }
+        
+        onComplete();
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Error storing app password for ${newAccount}: ${error.message}`);
+        onComplete();
     });
 }
 
