@@ -911,6 +911,16 @@
         <button onclick="openMegaUpgradeModal()" class="btn-github btn-github-primary" style="width: 100%; padding: 16px; font-size: 16px;">
             <i class="fas fa-magic"></i> Launch Mega Upgrade Workflow
         </button>
+        
+        <!-- Test Buttons -->
+        <div style="margin-top: 16px; display: flex; gap: 8px;">
+            <button onclick="testModalOpen()" class="btn-github" style="background-color: #28a745; border-color: #28a745; color: white;">
+                <i class="fas fa-vial"></i> Test Modal
+            </button>
+            <button onclick="testFeatures()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
+                <i class="fas fa-cog"></i> Test Features
+            </button>
+        </div>
     </div>
 
     <!-- App Password Management -->
@@ -1029,9 +1039,14 @@
         
         <div class="form-group-github" style="margin-bottom: 20px;">
             <label for="smtp-credentials" class="form-label-github">
-                <i class="fas fa-key"></i> SMTP Credentials (email:password, one per line)
+                <i class="fas fa-key"></i> SMTP Credentials (email,password,smtp_server,port)
+                <span id="smtp-sync-status" style="margin-left: 8px; font-size: 12px; color: #6a737d;"></span>
             </label>
-            <textarea id="smtp-credentials" class="form-control-github" rows="5" placeholder="user1@gmail.com:password123&#10;user2@outlook.com:apppassword456&#10;user3@yahoo.com:secretpass789"></textarea>
+            <textarea id="smtp-credentials" class="form-control-github" rows="5" placeholder="user1@gmail.com,password123,smtp.gmail.com,587&#10;user2@outlook.com,apppassword456,smtp.outlook.com,587&#10;user3@yahoo.com,secretpass789,smtp.mail.yahoo.com,587" onchange="syncSMTPToAppPasswords()" oninput="autoSyncSMTPCredentials()"></textarea>
+            <small style="color: #656d76; font-size: 12px; margin-top: 8px; display: block;">
+                <i class="fas fa-info-circle"></i> 
+                Credentials are automatically synced to App Password Management. Use format: email,password,smtp_server,port (one per line)
+            </small>
         </div>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
@@ -1058,6 +1073,12 @@
         <div style="display: flex; gap: 12px; margin-bottom: 20px;">
             <button onclick="testSMTPCredentials()" class="btn-github btn-github-primary">
                 <i class="fas fa-paper-plane"></i> Send Test Emails
+            </button>
+            <button onclick="syncSMTPToAppPasswords()" class="btn-github" style="background-color: #28a745; border-color: #28a745; color: white;">
+                <i class="fas fa-sync"></i> Sync to App Passwords
+            </button>
+            <button onclick="testSMTPParsing()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
+                <i class="fas fa-bug"></i> Test Parsing
             </button>
             <button onclick="interruptSMTPTesting()" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
                 <i class="fas fa-stop"></i> Interrupt Sending
@@ -1718,6 +1739,235 @@ function displayAppPasswords(appPasswords) {
 function clearAppPasswords() {
     document.getElementById('app-passwords-display').innerHTML = '<div style="color: #6a737d; font-style: italic;">📝 App passwords will appear here...</div>';
     logResult('🧹 App passwords display cleared');
+}
+
+// Test functions for debugging
+function testModalOpen() {
+    console.log('Testing modal open...');
+    alert('Testing modal open function...');
+    openMegaUpgradeModal();
+}
+
+function testFeatures() {
+    console.log('Testing features...');
+    const features = {
+        authenticate: document.getElementById('feature-authenticate')?.checked || false,
+        changeSubdomain: document.getElementById('feature-change-subdomain')?.checked || false,
+        retrievePasswords: document.getElementById('feature-retrieve-passwords')?.checked || false
+    };
+    
+    console.log('Features:', features);
+    alert(`Features: ${JSON.stringify(features, null, 2)}`);
+}
+
+// Sync SMTP credentials to App Password Management
+function syncSMTPToAppPasswords() {
+    const credentials = document.getElementById('smtp-credentials').value.trim();
+    
+    if (!credentials) {
+        alert('Please enter SMTP credentials first');
+        return;
+    }
+    
+    console.log('Syncing SMTP credentials to app passwords...');
+    logResult('🔄 Syncing SMTP credentials to App Password Management...');
+    
+    // Update status indicator
+    const statusElement = document.getElementById('smtp-sync-status');
+    if (statusElement) {
+        statusElement.innerHTML = '<i class="fas fa-sync fa-spin"></i> Syncing...';
+        statusElement.style.color = '#28a745';
+    }
+    
+    // Parse credentials (format: email,password,smtp_server,port OR email:password)
+    const credentialLines = credentials.split('\n').filter(line => line.trim());
+    let syncedCount = 0;
+    let errorCount = 0;
+    
+    credentialLines.forEach((line, index) => {
+        const trimmedLine = line.trim();
+        let email, password, domain;
+        
+        // Check if it's CSV format (comma-separated)
+        if (trimmedLine.includes(',') && !trimmedLine.includes(':')) {
+            const parts = trimmedLine.split(',');
+            if (parts.length >= 2) {
+                email = parts[0].trim();
+                password = parts[1].trim();
+                domain = email.includes('@') ? email.split('@')[1] : '';
+            }
+        }
+        // Check if it's colon format (email:password)
+        else if (trimmedLine.includes(':')) {
+            const parts = trimmedLine.split(':');
+            if (parts.length >= 2) {
+                email = parts[0].trim();
+                password = parts.slice(1).join(':').trim(); // Handle passwords with colons
+                domain = email.includes('@') ? email.split('@')[1] : '';
+            }
+        }
+        
+        if (email && password && email.includes('@')) {
+                console.log(`Syncing credential: ${email} -> ${password.substring(0, 4)}...`);
+                logResult(`🔄 Syncing: ${email}`);
+                
+                // Store each credential as an app password
+                fetch('/api/store-app-password', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        user_alias: email,
+                        app_password: password,
+                        domain: domain || email.split('@')[1] // Use extracted domain or fallback
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        syncedCount++;
+                        logResult(`✅ Synced: ${email}`);
+                    } else {
+                        errorCount++;
+                        logResult(`❌ Failed to sync ${email}: ${data.error}`);
+                    }
+                    
+                    // If this is the last credential, show summary
+                    if (index === credentialLines.length - 1) {
+                        logResult(`📊 Sync Complete: ${syncedCount} synced, ${errorCount} failed`);
+                        
+                        // Update status indicator
+                        if (statusElement) {
+                            if (errorCount === 0) {
+                                statusElement.innerHTML = '<i class="fas fa-check"></i> Synced';
+                                statusElement.style.color = '#28a745';
+                            } else {
+                                statusElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${syncedCount} synced, ${errorCount} failed`;
+                                statusElement.style.color = '#d73a49';
+                            }
+                        }
+                        
+                        // Refresh the app passwords display
+                        loadAllAppPasswords();
+                    }
+                })
+                .catch(error => {
+                    errorCount++;
+                    logResult(`❌ Error syncing ${email}: ${error.message}`);
+                    
+                    if (index === credentialLines.length - 1) {
+                        logResult(`📊 Sync Complete: ${syncedCount} synced, ${errorCount} failed`);
+                        
+                        // Update status indicator
+                        if (statusElement) {
+                            if (errorCount === 0) {
+                                statusElement.innerHTML = '<i class="fas fa-check"></i> Synced';
+                                statusElement.style.color = '#28a745';
+                            } else {
+                                statusElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${syncedCount} synced, ${errorCount} failed`;
+                                statusElement.style.color = '#d73a49';
+                            }
+                        }
+                        
+                        loadAllAppPasswords();
+                    }
+                });
+            } else {
+                errorCount++;
+                logResult(`❌ Invalid format: ${line}`);
+            }
+        } else {
+            errorCount++;
+            logResult(`❌ Invalid format: ${line}`);
+        }
+    });
+    
+    if (credentialLines.length === 0) {
+        alert('No valid credentials found. Please use format: email:password');
+    }
+}
+
+// Auto-sync SMTP credentials with debouncing
+let smtpSyncTimeout;
+function autoSyncSMTPCredentials() {
+    // Clear previous timeout
+    if (smtpSyncTimeout) {
+        clearTimeout(smtpSyncTimeout);
+    }
+    
+    // Set new timeout for auto-sync (2 seconds delay)
+    smtpSyncTimeout = setTimeout(() => {
+        const credentials = document.getElementById('smtp-credentials').value.trim();
+        
+        if (credentials && (credentials.includes(':') || credentials.includes(','))) {
+            console.log('Auto-syncing SMTP credentials...');
+            syncSMTPToAppPasswords();
+        }
+    }, 2000);
+}
+
+// Test SMTP parsing function
+function testSMTPParsing() {
+    const credentials = document.getElementById('smtp-credentials').value.trim();
+    
+    if (!credentials) {
+        alert('Please enter SMTP credentials first');
+        return;
+    }
+    
+    console.log('Testing SMTP parsing...');
+    logResult('🧪 Testing SMTP credential parsing...');
+    
+    const credentialLines = credentials.split('\n').filter(line => line.trim());
+    
+    credentialLines.forEach((line, index) => {
+        const trimmedLine = line.trim();
+        let email, password, domain;
+        
+        console.log(`Line ${index + 1}: "${trimmedLine}"`);
+        logResult(`📝 Line ${index + 1}: "${trimmedLine}"`);
+        
+        // Check if it's CSV format (comma-separated)
+        if (trimmedLine.includes(',') && !trimmedLine.includes(':')) {
+            const parts = trimmedLine.split(',');
+            console.log(`CSV format detected: ${parts.length} parts`);
+            logResult(`📊 CSV format detected: ${parts.length} parts`);
+            
+            if (parts.length >= 2) {
+                email = parts[0].trim();
+                password = parts[1].trim();
+                domain = email.includes('@') ? email.split('@')[1] : '';
+                
+                console.log(`Parsed: email=${email}, password=${password.substring(0, 4)}..., domain=${domain}`);
+                logResult(`✅ Parsed: ${email} -> ${password.substring(0, 4)}... (${domain})`);
+            } else {
+                console.log('❌ Not enough parts in CSV format');
+                logResult('❌ Not enough parts in CSV format');
+            }
+        }
+        // Check if it's colon format (email:password)
+        else if (trimmedLine.includes(':')) {
+            const parts = trimmedLine.split(':');
+            console.log(`Colon format detected: ${parts.length} parts`);
+            logResult(`📊 Colon format detected: ${parts.length} parts`);
+            
+            if (parts.length >= 2) {
+                email = parts[0].trim();
+                password = parts.slice(1).join(':').trim();
+                domain = email.includes('@') ? email.split('@')[1] : '';
+                
+                console.log(`Parsed: email=${email}, password=${password.substring(0, 4)}..., domain=${domain}`);
+                logResult(`✅ Parsed: ${email} -> ${password.substring(0, 4)}... (${domain})`);
+            } else {
+                console.log('❌ Not enough parts in colon format');
+                logResult('❌ Not enough parts in colon format');
+            }
+        } else {
+            console.log('❌ No recognized format detected');
+            logResult('❌ No recognized format detected');
+        }
+    });
+    
+    logResult('🧪 Parsing test complete. Check console for detailed output.');
 }
 
 function fetchAppPasswordsForWorkflow() {
@@ -5455,7 +5705,15 @@ function testEmailTemplate() {
 
 // Mega Upgrade Functions
 function openMegaUpgradeModal() {
-    document.getElementById('megaUpgradeModal').style.display = 'block';
+    console.log('Opening mega upgrade modal...');
+    const modal = document.getElementById('megaUpgradeModal');
+    if (modal) {
+        modal.style.display = 'block';
+        console.log('Modal opened successfully');
+    } else {
+        console.error('Modal not found!');
+        alert('Modal not found. Please refresh the page.');
+    }
 }
 
 function closeMegaUpgradeModal() {
@@ -5463,7 +5721,10 @@ function closeMegaUpgradeModal() {
 }
 
 function startMegaUpgrade() {
+    console.log('Starting mega upgrade...');
     const accountEmail = document.getElementById('mega-single-account').value.trim();
+    
+    console.log('Account email:', accountEmail);
     
     if (!accountEmail) {
         alert('Please enter an account email address');
@@ -5482,9 +5743,11 @@ function startMegaUpgrade() {
     const features = {
         authenticate: document.getElementById('feature-authenticate').checked,
         changeSubdomain: document.getElementById('feature-change-subdomain').checked,
-        retrievePasswords: document.getElementById('feature-retrieve-passwords').checked,
-        updatePasswords: document.getElementById('feature-update-passwords').checked
+        retrievePasswords: document.getElementById('feature-retrieve-passwords').checked
     };
+    
+    console.log('Selected features:', features);
+    console.log('Accounts to process:', accounts);
     
     // Show progress section
     document.getElementById('megaUpgradeProgress').style.display = 'block';
@@ -5545,7 +5808,6 @@ function testMegaUpgrade() {
         authenticate: document.getElementById('feature-authenticate').checked,
         changeSubdomain: document.getElementById('feature-change-subdomain').checked,
         retrievePasswords: document.getElementById('feature-retrieve-passwords').checked,
-        updatePasswords: document.getElementById('feature-update-passwords').checked
     };
     
     logBulkDomain('🧪 Starting SIMPLE Test Mega Upgrade...');
@@ -5604,7 +5866,6 @@ function debugMegaUpgrade() {
         authenticate: document.getElementById('feature-authenticate').checked,
         changeSubdomain: document.getElementById('feature-change-subdomain').checked,
         retrievePasswords: document.getElementById('feature-retrieve-passwords').checked,
-        updatePasswords: document.getElementById('feature-update-passwords').checked
     };
     
     logBulkDomain('🐛 Starting DEBUG Mega Upgrade...');
@@ -5864,3 +6125,114 @@ function runMegaUpgradeWorkflow(accounts, features) {
 </div>
 
 {% endblock %}
+
+<style>
+/* Modal Styles */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #e1e4e8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #24292f;
+}
+
+.close {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: #000;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+/* Checkbox Styles */
+.checkbox-container {
+    display: block;
+    position: relative;
+    padding-left: 35px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    font-size: 14px;
+    user-select: none;
+}
+
+.checkbox-container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 20px;
+    width: 20px;
+    background-color: #eee;
+    border-radius: 4px;
+    border: 1px solid #d0d7de;
+}
+
+.checkbox-container:hover input ~ .checkmark {
+    background-color: #f6f8fa;
+}
+
+.checkbox-container input:checked ~ .checkmark {
+    background-color: #2da44e;
+    border-color: #2da44e;
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.checkbox-container input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.checkbox-container .checkmark:after {
+    left: 6px;
+    top: 2px;
+    width: 6px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+</style>
