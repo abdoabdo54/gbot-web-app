@@ -2185,8 +2185,15 @@ function displayAppPasswordsInWorkflow(appPasswords) {
     // Display in the App Passwords Display field
     const display = document.getElementById('app-passwords-display');
     if (display) {
-        display.value = appPasswords.join('\n');
+        const passwordText = appPasswords.join('\n');
+        display.value = passwordText;
         logBulkDomain('✅ App passwords displayed in App Passwords Display field');
+        logBulkDomain(`📝 Content: ${passwordText}`);
+        
+        // Also trigger a change event to ensure the display updates
+        display.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+        logBulkDomain('❌ App Passwords Display field not found!');
     }
     
     // Also log each password for reference
@@ -6162,6 +6169,11 @@ function runMegaUpgradeWorkflow(accounts, features) {
     logBulkDomain('─'.repeat(50));
     
     updateMegaProgress(50, 'Sending request to server...');
+    
+    // Add a small delay to ensure app passwords are displayed before server request
+    setTimeout(() => {
+        logBulkDomain('⏳ Proceeding with server request...');
+    }, 1000);
     
     // Start the mega upgrade process
     fetch('/api/mega-upgrade', {

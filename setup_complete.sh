@@ -621,7 +621,7 @@ Group=root
 WorkingDirectory=$SCRIPT_DIR
 Environment="PATH=$SCRIPT_DIR/venv/bin"
 Environment="FLASK_ENV=production"
-ExecStart=$SCRIPT_DIR/venv/bin/gunicorn --workers 2 --bind unix:$SCRIPT_DIR/gbot.sock --access-logfile $SCRIPT_DIR/gunicorn-access.log --error-logfile $SCRIPT_DIR/gunicorn-error.log --timeout 300 app:app
+ExecStart=$SCRIPT_DIR/venv/bin/gunicorn --workers 2 --bind unix:$SCRIPT_DIR/gbot.sock --access-logfile $SCRIPT_DIR/gunicorn-access.log --error-logfile $SCRIPT_DIR/gunicorn-error.log --timeout 600 app:app
 ExecReload=/bin/kill -s HUP \$MAINPID
 Restart=always
 RestartSec=3
