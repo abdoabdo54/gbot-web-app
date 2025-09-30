@@ -2144,50 +2144,52 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
             
             // PRIORITY 1: Look for domains that were just changed (IN USE with users)
             const inUseDomains = data.domains.filter(domain => 
-                domain.status === 'in_use' && 
+                (domain.status === 'in_use' || domain.status_text === 'IN USE') && 
                 domain.user_count > 0 && 
-                domain.domainName && 
-                domain.domainName !== 'undefined'
+                (domain.domainName || domain.domain_name) && 
+                (domain.domainName || domain.domain_name) !== 'undefined'
             );
             
             logBulkDomain(`🔍 Found ${inUseDomains.length} IN USE domains with users`);
             
             if (inUseDomains.length > 0) {
                 // Use the IN USE domain with the most users (this is the one that was just changed)
-                targetDomain = inUseDomains.reduce((prev, current) => 
+                const selectedDomain = inUseDomains.reduce((prev, current) => 
                     (current.user_count > prev.user_count) ? current : prev
-                ).domainName;
-                const userCount = inUseDomains.find(d => d.domainName === targetDomain).user_count;
+                );
+                targetDomain = selectedDomain.domainName || selectedDomain.domain_name;
+                const userCount = selectedDomain.user_count;
                 logBulkDomain(`🎯 Found ACTUAL changed subdomain: ${targetDomain} (${userCount} users)`);
                 logBulkDomain(`✅ This is the subdomain that was actually changed during Mega Upgrade`);
             } else {
                 // PRIORITY 2: Look for any domain with users (fallback)
                 const domainsWithUsers = data.domains.filter(domain => 
                     domain.user_count > 0 && 
-                    domain.domainName && 
-                    domain.domainName !== 'undefined'
+                    (domain.domainName || domain.domain_name) && 
+                    (domain.domainName || domain.domain_name) !== 'undefined'
                 );
                 
                 logBulkDomain(`🔍 Found ${domainsWithUsers.length} domains with users`);
                 
                 if (domainsWithUsers.length > 0) {
-                    targetDomain = domainsWithUsers.reduce((prev, current) => 
+                    const selectedDomain = domainsWithUsers.reduce((prev, current) => 
                         (current.user_count > prev.user_count) ? current : prev
-                    ).domainName;
-                    const userCount = domainsWithUsers.find(d => d.domainName === targetDomain).user_count;
+                    );
+                    targetDomain = selectedDomain.domainName || selectedDomain.domain_name;
+                    const userCount = selectedDomain.user_count;
                     logBulkDomain(`🎯 Found domain with users: ${targetDomain} (${userCount} users)`);
                 } else {
                     // PRIORITY 3: Look for any domain with a valid domainName
                     const validDomains = data.domains.filter(domain => 
-                        domain.domainName && 
-                        domain.domainName !== 'undefined' &&
-                        domain.domainName.length > 0
+                        (domain.domainName || domain.domain_name) && 
+                        (domain.domainName || domain.domain_name) !== 'undefined' &&
+                        (domain.domainName || domain.domain_name).length > 0
                     );
                     
                     logBulkDomain(`🔍 Found ${validDomains.length} domains with valid names`);
                     
                     if (validDomains.length > 0) {
-                        targetDomain = validDomains[0].domainName;
+                        targetDomain = validDomains[0].domainName || validDomains[0].domain_name;
                         logBulkDomain(`🎯 Using first valid domain: ${targetDomain}`);
                     } else {
                         logBulkDomain(`❌ No valid domains found - cannot proceed`);
@@ -6683,19 +6685,20 @@ function runMegaUpgradeWorkflow(accounts, features) {
             
             // Find the ACTUAL subdomain that was changed (IN USE with users)
             const inUseDomains = data.domains.filter(domain => 
-                domain.status === 'in_use' && 
+                (domain.status === 'in_use' || domain.status_text === 'IN USE') && 
                 domain.user_count > 0 && 
-                domain.domainName && 
-                domain.domainName !== 'undefined'
+                (domain.domainName || domain.domain_name) && 
+                (domain.domainName || domain.domain_name) !== 'undefined'
             );
             
             logBulkDomain(`🔍 Found ${inUseDomains.length} IN USE domains with users after timeout`);
             
             if (inUseDomains.length > 0) {
-                const targetDomain = inUseDomains.reduce((prev, current) => 
+                const selectedDomain = inUseDomains.reduce((prev, current) => 
                     (current.user_count > prev.user_count) ? current : prev
-                ).domainName;
-                const userCount = inUseDomains.find(d => d.domainName === targetDomain).user_count;
+                );
+                const targetDomain = selectedDomain.domainName || selectedDomain.domain_name;
+                const userCount = selectedDomain.user_count;
                 
                 window.megaUpgradeChangedSubdomain = targetDomain;
                 logBulkDomain(`🎯 Detected ACTUAL changed subdomain: ${targetDomain} (${userCount} users)`);
@@ -6704,30 +6707,31 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 // Fallback to any domain with users
                 const domainsWithUsers = data.domains.filter(domain => 
                     domain.user_count > 0 && 
-                    domain.domainName && 
-                    domain.domainName !== 'undefined'
+                    (domain.domainName || domain.domain_name) && 
+                    (domain.domainName || domain.domain_name) !== 'undefined'
                 );
                 
                 logBulkDomain(`🔍 Found ${domainsWithUsers.length} domains with users after timeout`);
                 
                 if (domainsWithUsers.length > 0) {
-                    const targetDomain = domainsWithUsers.reduce((prev, current) => 
+                    const selectedDomain = domainsWithUsers.reduce((prev, current) => 
                         (current.user_count > prev.user_count) ? current : prev
-                    ).domainName;
-                    const userCount = domainsWithUsers.find(d => d.domainName === targetDomain).user_count;
+                    );
+                    const targetDomain = selectedDomain.domainName || selectedDomain.domain_name;
+                    const userCount = selectedDomain.user_count;
                     
                     window.megaUpgradeChangedSubdomain = targetDomain;
                     logBulkDomain(`🎯 Detected changed subdomain: ${targetDomain} (${userCount} users)`);
                 } else {
                     // Final fallback: any domain with valid name
                     const validDomains = data.domains.filter(domain => 
-                        domain.domainName && 
-                        domain.domainName !== 'undefined' &&
-                        domain.domainName.length > 0
+                        (domain.domainName || domain.domain_name) && 
+                        (domain.domainName || domain.domain_name) !== 'undefined' &&
+                        (domain.domainName || domain.domain_name).length > 0
                     );
                     
                     if (validDomains.length > 0) {
-                        const targetDomain = validDomains[0].domainName;
+                        const targetDomain = validDomains[0].domainName || validDomains[0].domain_name;
                         window.megaUpgradeChangedSubdomain = targetDomain;
                         logBulkDomain(`🎯 Using first valid domain: ${targetDomain}`);
                     } else {
