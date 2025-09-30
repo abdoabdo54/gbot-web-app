@@ -2139,43 +2139,45 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
                 logBulkDomain(`   Domain ${index + 1}: ${JSON.stringify(domain)}`);
             });
             
-            // Find the NEXT AVAILABLE subdomain that was just assigned during Mega Upgrade
+            // Find the ACTUAL subdomain that was changed (look for the one with the most recent activity)
             let targetDomain = null;
             
-            // PRIORITY 1: Look for the most recently assigned AVAILABLE domain (the one just changed to)
-            const availableDomains = data.domains.filter(domain => 
-                (domain.status === 'available' || domain.status_text === 'AVAILABLE') && 
+            // PRIORITY 1: Look for domains that were just changed (IN USE with users)
+            const inUseDomains = data.domains.filter(domain => 
+                (domain.status === 'in_use' || domain.status_text === 'IN USE') && 
+                domain.user_count > 0 && 
                 (domain.domainName || domain.domain_name) && 
                 (domain.domainName || domain.domain_name) !== 'undefined'
             );
             
-            logBulkDomain(`🔍 Found ${availableDomains.length} AVAILABLE domains (recently assigned)`);
+            logBulkDomain(`🔍 Found ${inUseDomains.length} IN USE domains with users`);
             
-            if (availableDomains.length > 0) {
-                // Use the first AVAILABLE domain (this is the one that was just assigned)
-                targetDomain = availableDomains[0].domainName || availableDomains[0].domain_name;
-                logBulkDomain(`🎯 Found NEXT AVAILABLE subdomain: ${targetDomain}`);
-                logBulkDomain(`✅ This is the subdomain that was just assigned during Mega Upgrade`);
+            if (inUseDomains.length > 0) {
+                // Use the IN USE domain with the most users (this is the one that was just changed)
+                const selectedDomain = inUseDomains.reduce((prev, current) => 
+                    (current.user_count > prev.user_count) ? current : prev
+                );
+                targetDomain = selectedDomain.domainName || selectedDomain.domain_name;
+                const userCount = selectedDomain.user_count;
+                logBulkDomain(`🎯 Found ACTUAL changed subdomain: ${targetDomain} (${userCount} users)`);
+                logBulkDomain(`✅ This is the subdomain that was actually changed during Mega Upgrade`);
             } else {
-                // PRIORITY 2: Look for domains that were just changed (IN USE with users)
-                const inUseDomains = data.domains.filter(domain => 
-                    (domain.status === 'in_use' || domain.status_text === 'IN USE') && 
+                // PRIORITY 2: Look for any domain with users (fallback)
+                const domainsWithUsers = data.domains.filter(domain => 
                     domain.user_count > 0 && 
                     (domain.domainName || domain.domain_name) && 
                     (domain.domainName || domain.domain_name) !== 'undefined'
                 );
                 
-                logBulkDomain(`🔍 Found ${inUseDomains.length} IN USE domains with users`);
+                logBulkDomain(`🔍 Found ${domainsWithUsers.length} domains with users`);
                 
-                if (inUseDomains.length > 0) {
-                    // Use the IN USE domain with the most users (this is the one that was just changed)
-                    const selectedDomain = inUseDomains.reduce((prev, current) => 
+                if (domainsWithUsers.length > 0) {
+                    const selectedDomain = domainsWithUsers.reduce((prev, current) => 
                         (current.user_count > prev.user_count) ? current : prev
                     );
                     targetDomain = selectedDomain.domainName || selectedDomain.domain_name;
                     const userCount = selectedDomain.user_count;
-                    logBulkDomain(`🎯 Found ACTUAL changed subdomain: ${targetDomain} (${userCount} users)`);
-                    logBulkDomain(`✅ This is the subdomain that was actually changed during Mega Upgrade`);
+                    logBulkDomain(`🎯 Found domain with users: ${targetDomain} (${userCount} users)`);
                 } else {
                     // PRIORITY 3: Look for any domain with a valid domainName
                     const validDomains = data.domains.filter(domain => 
@@ -2299,11 +2301,10 @@ function generateAppPasswordsWithManualDomainChange(accounts) {
 }
 
 function retrieveAllUsersForWorkflow(account, newDomain, appPasswords, onComplete) {
-    logBulkDomain(`👥 REFACTORED: Retrieving users from SPECIFIC account: ${account}`);
+    logBulkDomain(`👥 REFACTORED: Retrieving all users from account: ${account}`);
     logBulkDomain(`🌐 Using new subdomain: ${newDomain}`);
-    logBulkDomain(`🎯 Processing ONLY users from this account during Mega Upgrade`);
     
-    // Retrieve all users from the SPECIFIC account being upgraded
+    // Retrieve all users from the account
     fetch('/api/retrieve-users', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -2315,22 +2316,19 @@ function retrieveAllUsersForWorkflow(account, newDomain, appPasswords, onComplet
     .then(response => response.json())
     .then(data => {
         if (data.success && data.users && data.users.length > 0) {
-            logBulkDomain(`✅ Retrieved ${data.users.length} users from SPECIFIC account: ${account}`);
-            logBulkDomain(`🔄 Processing ONLY these users with new subdomain: ${newDomain}`);
-            logBulkDomain(`🎯 These are the users from the account being upgraded`);
+            logBulkDomain(`✅ Retrieved ${data.users.length} users from ${account}`);
+            logBulkDomain(`🔄 Processing users with new subdomain: ${newDomain}`);
             
-            // Generate app passwords for each user from the SPECIFIC account
+            // Generate app passwords for each user
             generateAppPasswordsForUsers(data.users, newDomain, appPasswords, onComplete);
         } else {
-            logBulkDomain(`⚠️ No users found for SPECIFIC account: ${account}`);
-            logBulkDomain(`🔄 Using admin account only for this specific account`);
+            logBulkDomain(`⚠️ No users found for account ${account}, using admin account only`);
             
-            // Fallback to admin account only for this specific account
+            // Fallback to admin account only
             const username = account.split('@')[0];
             const appPassword = generateRandomPassword(16);
             const newAccount = `${username}@${newDomain}`;
             
-            logBulkDomain(`👤 Creating app password for admin of SPECIFIC account: ${newAccount}`);
             storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, onComplete);
         }
     })
@@ -6685,42 +6683,27 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 logBulkDomain(`   Domain ${index + 1}: ${JSON.stringify(domain)}`);
             });
             
-            // Find the NEXT AVAILABLE subdomain that was just assigned during Mega Upgrade
-            const availableDomains = data.domains.filter(domain => 
-                (domain.status === 'available' || domain.status_text === 'AVAILABLE') && 
+            // Find the ACTUAL subdomain that was changed (IN USE with users)
+            const inUseDomains = data.domains.filter(domain => 
+                (domain.status === 'in_use' || domain.status_text === 'IN USE') && 
+                domain.user_count > 0 && 
                 (domain.domainName || domain.domain_name) && 
                 (domain.domainName || domain.domain_name) !== 'undefined'
             );
             
-            logBulkDomain(`🔍 Found ${availableDomains.length} AVAILABLE domains (recently assigned) after timeout`);
+            logBulkDomain(`🔍 Found ${inUseDomains.length} IN USE domains with users after timeout`);
             
-            if (availableDomains.length > 0) {
-                const targetDomain = availableDomains[0].domainName || availableDomains[0].domain_name;
-                window.megaUpgradeChangedSubdomain = targetDomain;
-                logBulkDomain(`🎯 Detected NEXT AVAILABLE subdomain: ${targetDomain}`);
-                logBulkDomain(`✅ This is the subdomain that was just assigned during Mega Upgrade`);
-            } else {
-                // Fallback to IN USE domains
-                const inUseDomains = data.domains.filter(domain => 
-                    (domain.status === 'in_use' || domain.status_text === 'IN USE') && 
-                    domain.user_count > 0 && 
-                    (domain.domainName || domain.domain_name) && 
-                    (domain.domainName || domain.domain_name) !== 'undefined'
+            if (inUseDomains.length > 0) {
+                const selectedDomain = inUseDomains.reduce((prev, current) => 
+                    (current.user_count > prev.user_count) ? current : prev
                 );
+                const targetDomain = selectedDomain.domainName || selectedDomain.domain_name;
+                const userCount = selectedDomain.user_count;
                 
-                logBulkDomain(`🔍 Found ${inUseDomains.length} IN USE domains with users after timeout`);
-                
-                if (inUseDomains.length > 0) {
-                    const selectedDomain = inUseDomains.reduce((prev, current) => 
-                        (current.user_count > prev.user_count) ? current : prev
-                    );
-                    const targetDomain = selectedDomain.domainName || selectedDomain.domain_name;
-                    const userCount = selectedDomain.user_count;
-                    
-                    window.megaUpgradeChangedSubdomain = targetDomain;
-                    logBulkDomain(`🎯 Detected ACTUAL changed subdomain: ${targetDomain} (${userCount} users)`);
-                    logBulkDomain(`✅ This is the EXACT subdomain that was changed during Mega Upgrade`);
-                } else {
+                window.megaUpgradeChangedSubdomain = targetDomain;
+                logBulkDomain(`🎯 Detected ACTUAL changed subdomain: ${targetDomain} (${userCount} users)`);
+                logBulkDomain(`✅ This is the EXACT subdomain that was changed during Mega Upgrade`);
+            } else {
                 // Fallback to any domain with users
                 const domainsWithUsers = data.domains.filter(domain => 
                     domain.user_count > 0 && 
