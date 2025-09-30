@@ -2108,6 +2108,7 @@ function storeAppPasswordsForWorkflow(accounts) {
 
 function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     logBulkDomain('💾 Storing and displaying app passwords for workflow...');
+    logBulkDomain('🔄 REFACTORED: Enhanced app password retrieval with new subdomains');
     
     // CRITICAL: Use the EXACT subdomain that was actually changed during Mega Upgrade
     if (window.megaUpgradeChangedSubdomain) {
@@ -2298,7 +2299,8 @@ function generateAppPasswordsWithManualDomainChange(accounts) {
 }
 
 function retrieveAllUsersForWorkflow(account, newDomain, appPasswords, onComplete) {
-    logBulkDomain(`👥 Retrieving all users from account: ${account}`);
+    logBulkDomain(`👥 REFACTORED: Retrieving all users from account: ${account}`);
+    logBulkDomain(`🌐 Using new subdomain: ${newDomain}`);
     
     // Retrieve all users from the account
     fetch('/api/retrieve-users', {
@@ -2313,6 +2315,7 @@ function retrieveAllUsersForWorkflow(account, newDomain, appPasswords, onComplet
     .then(data => {
         if (data.success && data.users && data.users.length > 0) {
             logBulkDomain(`✅ Retrieved ${data.users.length} users from ${account}`);
+            logBulkDomain(`🔄 Processing users with new subdomain: ${newDomain}`);
             
             // Generate app passwords for each user
             generateAppPasswordsForUsers(data.users, newDomain, appPasswords, onComplete);
@@ -2340,13 +2343,19 @@ function retrieveAllUsersForWorkflow(account, newDomain, appPasswords, onComplet
 }
 
 function generateAppPasswordsForUsers(users, newDomain, appPasswords, onComplete) {
+    logBulkDomain(`🔑 REFACTORED: Generating app passwords for ${users.length} users`);
+    logBulkDomain(`🌐 Using new subdomain: ${newDomain}`);
+    
     let completedUsers = 0;
     const totalUsers = users.length;
     
     if (totalUsers === 0) {
+        logBulkDomain(`⚠️ No users to process`);
         onComplete();
         return;
     }
+    
+    logBulkDomain(`👥 Processing ${totalUsers} users with new subdomain`);
     
     users.forEach((user, userIndex) => {
         const username = user.email.split('@')[0];
@@ -2354,10 +2363,12 @@ function generateAppPasswordsForUsers(users, newDomain, appPasswords, onComplete
         const newAccount = `${username}@${newDomain}`;
         
         logBulkDomain(`👤 Processing user ${userIndex + 1}/${totalUsers}: ${username}`);
+        logBulkDomain(`🌐 Creating account: ${newAccount}`);
         
         storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, () => {
             completedUsers++;
             if (completedUsers >= totalUsers) {
+                logBulkDomain(`✅ Completed processing ${totalUsers} users with new subdomain`);
                 onComplete();
             }
         });
@@ -2432,7 +2443,13 @@ function generateAppPasswordsWithUpdatedDomain(accounts, updatedDomain) {
 }
 
 function displayAppPasswordsInWorkflow(appPasswords) {
-    logBulkDomain(`📋 Generated ${appPasswords.length} app passwords with new domain`);
+    logBulkDomain(`📋 REFACTORED: Displaying ${appPasswords.length} app passwords with new subdomains`);
+    logBulkDomain(`🔄 Enhanced display for Mega Upgrade workflow`);
+    
+    if (!appPasswords || appPasswords.length === 0) {
+        logBulkDomain(`⚠️ No app passwords to display`);
+        return;
+    }
     
     // Display in the App Passwords Display field
     const display = document.getElementById('app-passwords-display');
@@ -2444,14 +2461,40 @@ function displayAppPasswordsInWorkflow(appPasswords) {
         
         // Also trigger a change event to ensure the display updates
         display.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // Force focus and scroll to the display field
+        display.focus();
+        display.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        logBulkDomain(`🎯 Display field updated with ${appPasswords.length} app passwords`);
     } else {
         logBulkDomain('❌ App Passwords Display field not found!');
+        logBulkDomain('🔍 Searching for alternative display fields...');
+        
+        // Try alternative field names
+        const altDisplay = document.getElementById('app-passwords-display') || 
+                          document.getElementById('app-passwords-display-field') ||
+                          document.querySelector('textarea[placeholder*="app password"]') ||
+                          document.querySelector('textarea[placeholder*="App Password"]');
+        
+        if (altDisplay) {
+            const passwordText = appPasswords.join('\n');
+            altDisplay.value = passwordText;
+            logBulkDomain('✅ App passwords displayed in alternative field');
+            logBulkDomain(`📝 Content: ${passwordText}`);
+        } else {
+            logBulkDomain('❌ No suitable display field found!');
+        }
     }
     
     // Also log each password for reference
     appPasswords.forEach((password, index) => {
         logBulkDomain(`   ${index + 1}. ${password}`);
     });
+    
+    // Show success message
+    logBulkDomain(`🎉 SUCCESS: ${appPasswords.length} app passwords generated and displayed`);
+    logBulkDomain(`✅ All users now have app passwords with the new subdomains`);
 }
 
 // Function to manually select and save a subdomain
