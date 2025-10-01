@@ -857,6 +857,9 @@
         <button onclick="testJavaScript()" class="btn-github" style="background-color: #d73a49; border-color: #d73a49; color: white;">
             <i class="fas fa-bug"></i> Test JS
         </button>
+        <button onclick="testTabFunctionality()" class="btn-github" style="background-color: #28a745; border-color: #28a745; color: white;">
+            <i class="fas fa-tabs"></i> Test Tabs
+        </button>
         <button onclick="testAppPasswordSync()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
             <i class="fas fa-key"></i> Test Sync
         </button>
@@ -1100,6 +1103,20 @@ function testJavaScript() {
     alert('JavaScript is working!');
 }
 
+// Test tab functionality
+function testTabFunctionality() {
+    console.log('Testing tab functionality...');
+    
+    // Test if showTab function exists
+    if (typeof showTab === 'function') {
+        console.log('✅ showTab function exists');
+        alert('✅ Tab functionality is working!');
+    } else {
+        console.log('❌ showTab function not found');
+        alert('❌ Tab functionality is broken!');
+    }
+}
+
 function testAppPasswordSync() {
     console.log('Testing app password sync...');
     
@@ -1251,6 +1268,9 @@ function showTab(tabId) {
         clickedButton.style.color = 'var(--color-fg-default)';
         clickedButton.style.fontWeight = '600';
     }
+    
+    // Handle tab-specific functionality
+    handleTabSwitch(tabId);
 }
 
 // Initialize tabs on page load
@@ -1574,25 +1594,8 @@ async function checkCurrentAuthenticationStatus() {
 }
 
 
-// Tab switching function
-function showTab(tabId) {
-    // Hide all tabs
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // Remove active class from all buttons
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    // Show selected tab
-    document.getElementById(tabId).classList.add('active');
-    
-    // Mark button as active
-    event.target.classList.add('active');
-    
-    // Auto-refresh domain data when domains tab is shown
+// Auto-refresh domain data when domains tab is shown
+function handleTabSwitch(tabId) {
     if (tabId === 'tab3' && isAuthenticated) {
         setTimeout(() => {
             retrieveAvailableDomains();
