@@ -6,15 +6,15 @@
 <!-- Tab Navigation -->
 <div class="tab-navigation">
     <nav>
-        <button class="tab-button active" onclick="showTab('tab1', this)">
+        <button class="tab-button active" onclick="showTab('tab1')">
             <i class="fas fa-user-friends"></i>
             <span>Account & User Mgmt</span>
         </button>
-        <button class="tab-button" onclick="showTab('tab2', this)">
+        <button class="tab-button" onclick="showTab('tab2')">
             <i class="fas fa-user-plus"></i>
             <span>User Create/Delete/Domain</span>
         </button>
-        <button class="tab-button" onclick="showTab('tab3', this)">
+        <button class="tab-button" onclick="showTab('tab3')">
             <i class="fas fa-exchange-alt"></i>
             <span>Bulk Domain Change & SMTP/CSV</span>
         </button>
@@ -77,7 +77,7 @@
             
             <div id="account-list-area" class="account-list">
                 {% for account in accounts %}
-                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name }}', '{{ account.id }}')" data-account-id="{{ account.id }}">
+                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name }}', {{ account.id }})" data-account-id="{{ account.id }}">
                     {{ account.account_name }}
                 </div>
                 {% endfor %}
@@ -857,9 +857,6 @@
         <button onclick="testJavaScript()" class="btn-github" style="background-color: #d73a49; border-color: #d73a49; color: white;">
             <i class="fas fa-bug"></i> Test JS
         </button>
-        <button onclick="testTabFunctionality()" class="btn-github" style="background-color: #28a745; border-color: #28a745; color: white;">
-            <i class="fas fa-tabs"></i> Test Tabs
-        </button>
         <button onclick="testAppPasswordSync()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
             <i class="fas fa-key"></i> Test Sync
         </button>
@@ -1103,20 +1100,6 @@ function testJavaScript() {
     alert('JavaScript is working!');
 }
 
-// Test tab functionality
-function testTabFunctionality() {
-    console.log('Testing tab functionality...');
-    
-    // Test if showTab function exists
-    if (typeof showTab === 'function') {
-        console.log('✅ showTab function exists');
-        alert('✅ Tab functionality is working!');
-    } else {
-        console.log('❌ showTab function not found');
-        alert('❌ Tab functionality is broken!');
-    }
-}
-
 function testAppPasswordSync() {
     console.log('Testing app password sync...');
     
@@ -1224,7 +1207,7 @@ let smtpTesting = false;
 let selectedDomain = null;
 
 // Tab switching functionality
-function showTab(tabId, clickedEl) {
+function showTab(tabId) {
     console.log('Switching to tab:', tabId);
     
     // Hide all tab contents
@@ -1260,7 +1243,7 @@ function showTab(tabId, clickedEl) {
     }
     
     // Add active class to clicked button  
-    const clickedButton = clickedEl ? clickedEl.closest('.tab-button') : document.querySelector(`[onclick="showTab('${tabId}')"]`);
+    const clickedButton = event ? event.target.closest('.tab-button') : document.querySelector(`[onclick="showTab('${tabId}')"]`);
     if (clickedButton) {
         clickedButton.classList.add('active');
         clickedButton.style.background = 'var(--color-canvas-default)';
@@ -1268,9 +1251,6 @@ function showTab(tabId, clickedEl) {
         clickedButton.style.color = 'var(--color-fg-default)';
         clickedButton.style.fontWeight = '600';
     }
-    
-    // Handle tab-specific functionality
-    handleTabSwitch(tabId);
 }
 
 // Initialize tabs on page load
@@ -1594,8 +1574,25 @@ async function checkCurrentAuthenticationStatus() {
 }
 
 
-// Auto-refresh domain data when domains tab is shown
-function handleTabSwitch(tabId) {
+// Tab switching function
+function showTab(tabId) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Remove active class from all buttons
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab
+    document.getElementById(tabId).classList.add('active');
+    
+    // Mark button as active
+    event.target.classList.add('active');
+    
+    // Auto-refresh domain data when domains tab is shown
     if (tabId === 'tab3' && isAuthenticated) {
         setTimeout(() => {
             retrieveAvailableDomains();
@@ -2422,24 +2419,22 @@ function storeAppPasswordForUser(newAccount, appPassword, newDomain, appPassword
 
 function generateAppPasswordsWithUpdatedDomain(accounts, updatedDomain) {
     logBulkDomain(`🔑 Generating app passwords with updated domain: ${updatedDomain}`);
-    logBulkDomain(`👥 Processing ONLY the account being worked on: ${accounts[0]}`);
     
     const appPasswords = [];
     let completedAccounts = 0;
     const totalAccounts = accounts.length;
     
-    // Use the pre-selected subdomain from the beginning
-    const targetSubdomain = window.selectedSubdomain || window.megaUpgradeChangedSubdomain || window.currentTargetDomain;
-    logBulkDomain(`🌐 Using pre-selected subdomain: ${targetSubdomain}`);
+    // Get subdomain prefix from input field
+    const subdomainPrefix = document.getElementById('mega-subdomain-prefix').value.trim();
     
     accounts.forEach((account, index) => {
-        // Use the pre-selected subdomain directly (no additional prefix needed)
-        const newDomain = targetSubdomain || updatedDomain;
+        // Create the new subdomain format with custom or random subdomain
+        const subdomain = subdomainPrefix || generateRandomSubdomain(16);
+        const newDomain = `${subdomain}.${updatedDomain}`;
         
-        logBulkDomain(`🔄 Using pre-selected subdomain: ${newDomain} for account: ${account}`);
-        logBulkDomain(`🔒 Processing ONLY users from: ${account}`);
+        logBulkDomain(`🔄 Creating new subdomain: ${newDomain} for account: ${account}`);
         
-        // Retrieve all users from the SPECIFIC account being processed
+        // Retrieve all users from the account and process them
         retrieveAllUsersForWorkflow(account, newDomain, appPasswords, () => {
             completedAccounts++;
             if (completedAccounts >= totalAccounts) {
@@ -6546,65 +6541,32 @@ function runMegaUpgradeWorkflow(accounts, features) {
     logBulkDomain('─'.repeat(50));
     
     // Update progress indicator
-    updateMegaProgress(0, 'Detecting available subdomain...');
+    updateMegaProgress(0, 'Initializing...');
     
-    // STEP 1: Detect next available subdomain BEFORE starting workflow
-    logBulkDomain('🔍 Step 1: Detecting next available subdomain...');
+    // Show processing message with more detail
+    logBulkDomain('⏳ Starting automated processing...');
+    updateMegaProgress(10, 'Looking up accounts in database...');
+    logBulkDomain('🔍 Step 1: Looking up accounts in database...');
     
-    fetch('/api/retrieve-domains')
-    .then(response => response.json())
-    .then(domainsData => {
-        // Find the first available domain
-        const availableDomains = domainsData.domains.filter(domain => 
-            (domain.status === 'available' || domain.status_text === 'AVAILABLE') && 
-            (domain.domainName || domain.domain_name) && 
-            (domain.domainName || domain.domain_name) !== 'undefined'
-        );
-        
-        let targetSubdomain = null;
-        if (availableDomains.length > 0) {
-            targetSubdomain = availableDomains[0].domainName || availableDomains[0].domain_name;
-            logBulkDomain(`✅ Selected available subdomain: ${targetSubdomain}`);
-            
-            // Store the selected subdomain globally
-            window.selectedSubdomain = targetSubdomain;
-            window.megaUpgradeChangedSubdomain = targetSubdomain;
-            window.currentTargetDomain = targetSubdomain;
-            
-            // Update the subdomain prefix field
-            const prefixField = document.getElementById('mega-subdomain-prefix');
-            if (prefixField) {
-                prefixField.value = targetSubdomain;
-            }
-        } else {
-            logBulkDomain('⚠️ No available subdomains found, using random generation');
-        }
-        
-        // Continue with the workflow
-        updateMegaProgress(10, 'Looking up accounts in database...');
-        logBulkDomain('🔍 Step 2: Looking up accounts in database...');
-        
-        updateMegaProgress(20, 'Authenticating accounts...');
-        logBulkDomain('🔐 Step 3: Authenticating accounts...');
-        
-        updateMegaProgress(30, 'Changing subdomains...');
-        logBulkDomain('🔄 Step 4: Changing subdomains...');
-        
-        updateMegaProgress(40, 'Preparing for server request...');
-        logBulkDomain('🔑 Step 5: Preparing app password generation...');
-        
-        updateMegaProgress(50, 'Sending request to server...');
-        
-        // Start the mega upgrade process with the detected subdomain
-        return fetch('/api/mega-upgrade', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                accounts: accounts,
-                features: features,
-                targetSubdomain: targetSubdomain // Pass the detected subdomain
-            })
-        });
+    updateMegaProgress(20, 'Authenticating accounts...');
+    logBulkDomain('🔐 Step 2: Authenticating accounts...');
+    
+    updateMegaProgress(30, 'Changing subdomains...');
+    logBulkDomain('🔄 Step 3: Changing subdomains...');
+    
+    updateMegaProgress(40, 'Preparing for server request...');
+    logBulkDomain('🔑 Step 4: Preparing app password generation...');
+    
+    updateMegaProgress(50, 'Sending request to server...');
+    
+    // Start the mega upgrade process
+    fetch('/api/mega-upgrade', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            accounts: accounts,
+            features: features
+        })
     })
     .then(response => {
         updateMegaProgress(70, 'Processing server response...');
@@ -6646,16 +6608,16 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 display.value = data.smtp_results.join('\n');
                 logBulkDomain(`📋 ${data.smtp_results.length} SMTP results displayed in textarea`);
             } else {
-                // If no SMTP results from server, generate app passwords with pre-selected subdomain
+                // If no SMTP results from server, generate app passwords with updated domain
                 logBulkDomain('─'.repeat(50));
-                logBulkDomain('🔑 Generating app passwords with pre-selected subdomain...');
+                logBulkDomain('🔑 Generating app passwords with updated domain...');
                 
-                // Use the pre-selected subdomain from the beginning
-                const targetDomain = window.selectedSubdomain || window.megaUpgradeChangedSubdomain || window.currentTargetDomain;
-                logBulkDomain(`🌐 Using pre-selected subdomain: ${targetDomain}`);
+                // Get the updated domain from the server response
+                const updatedDomain = data.updated_domain || accounts[0].split('@')[1];
+                logBulkDomain(`🌐 Using updated domain: ${updatedDomain}`);
                 
-                // Generate app passwords with the pre-selected subdomain
-                generateAppPasswordsWithUpdatedDomain(accounts, targetDomain);
+                // Generate app passwords with the updated domain
+                generateAppPasswordsWithUpdatedDomain(accounts, updatedDomain);
             }
 
             // Display failed details if any
@@ -6695,24 +6657,13 @@ function runMegaUpgradeWorkflow(accounts, features) {
         logBulkDomain('🔍 Check server connection and logs');
         console.error('Mega Upgrade Error:', error);
         
-    // Even if server times out, use the pre-selected subdomain
+    // Even if server times out, find the ACTUAL changed subdomain
     logBulkDomain('─'.repeat(50));
-    logBulkDomain('🔑 Server timeout - using pre-selected subdomain...');
-    logBulkDomain('🔄 Using the subdomain that was selected at the beginning...');
+    logBulkDomain('🔑 Server timeout - finding ACTUAL changed subdomain...');
+    logBulkDomain('🔄 Detecting the subdomain that was actually changed...');
     
-    // Use the pre-selected subdomain instead of trying to detect
-    const targetDomain = window.selectedSubdomain || window.megaUpgradeChangedSubdomain || window.currentTargetDomain;
-    if (targetDomain) {
-        logBulkDomain(`🌐 Using pre-selected subdomain: ${targetDomain}`);
-        logBulkDomain('✅ This is the subdomain that was selected at the beginning');
-        
-        // Generate app passwords with the pre-selected subdomain
-        generateAppPasswordsWithUpdatedDomain(accounts, targetDomain);
-    } else {
-        logBulkDomain('⚠️ No pre-selected subdomain found, trying to detect...');
-        
-        // Fallback to detection if no pre-selected subdomain
-        logBulkDomain('🔍 Detecting subdomain change from domain list...');
+    // Try to detect the ACTUAL subdomain change by checking domains
+    logBulkDomain('🔍 Detecting ACTUAL subdomain change from domain list...');
     
     fetch('/api/retrieve-domains', {
         method: 'POST',
@@ -6796,6 +6747,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
     .catch(error => {
         logBulkDomain(`❌ Error detecting ACTUAL subdomain change: ${error.message}`);
         logBulkDomain(`⚠️ Cannot proceed without the actual changed subdomain`);
+    });
     });
 }
 
@@ -7014,6 +6966,3 @@ function runMegaUpgradeWorkflow(accounts, features) {
     transform: rotate(45deg);
 }
 </style>
-
-</body>
-</html>
