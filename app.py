@@ -5545,193 +5545,193 @@ def mega_upgrade():
                 with app.app_context():
                     # Push a new request context to avoid "Working outside of request context" error
                     with app.test_request_context():
-                    acct = (account_email or '').strip()
-                    if not acct:
-                        return
+                        acct = (account_email or '').strip()
+                        if not acct:
+                            return
 
-                    app.logger.info(f"Processing account {index+1}/{len(accounts)}: {acct}")
+                        app.logger.info(f"Processing account {index+1}/{len(accounts)}: {acct}")
 
-                    # Step 1: Find account in database
-                    google_account = GoogleAccount.query.filter(
-                        func.lower(GoogleAccount.account_name) == acct.lower()
-                    ).first()
-                    if not google_account:
-                        app.logger.warning(f"Account {acct} not found in database")
-                        all_accounts = GoogleAccount.query.all()
-                        with results_lock:
-                            failed_accounts += 1
-                            failed_details.append({
-                                'account': acct,
-                                'step': 'database_lookup',
-                                'error': f"Account not found in database. Available accounts: {[acc.account_name for acc in all_accounts]}"
-                            })
-                        return
+                        # Step 1: Find account in database
+                        google_account = GoogleAccount.query.filter(
+                            func.lower(GoogleAccount.account_name) == acct.lower()
+                        ).first()
+                        if not google_account:
+                            app.logger.warning(f"Account {acct} not found in database")
+                            all_accounts = GoogleAccount.query.all()
+                            with results_lock:
+                                failed_accounts += 1
+                                failed_details.append({
+                                    'account': acct,
+                                    'step': 'database_lookup',
+                                    'error': f"Account not found in database. Available accounts: {[acc.account_name for acc in all_accounts]}"
+                                })
+                            return
 
-                    original_account_name = google_account.account_name
+                        original_account_name = google_account.account_name
 
-                    # Protect critical accounts
-                    critical_accounts = ['admin@', 'system@', 'noreply@', 'postmaster@']
-                    if any(original_account_name.lower().startswith(prefix) for prefix in critical_accounts):
-                        app.logger.warning(f"Skipping critical account {acct}")
-                        with results_lock:
-                            failed_accounts += 1
-                            failed_details.append({
-                                'account': acct,
-                                'step': 'protection',
-                                'error': 'Critical system accounts cannot be modified for security'
-                            })
-                        return
+                        # Protect critical accounts
+                        critical_accounts = ['admin@', 'system@', 'noreply@', 'postmaster@']
+                        if any(original_account_name.lower().startswith(prefix) for prefix in critical_accounts):
+                            app.logger.warning(f"Skipping critical account {acct}")
+                            with results_lock:
+                                failed_accounts += 1
+                                failed_details.append({
+                                    'account': acct,
+                                    'step': 'protection',
+                                    'error': 'Critical system accounts cannot be modified for security'
+                                })
+                            return
 
-                    # Step 2: Authenticate
-                    if features.get('authenticate'):
-                        if google_api.is_token_valid(acct):
-                            if not google_api.authenticate_with_tokens(acct):
+                        # Step 2: Authenticate
+                        if features.get('authenticate'):
+                            if google_api.is_token_valid(acct):
+                                if not google_api.authenticate_with_tokens(acct):
+                                    with results_lock:
+                                        failed_accounts += 1
+                                        failed_details.append({
+                                            'account': acct,
+                                            'step': 'authentication',
+                                            'error': 'Failed to authenticate with cached tokens'
+                                        })
+                                    return
+                            else:
                                 with results_lock:
                                     failed_accounts += 1
                                     failed_details.append({
                                         'account': acct,
                                         'step': 'authentication',
-                                        'error': 'Failed to authenticate with cached tokens'
-                                    })
-                                return
-                        else:
-                            with results_lock:
-                                failed_accounts += 1
-                                failed_details.append({
-                                    'account': acct,
-                                    'step': 'authentication',
-                                    'error': 'No valid tokens found - OAuth required'
-                                })
-                            return
-
-                    # Step 3: Change subdomain
-                    domain_users = []
-                    next_domain = None
-                    if features.get('changeSubdomain'):
-                        with session_lock:
-                            original_session_account = session.get('current_account_name')
-                            session['current_account_name'] = acct
-                        try:
-                            result = google_api.get_domain_info()
-                            if not result['success']:
-                                with results_lock:
-                                    failed_accounts += 1
-                                    failed_details.append({
-                                        'account': acct,
-                                        'step': 'changeSubdomain',
-                                        'error': f"Failed to get domain info: {result['error']}"
+                                        'error': 'No valid tokens found - OAuth required'
                                     })
                                 return
 
-                            domains = result['domains']
-
-                            # Get all users
-                            all_users = []
-                            page_token = None
-                            while True:
-                                try:
-                                    users_result = google_api.service.users().list(
-                                        customer='my_customer',
-                                        maxResults=500,
-                                        pageToken=page_token
-                                    ).execute()
-                                    users = users_result.get('users', [])
-                                    all_users.extend(users)
-                                    page_token = users_result.get('nextPageToken')
-                                    if not page_token:
-                                        break
-                                except Exception as e:
-                                    app.logger.error(f"Error getting users: {e}")
-                                    break
-
-                            # Partition users
-                            all_regular_users = []
-                            for user in all_users:
-                                email = user.get('primaryEmail', '')
-                                if '@' in email and not (user.get('isAdmin', False) or user.get('isDelegatedAdmin', False)):
-                                    all_regular_users.append(email)
-
-                            if not all_regular_users:
-                                with results_lock:
-                                    failed_accounts += 1
-                                    failed_details.append({
-                                        'account': acct,
-                                        'step': 'changeSubdomain',
-                                        'error': 'No regular users found in Google Workspace'
-                                    })
-                                return
-
-                            # Domain usage counts
-                            domain_user_counts = {}
-                            for user in all_users:
-                                email = user.get('primaryEmail', '')
-                                if '@' in email:
-                                    d = email.split('@')[1]
-                                    domain_user_counts[d] = domain_user_counts.get(d, 0) + 1
-
-                            available_domains = []
-                            domain_records = {r.domain_name: r for r in UsedDomain.query.all()}
-                            for d in domains:
-                                dname = d.get('domainName') or d.get('domain_name') or ''
-                                if not dname:
-                                    continue
-                                user_count = domain_user_counts.get(dname, 0)
-                                rec = domain_records.get(dname)
-                                ever_used = bool(getattr(rec, 'ever_used', False)) if rec else False
-                                if user_count == 0 and not ever_used:
-                                    available_domains.append(dname)
-
-                            if not available_domains:
-                                with results_lock:
-                                    failed_accounts += 1
-                                    failed_details.append({
-                                        'account': acct,
-                                        'step': 'changeSubdomain',
-                                        'error': 'No available domains found'
-                                    })
-                                return
-
-                            available_domains.sort()
-                            next_domain = available_domains[0]
-                            domain_users = all_regular_users
-
-                            # Apply user updates
-                            successful_user_changes = 0
-                            for u_email in domain_users:
-                                try:
-                                    username = u_email.split('@')[0]
-                                    new_email = f"{username}@{next_domain}"
-                                    google_api.service.users().update(userKey=u_email, body={'primaryEmail': new_email}).execute()
-                                    successful_user_changes += 1
-                                except Exception as e:
-                                    app.logger.error(f"Failed to update user {u_email}: {e}")
-
-                            if successful_user_changes > 0:
-                                if next_domain in domain_records:
-                                    domain_records[next_domain].user_count += successful_user_changes
-                                else:
-                                    db.session.add(UsedDomain(domain_name=next_domain, user_count=successful_user_changes, is_verified=True, ever_used=True))
-                                db.session.commit()
-                        finally:
+                        # Step 3: Change subdomain
+                        domain_users = []
+                        next_domain = None
+                        if features.get('changeSubdomain'):
                             with session_lock:
-                                if original_session_account:
-                                    session['current_account_name'] = original_session_account
-                                else:
-                                    session.pop('current_account_name', None)
+                                original_session_account = session.get('current_account_name')
+                                session['current_account_name'] = acct
+                            try:
+                                result = google_api.get_domain_info()
+                                if not result['success']:
+                                    with results_lock:
+                                        failed_accounts += 1
+                                        failed_details.append({
+                                            'account': acct,
+                                            'step': 'changeSubdomain',
+                                            'error': f"Failed to get domain info: {result['error']}"
+                                        })
+                                    return
 
-                    # Step 4: Generate app passwords (DISABLED for now)
-                    # if features.get('retrievePasswords'):
-                    #     app.logger.info(f"App password generation is currently disabled")
-                    #     pass
+                                domains = result['domains']
 
-                    with results_lock:
-                        successful_accounts += 1
-                        final_results.append({
-                            'account': acct,
-                            'new_account_name': original_account_name,
-                            'users_processed': len(smtp_results),
-                            'status': 'success'
-                        })
+                                # Get all users
+                                all_users = []
+                                page_token = None
+                                while True:
+                                    try:
+                                        users_result = google_api.service.users().list(
+                                            customer='my_customer',
+                                            maxResults=500,
+                                            pageToken=page_token
+                                        ).execute()
+                                        users = users_result.get('users', [])
+                                        all_users.extend(users)
+                                        page_token = users_result.get('nextPageToken')
+                                        if not page_token:
+                                            break
+                                    except Exception as e:
+                                        app.logger.error(f"Error getting users: {e}")
+                                        break
+
+                                # Partition users
+                                all_regular_users = []
+                                for user in all_users:
+                                    email = user.get('primaryEmail', '')
+                                    if '@' in email and not (user.get('isAdmin', False) or user.get('isDelegatedAdmin', False)):
+                                        all_regular_users.append(email)
+
+                                if not all_regular_users:
+                                    with results_lock:
+                                        failed_accounts += 1
+                                        failed_details.append({
+                                            'account': acct,
+                                            'step': 'changeSubdomain',
+                                            'error': 'No regular users found in Google Workspace'
+                                        })
+                                    return
+
+                                # Domain usage counts
+                                domain_user_counts = {}
+                                for user in all_users:
+                                    email = user.get('primaryEmail', '')
+                                    if '@' in email:
+                                        d = email.split('@')[1]
+                                        domain_user_counts[d] = domain_user_counts.get(d, 0) + 1
+
+                                available_domains = []
+                                domain_records = {r.domain_name: r for r in UsedDomain.query.all()}
+                                for d in domains:
+                                    dname = d.get('domainName') or d.get('domain_name') or ''
+                                    if not dname:
+                                        continue
+                                    user_count = domain_user_counts.get(dname, 0)
+                                    rec = domain_records.get(dname)
+                                    ever_used = bool(getattr(rec, 'ever_used', False)) if rec else False
+                                    if user_count == 0 and not ever_used:
+                                        available_domains.append(dname)
+
+                                if not available_domains:
+                                    with results_lock:
+                                        failed_accounts += 1
+                                        failed_details.append({
+                                            'account': acct,
+                                            'step': 'changeSubdomain',
+                                            'error': 'No available domains found'
+                                        })
+                                    return
+
+                                available_domains.sort()
+                                next_domain = available_domains[0]
+                                domain_users = all_regular_users
+
+                                # Apply user updates
+                                successful_user_changes = 0
+                                for u_email in domain_users:
+                                    try:
+                                        username = u_email.split('@')[0]
+                                        new_email = f"{username}@{next_domain}"
+                                        google_api.service.users().update(userKey=u_email, body={'primaryEmail': new_email}).execute()
+                                        successful_user_changes += 1
+                                    except Exception as e:
+                                        app.logger.error(f"Failed to update user {u_email}: {e}")
+
+                                if successful_user_changes > 0:
+                                    if next_domain in domain_records:
+                                        domain_records[next_domain].user_count += successful_user_changes
+                                    else:
+                                        db.session.add(UsedDomain(domain_name=next_domain, user_count=successful_user_changes, is_verified=True, ever_used=True))
+                                    db.session.commit()
+                            finally:
+                                with session_lock:
+                                    if original_session_account:
+                                        session['current_account_name'] = original_session_account
+                                    else:
+                                        session.pop('current_account_name', None)
+
+                        # Step 4: Generate app passwords (DISABLED for now)
+                        # if features.get('retrievePasswords'):
+                        #     app.logger.info(f"App password generation is currently disabled")
+                        #     pass
+
+                        with results_lock:
+                            successful_accounts += 1
+                            final_results.append({
+                                'account': acct,
+                                'new_account_name': original_account_name,
+                                'users_processed': 0,  # No app passwords generated
+                                'status': 'success'
+                            })
             except Exception as e:
                 app.logger.error(f"Error processing account {account_email}: {e}")
                 with results_lock:
