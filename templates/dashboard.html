@@ -6341,22 +6341,34 @@ function closeMegaUpgradeModal() {
 
 function startMegaUpgrade() {
     console.log('Starting mega upgrade...');
-    const accountEmail = document.getElementById('mega-single-account').value.trim();
-    
-    console.log('Account email:', accountEmail);
-    
-    if (!accountEmail) {
-        alert('Please enter an account email address');
+    const bulkTextarea = document.getElementById('mega-accounts-list');
+    const singleInput = document.getElementById('mega-single-account');
+
+    let accounts = [];
+    if (bulkTextarea && bulkTextarea.value.trim().length > 0) {
+        // Parse bulk accounts (one per line)
+        accounts = bulkTextarea.value
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line && line.includes('@'));
+    } else if (singleInput) {
+        const accountEmail = (singleInput.value || '').trim();
+        console.log('Account email:', accountEmail);
+        if (!accountEmail) {
+            alert('Please enter an account email address or provide a bulk list');
+            return;
+        }
+        if (!accountEmail.includes('@')) {
+            alert('Please enter a valid email address');
+            return;
+        }
+        accounts = [accountEmail];
+    }
+
+    if (accounts.length === 0) {
+        alert('Please provide at least one valid account (one per line).');
         return;
     }
-    
-    if (!accountEmail.includes('@')) {
-        alert('Please enter a valid email address');
-        return;
-    }
-    
-    // Single account processing
-    const accounts = [accountEmail];
     
     // Get selected features
     const features = {
@@ -6812,6 +6824,24 @@ function runMegaUpgradeWorkflow(accounts, features) {
                            style="font-family: monospace; font-size: 13px;">
                     <small style="color: #656d76; font-size: 12px;">
                         Enter a custom subdomain prefix or leave empty for random generation. Format: prefix.domain.com
+                    </small>
+                </div>
+            </div>
+
+            <!-- Bulk Accounts Input -->
+            <div style="margin-bottom: 24px;">
+                <h3 style="margin-bottom: 16px; color: #24292f;">
+                    <i class="fas fa-users"></i> Bulk Accounts (one per line)
+                </h3>
+                <div class="form-group-github">
+                    <label for="mega-accounts-list" class="form-label-github">
+                        <i class="fas fa-list"></i> Accounts List
+                    </label>
+                    <textarea id="mega-accounts-list" class="form-control-github" rows="6"
+                              placeholder="support@domain1.com\ninfo@domain2.com\nadmin@domain3.com"
+                              style="font-family: monospace; font-size: 13px; resize: vertical;"></textarea>
+                    <small style="color: #656d76; font-size: 12px;">
+                        You can paste multiple accounts here. The workflow will process them in parallel with up to 6 concurrent workers.
                     </small>
                 </div>
             </div>
