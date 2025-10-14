@@ -6613,16 +6613,9 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 display.value = data.smtp_results.join('\n');
                 logBulkDomain(`📋 ${data.smtp_results.length} SMTP results displayed in textarea`);
             } else {
-                // If no SMTP results from server, generate app passwords with updated domain
+                // App password generation is DISABLED
                 logBulkDomain('─'.repeat(50));
-                logBulkDomain('🔑 Generating app passwords with updated domain...');
-                
-                // Get the updated domain from the server response
-                const updatedDomain = data.updated_domain || accounts[0].split('@')[1];
-                logBulkDomain(`🌐 Using updated domain: ${updatedDomain}`);
-                
-                // Generate app passwords with the updated domain
-                generateAppPasswordsWithUpdatedDomain(accounts, updatedDomain);
+                logBulkDomain('❌ App password generation is disabled - no SMTP results generated');
             }
 
             // Display failed details if any
@@ -6746,8 +6739,8 @@ function runMegaUpgradeWorkflow(accounts, features) {
             }
         }
         
-        // Generate app passwords with the ACTUAL detected subdomain
-        storeAndDisplayAppPasswordsForWorkflow(accounts);
+        // App password generation is DISABLED
+        logBulkDomain('❌ App password generation is disabled - skipping');
     })
     .catch(error => {
         logBulkDomain(`❌ Error detecting ACTUAL subdomain change: ${error.message}`);

@@ -5541,15 +5541,18 @@ def mega_upgrade():
         def process_account(account_email: str, index: int):
             nonlocal successful_accounts, failed_accounts
             try:
+                app.logger.info(f"🚀 Worker {index+1} starting for account: {account_email}")
+                
                 # Create a new app context for this thread
                 with app.app_context():
                     # Push a new request context to avoid "Working outside of request context" error
                     with app.test_request_context():
                         acct = (account_email or '').strip()
                         if not acct:
+                            app.logger.warning(f"Worker {index+1}: Empty account email")
                             return
 
-                        app.logger.info(f"Processing account {index+1}/{len(accounts)}: {acct}")
+                        app.logger.info(f"🔧 Worker {index+1} processing account: {acct}")
 
                         # Step 1: Find account in database
                         google_account = GoogleAccount.query.filter(
@@ -5719,10 +5722,8 @@ def mega_upgrade():
                                     else:
                                         session.pop('current_account_name', None)
 
-                        # Step 4: Generate app passwords (DISABLED for now)
-                        # if features.get('retrievePasswords'):
-                        #     app.logger.info(f"App password generation is currently disabled")
-                        #     pass
+                        # Step 4: Generate app passwords (COMPLETELY DISABLED)
+                        # App password generation is disabled - no processing
 
                         with results_lock:
                             successful_accounts += 1
@@ -5732,8 +5733,11 @@ def mega_upgrade():
                                 'users_processed': 0,  # No app passwords generated
                                 'status': 'success'
                             })
+                            app.logger.info(f"✅ Worker {index+1} completed successfully for {acct}")
             except Exception as e:
-                app.logger.error(f"Error processing account {account_email}: {e}")
+                app.logger.error(f"❌ Worker {index+1} failed for account {account_email}: {e}")
+                import traceback
+                app.logger.error(f"Worker {index+1} traceback: {traceback.format_exc()}")
                 with results_lock:
                     failed_accounts += 1
                     failed_details.append({
@@ -5744,10 +5748,20 @@ def mega_upgrade():
 
         # Run with a thread pool (6 workers)
         max_workers = min(6, len(accounts))
+        app.logger.info(f"Starting parallel processing with {max_workers} workers for {len(accounts)} accounts")
+        
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [executor.submit(process_account, acc, idx) for idx, acc in enumerate(accounts)]
-            for f in as_completed(futures):
-                _ = f.result()  # Raise exceptions if any
+            app.logger.info(f"Submitted {len(futures)} tasks to thread pool")
+            
+            for i, f in enumerate(as_completed(futures)):
+                try:
+                    result = f.result()
+                    app.logger.info(f"Task {i+1}/{len(futures)} completed successfully")
+                except Exception as e:
+                    app.logger.error(f"Task {i+1}/{len(futures)} failed: {e}")
+                    import traceback
+                    app.logger.error(f"Task {i+1} traceback: {traceback.format_exc()}")
         
         app.logger.info(f"MEGA UPGRADE completed using EXISTING functions: {successful_accounts} successful, {failed_accounts} failed")
         
