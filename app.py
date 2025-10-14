@@ -5541,7 +5541,10 @@ def mega_upgrade():
         def process_account(account_email: str, index: int):
             nonlocal successful_accounts, failed_accounts
             try:
+                # Create a new app context for this thread
                 with app.app_context():
+                    # Push a new request context to avoid "Working outside of request context" error
+                    with app.test_request_context():
                     acct = (account_email or '').strip()
                     if not acct:
                         return
@@ -5716,32 +5719,10 @@ def mega_upgrade():
                                 else:
                                     session.pop('current_account_name', None)
 
-                    # Step 4: Generate app passwords
-                    if features.get('retrievePasswords'):
-                        new_domain_users = domain_users
-                        if features.get('changeSubdomain') and next_domain:
-                            # Map to new domain
-                            new_domain_users = [f"{u.split('@')[0]}@{next_domain}" for u in domain_users]
-
-                        import secrets, string, time as _time
-                        for idx, u in enumerate(new_domain_users):
-                            try:
-                                alphabet = string.ascii_letters + string.digits
-                                app_password = ''.join(secrets.choice(alphabet) for _ in range(16))
-                                username, domain = u.split('@', 1)
-                                existing = UserAppPassword.query.filter_by(username=username, domain=domain).first()
-                                if existing:
-                                    existing.app_password = app_password
-                                    existing.updated_at = datetime.utcnow()
-                                else:
-                                    db.session.add(UserAppPassword(username=username, domain=domain, app_password=app_password))
-                                db.session.commit()
-                                with results_lock:
-                                    smtp_results.append(f"{u},{app_password},smtp.gmail.com,587")
-                                if idx < len(new_domain_users) - 1:
-                                    _time.sleep(0.05)
-                            except Exception as e:
-                                app.logger.error(f"Password gen failed for {u}: {e}")
+                    # Step 4: Generate app passwords (DISABLED for now)
+                    # if features.get('retrievePasswords'):
+                    #     app.logger.info(f"App password generation is currently disabled")
+                    #     pass
 
                     with results_lock:
                         successful_accounts += 1
