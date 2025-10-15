@@ -7861,15 +7861,15 @@ def api_retrieve_app_passwords_for_accounts():
         
         available_domains.sort()
         
-        # Process each account to find its new subdomain
+        # FORCE FIX: Get ALL stored app passwords and process them
+        from database import UserAppPassword
+        all_stored_passwords = UserAppPassword.query.all()
+        app.logger.info(f"📊 FORCE FIX: Found {len(all_stored_passwords)} total stored app passwords")
+        
         account_results = []
         smtp_results = []
         
-        # Get ALL stored app passwords once for efficiency
-        from database import UserAppPassword
-        all_stored_passwords = UserAppPassword.query.all()
-        app.logger.info(f"📊 Total stored app passwords in database: {len(all_stored_passwords)}")
-        
+        # Process each account
         for account in accounts:
             account = account.strip()
             if not account or '@' not in account:
@@ -7878,140 +7878,59 @@ def api_retrieve_app_passwords_for_accounts():
             # Get current domain for this account
             current_domain = account.split('@')[1]
             
-            # Find next available domain (same logic as auto-change)
+            # FORCE FIX: Find next available domain (improved logic)
             next_domain = None
-            for domain in available_domains:
+            
+            # Sort domains to ensure proper ordering
+            sorted_domains = sorted(available_domains)
+            app.logger.info(f"🔧 FORCE FIX: Available domains: {sorted_domains[:10]}...")
+            app.logger.info(f"🔧 FORCE FIX: Current domain: {current_domain}")
+            
+            # Find the next domain alphabetically after current domain
+            for domain in sorted_domains:
                 if domain > current_domain:
                     next_domain = domain
                     break
             
+            # If no domain found after current, use the first available
             if not next_domain:
-                next_domain = available_domains[0]
+                next_domain = sorted_domains[0] if sorted_domains else available_domains[0]
             
-            app.logger.info(f"Account {account}: current={current_domain}, next={next_domain}")
-            app.logger.info(f"Available domains: {available_domains[:5]}...")  # Show first 5 domains
+            app.logger.info(f"🔧 FORCE FIX: Selected next domain: {next_domain}")
             
-            # Get all users in the CURRENT domain (before change)
-            current_domain_users = []
-            for user in all_users:
-                email = user.get('primaryEmail', '')
-                if email and email.endswith(f'@{current_domain}') and not user.get('isAdmin', False):
-                    current_domain_users.append(email)
+            app.logger.info(f"🔧 FORCE FIX: Account {account} -> {next_domain}")
             
-            app.logger.info(f"Found {len(current_domain_users)} users in current domain {current_domain}")
+            # FORCE FIX: Process ALL stored passwords for this account
+            account_smtp_results = []
+            processed_count = 0
+            seen_users = set()  # Prevent duplicates
             
-            # For each user in the current domain, fetch their saved app password
-            from database import UserAppPassword
-            
-            if len(current_domain_users) == 0:
-                app.logger.info(f"⚠️ No users found in domain {current_domain} for account {account}")
-            else:
-                app.logger.info(f"✅ Found {len(current_domain_users)} users in domain {current_domain}")
-            
-            for user_email in current_domain_users:
-                username = user_email.split('@')[0]
-                app.logger.info(f"Processing user: {username}")
-                
-                # Look for saved app password for this user (try different username formats)
-                record = None
-                
-                # Try exact username match first
-                record = UserAppPassword.query.filter_by(username=username).first()
-                
-                # If not found, try with full email as username
-                if not record:
-                    record = UserAppPassword.query.filter_by(username=user_email).first()
-                
-                # If still not found, try without domain part
-                if not record and '@' in username:
-                    username_only = username.split('@')[0]
-                    record = UserAppPassword.query.filter_by(username=username_only).first()
-                
-                if record and record.app_password:
-                    # User has saved app password
-                    app_password = record.app_password
-                    app.logger.info(f"✅ Found saved app password for {username}")
-                else:
-                    # No saved password, generate new one
-                    import secrets, string
-                    app_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
-                    
-                    # Save to database
-                    if record:
-                        record.app_password = app_password
-                        record.domain = next_domain
-                    else:
-                        db.session.add(UserAppPassword(username=username, domain=next_domain, app_password=app_password, created_at=datetime.utcnow()))
-                    
-                    app.logger.info(f"🔑 Generated new app password for {username}")
-                
-                # Store alias for frontend retrieval
-                try:
-                    google_api.store_app_password(f"{username}@{next_domain}", app_password, next_domain)
-                except Exception:
-                    pass
-                
-                # Add to results with NEW subdomain (format: user,app_password,smtp.gmail.com,587)
-                smtp_line = f"{username}@{next_domain},{app_password},smtp.gmail.com,587"
-                smtp_results.append(smtp_line)
-                app.logger.info(f"📋 Added SMTP line: {smtp_line}")
-            
-            # ALWAYS process ALL stored app passwords regardless of domain matching
-            app.logger.info(f"🔄 Processing ALL stored app passwords for account {account} with new domain {next_domain}")
-            
-            # Use ALL stored passwords and apply new subdomain
             for stored in all_stored_passwords:
                 if stored.username and stored.app_password:
+                    # Check for duplicates
+                    if stored.username in seen_users:
+                        app.logger.info(f"⚠️ FORCE FIX: Skipping duplicate {stored.username}")
+                        continue
+                    
+                    seen_users.add(stored.username)
                     app_password = stored.app_password
                     
-                    # Store alias for frontend retrieval
-                    try:
-                        google_api.store_app_password(f"{stored.username}@{next_domain}", app_password, next_domain)
-                    except Exception:
-                        pass
-                    
-                    # Add to results with NEW subdomain
+                    # Create SMTP line with NEW subdomain
                     smtp_line = f"{stored.username}@{next_domain},{app_password},smtp.gmail.com,587"
-                    smtp_results.append(smtp_line)
-                    current_domain_users.append(f"{stored.username}@{current_domain}")
-                    app.logger.info(f"✅ Added stored password: {stored.username}@{next_domain}")
+                    account_smtp_results.append(smtp_line)
+                    processed_count += 1
+                    
+                    app.logger.info(f"✅ FORCE FIX: Added {stored.username}@{next_domain}")
             
-            app.logger.info(f"📋 Retrieved {len(smtp_results)} app passwords from stored data")
+            # Add all results for this account
+            smtp_results.extend(account_smtp_results)
             
-            # If still no results, generate for the account itself
-            if len(smtp_results) == 0:
-                app.logger.info(f"⚠️ No stored passwords found, generating for account {account}")
-                username = account.split('@')[0]
-                
-                # Generate new app password
-                import secrets, string
-                app_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
-                
-                # Store in database
-                record = UserAppPassword.query.filter_by(username=username).first()
-                if record:
-                    record.app_password = app_password
-                    record.domain = next_domain
-                else:
-                    db.session.add(UserAppPassword(username=username, domain=next_domain, app_password=app_password, created_at=datetime.utcnow()))
-                
-                # Store alias for frontend retrieval
-                try:
-                    google_api.store_app_password(f"{username}@{next_domain}", app_password, next_domain)
-                except Exception:
-                    pass
-                
-                # Add to results
-                smtp_line = f"{username}@{next_domain},{app_password},smtp.gmail.com,587"
-                smtp_results.append(smtp_line)
-                current_domain_users.append(account)
-                
-                app.logger.info(f"🔑 Generated app password for {username}@{next_domain}")
+            app.logger.info(f"🔧 FORCE FIX: Account {account} processed {processed_count} passwords")
             
             account_results.append({
                 'account': account,
                 'new_subdomain': next_domain,
-                'users_found': len(current_domain_users),
+                'users_found': processed_count,
                 'status': 'success'
             })
         
