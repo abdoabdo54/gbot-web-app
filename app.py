@@ -5787,42 +5787,8 @@ def mega_upgrade():
                                         
                                         app.logger.info(f"Account {acct}: subdomain changed to {next_domain}, {successful_user_changes} users processed")
 
-                                    # Backend-side SMTP/app password generation for ALL changed users
-                                    try:
-                                        if features.get('retrievePasswords') or features.get('updatePasswords'):
-                                            # Ensure models are available
-                                            from database import UserAppPassword
-                                            from datetime import datetime
-                                            import secrets, string
-
-                                            generated_count = 0
-                                            for uname in changed_usernames:
-                                                # Find or create app password
-                                                record = UserAppPassword.query.filter_by(username=uname).first()
-                                                if record:
-                                                    app_password = record.app_password or ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
-                                                    record.app_password = app_password
-                                                else:
-                                                    app_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
-                                                    record = UserAppPassword(username=uname, app_password=app_password, created_at=datetime.utcnow())
-                                                    db.session.add(record)
-                                                generated_count += 1
-                                                # Append SMTP line result (new email with the NEW subdomain)
-                                                smtp_line = f"{uname}@{next_domain},{app_password},smtp.gmail.com,587"
-                                                with results_lock:
-                                                    smtp_results.append(smtp_line)
-
-                                                # ALSO persist into the same store used by /api/get-all-app-passwords (alias-based)
-                                                try:
-                                                    full_alias = f"{uname}@{next_domain}"
-                                                    google_api.store_app_password(full_alias, app_password, next_domain)
-                                                except Exception as store_err:
-                                                    app.logger.warning(f"Alias store fallback failed for {uname}@{next_domain}: {store_err}")
-
-                                            db.session.commit()
-                                            app.logger.info(f"Generated/updated {generated_count} app passwords for domain {next_domain}")
-                                    except Exception as gen_err:
-                                        app.logger.error(f"Failed generating app passwords for domain {next_domain}: {gen_err}")
+                                    # App password generation removed from mega workflow
+                                    # This will be handled separately by the Retrieve App Passwords process
                             finally:
                                 with session_lock:
                                     if original_session_account:
@@ -7736,6 +7702,161 @@ def api_generate_domain_smtp():
 
         return jsonify({'success': True, 'domain': target_domain, 'count': len(smtp_lines), 'generated': generated, 'smtp_results': smtp_lines})
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/retrieve-app-passwords-for-accounts', methods=['POST'])
+@login_required
+def api_retrieve_app_passwords_for_accounts():
+    """Separate process to retrieve app passwords for multiple accounts
+    This replaces the app password generation in mega workflow
+    """
+    try:
+        req = request.get_json(silent=True) or {}
+        accounts = req.get('accounts', [])
+        
+        if not accounts:
+            return jsonify({'success': False, 'error': 'No accounts provided'})
+        
+        # Ensure Google service is available
+        if not google_api.service:
+            acct = session.get('current_account_name', '')
+            if acct and google_api.is_token_valid(acct):
+                google_api.authenticate_with_tokens(acct)
+        if not google_api.service:
+            return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
+        
+        # Get all domains to detect new subdomains
+        domain_result = google_api.get_domain_info()
+        if not domain_result['success']:
+            return jsonify({'success': False, 'error': f"Failed to get domain info: {domain_result['error']}"})
+        
+        domains = domain_result['domains']
+        domain_records = {r.domain_name: r for r in UsedDomain.query.all()}
+        
+        # Get all users to find current domain usage
+        all_users = []
+        page_token = None
+        while True:
+            try:
+                users_result = google_api.service.users().list(
+                    customer='my_customer',
+                    maxResults=500,
+                    pageToken=page_token
+                ).execute()
+                users = users_result.get('users', [])
+                all_users.extend(users)
+                page_token = users_result.get('nextPageToken')
+                if not page_token:
+                    break
+            except Exception as e:
+                app.logger.error(f"Error getting users: {e}")
+                break
+        
+        # Calculate domain usage
+        domain_user_counts = {}
+        for user in all_users:
+            email = user.get('primaryEmail', '')
+            if '@' in email:
+                domain = email.split('@')[1]
+                domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
+        
+        # Find available domains (same logic as auto-change)
+        available_domains = []
+        for domain in domains:
+            domain_name = domain.get('domainName', '')
+            if not domain_name:
+                continue
+            user_count = domain_user_counts.get(domain_name, 0)
+            domain_record = domain_records.get(domain_name)
+            ever_used = bool(getattr(domain_record, 'ever_used', False)) if domain_record else False
+            
+            if user_count == 0 and not ever_used:
+                available_domains.append(domain_name)
+        
+        if not available_domains:
+            return jsonify({'success': False, 'error': 'No available domains found'})
+        
+        available_domains.sort()
+        
+        # Process each account to find its new subdomain
+        account_results = []
+        smtp_results = []
+        
+        for account in accounts:
+            account = account.strip()
+            if not account or '@' not in account:
+                continue
+                
+            # Get current domain for this account
+            current_domain = account.split('@')[1]
+            
+            # Find next available domain (same logic as auto-change)
+            next_domain = None
+            for domain in available_domains:
+                if domain > current_domain:
+                    next_domain = domain
+                    break
+            
+            if not next_domain:
+                next_domain = available_domains[0]
+            
+            # Get all users in the new domain
+            domain_users = []
+            for user in all_users:
+                email = user.get('primaryEmail', '')
+                if email and email.endswith(f'@{next_domain}') and not user.get('isAdmin', False):
+                    domain_users.append(email)
+            
+            # Generate app passwords for all users in the new domain
+            from database import UserAppPassword
+            import secrets, string
+            
+            for user_email in domain_users:
+                username = user_email.split('@')[0]
+                
+                # Get or create app password
+                record = UserAppPassword.query.filter_by(username=username).first()
+                if record and record.app_password:
+                    app_password = record.app_password
+                else:
+                    app_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+                    if record:
+                        record.app_password = app_password
+                    else:
+                        db.session.add(UserAppPassword(username=username, app_password=app_password, created_at=datetime.utcnow()))
+                
+                # Store alias for frontend retrieval
+                try:
+                    google_api.store_app_password(f"{username}@{next_domain}", app_password, next_domain)
+                except Exception:
+                    pass
+                
+                # Add to results
+                smtp_line = f"{username}@{next_domain},{app_password},smtp.gmail.com,587"
+                smtp_results.append(smtp_line)
+            
+            account_results.append({
+                'account': account,
+                'new_subdomain': next_domain,
+                'users_found': len(domain_users),
+                'status': 'success'
+            })
+        
+        try:
+            db.session.commit()
+        except Exception:
+            pass
+        
+        return jsonify({
+            'success': True,
+            'message': f'Retrieved app passwords for {len(accounts)} accounts',
+            'account_results': account_results,
+            'smtp_results': smtp_results,
+            'total_users': len(smtp_results)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Retrieve app passwords error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':

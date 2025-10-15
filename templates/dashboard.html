@@ -948,6 +948,59 @@
         </div>
     </div>
 
+    <!-- Separate Retrieve App Passwords Process -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-key"></i>
+                Retrieve App Passwords (Post-Mega Upgrade)
+            </h3>
+        </div>
+        
+        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
+            After completing the Mega Upgrade workflow, use this section to retrieve app passwords for all users 
+            in the changed domains. Enter the same accounts that were processed in the mega upgrade, and the system 
+            will automatically detect their new subdomains and generate app passwords for all users.
+        </p>
+        
+        <div style="margin-bottom: 24px;">
+            <h4 style="margin-bottom: 16px; color: #24292f;">
+                <i class="fas fa-users"></i> Process Multiple Accounts
+            </h4>
+            <div class="form-group-github">
+                <label for="retrieve-accounts" class="form-label-github">
+                    <i class="fas fa-envelope"></i> Account Emails (one per line)
+                </label>
+                <textarea id="retrieve-accounts" class="form-control-github" rows="4" 
+                          placeholder="support@domain1.com&#10;alberto@domain2.com&#10;user@domain3.com"
+                          style="font-family: monospace; font-size: 13px;"></textarea>
+                <small style="color: #656d76; font-size: 12px;">
+                    Enter the same accounts that were processed in the mega upgrade (one per line)
+                </small>
+            </div>
+            <button onclick="retrieveAppPasswordsForAccounts()" class="btn-github btn-github-primary">
+                <i class="fas fa-sync-alt"></i> Retrieve App Passwords
+            </button>
+        </div>
+        
+        <div style="margin-bottom: 24px;">
+            <h4 style="margin-bottom: 16px; color: #24292f;">
+                <i class="fas fa-list"></i> Generated App Passwords
+            </h4>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <button onclick="copyAppPasswords()" class="btn-github">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+                <button onclick="clearAppPasswordsDisplay()" class="btn-github">
+                    <i class="fas fa-broom"></i> Clear Display
+                </button>
+            </div>
+            <textarea id="retrieved-app-passwords-display" class="form-control-github" rows="8" 
+                      placeholder="Generated app passwords will appear here in format: user@newdomain.com,app_password,smtp.gmail.com,587" readonly
+                      style="font-family: monospace; font-size: 13px; background: #f6f8fa;"></textarea>
+        </div>
+    </div>
+
     <!-- Results Log (Covers Both Workflows) -->
     <div class="github-card">
         <div class="github-card-header">
@@ -6819,37 +6872,10 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 display.value = data.smtp_results.join('\n');
                 logBulkDomain(`📋 ${data.smtp_results.length} SMTP results displayed in textarea`);
             } else if (features.retrievePasswords) {
-                // If enabled but backend returned none, attempt client-side generation using detected domain
-                if (window.megaUpgradeSubdomains && window.megaUpgradeSubdomains.length > 0) {
-                    // Use the specific subdomains for each account from mega upgrade
-                    logBulkDomain('ℹ️ No SMTP results from server, generating client-side using specific subdomains from mega upgrade');
-                    generateAppPasswordsWithMultipleSubdomains(accounts, window.megaUpgradeSubdomains);
-                } else {
-                // Fallback to single subdomain
-                const targetDomain = window.megaUpgradeChangedSubdomain 
-                    || (window.baseToNewSubdomainMap && Object.values(window.baseToNewSubdomainMap)[0])
-                    || window.currentTargetDomain;
-                if (targetDomain) {
-                    logBulkDomain('ℹ️ No SMTP results from server, generating client-side using detected domain');
-                    logBulkDomain(`🎯 Using target domain: ${targetDomain}`);
-                    // New: Ask server to generate SMTP for ALL users in this domain
-                    fetch('/api/generate-domain-smtp', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({domain: targetDomain})})
-                        .then(r => r.json())
-                        .then(d => {
-                            if (d.success && d.smtp_results && d.smtp_results.length) {
-                                const display = document.getElementById('app-passwords-display');
-                                display.value = d.smtp_results.join('\n');
-                                logBulkDomain(`📋 ${d.smtp_results.length} SMTP results returned for domain ${targetDomain}`);
-                            } else {
-                                // fallback to local retrieval
-                                generateAppPasswordsForAllUsersInDomain(targetDomain);
-                            }
-                        })
-                        .catch(() => generateAppPasswordsForAllUsersInDomain(targetDomain));
-                } else {
-                    logBulkDomain('⚠️ No SMTP results and no detected domain');
-                }
-                }
+                // App password generation removed from mega workflow
+                // This will be handled separately by the Retrieve App Passwords process
+                logBulkDomain('ℹ️ App password generation is now handled separately');
+                logBulkDomain('💡 Use the "Retrieve App Passwords" section after mega upgrade completion');
             }
 
             // Display failed details if any
@@ -7208,3 +7234,67 @@ function runMegaUpgradeWorkflow(accounts, features) {
     transform: rotate(45deg);
 }
 </style>
+
+<script>
+// New function for the separate Retrieve App Passwords process
+function retrieveAppPasswordsForAccounts() {
+    const accountsText = document.getElementById('retrieve-accounts').value.trim();
+    
+    if (!accountsText) {
+        alert('Please enter account emails (one per line)');
+        return;
+    }
+    
+    // Parse accounts from textarea
+    const accounts = accountsText.split('\n')
+        .map(line => line.trim())
+        .filter(line => line && line.includes('@'));
+    
+    if (accounts.length === 0) {
+        alert('Please enter valid email addresses (one per line)');
+        return;
+    }
+    
+    logBulkDomain(`🔄 Starting separate Retrieve App Passwords process for ${accounts.length} accounts`);
+    logBulkDomain(`📧 Processing accounts: ${accounts.join(', ')}`);
+    
+    // Show progress
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    button.disabled = true;
+    
+    fetch('/api/retrieve-app-passwords-for-accounts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({accounts: accounts})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logBulkDomain(`✅ Successfully processed ${data.total_users} users across ${data.account_results.length} accounts`);
+            
+            // Display results
+            data.account_results.forEach((result, index) => {
+                logBulkDomain(`  ${index + 1}. ${result.account} → ${result.new_subdomain} (${result.users_found} users)`);
+            });
+            
+            // Show all generated app passwords
+            const display = document.getElementById('retrieved-app-passwords-display');
+            display.value = data.smtp_results.join('\n');
+            
+            logBulkDomain(`📋 Generated ${data.smtp_results.length} app passwords and displayed in textarea`);
+        } else {
+            logBulkDomain(`❌ Error: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logBulkDomain(`❌ Network error: ${error.message}`);
+    })
+    .finally(() => {
+        // Restore button
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+</script>
