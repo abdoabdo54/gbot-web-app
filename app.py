@@ -7800,12 +7800,16 @@ def api_retrieve_app_passwords_for_accounts():
             if not next_domain:
                 next_domain = available_domains[0]
             
+            app.logger.info(f"Account {account}: current={current_domain}, next={next_domain}")
+            
             # Get all users in the new domain
             domain_users = []
             for user in all_users:
                 email = user.get('primaryEmail', '')
                 if email and email.endswith(f'@{next_domain}') and not user.get('isAdmin', False):
                     domain_users.append(email)
+            
+            app.logger.info(f"Found {len(domain_users)} users in domain {next_domain}")
             
             # Generate app passwords for all users in the new domain
             from database import UserAppPassword

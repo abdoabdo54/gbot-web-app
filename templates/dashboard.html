@@ -866,87 +866,6 @@
         </div>
     </div>
 
-    <!-- App Password Management -->
-    <div class="github-card">
-        <div class="github-card-header">
-            <h3 class="github-card-title">
-                <i class="fas fa-key"></i>
-                App Password Management
-            </h3>
-        </div>
-        
-        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
-            Upload and manage app passwords for SMTP authentication. When retrieving, the system automatically 
-            updates the domain part to match your current domain and formats output as SMTP configuration 
-            (user@domain,app_password,smtp.gmail.com,587) ready for direct use in email clients.
-        </p>
-        
-        <!-- Upload Section -->
-        <div style="margin-bottom: 24px;">
-            <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-upload"></i> Upload App Passwords
-            </h4>
-            <div class="form-group-github">
-                <label for="app-password-file" class="form-label-github">
-                    <i class="fas fa-file-text"></i> App Password File (.txt)
-                </label>
-                <input type="file" id="app-password-file" class="form-control-github" accept=".txt" 
-                       style="padding: 12px; border: 2px dashed #d0d7de; background: #f6f8fa;">
-                <small style="color: #656d76; font-size: 12px;">
-                    Upload a .txt file with format: user@domain.com:app_password (one per line)<br>
-                    Output will be formatted as: user@domain.com,app_password,smtp.gmail.com,587
-                </small>
-            </div>
-            <button onclick="uploadAppPasswords()" class="btn-github btn-github-primary">
-                <i class="fas fa-upload"></i> Upload App Passwords
-            </button>
-        </div>
-        
-        <!-- Retrieve Section -->
-        <div style="margin-bottom: 24px;">
-            <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-download"></i> Retrieve App Passwords
-            </h4>
-            <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end;">
-                <div class="form-group-github">
-                    <label for="retrieve-domain" class="form-label-github">
-                        <i class="fas fa-globe"></i> New Domain
-                    </label>
-                    <input type="text" id="retrieve-domain" class="form-control-github" 
-                           placeholder="newdomain.com" value="">
-                    <small style="color: #656d76; font-size: 12px;">
-                        Enter the domain you want to use for all usernames
-                    </small>
-                </div>
-                <button onclick="retrieveAppPasswords()" class="btn-github btn-github-primary">
-                    <i class="fas fa-sync-alt"></i> Update & Optimize
-                </button>
-            </div>
-        </div>
-        
-        <!-- Display Section -->
-        <div style="margin-bottom: 24px;">
-            <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-list"></i> App Passwords Display
-            </h4>
-            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                <button onclick="copyAppPasswords()" class="btn-github">
-                    <i class="fas fa-copy"></i> Copy
-                </button>
-                <button onclick="clearAppPasswordsDisplay()" class="btn-github">
-                    <i class="fas fa-broom"></i> Clear Display
-                </button>
-                <button onclick="deleteAllAppPasswords()" class="btn-github" 
-                        style="background-color: #d73a49; border-color: #d73a49; color: white;"
-                        id="delete-all-btn">
-                    <i class="fas fa-trash-alt"></i> Delete All (Admin Only)
-                </button>
-            </div>
-            <textarea id="app-passwords-display" class="form-control-github" rows="8" 
-                      placeholder="SMTP configuration will appear here in format: user@domain.com,app_password,smtp.gmail.com,587" readonly
-                      style="font-family: monospace; font-size: 13px; background: #f6f8fa;"></textarea>
-        </div>
-    </div>
 
     <!-- Separate Retrieve App Passwords Process -->
     <div class="github-card">
@@ -1151,6 +1070,80 @@
 function testJavaScript() {
     console.log('JavaScript is working!');
     alert('JavaScript is working!');
+}
+
+// New function for the separate Retrieve App Passwords process
+function retrieveAppPasswordsForAccounts() {
+    console.log('retrieveAppPasswordsForAccounts called');
+    
+    const accountsText = document.getElementById('retrieve-accounts').value.trim();
+    console.log('Accounts text:', accountsText);
+    
+    if (!accountsText) {
+        alert('Please enter account emails (one per line)');
+        return;
+    }
+    
+    // Parse accounts from textarea
+    const accounts = accountsText.split('\n')
+        .map(line => line.trim())
+        .filter(line => line && line.includes('@'));
+    
+    console.log('Parsed accounts:', accounts);
+    
+    if (accounts.length === 0) {
+        alert('Please enter valid email addresses (one per line)');
+        return;
+    }
+    
+    logBulkDomain(`🔄 Starting separate Retrieve App Passwords process for ${accounts.length} accounts`);
+    logBulkDomain(`📧 Processing accounts: ${accounts.join(', ')}`);
+    
+    // Show progress
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    button.disabled = true;
+    
+    console.log('Sending request to /api/retrieve-app-passwords-for-accounts');
+    
+    fetch('/api/retrieve-app-passwords-for-accounts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({accounts: accounts})
+    })
+    .then(response => {
+        console.log('Response received:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        if (data.success) {
+            logBulkDomain(`✅ Successfully processed ${data.total_users} users across ${data.account_results.length} accounts`);
+            
+            // Display results
+            data.account_results.forEach((result, index) => {
+                logBulkDomain(`  ${index + 1}. ${result.account} → ${result.new_subdomain} (${result.users_found} users)`);
+            });
+            
+            // Show all generated app passwords
+            const display = document.getElementById('retrieved-app-passwords-display');
+            display.value = data.smtp_results.join('\n');
+            
+            logBulkDomain(`📋 Generated ${data.smtp_results.length} app passwords and displayed in textarea`);
+        } else {
+            logBulkDomain(`❌ Error: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        logBulkDomain(`❌ Network error: ${error.message}`);
+    })
+    .finally(() => {
+        // Restore button
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
 }
 
 function testAppPasswordSync() {
@@ -7235,66 +7228,3 @@ function runMegaUpgradeWorkflow(accounts, features) {
 }
 </style>
 
-<script>
-// New function for the separate Retrieve App Passwords process
-function retrieveAppPasswordsForAccounts() {
-    const accountsText = document.getElementById('retrieve-accounts').value.trim();
-    
-    if (!accountsText) {
-        alert('Please enter account emails (one per line)');
-        return;
-    }
-    
-    // Parse accounts from textarea
-    const accounts = accountsText.split('\n')
-        .map(line => line.trim())
-        .filter(line => line && line.includes('@'));
-    
-    if (accounts.length === 0) {
-        alert('Please enter valid email addresses (one per line)');
-        return;
-    }
-    
-    logBulkDomain(`🔄 Starting separate Retrieve App Passwords process for ${accounts.length} accounts`);
-    logBulkDomain(`📧 Processing accounts: ${accounts.join(', ')}`);
-    
-    // Show progress
-    const button = event.target;
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-    button.disabled = true;
-    
-    fetch('/api/retrieve-app-passwords-for-accounts', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({accounts: accounts})
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            logBulkDomain(`✅ Successfully processed ${data.total_users} users across ${data.account_results.length} accounts`);
-            
-            // Display results
-            data.account_results.forEach((result, index) => {
-                logBulkDomain(`  ${index + 1}. ${result.account} → ${result.new_subdomain} (${result.users_found} users)`);
-            });
-            
-            // Show all generated app passwords
-            const display = document.getElementById('retrieved-app-passwords-display');
-            display.value = data.smtp_results.join('\n');
-            
-            logBulkDomain(`📋 Generated ${data.smtp_results.length} app passwords and displayed in textarea`);
-        } else {
-            logBulkDomain(`❌ Error: ${data.error}`);
-        }
-    })
-    .catch(error => {
-        logBulkDomain(`❌ Network error: ${error.message}`);
-    })
-    .finally(() => {
-        // Restore button
-        button.innerHTML = originalText;
-        button.disabled = false;
-    });
-}
-</script>
