@@ -2118,6 +2118,16 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
         return;
     }
     
+    // Check if we have a base-to-new subdomain mapping from the mega upgrade
+    if (window.baseToNewSubdomainMap && Object.keys(window.baseToNewSubdomainMap).length > 0) {
+        const newSubdomain = Object.values(window.baseToNewSubdomainMap)[0];
+        logBulkDomain(`🎯 Using mapped subdomain from mega upgrade: ${newSubdomain}`);
+        logBulkDomain(`✅ This subdomain was mapped during the mega upgrade process`);
+        window.megaUpgradeChangedSubdomain = newSubdomain;
+        generateAppPasswordsWithTargetDomain(accounts, newSubdomain);
+        return;
+    }
+    
     // If no detected subdomain, we need to find the ACTUAL changed subdomain
     logBulkDomain('🔍 No detected subdomain, finding the ACTUAL changed subdomain...');
     
@@ -2481,6 +2491,7 @@ function generateAppPasswordsForUsers(users, newDomain, appPasswords, onComplete
 
 function storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, onComplete) {
     // CRITICAL: Use the ACTUAL subdomain that was changed during Mega Upgrade
+    // Priority: megaUpgradeChangedSubdomain > currentTargetDomain > newDomain
     const targetDomain = window.megaUpgradeChangedSubdomain || window.currentTargetDomain || newDomain;
     
     // Update the account to use the ACTUAL subdomain
@@ -2489,6 +2500,7 @@ function storeAppPasswordForUser(newAccount, appPassword, newDomain, appPassword
     
     logBulkDomain(`💾 Storing app password for ${updatedAccount} (using ACTUAL subdomain: ${targetDomain})`);
     logBulkDomain(`✅ This is the EXACT subdomain that was changed during Mega Upgrade`);
+    logBulkDomain(`🎯 Subdomain source: ${window.megaUpgradeChangedSubdomain ? 'Mega Upgrade' : window.currentTargetDomain ? 'Current Target' : 'New Domain'}`);
     
     // Store the app password with the saved subdomain
     fetch('/api/store-app-password', {
@@ -6710,6 +6722,13 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 window.baseToNewSubdomainMap = data.next_domain_map;
                 logBulkDomain(`🧭 Next-domain map from server: ${JSON.stringify(data.next_domain_map)}`);
             }
+            
+            // CRITICAL: Set the new subdomain from mega upgrade response
+            if (data.new_subdomain) {
+                window.megaUpgradeChangedSubdomain = data.new_subdomain;
+                logBulkDomain(`🎯 MEGA UPGRADE: New subdomain detected: ${data.new_subdomain}`);
+                logBulkDomain(`✅ This is the EXACT subdomain that was changed during Mega Upgrade`);
+            }
 
             // Display SMTP results if available
             if (data.smtp_results && data.smtp_results.length > 0) {
@@ -6724,11 +6743,13 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 logBulkDomain(`📋 ${data.smtp_results.length} SMTP results displayed in textarea`);
             } else if (features.retrievePasswords) {
                 // If enabled but backend returned none, attempt client-side generation using detected domain
-                // Prefer precise per-base mapping if present; otherwise fall back to detected domain
-                const targetDomain = (window.baseToNewSubdomainMap && Object.values(window.baseToNewSubdomainMap)[0])
-                    || window.megaUpgradeChangedSubdomain || window.currentTargetDomain;
+                // CRITICAL: Use the EXACT subdomain from mega upgrade response first
+                const targetDomain = window.megaUpgradeChangedSubdomain 
+                    || (window.baseToNewSubdomainMap && Object.values(window.baseToNewSubdomainMap)[0])
+                    || window.currentTargetDomain;
                 if (targetDomain) {
                     logBulkDomain('ℹ️ No SMTP results from server, generating client-side using detected domain');
+                    logBulkDomain(`🎯 Using target domain: ${targetDomain}`);
                     generateAppPasswordsWithTargetDomain(accounts, targetDomain);
                 } else {
                     logBulkDomain('⚠️ No SMTP results and no detected domain');

@@ -5745,6 +5745,16 @@ def mega_upgrade():
                                     else:
                                         db.session.add(UsedDomain(domain_name=next_domain, user_count=successful_user_changes, is_verified=True, ever_used=True))
                                     db.session.commit()
+                                    
+                                    # Store the new subdomain for this account
+                                    with results_lock:
+                                        if acct not in [r.get('account') for r in final_results]:
+                                            final_results.append({
+                                                'account': acct,
+                                                'new_subdomain': next_domain,
+                                                'users_processed': successful_user_changes,
+                                                'status': 'subdomain_changed'
+                                            })
                             finally:
                                 with session_lock:
                                     if original_session_account:
@@ -5798,6 +5808,14 @@ def mega_upgrade():
         # Cancel timeout
         signal.alarm(0)
         
+        # Extract the new subdomain from the results for frontend use
+        new_subdomain = None
+        if final_results:
+            for result in final_results:
+                if result.get('new_subdomain'):
+                    new_subdomain = result.get('new_subdomain')
+                    break
+        
         return jsonify({
             'success': True,
             'message': f'Mega upgrade completed using existing functions: {successful_accounts} successful, {failed_accounts} failed',
@@ -5807,7 +5825,8 @@ def mega_upgrade():
             'final_results': final_results,
             'failed_details': failed_details,
             'smtp_results': smtp_results,
-            'next_domain_map': next_domain_map
+            'next_domain_map': next_domain_map,
+            'new_subdomain': new_subdomain
         })
         
     except Exception as e:
