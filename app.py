@@ -7802,20 +7802,20 @@ def api_retrieve_app_passwords_for_accounts():
             
             app.logger.info(f"Account {account}: current={current_domain}, next={next_domain}")
             
-            # Get all users in the new domain
-            domain_users = []
+            # Get all users in the CURRENT domain (before change)
+            current_domain_users = []
             for user in all_users:
                 email = user.get('primaryEmail', '')
-                if email and email.endswith(f'@{next_domain}') and not user.get('isAdmin', False):
-                    domain_users.append(email)
+                if email and email.endswith(f'@{current_domain}') and not user.get('isAdmin', False):
+                    current_domain_users.append(email)
             
-            app.logger.info(f"Found {len(domain_users)} users in domain {next_domain}")
+            app.logger.info(f"Found {len(current_domain_users)} users in current domain {current_domain}")
             
-            # Generate app passwords for all users in the new domain
+            # Generate app passwords for all users from the current domain, but with the new subdomain
             from database import UserAppPassword
             import secrets, string
             
-            for user_email in domain_users:
+            for user_email in current_domain_users:
                 username = user_email.split('@')[0]
                 
                 # Get or create app password
@@ -7835,14 +7835,14 @@ def api_retrieve_app_passwords_for_accounts():
                 except Exception:
                     pass
                 
-                # Add to results
+                # Add to results with NEW subdomain
                 smtp_line = f"{username}@{next_domain},{app_password},smtp.gmail.com,587"
                 smtp_results.append(smtp_line)
             
             account_results.append({
                 'account': account,
                 'new_subdomain': next_domain,
-                'users_found': len(domain_users),
+                'users_found': len(current_domain_users),
                 'status': 'success'
             })
         
