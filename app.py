@@ -7705,108 +7705,79 @@ def api_generate_domain_smtp():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/api/upload-app-passwords', methods=['POST'])
+@app.route('/api/new-app-password-management', methods=['POST'])
 @login_required
-def api_upload_app_passwords():
-    """Upload app passwords from file to database"""
+def api_new_app_password_management():
+    """NEW: App password management using mega workflow authentication"""
     try:
         req = request.get_json(silent=True) or {}
-        passwords = req.get('passwords', [])
+        account = req.get('account', '').strip()
         
-        if not passwords:
-            return jsonify({'success': False, 'error': 'No passwords provided'})
+        if not account or '@' not in account:
+            return jsonify({'success': False, 'error': 'Valid account email required'})
         
-        from database import UserAppPassword
-        saved_count = 0
-        
-        for pwd_data in passwords:
-            username = pwd_data.get('username', '').strip()
-            app_password = pwd_data.get('app_password', '').strip()
-            
-            if not username or not app_password:
-                continue
-            
-            # Check if user already exists
-            existing = UserAppPassword.query.filter_by(username=username).first()
-            if existing:
-                # Update existing record
-                existing.app_password = app_password
-                existing.updated_at = datetime.utcnow()
+        # AUTHENTICATE USING SAME MECHANISM AS MEGA WORKFLOW
+        if not google_api.service:
+            acct = session.get('current_account_name', '')
+            if acct and google_api.is_token_valid(acct):
+                google_api.authenticate_with_tokens(acct)
             else:
-                # Create new record
-                new_record = UserAppPassword(
-                    username=username,
-                    app_password=app_password,
-                    domain='uploaded',
-                    created_at=datetime.utcnow()
-                )
-                db.session.add(new_record)
-            
-            saved_count += 1
+                return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
         
-        try:
-            db.session.commit()
-            return jsonify({
-                'success': True,
-                'message': f'Successfully uploaded {saved_count} app passwords',
-                'saved_count': saved_count
-            })
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'success': False, 'error': f'Database error: {str(e)}'})
-            
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/retrieve-app-passwords-for-accounts', methods=['POST'])
-@login_required
-def api_retrieve_app_passwords_for_accounts():
-    """WORKING: Get all stored passwords and display them"""
-    try:
-        req = request.get_json(silent=True) or {}
-        accounts = req.get('accounts', [])
+        if not google_api.service:
+            return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
         
-        if not accounts:
-            return jsonify({'success': False, 'error': 'No accounts provided'})
+        # GET USERS USING SAME MECHANISM AS MEGA WORKFLOW
+        all_users = []
+        page_token = None
+        while True:
+            try:
+                users_result = google_api.service.users().list(
+                    customer='my_customer',
+                    maxResults=500,
+                    pageToken=page_token
+                ).execute()
+                users = users_result.get('users', [])
+                all_users.extend(users)
+                page_token = users_result.get('nextPageToken')
+                if not page_token:
+                    break
+            except Exception as e:
+                break
         
-        # GET ALL STORED PASSWORDS FROM DATABASE
+        # GET STORED PASSWORDS FROM DATABASE
         from database import UserAppPassword
         all_stored_passwords = UserAppPassword.query.all()
         
-        # CREATE RESULTS FOR EACH ACCOUNT
-        smtp_results = []
-        account_results = []
+        # FIND USERS IN ACCOUNT DOMAIN
+        current_domain = account.split('@')[1]
+        domain_users = []
+        for user in all_users:
+            email = user.get('primaryEmail', '')
+            if email and email.endswith(f'@{current_domain}') and not user.get('isAdmin', False):
+                domain_users.append(email)
         
-        for account in accounts:
-            account = account.strip()
-            if not account or '@' not in account:
-                continue
-            
-            current_domain = account.split('@')[1]
-            
-            # FOR EACH STORED PASSWORD, CREATE SMTP LINE WITH THIS ACCOUNT'S DOMAIN
-            account_smtp_results = []
-            for stored in all_stored_passwords:
-                if stored.username and stored.app_password:
-                    # Use the account's domain for all stored passwords
-                    smtp_line = f"{stored.username}@{current_domain},{stored.app_password},smtp.gmail.com,587"
-                    account_smtp_results.append(smtp_line)
-            
-            smtp_results.extend(account_smtp_results)
-            
-            account_results.append({
-                'account': account,
-                'new_subdomain': current_domain,
-                'users_found': len(account_smtp_results),
-                'status': 'success'
-            })
+        # MATCH USERS WITH STORED PASSWORDS
+        smtp_results = []
+        password_lookup = {}
+        for stored in all_stored_passwords:
+            if stored.username and stored.app_password:
+                password_lookup[stored.username] = stored.app_password
+        
+        for user_email in domain_users:
+            username = user_email.split('@')[0]
+            if username in password_lookup:
+                app_password = password_lookup[username]
+                smtp_line = f"{user_email},{app_password},smtp.gmail.com,587"
+                smtp_results.append(smtp_line)
         
         return jsonify({
             'success': True,
-            'message': f'Retrieved app passwords for {len(accounts)} accounts',
-            'account_results': account_results,
+            'message': f'Retrieved {len(smtp_results)} app passwords for {account}',
             'smtp_results': smtp_results,
-            'total_users': len(smtp_results)
+            'total_users': len(smtp_results),
+            'account': account,
+            'domain': current_domain
         })
         
     except Exception as e:

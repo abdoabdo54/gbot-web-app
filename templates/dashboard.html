@@ -867,63 +867,36 @@
     </div>
 
 
-    <!-- App Password Management -->
+    <!-- NEW App Password Management -->
     <div class="github-card">
         <div class="github-card-header">
             <h3 class="github-card-title">
                 <i class="fas fa-key"></i>
-                App Password Management
+                NEW App Password Management
             </h3>
         </div>
         
         <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
-            Upload app password files to store them in the database, then use the Retrieve section to fetch them based on user aliases after authentication.
+            NEW: Authenticate with Google Workspace, retrieve users, and display their saved app passwords from database.
         </p>
         
-        <!-- Upload Section -->
+        <!-- Account Input -->
         <div style="margin-bottom: 24px;">
             <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-upload"></i> Upload App Password File
+                <i class="fas fa-envelope"></i> Account to Authenticate
             </h4>
             <div class="form-group-github">
-                <label for="app-password-file" class="form-label-github">
-                    <i class="fas fa-file-text"></i> App Password File (.txt)
+                <label for="new-app-account" class="form-label-github">
+                    <i class="fas fa-user-circle"></i> Account Email
                 </label>
-                <input type="file" id="app-password-file" class="form-control-github" accept=".txt" 
-                       style="padding: 12px; border: 2px dashed #d0d7de; background: #f6f8fa;">
+                <input type="email" id="new-app-account" class="form-control-github" 
+                       placeholder="support@domain.com" style="font-family: monospace;">
                 <small style="color: #656d76; font-size: 12px;">
-                    Upload a .txt file with format: username:app_password or username,app_password (one per line)<br>
-                    Examples: support:MyPassword123, alberto,AnotherPassword456, user:ThirdPassword789
+                    Enter the account email to authenticate and retrieve users from
                 </small>
             </div>
-            <button onclick="uploadAppPasswordFile()" class="btn-github btn-github-primary">
-                <i class="fas fa-upload"></i> Upload & Save to Database
-            </button>
-        </div>
-        
-        <!-- Retrieve Section -->
-        <div style="margin-bottom: 24px;">
-            <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-download"></i> Retrieve App Passwords (Post-Mega Upgrade)
-            </h4>
-            <p style="color: #656d76; margin-bottom: 16px; font-size: 13px;">
-                After completing the mega upgrade process, use this section to retrieve app passwords for multiple accounts. 
-                The system will authenticate, find users in current domains, and fetch their saved app passwords based on aliases.
-            </p>
-            
-            <div class="form-group-github">
-                <label for="retrieve-accounts" class="form-label-github">
-                    <i class="fas fa-envelope"></i> Account Emails (one per line)
-                </label>
-                <textarea id="retrieve-accounts" class="form-control-github" rows="4" 
-                          placeholder="support@domain1.com&#10;alberto@domain2.com&#10;user@domain3.com"
-                          style="font-family: monospace; font-size: 13px;"></textarea>
-                <small style="color: #656d76; font-size: 12px;">
-                    Enter the same accounts that were processed in the mega upgrade (one per line)
-                </small>
-            </div>
-            <button onclick="retrieveAppPasswordsForAccounts()" class="btn-github btn-github-primary">
-                <i class="fas fa-sync-alt"></i> Retrieve App Passwords
+            <button onclick="newAppPasswordProcess()" class="btn-github btn-github-primary">
+                <i class="fas fa-sync-alt"></i> Authenticate & Retrieve App Passwords
             </button>
         </div>
         
@@ -933,16 +906,34 @@
                 <i class="fas fa-list"></i> Retrieved App Passwords
             </h4>
             <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                <button onclick="copyRetrievedPasswords()" class="btn-github">
+                <button onclick="copyNewAppPasswords()" class="btn-github">
                     <i class="fas fa-copy"></i> Copy
                 </button>
-                <button onclick="clearRetrievedPasswords()" class="btn-github">
+                <button onclick="clearNewAppPasswords()" class="btn-github">
                     <i class="fas fa-broom"></i> Clear
                 </button>
             </div>
-            <textarea id="retrieved-app-passwords-display" class="form-control-github" rows="8" 
-                      placeholder="Retrieved app passwords will appear here in format: user@newdomain.com,password,smtp.gmail.com,587" readonly
+            <textarea id="new-app-passwords-display" class="form-control-github" rows="8" 
+                      placeholder="Retrieved app passwords will appear here in format: user@domain.com,password,smtp.gmail.com,587" readonly
                       style="font-family: monospace; font-size: 13px; background: #f6f8fa;"></textarea>
+        </div>
+        
+        <!-- Log Section -->
+        <div>
+            <h4 style="margin-bottom: 16px; color: #24292f;">
+                <i class="fas fa-file-alt"></i> Process Log
+            </h4>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <button onclick="clearNewAppLog()" class="btn-github">
+                    <i class="fas fa-broom"></i> Clear Log
+                </button>
+            </div>
+            <div id="new-app-log" class="data-display" style="font-family: monospace; font-size: 13px; max-height: 300px; overflow-y: auto;">
+                <div class="status-info">
+                    <p><strong><i class="fas fa-file-alt"></i> Process Log</strong></p>
+                    <p>Process log will appear here...</p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -7180,6 +7171,83 @@ function runMegaUpgradeWorkflow(accounts, features) {
         logBulkDomain(`⚠️ Cannot proceed without the actual changed subdomain`);
     });
     });
+}
+
+// NEW App Password Management Functions
+function newAppPasswordProcess() {
+    const account = document.getElementById('new-app-account').value.trim();
+    
+    if (!account || !account.includes('@')) {
+        alert('Please enter a valid account email');
+        return;
+    }
+    
+    logNewApp('🚀 Starting NEW App Password Process...');
+    logNewApp(`📧 Account: ${account}`);
+    
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    button.disabled = true;
+    
+    fetch('/api/new-app-password-management', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ account: account })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            logNewApp(`✅ Success: ${data.message}`);
+            logNewApp(`📊 Total users: ${data.total_users}`);
+            logNewApp(`🌐 Domain: ${data.domain}`);
+            
+            if (data.smtp_results && data.smtp_results.length > 0) {
+                const display = document.getElementById('new-app-passwords-display');
+                display.value = data.smtp_results.join('\n');
+                logNewApp(`📋 Displayed ${data.smtp_results.length} app passwords`);
+            } else {
+                logNewApp('⚠️ No app passwords found');
+                document.getElementById('new-app-passwords-display').value = 'No app passwords found for this account.';
+            }
+        } else {
+            logNewApp(`❌ Error: ${data.error}`);
+            alert(`❌ Error: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        logNewApp(`❌ Network error: ${error.message}`);
+        alert(`❌ Network error: ${error.message}`);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function logNewApp(message) {
+    const logElement = document.getElementById('new-app-log');
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = document.createElement('div');
+    logEntry.innerHTML = `[${timestamp}] ${message}`;
+    logElement.appendChild(logEntry);
+    logElement.scrollTop = logElement.scrollHeight;
+}
+
+function copyNewAppPasswords() {
+    const display = document.getElementById('new-app-passwords-display');
+    display.select();
+    document.execCommand('copy');
+    logNewApp('📋 App passwords copied to clipboard');
+}
+
+function clearNewAppPasswords() {
+    document.getElementById('new-app-passwords-display').value = '';
+    logNewApp('🧹 App passwords cleared');
+}
+
+function clearNewAppLog() {
+    document.getElementById('new-app-log').innerHTML = '<div class="status-info"><p><strong><i class="fas fa-file-alt"></i> Process Log</strong></p><p>Process log will appear here...</p></div>';
 }
 
 </script>
