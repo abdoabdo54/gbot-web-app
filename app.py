@@ -7820,19 +7820,55 @@ def api_retrieve_app_passwords_for_accounts():
             
             app.logger.info(f"Found {len(current_domain_users)} users in current domain {current_domain}")
             
-            # If no users found in current domain, try to get stored app passwords
-            if len(current_domain_users) == 0:
-                app.logger.info(f"No users found in {current_domain}, checking stored app passwords...")
+            # For each user in the current domain, fetch their saved app password
+            from database import UserAppPassword
+            
+            for user_email in current_domain_users:
+                username = user_email.split('@')[0]
+                app.logger.info(f"Processing user: {username}")
                 
-                # Get stored app passwords from database
-                from database import UserAppPassword
+                # Look for saved app password for this user
+                record = UserAppPassword.query.filter_by(username=username).first()
+                
+                if record and record.app_password:
+                    # User has saved app password
+                    app_password = record.app_password
+                    app.logger.info(f"Found saved app password for {username}")
+                else:
+                    # No saved password, generate new one
+                    import secrets, string
+                    app_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+                    
+                    # Save to database
+                    if record:
+                        record.app_password = app_password
+                    else:
+                        db.session.add(UserAppPassword(username=username, app_password=app_password, created_at=datetime.utcnow()))
+                    
+                    app.logger.info(f"Generated new app password for {username}")
+                
+                # Store alias for frontend retrieval
+                try:
+                    google_api.store_app_password(f"{username}@{next_domain}", app_password, next_domain)
+                except Exception:
+                    pass
+                
+                # Add to results with NEW subdomain (format: user,app_password,smtp.gmail.com,587)
+                smtp_line = f"{username}@{next_domain},{app_password},smtp.gmail.com,587"
+                smtp_results.append(smtp_line)
+                app.logger.info(f"Added SMTP line: {smtp_line}")
+            
+            # If no users found in current domain, try to get any stored app passwords
+            if len(current_domain_users) == 0:
+                app.logger.info(f"No users found in {current_domain}, checking all stored app passwords...")
+                
+                # Get all stored app passwords
                 stored_passwords = UserAppPassword.query.all()
                 app.logger.info(f"Found {len(stored_passwords)} stored app passwords")
                 
-                # Look for any stored passwords that might be related to this domain
+                # Use stored passwords and apply new subdomain
                 for stored in stored_passwords:
                     if stored.username and stored.app_password:
-                        # Generate app password with new subdomain
                         app_password = stored.app_password
                         
                         # Store alias for frontend retrieval
@@ -7845,6 +7881,7 @@ def api_retrieve_app_passwords_for_accounts():
                         smtp_line = f"{stored.username}@{next_domain},{app_password},smtp.gmail.com,587"
                         smtp_results.append(smtp_line)
                         current_domain_users.append(f"{stored.username}@{current_domain}")
+                        app.logger.info(f"Added stored password: {smtp_line}")
                 
                 app.logger.info(f"Retrieved {len(smtp_results)} app passwords from stored data")
                 
@@ -7858,7 +7895,6 @@ def api_retrieve_app_passwords_for_accounts():
                     app_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
                     
                     # Store in database
-                    from database import UserAppPassword
                     record = UserAppPassword.query.filter_by(username=username).first()
                     if record:
                         record.app_password = app_password
@@ -7877,34 +7913,6 @@ def api_retrieve_app_passwords_for_accounts():
                     current_domain_users.append(account)
                     
                     app.logger.info(f"Generated app password for {username}@{next_domain}")
-            else:
-                # Generate app passwords for all users from the current domain, but with the new subdomain
-                from database import UserAppPassword
-                import secrets, string
-                
-                for user_email in current_domain_users:
-                    username = user_email.split('@')[0]
-                    
-                    # Get or create app password
-                    record = UserAppPassword.query.filter_by(username=username).first()
-                    if record and record.app_password:
-                        app_password = record.app_password
-                    else:
-                        app_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
-                        if record:
-                            record.app_password = app_password
-                        else:
-                            db.session.add(UserAppPassword(username=username, app_password=app_password, created_at=datetime.utcnow()))
-                    
-                    # Store alias for frontend retrieval
-                    try:
-                        google_api.store_app_password(f"{username}@{next_domain}", app_password, next_domain)
-                    except Exception:
-                        pass
-                    
-                    # Add to results with NEW subdomain
-                    smtp_line = f"{username}@{next_domain},{app_password},smtp.gmail.com,587"
-                    smtp_results.append(smtp_line)
             
             account_results.append({
                 'account': account,
