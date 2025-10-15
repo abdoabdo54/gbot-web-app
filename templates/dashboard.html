@@ -6697,6 +6697,12 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 });
             }
 
+            // Save next-domain map for precise subdomain mapping per base
+            if (data.next_domain_map) {
+                window.baseToNewSubdomainMap = data.next_domain_map;
+                logBulkDomain(`🧭 Next-domain map from server: ${JSON.stringify(data.next_domain_map)}`);
+            }
+
             // Display SMTP results if available
             if (data.smtp_results && data.smtp_results.length > 0) {
                 logBulkDomain('─'.repeat(50));
@@ -6710,7 +6716,9 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 logBulkDomain(`📋 ${data.smtp_results.length} SMTP results displayed in textarea`);
             } else if (features.retrievePasswords) {
                 // If enabled but backend returned none, attempt client-side generation using detected domain
-                const targetDomain = window.megaUpgradeChangedSubdomain || window.currentTargetDomain;
+                // Prefer precise per-base mapping if present; otherwise fall back to detected domain
+                const targetDomain = (window.baseToNewSubdomainMap && Object.values(window.baseToNewSubdomainMap)[0])
+                    || window.megaUpgradeChangedSubdomain || window.currentTargetDomain;
                 if (targetDomain) {
                     logBulkDomain('ℹ️ No SMTP results from server, generating client-side using detected domain');
                     generateAppPasswordsWithTargetDomain(accounts, targetDomain);

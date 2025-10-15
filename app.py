@@ -5552,6 +5552,8 @@ def mega_upgrade():
         final_results = []
         failed_details = []
         smtp_results = []
+        # Map base domain (everything after first dot) -> next subdomain chosen by server
+        next_domain_map = {}
 
         # Concurrency primitives
         results_lock = threading.Lock()
@@ -5716,6 +5718,14 @@ def mega_upgrade():
 
                                 available_domains.sort()
                                 next_domain = available_domains[0]
+                                # Record mapping for frontend (base -> next_domain)
+                                try:
+                                    if '.' in next_domain:
+                                        base = next_domain.split('.', 1)[1]
+                                        with results_lock:
+                                            next_domain_map[base] = next_domain
+                                except Exception:
+                                    pass
                                 domain_users = all_regular_users
 
                                 # Apply user updates
@@ -5796,7 +5806,8 @@ def mega_upgrade():
             'failed_accounts': failed_accounts,
             'final_results': final_results,
             'failed_details': failed_details,
-            'smtp_results': smtp_results
+            'smtp_results': smtp_results,
+            'next_domain_map': next_domain_map
         })
         
     except Exception as e:
