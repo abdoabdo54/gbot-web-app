@@ -2232,11 +2232,6 @@ function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
     window.currentTargetDomain = targetDomain;
     window.megaUpgradeChangedSubdomain = targetDomain;
 
-    // Build a set of original domains from provided accounts for quick matching
-    const sourceDomains = new Set(
-        (accounts || []).map(a => (a.split('@')[1] || '').trim()).filter(Boolean)
-    );
-
     fetch('/api/get-all-app-passwords')
         .then(r => r.json())
         .then(data => {
@@ -2259,11 +2254,7 @@ function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
 
                 const [username, aliasDomain] = alias.includes('@') ? alias.split('@') : [alias, ''];
 
-                // If accounts are provided, only remap aliases whose domain matches one of the processed accounts
-                const shouldInclude = sourceDomains.size === 0 || (aliasDomain && sourceDomains.has(aliasDomain));
-                if (!shouldInclude) return;
-
-                // Use the detected targetDomain while keeping alias and password static
+                // Use the detected targetDomain for all stored rows, keeping alias and password static
                 const line = `${username}@${targetDomain},${pwd},smtp.gmail.com,587`;
                 output.push(line);
             });
