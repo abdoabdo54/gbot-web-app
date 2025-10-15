@@ -2228,32 +2228,58 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
 }
 
 function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
-    logBulkDomain(`🔑 Generating app passwords with ACTUAL target domain: ${targetDomain}`);
-    logBulkDomain(`📋 This is the EXACT subdomain that was changed during Mega Upgrade`);
-    logBulkDomain(`✅ Using the ACTUAL subdomain for all users and app passwords`);
-    
-    const appPasswords = [];
-    let completedAccounts = 0;
-    const totalAccounts = accounts.length;
-    
-    // Store the ACTUAL target domain globally for consistency
+    logBulkDomain(`🔑 Preparing SMTP lines using stored app passwords`);
     window.currentTargetDomain = targetDomain;
     window.megaUpgradeChangedSubdomain = targetDomain;
-    
-    accounts.forEach((account, index) => {
-        logBulkDomain(`🔄 Processing account: ${account} with ACTUAL domain: ${targetDomain}`);
-        logBulkDomain(`✅ This is the EXACT subdomain that was changed during the process`);
-        
-        // Retrieve all users from the account and process them with the ACTUAL subdomain
-        retrieveAllUsersForWorkflow(account, targetDomain, appPasswords, () => {
-            completedAccounts++;
-            if (completedAccounts >= totalAccounts) {
-                logBulkDomain(`✅ Completed processing all accounts with ACTUAL subdomain: ${targetDomain}`);
-                logBulkDomain(`✅ All app passwords use the EXACT subdomain that was changed`);
-                displayAppPasswordsInWorkflow(appPasswords);
+
+    // Build a set of original domains from provided accounts for quick matching
+    const sourceDomains = new Set(
+        (accounts || []).map(a => (a.split('@')[1] || '').trim()).filter(Boolean)
+    );
+
+    fetch('/api/get-all-app-passwords')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                logBulkDomain(`❌ Failed to load stored app passwords: ${data.error || 'unknown error'}`);
+                return;
             }
+
+            const rows = data.app_passwords || [];
+            if (rows.length === 0) {
+                logBulkDomain('ℹ️ No stored app passwords found');
+                return;
+            }
+
+            const output = [];
+            rows.forEach(row => {
+                const alias = row.user_alias || '';
+                const pwd = row.app_password || '';
+                if (!alias || !pwd) return;
+
+                const [username, aliasDomain] = alias.includes('@') ? alias.split('@') : [alias, ''];
+
+                // If accounts are provided, only remap aliases whose domain matches one of the processed accounts
+                const shouldInclude = sourceDomains.size === 0 || (aliasDomain && sourceDomains.has(aliasDomain));
+                if (!shouldInclude) return;
+
+                // Use the detected targetDomain while keeping alias and password static
+                const line = `${username}@${targetDomain},${pwd},smtp.gmail.com,587`;
+                output.push(line);
+            });
+
+            if (output.length === 0) {
+                logBulkDomain('ℹ️ No matching aliases found to format');
+                return;
+            }
+
+            const display = document.getElementById('app-passwords-display');
+            display.value = output.join('\n');
+            logBulkDomain(`📋 ${output.length} SMTP lines displayed (alias+password kept static)`);
+        })
+        .catch(err => {
+            logBulkDomain(`❌ Error building SMTP lines: ${err.message}`);
         });
-    });
 }
 
 function generateAppPasswordsWithManualDomainChange(accounts) {
@@ -2319,8 +2345,32 @@ function retrieveAllUsersForWorkflow(account, newDomain, appPasswords, onComplet
             logBulkDomain(`✅ Retrieved ${data.users.length} users from ${account}`);
             logBulkDomain(`🔄 Processing users with new subdomain: ${newDomain}`);
             
-            // Generate app passwords for each user
-            generateAppPasswordsForUsers(data.users, newDomain, appPasswords, onComplete);
+    // Build SMTP lines for each user from stored passwords without changing them
+    const alias_domain_map = {};
+    data.users.forEach(u => {
+        const user = (u.email || '').split('@')[0];
+        alias_domain_map[u.email] = newDomain; // map full alias to new domain
+        alias_domain_map[user] = newDomain;    // also map by username
+    });
+    fetch('/api/retrieve-app-passwords', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ alias_domain_map })
+    })
+    .then(r => r.json())
+    .then(resp => {
+        if (resp.success && Array.isArray(resp.app_passwords)) {
+            // Append to appPasswords list used by displayAppPasswordsInWorkflow
+            resp.app_passwords.forEach(line => appPasswords.push(line));
+        } else if (!resp.success) {
+            logBulkDomain(`❌ Failed to retrieve stored app passwords: ${resp.error}`);
+        }
+        onComplete();
+    })
+    .catch(err => {
+        logBulkDomain(`❌ Error retrieving stored passwords: ${err.message}`);
+        onComplete();
+    });
         } else {
             logBulkDomain(`⚠️ No users found for account ${account}, using admin account only`);
             
