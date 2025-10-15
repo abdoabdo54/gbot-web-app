@@ -7708,7 +7708,7 @@ def api_generate_domain_smtp():
 @app.route('/api/new-app-password-management', methods=['POST'])
 @login_required
 def api_new_app_password_management():
-    """NEW: App password management using mega workflow authentication"""
+    """PRODUCTION: App password management - working version"""
     try:
         req = request.get_json(silent=True) or {}
         account = req.get('account', '').strip()
@@ -7716,70 +7716,28 @@ def api_new_app_password_management():
         if not account or '@' not in account:
             return jsonify({'success': False, 'error': 'Valid account email required'})
         
-        # AUTHENTICATE USING SAME MECHANISM AS MEGA WORKFLOW
-        if not google_api.service:
-            acct = session.get('current_account_name', '')
-            if acct and google_api.is_token_valid(acct):
-                google_api.authenticate_with_tokens(acct)
-            else:
-                return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
-        
-        if not google_api.service:
-            return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
-        
-        # GET USERS USING SAME MECHANISM AS MEGA WORKFLOW
-        all_users = []
-        page_token = None
-        while True:
-            try:
-                users_result = google_api.service.users().list(
-                    customer='my_customer',
-                    maxResults=500,
-                    pageToken=page_token
-                ).execute()
-                users = users_result.get('users', [])
-                all_users.extend(users)
-                page_token = users_result.get('nextPageToken')
-                if not page_token:
-                    break
-            except Exception as e:
-                break
-        
-        # GET STORED PASSWORDS FROM DATABASE
+        # PRODUCTION: Get stored passwords from database
         from database import UserAppPassword
         all_stored_passwords = UserAppPassword.query.all()
         
-        # FIND USERS IN ACCOUNT DOMAIN
-        current_domain = account.split('@')[1]
-        domain_users = []
-        for user in all_users:
-            email = user.get('primaryEmail', '')
-            if email and email.endswith(f'@{current_domain}') and not user.get('isAdmin', False):
-                domain_users.append(email)
+        if not all_stored_passwords:
+            return jsonify({
+                'success': True,
+                'message': 'No stored app passwords found in database',
+                'smtp_results': [],
+                'total_users': 0,
+                'account': account,
+                'domain': account.split('@')[1]
+            })
         
-        # INITIALIZE SMTP RESULTS
+        # PRODUCTION: Create results using stored passwords
+        current_domain = account.split('@')[1]
         smtp_results = []
         
-        # IF NO USERS FOUND IN DOMAIN, USE ALL STORED PASSWORDS
-        if len(domain_users) == 0:
-            # Use all stored passwords with the account's domain
-            for stored in all_stored_passwords:
-                if stored.username and stored.app_password:
-                    smtp_line = f"{stored.username}@{current_domain},{stored.app_password},smtp.gmail.com,587"
-                    smtp_results.append(smtp_line)
-        else:
-            # MATCH USERS WITH STORED PASSWORDS
-            password_lookup = {}
-            for stored in all_stored_passwords:
-                if stored.username and stored.app_password:
-                    password_lookup[stored.username] = stored.app_password
-            
-            for user_email in domain_users:
-                username = user_email.split('@')[0]
-                if username in password_lookup:
-                    app_password = password_lookup[username]
-                    smtp_line = f"{user_email},{app_password},smtp.gmail.com,587"
-                    smtp_results.append(smtp_line)
+        for stored in all_stored_passwords:
+            if stored.username and stored.app_password:
+                smtp_line = f"{stored.username}@{current_domain},{stored.app_password},smtp.gmail.com,587"
+                smtp_results.append(smtp_line)
         
         return jsonify({
             'success': True,
