@@ -7757,19 +7757,26 @@ def api_new_app_password_management():
             if email and email.endswith(f'@{current_domain}') and not user.get('isAdmin', False):
                 domain_users.append(email)
         
-        # MATCH USERS WITH STORED PASSWORDS
-        smtp_results = []
-        password_lookup = {}
-        for stored in all_stored_passwords:
-            if stored.username and stored.app_password:
-                password_lookup[stored.username] = stored.app_password
-        
-        for user_email in domain_users:
-            username = user_email.split('@')[0]
-            if username in password_lookup:
-                app_password = password_lookup[username]
-                smtp_line = f"{user_email},{app_password},smtp.gmail.com,587"
-                smtp_results.append(smtp_line)
+        # IF NO USERS FOUND IN DOMAIN, USE ALL STORED PASSWORDS
+        if len(domain_users) == 0:
+            # Use all stored passwords with the account's domain
+            for stored in all_stored_passwords:
+                if stored.username and stored.app_password:
+                    smtp_line = f"{stored.username}@{current_domain},{stored.app_password},smtp.gmail.com,587"
+                    smtp_results.append(smtp_line)
+        else:
+            # MATCH USERS WITH STORED PASSWORDS
+            password_lookup = {}
+            for stored in all_stored_passwords:
+                if stored.username and stored.app_password:
+                    password_lookup[stored.username] = stored.app_password
+            
+            for user_email in domain_users:
+                username = user_email.split('@')[0]
+                if username in password_lookup:
+                    app_password = password_lookup[username]
+                    smtp_line = f"{user_email},{app_password},smtp.gmail.com,587"
+                    smtp_results.append(smtp_line)
         
         return jsonify({
             'success': True,
