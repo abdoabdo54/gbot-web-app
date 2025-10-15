@@ -910,17 +910,7 @@
                 After completing the mega upgrade process, use this section to retrieve app passwords for multiple accounts. 
                 The system will authenticate, find users in current domains, and fetch their saved app passwords based on aliases.
             </p>
-        
-        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
-            After completing the Mega Upgrade workflow, use this section to retrieve app passwords for all users 
-            in the changed domains. Enter the same accounts that were processed in the mega upgrade, and the system 
-            will automatically detect their new subdomains and generate app passwords for all users.
-        </p>
-        
-        <div style="margin-bottom: 24px;">
-            <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-users"></i> Process Multiple Accounts
-            </h4>
+            
             <div class="form-group-github">
                 <label for="retrieve-accounts" class="form-label-github">
                     <i class="fas fa-envelope"></i> Account Emails (one per line)
@@ -937,20 +927,21 @@
             </button>
         </div>
         
+        <!-- Display Section -->
         <div style="margin-bottom: 24px;">
             <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-list"></i> Generated App Passwords
+                <i class="fas fa-list"></i> Retrieved App Passwords
             </h4>
             <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                <button onclick="copyAppPasswords()" class="btn-github">
+                <button onclick="copyRetrievedPasswords()" class="btn-github">
                     <i class="fas fa-copy"></i> Copy
                 </button>
-                <button onclick="clearAppPasswordsDisplay()" class="btn-github">
-                    <i class="fas fa-broom"></i> Clear Display
+                <button onclick="clearRetrievedPasswords()" class="btn-github">
+                    <i class="fas fa-broom"></i> Clear
                 </button>
             </div>
             <textarea id="retrieved-app-passwords-display" class="form-control-github" rows="8" 
-                      placeholder="Generated app passwords will appear here in format: user@newdomain.com,app_password,smtp.gmail.com,587" readonly
+                      placeholder="Retrieved app passwords will appear here in format: user@newdomain.com,password,smtp.gmail.com,587" readonly
                       style="font-family: monospace; font-size: 13px; background: #f6f8fa;"></textarea>
         </div>
     </div>
@@ -1182,6 +1173,25 @@ function uploadAppPasswordFile() {
     };
     
     reader.readAsText(file);
+}
+
+// Copy retrieved passwords function
+function copyRetrievedPasswords() {
+    const display = document.getElementById('retrieved-app-passwords-display');
+    if (display.value.trim()) {
+        display.select();
+        document.execCommand('copy');
+        logBulkDomain('📋 Retrieved app passwords copied to clipboard');
+    } else {
+        alert('No app passwords to copy');
+    }
+}
+
+// Clear retrieved passwords function
+function clearRetrievedPasswords() {
+    const display = document.getElementById('retrieved-app-passwords-display');
+    display.value = '';
+    logBulkDomain('🧹 Retrieved app passwords display cleared');
 }
 
 // New function for the separate Retrieve App Passwords process

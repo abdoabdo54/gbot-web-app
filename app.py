@@ -7685,8 +7685,9 @@ def api_generate_domain_smtp():
                 app_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
                 if record:
                     record.app_password = app_password
+                    record.domain = target_domain
                 else:
-                    db.session.add(UserAppPassword(username=username, app_password=app_password, created_at=datetime.utcnow()))
+                    db.session.add(UserAppPassword(username=username, domain=target_domain, app_password=app_password, created_at=datetime.utcnow()))
                 generated += 1
 
             try:
