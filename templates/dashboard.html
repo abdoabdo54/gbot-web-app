@@ -2247,15 +2247,29 @@ function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
             }
 
             const output = [];
+            // Extract new subdomain label and target base from detected targetDomain
+            const targetParts = (targetDomain || '').split('.');
+            const newSubLabel = targetParts.length > 0 ? targetParts[0] : '';
+            const targetBase = targetParts.length > 1 ? targetParts.slice(1).join('.') : '';
             rows.forEach(row => {
                 const alias = row.user_alias || '';
                 const pwd = row.app_password || '';
                 if (!alias || !pwd) return;
 
                 const [username, aliasDomain] = alias.includes('@') ? alias.split('@') : [alias, ''];
+                if (!aliasDomain || !targetBase || !newSubLabel) return;
 
-                // Use the detected targetDomain for all stored rows, keeping alias and password static
-                const line = `${username}@${targetDomain},${pwd},smtp.gmail.com,587`;
+                // Compute base of alias (everything after the first dot)
+                const aliasParts = aliasDomain.split('.');
+                if (aliasParts.length < 2) return; // not a subdomain; skip
+                const aliasBase = aliasParts.slice(1).join('.');
+
+                // Only update aliases that belong to the proceeded accounts (same base)
+                if (aliasBase !== targetBase) return;
+
+                // Replace only the subdomain label (between @ and first .)
+                const newDomainForAlias = `${newSubLabel}.${targetBase}`;
+                const line = `${username}@${newDomainForAlias},${pwd},smtp.gmail.com,587`;
                 output.push(line);
             });
 
