@@ -4869,9 +4869,14 @@ def upload_app_passwords():
         if not file.filename.endswith('.txt'):
             return jsonify({'success': False, 'error': 'Only .txt files are allowed'})
         
-        # Read and parse file content
-        content = file.read().decode('utf-8')
-        lines = content.strip().split('\n')
+        # Read and parse file content (handle BOM and CRLF)
+        content = file.read().decode('utf-8', errors='ignore')
+        # Remove UTF-8 BOM if present
+        if content.startswith('\ufeff'):
+            content = content.lstrip('\ufeff')
+        # Normalize newlines
+        content = content.replace('\r\n', '\n').replace('\r', '\n')
+        lines = [l for l in content.split('\n')]
         
         uploaded_count = 0
         updated_count = 0
@@ -4879,23 +4884,37 @@ def upload_app_passwords():
         errors = []
         
         for line_num, line in enumerate(lines, 1):
-            line = line.strip()
-            if not line or ':' not in line:
+            line = (line or '').strip()
+            # Skip blanks and comment/header lines
+            if not line or line.startswith('#') or line.lower().startswith('user'):
                 continue
             
             try:
-                # Parse user:app_password format
-                parts = line.split(':', 1)
-                if len(parts) != 2:
-                    errors.append(f"Line {line_num}: Invalid format - {line}")
-                    error_count += 1
-                    continue
+                user_email = ''
+                app_password = ''
                 
-                user_email = parts[0].strip()
-                app_password = parts[1].strip()
+                # Accept multiple formats:
+                # 1) user@domain:app_password
+                # 2) user@domain,app_password[,smtp,port]
+                # 3) user@domain app_password
+                if ':' in line:
+                    parts = line.split(':', 1)
+                    if len(parts) == 2:
+                        user_email = parts[0].strip()
+                        app_password = parts[1].strip()
+                elif ',' in line:
+                    parts = [p.strip() for p in line.split(',')]
+                    if len(parts) >= 2:
+                        user_email = parts[0]
+                        app_password = parts[1]
+                else:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        user_email = parts[0].strip()
+                        app_password = parts[1].strip()
                 
                 if not user_email or not app_password:
-                    errors.append(f"Line {line_num}: Empty username or password - {line}")
+                    errors.append(f"Line {line_num}: Invalid format - expected user:pass or user,pass - {line}")
                     error_count += 1
                     continue
                 
