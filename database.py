@@ -71,3 +71,30 @@ class UserAppPassword(db.Model):
     
     # Composite unique constraint on username + domain
     __table_args__ = (db.UniqueConstraint('username', 'domain', name='unique_user_domain'),)
+
+class AutomationAccount(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    account_name = db.Column(db.String(255), unique=True, nullable=False)
+    client_id = db.Column(db.String(255), nullable=False)
+    client_secret = db.Column(db.String(255), nullable=False)
+    accounts_list = db.Column(db.Text, nullable=False)  # Column-based storage, one account per line
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    last_retrieval = db.Column(db.DateTime)
+    retrieval_count = db.Column(db.Integer, default=0)
+    
+    # Relationship to store retrieved users
+    retrieved_users = db.relationship('RetrievedUser', backref='automation_account', lazy=True, cascade="all, delete-orphan")
+
+class RetrievedUser(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    automation_account_id = db.Column(db.Integer, db.ForeignKey('automation_account.id'), nullable=False)
+    email = db.Column(db.String(255), nullable=False)
+    name = db.Column(db.String(255))
+    domain = db.Column(db.String(255))
+    status = db.Column(db.String(50), default='active')  # active, suspended, etc.
+    retrieved_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    
+    # Composite unique constraint on automation_account_id + email
+    __table_args__ = (db.UniqueConstraint('automation_account_id', 'email', name='unique_automation_user'),)

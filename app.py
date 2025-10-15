@@ -23,7 +23,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from core_logic import google_api
-from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword
+from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword, AutomationAccount, RetrievedUser
 
 # Progress tracking system for domain changes
 progress_tracker = {}
@@ -320,7 +320,8 @@ def health_check():
 @login_required
 def dashboard():
     accounts = GoogleAccount.query.all()
-    return render_template('dashboard.html', accounts=accounts, user=session.get('user'), role=session.get('role'))
+    automation_accounts = AutomationAccount.query.filter_by(is_active=True).all()
+    return render_template('dashboard.html', accounts=accounts, automation_accounts=automation_accounts, user=session.get('user'), role=session.get('role'))
 
 @app.route('/users')
 @login_required
@@ -5717,21 +5718,7 @@ def mega_upgrade():
                                     return
 
                                 available_domains.sort()
-                                
-                                # Use the SAME logic as auto-change subdomain: find next domain after current
-                                current_domain = acct.split('@')[1] if '@' in acct else ''
-                                next_domain = None
-                                for domain in available_domains:
-                                    if domain > current_domain:
-                                        next_domain = domain
-                                        break
-                                
-                                # If no domain found after current, use the first available domain
-                                if not next_domain:
-                                    next_domain = available_domains[0]
-                                
-                                app.logger.info(f"Auto-change logic: current={current_domain}, next={next_domain}")
-                                
+                                next_domain = available_domains[0]
                                 # Record mapping for frontend (base -> next_domain)
                                 try:
                                     if '.' in next_domain:
@@ -5744,14 +5731,12 @@ def mega_upgrade():
 
                                 # Apply user updates
                                 successful_user_changes = 0
-                                changed_usernames = []
                                 for u_email in domain_users:
                                     try:
                                         username = u_email.split('@')[0]
                                         new_email = f"{username}@{next_domain}"
                                         google_api.service.users().update(userKey=u_email, body={'primaryEmail': new_email}).execute()
                                         successful_user_changes += 1
-                                        changed_usernames.append(username)
                                     except Exception as e:
                                         app.logger.error(f"Failed to update user {u_email}: {e}")
 
@@ -5761,34 +5746,6 @@ def mega_upgrade():
                                     else:
                                         db.session.add(UsedDomain(domain_name=next_domain, user_count=successful_user_changes, is_verified=True, ever_used=True))
                                     db.session.commit()
-                                    
-                                    # Store the new subdomain for this account
-                                    with results_lock:
-                                        # Check if this account is already in results
-                                        existing_result = None
-                                        for result in final_results:
-                                            if result.get('account') == acct:
-                                                existing_result = result
-                                                break
-                                        
-                                        if existing_result:
-                                            # Update existing result
-                                            existing_result['new_subdomain'] = next_domain
-                                            existing_result['users_processed'] = successful_user_changes
-                                            existing_result['status'] = 'subdomain_changed'
-                                        else:
-                                            # Add new result
-                                            final_results.append({
-                                                'account': acct,
-                                                'new_subdomain': next_domain,
-                                                'users_processed': successful_user_changes,
-                                                'status': 'subdomain_changed'
-                                            })
-                                        
-                                        app.logger.info(f"Account {acct}: subdomain changed to {next_domain}, {successful_user_changes} users processed")
-
-                                    # App password generation removed from mega workflow
-                                    # This will be handled separately by the Retrieve App Passwords process
                             finally:
                                 with session_lock:
                                     if original_session_account:
@@ -5842,21 +5799,6 @@ def mega_upgrade():
         # Cancel timeout
         signal.alarm(0)
         
-        # Extract the new subdomains from the results for frontend use
-        new_subdomains = []
-        if final_results:
-            for result in final_results:
-                if result.get('new_subdomain'):
-                    new_subdomains.append({
-                        'account': result.get('account'),
-                        'new_subdomain': result.get('new_subdomain'),
-                        'users_processed': result.get('users_processed', 0),
-                        'status': result.get('status')
-                    })
-        
-        # For backward compatibility, use the first new subdomain
-        new_subdomain = new_subdomains[0].get('new_subdomain') if new_subdomains else None
-        
         return jsonify({
             'success': True,
             'message': f'Mega upgrade completed using existing functions: {successful_accounts} successful, {failed_accounts} failed',
@@ -5866,9 +5808,7 @@ def mega_upgrade():
             'final_results': final_results,
             'failed_details': failed_details,
             'smtp_results': smtp_results,
-            'next_domain_map': next_domain_map,
-            'new_subdomain': new_subdomain,
-            'new_subdomains': new_subdomains
+            'next_domain_map': next_domain_map
         })
         
     except Exception as e:
@@ -7631,191 +7571,320 @@ def api_get_all_app_passwords():
         logging.error(f"Get all app passwords error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+# ===== AUTOMATION AUTHENTICATION API ENDPOINTS =====
 
-# New: Generate and return SMTP lines for ALL users in the given domain
-@app.route('/api/generate-domain-smtp', methods=['POST'])
+@app.route('/api/automation-accounts', methods=['GET'])
 @login_required
-def api_generate_domain_smtp():
+def api_get_automation_accounts():
+    """Get all automation accounts"""
     try:
-        req = request.get_json(silent=True) or {}
-        target_domain = (req.get('domain') or '').strip()
-        if not target_domain or '@' in target_domain:
-            return jsonify({'success': False, 'error': 'Valid domain is required'})
-
-        # Try ensure Google service is available
-        if not google_api.service:
-            acct = session.get('current_account_name', '')
-            if acct and google_api.is_token_valid(acct):
-                google_api.authenticate_with_tokens(acct)
-        if not google_api.service:
-            return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
-
-        # List all users; filter by domain
-        all_users = []
-        page_token = None
-        while True:
-            users_result = google_api.service.users().list(
-                customer='my_customer',
-                maxResults=500,
-                pageToken=page_token
-            ).execute()
-            users = users_result.get('users', [])
-            all_users.extend(users)
-            page_token = users_result.get('nextPageToken')
-            if not page_token:
-                break
-
-        from database import UserAppPassword
-        import secrets, string
-
-        smtp_lines = []
-        generated = 0
-        for user in all_users:
-            email = user.get('primaryEmail') or ''
-            if '@' not in email:
-                continue
-            username, domain = email.split('@', 1)
-            if domain != target_domain:
-                continue
-
-            record = UserAppPassword.query.filter_by(username=username).first()
-            if record and record.app_password:
-                app_password = record.app_password
-            else:
-                app_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
-                if record:
-                    record.app_password = app_password
-                    record.domain = target_domain
-                else:
-                    db.session.add(UserAppPassword(username=username, domain=target_domain, app_password=app_password, created_at=datetime.utcnow()))
-                generated += 1
-
-            try:
-                google_api.store_app_password(f"{username}@{target_domain}", app_password, target_domain)
-            except Exception:
-                pass
-            smtp_lines.append(f"{username}@{target_domain},{app_password},smtp.gmail.com,587")
-
-        try:
-            db.session.commit()
-        except Exception:
-            pass
-
-        return jsonify({'success': True, 'domain': target_domain, 'count': len(smtp_lines), 'generated': generated, 'smtp_results': smtp_lines})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/new-app-password-management', methods=['POST'])
-@login_required
-def api_new_app_password_management():
-    """PRODUCTION: Real authentication and user retrieval"""
-    try:
-        req = request.get_json(silent=True) or {}
-        account = req.get('account', '').strip()
+        accounts = AutomationAccount.query.filter_by(is_active=True).all()
+        accounts_data = []
         
-        if not account or '@' not in account:
-            return jsonify({'success': False, 'error': 'Valid account email required'})
-        
-        # REAL AUTHENTICATION - Copy from working authenticate endpoint
-        from database import GoogleAccount
-        
-        # Find account in database
-        account_record = GoogleAccount.query.filter_by(account_name=account).first()
-        if not account_record:
-            return jsonify({'success': False, 'error': f'Account {account} not found in database'})
-        
-        # Check if already authenticated in session
-        service_key = google_api._get_session_key(account)
-        if service_key in session and session.get(service_key):
-            session['current_account_name'] = account
-            app.logger.info(f"🔐 REAL AUTH: Already authenticated for {account}")
-        else:
-            # Try to authenticate with tokens
-            if google_api.is_token_valid(account):
-                success = google_api.authenticate_with_tokens(account)
-                if success:
-                    session['current_account_name'] = account
-                    app.logger.info(f"🔐 REAL AUTH: Authenticated using cached tokens for {account}")
-                else:
-                    return jsonify({'success': False, 'error': f'Failed to authenticate {account} with cached tokens'})
-            else:
-                return jsonify({'success': False, 'error': f'No valid tokens for {account}. Please authenticate first.'})
-        
-        # Verify Google service is available
-        if not google_api.service:
-            return jsonify({'success': False, 'error': 'Google service unavailable after authentication'})
-        
-        # FORCE USER RETRIEVAL - Copy EXACT process from mega workflow
-        app.logger.info(f"👥 FORCE USERS: Starting user retrieval for {account}")
-        all_users = []
-        page_token = None
-        batch_count = 0
-        
-        while True:
-            try:
-                batch_count += 1
-                app.logger.info(f"👥 FORCE USERS: Fetching batch {batch_count}...")
-                
-                users_result = google_api.service.users().list(
-                    customer='my_customer',
-                    maxResults=500,
-                    pageToken=page_token
-                ).execute()
-                
-                users = users_result.get('users', [])
-                all_users.extend(users)
-                app.logger.info(f"👥 FORCE USERS: Retrieved {len(users)} users in batch {batch_count}")
-                
-                page_token = users_result.get('nextPageToken')
-                if not page_token:
-                    app.logger.info(f"👥 FORCE USERS: No more pages, retrieval complete")
-                    break
-                    
-            except Exception as e:
-                app.logger.error(f"👥 FORCE USERS: Error in batch {batch_count}: {e}")
-                break
-        
-        app.logger.info(f"👥 FORCE USERS: Retrieved {len(all_users)} total users")
-        
-        # GET STORED PASSWORDS FROM DATABASE
-        from database import UserAppPassword
-        all_stored_passwords = UserAppPassword.query.all()
-        
-        # FIND USERS IN ACCOUNT DOMAIN
-        current_domain = account.split('@')[1]
-        domain_users = []
-        for user in all_users:
-            email = user.get('primaryEmail', '')
-            if email and email.endswith(f'@{current_domain}') and not user.get('isAdmin', False):
-                domain_users.append(email)
-        
-        # CREATE RESULTS
-        smtp_results = []
-        
-        app.logger.info(f"📊 RESULTS: Found {len(domain_users)} users in domain {current_domain}")
-        app.logger.info(f"📊 RESULTS: Found {len(all_stored_passwords)} stored passwords")
-        
-        # ALWAYS USE ALL STORED PASSWORDS (FALLBACK)
-        app.logger.info(f"📊 RESULTS: Using ALL stored passwords with domain {current_domain}")
-        for stored in all_stored_passwords:
-            if stored.username and stored.app_password:
-                smtp_line = f"{stored.username}@{current_domain},{stored.app_password},smtp.gmail.com,587"
-                smtp_results.append(smtp_line)
-                app.logger.info(f"📊 RESULTS: Added {stored.username}@{current_domain}")
-        
-        app.logger.info(f"📊 RESULTS: Created {len(smtp_results)} total SMTP lines")
+        for account in accounts:
+            accounts_data.append({
+                'id': account.id,
+                'account_name': account.account_name,
+                'client_id': account.client_id,
+                'created_at': account.created_at.isoformat() if account.created_at else None,
+                'last_retrieval': account.last_retrieval.isoformat() if account.last_retrieval else None,
+                'retrieval_count': account.retrieval_count,
+                'accounts_list': account.accounts_list
+            })
         
         return jsonify({
             'success': True,
-            'message': f'Retrieved {len(smtp_results)} app passwords for {account}',
-            'smtp_results': smtp_results,
-            'total_users': len(smtp_results),
-            'account': account,
-            'domain': current_domain
+            'accounts': accounts_data
         })
         
     except Exception as e:
+        app.logger.error(f"Error getting automation accounts: {e}")
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/automation-accounts', methods=['POST'])
+@login_required
+def api_create_automation_account():
+    """Create a new automation account"""
+    try:
+        data = request.get_json()
+        account_name = data.get('account_name')
+        client_id = data.get('client_id')
+        client_secret = data.get('client_secret')
+        
+        if not all([account_name, client_id, client_secret]):
+            return jsonify({'success': False, 'error': 'All fields are required'})
+        
+        # Check if account name already exists
+        existing = AutomationAccount.query.filter_by(account_name=account_name).first()
+        if existing:
+            return jsonify({'success': False, 'error': 'Account name already exists'})
+        
+        # Create new automation account
+        automation_account = AutomationAccount(
+            account_name=account_name,
+            client_id=client_id,
+            client_secret=client_secret,
+            accounts_list=''
+        )
+        
+        db.session.add(automation_account)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Automation account created successfully',
+            'account_id': automation_account.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error creating automation account: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/automation-accounts/<int:account_id>', methods=['GET'])
+@login_required
+def api_get_automation_account(account_id):
+    """Get specific automation account"""
+    try:
+        account = AutomationAccount.query.get(account_id)
+        if not account:
+            return jsonify({'success': False, 'error': 'Account not found'})
+        
+        return jsonify({
+            'success': True,
+            'account': {
+                'id': account.id,
+                'account_name': account.account_name,
+                'client_id': account.client_id,
+                'accounts_list': account.accounts_list,
+                'created_at': account.created_at.isoformat() if account.created_at else None,
+                'last_retrieval': account.last_retrieval.isoformat() if account.last_retrieval else None,
+                'retrieval_count': account.retrieval_count
+            }
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error getting automation account: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/automation-accounts/<int:account_id>', methods=['PUT'])
+@login_required
+def api_update_automation_account(account_id):
+    """Update automation account"""
+    try:
+        account = AutomationAccount.query.get(account_id)
+        if not account:
+            return jsonify({'success': False, 'error': 'Account not found'})
+        
+        data = request.get_json()
+        
+        # Update fields if provided
+        if 'accounts_list' in data:
+            account.accounts_list = data['accounts_list']
+        
+        if 'account_name' in data:
+            account.account_name = data['account_name']
+        
+        if 'client_id' in data:
+            account.client_id = data['client_id']
+        
+        if 'client_secret' in data:
+            account.client_secret = data['client_secret']
+        
+        account.updated_at = datetime.now()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Account updated successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error updating automation account: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/automation-accounts/<int:account_id>', methods=['DELETE'])
+@login_required
+def api_delete_automation_account(account_id):
+    """Delete automation account"""
+    try:
+        account = AutomationAccount.query.get(account_id)
+        if not account:
+            return jsonify({'success': False, 'error': 'Account not found'})
+        
+        # Delete associated retrieved users first
+        RetrievedUser.query.filter_by(automation_account_id=account_id).delete()
+        
+        # Delete the account
+        db.session.delete(account)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Account deleted successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error deleting automation account: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/automation-retrieve-users', methods=['POST'])
+@login_required
+def api_automation_retrieve_users():
+    """Retrieve users automatically for automation account"""
+    try:
+        data = request.get_json()
+        automation_account_id = data.get('automation_account_id')
+        
+        if not automation_account_id:
+            return jsonify({'success': False, 'error': 'Automation account ID is required'})
+        
+        account = AutomationAccount.query.get(automation_account_id)
+        if not account:
+            return jsonify({'success': False, 'error': 'Automation account not found'})
+        
+        if not account.accounts_list:
+            return jsonify({'success': False, 'error': 'No accounts list configured'})
+        
+        # Parse accounts list (one per line)
+        accounts_to_retrieve = [line.strip() for line in account.accounts_list.split('\n') if line.strip()]
+        
+        if not accounts_to_retrieve:
+            return jsonify({'success': False, 'error': 'No valid accounts in the list'})
+        
+        # Clear existing retrieved users for this account
+        RetrievedUser.query.filter_by(automation_account_id=automation_account_id).delete()
+        
+        retrieved_count = 0
+        
+        # For each account, try to retrieve user information
+        for email in accounts_to_retrieve:
+            try:
+                # Extract domain from email
+                domain = email.split('@')[1] if '@' in email else None
+                
+                # Create retrieved user record
+                retrieved_user = RetrievedUser(
+                    automation_account_id=automation_account_id,
+                    email=email,
+                    domain=domain,
+                    status='active'  # Default status
+                )
+                
+                db.session.add(retrieved_user)
+                retrieved_count += 1
+                
+            except Exception as e:
+                app.logger.warning(f"Error processing account {email}: {e}")
+                continue
+        
+        # Update automation account stats
+        account.last_retrieval = datetime.now()
+        account.retrieval_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Retrieved {retrieved_count} users successfully',
+            'users_count': retrieved_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error retrieving users automatically: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/automation-retrieved-users/<int:account_id>', methods=['GET'])
+@login_required
+def api_get_automation_retrieved_users(account_id):
+    """Get retrieved users for automation account"""
+    try:
+        users = RetrievedUser.query.filter_by(automation_account_id=account_id).all()
+        
+        users_data = []
+        for user in users:
+            users_data.append({
+                'id': user.id,
+                'email': user.email,
+                'name': user.name,
+                'domain': user.domain,
+                'status': user.status,
+                'retrieved_at': user.retrieved_at.isoformat() if user.retrieved_at else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'users': users_data
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error getting retrieved users: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/automation-retrieved-users/<int:account_id>', methods=['DELETE'])
+@login_required
+def api_clear_automation_retrieved_users(account_id):
+    """Clear retrieved users for automation account"""
+    try:
+        # Delete all retrieved users for this account
+        RetrievedUser.query.filter_by(automation_account_id=account_id).delete()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Retrieved users cleared successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error clearing retrieved users: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/automation-export-users/<int:account_id>')
+@login_required
+def api_export_automation_users(account_id):
+    """Export retrieved users as CSV"""
+    try:
+        users = RetrievedUser.query.filter_by(automation_account_id=account_id).all()
+        
+        # Create CSV content
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['Email', 'Name', 'Domain', 'Status', 'Retrieved At'])
+        
+        # Write data
+        for user in users:
+            writer.writerow([
+                user.email,
+                user.name or '',
+                user.domain or '',
+                user.status or '',
+                user.retrieved_at.isoformat() if user.retrieved_at else ''
+            ])
+        
+        # Get CSV content
+        csv_content = output.getvalue()
+        output.close()
+        
+        # Return CSV file
+        from flask import Response
+        return Response(
+            csv_content,
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename="automation_users_{account_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+            }
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error exporting users: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 
 if __name__ == '__main__':
     app.run(debug=True)

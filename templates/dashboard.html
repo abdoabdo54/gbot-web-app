@@ -18,6 +18,10 @@
             <i class="fas fa-exchange-alt"></i>
             <span>Bulk Domain Change & SMTP/CSV</span>
         </button>
+        <button class="tab-button" onclick="showTab('tab4')">
+            <i class="fas fa-robot"></i>
+            <span>Automation Authentication</span>
+        </button>
     </nav>
 </div>
 
@@ -77,7 +81,7 @@
             
             <div id="account-list-area" class="account-list">
                 {% for account in accounts %}
-                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name }}', {{ account.id }})" data-account-id="{{ account.id }}">
+                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name|e }}', {{ account.id }})" data-account-id="{{ account.id }}">
                     {{ account.account_name }}
                 </div>
                 {% endfor %}
@@ -866,95 +870,85 @@
         </div>
     </div>
 
-
-    <!-- NEW App Password Management -->
+    <!-- App Password Management -->
     <div class="github-card">
         <div class="github-card-header">
             <h3 class="github-card-title">
                 <i class="fas fa-key"></i>
-                NEW App Password Management
+                App Password Management
             </h3>
         </div>
         
         <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
-            NEW: Authenticate with Google Workspace, retrieve users, and display their saved app passwords from database.
+            Upload and manage app passwords for SMTP authentication. When retrieving, the system automatically 
+            updates the domain part to match your current domain and formats output as SMTP configuration 
+            (user@domain,app_password,smtp.gmail.com,587) ready for direct use in email clients.
         </p>
         
-        <!-- Upload App Password File -->
+        <!-- Upload Section -->
         <div style="margin-bottom: 24px;">
             <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-upload"></i> Upload App Password File
+                <i class="fas fa-upload"></i> Upload App Passwords
             </h4>
             <div class="form-group-github">
-                <label for="new-app-password-file" class="form-label-github">
+                <label for="app-password-file" class="form-label-github">
                     <i class="fas fa-file-text"></i> App Password File (.txt)
                 </label>
-                <input type="file" id="new-app-password-file" class="form-control-github" accept=".txt" 
+                <input type="file" id="app-password-file" class="form-control-github" accept=".txt" 
                        style="padding: 12px; border: 2px dashed #d0d7de; background: #f6f8fa;">
                 <small style="color: #656d76; font-size: 12px;">
-                    Upload a .txt file with format: username:app_password or username,app_password (one per line)<br>
-                    Examples: support:MyPassword123, alberto,AnotherPassword456, user:ThirdPassword789
+                    Upload a .txt file with format: user@domain.com:app_password (one per line)<br>
+                    Output will be formatted as: user@domain.com,app_password,smtp.gmail.com,587
                 </small>
             </div>
-            <button onclick="uploadNewAppPasswordFile()" class="btn-github btn-github-primary">
-                <i class="fas fa-upload"></i> Upload & Save to Database
+            <button onclick="uploadAppPasswords()" class="btn-github btn-github-primary">
+                <i class="fas fa-upload"></i> Upload App Passwords
             </button>
         </div>
         
-        <!-- Account Input -->
+        <!-- Retrieve Section -->
         <div style="margin-bottom: 24px;">
             <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-envelope"></i> Account to Authenticate
+                <i class="fas fa-download"></i> Retrieve App Passwords
             </h4>
-            <div class="form-group-github">
-                <label for="new-app-account" class="form-label-github">
-                    <i class="fas fa-user-circle"></i> Account Email
-                </label>
-                <input type="email" id="new-app-account" class="form-control-github" 
-                       placeholder="support@domain.com" style="font-family: monospace;">
-                <small style="color: #656d76; font-size: 12px;">
-                    Enter the account email to authenticate and retrieve users from
-                </small>
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end;">
+                <div class="form-group-github">
+                    <label for="retrieve-domain" class="form-label-github">
+                        <i class="fas fa-globe"></i> New Domain
+                    </label>
+                    <input type="text" id="retrieve-domain" class="form-control-github" 
+                           placeholder="newdomain.com" value="">
+                    <small style="color: #656d76; font-size: 12px;">
+                        Enter the domain you want to use for all usernames
+                    </small>
+                </div>
+                <button onclick="retrieveAppPasswords()" class="btn-github btn-github-primary">
+                    <i class="fas fa-sync-alt"></i> Update & Optimize
+                </button>
             </div>
-            <button onclick="newAppPasswordProcess()" class="btn-github btn-github-primary">
-                <i class="fas fa-sync-alt"></i> Authenticate & Retrieve App Passwords
-            </button>
         </div>
         
         <!-- Display Section -->
         <div style="margin-bottom: 24px;">
             <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-list"></i> Retrieved App Passwords
+                <i class="fas fa-list"></i> App Passwords Display
             </h4>
             <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                <button onclick="copyNewAppPasswords()" class="btn-github">
+                <button onclick="copyAppPasswords()" class="btn-github">
                     <i class="fas fa-copy"></i> Copy
                 </button>
-                <button onclick="clearNewAppPasswords()" class="btn-github">
-                    <i class="fas fa-broom"></i> Clear
+                <button onclick="clearAppPasswordsDisplay()" class="btn-github">
+                    <i class="fas fa-broom"></i> Clear Display
+                </button>
+                <button onclick="deleteAllAppPasswords()" class="btn-github" 
+                        style="background-color: #d73a49; border-color: #d73a49; color: white;"
+                        id="delete-all-btn">
+                    <i class="fas fa-trash-alt"></i> Delete All (Admin Only)
                 </button>
             </div>
-            <textarea id="new-app-passwords-display" class="form-control-github" rows="8" 
-                      placeholder="Retrieved app passwords will appear here in format: user@domain.com,password,smtp.gmail.com,587" readonly
+            <textarea id="app-passwords-display" class="form-control-github" rows="8" 
+                      placeholder="SMTP configuration will appear here in format: user@domain.com,app_password,smtp.gmail.com,587" readonly
                       style="font-family: monospace; font-size: 13px; background: #f6f8fa;"></textarea>
-        </div>
-        
-        <!-- Log Section -->
-        <div>
-            <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-file-alt"></i> Process Log
-            </h4>
-            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                <button onclick="clearNewAppLog()" class="btn-github">
-                    <i class="fas fa-broom"></i> Clear Log
-                </button>
-            </div>
-            <div id="new-app-log" class="data-display" style="font-family: monospace; font-size: 13px; max-height: 300px; overflow-y: auto;">
-                <div class="status-info">
-                    <p><strong><i class="fas fa-file-alt"></i> Process Log</strong></p>
-                    <p>Process log will appear here...</p>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -1098,234 +1092,179 @@
         
         <div id="csv-preview-area" class="csv-preview"></div>
     </div>
-</div>
+    </div>
 </div>
 
+<!-- Tab 4: Automation Authentication -->
+<div id="tab4" class="tab-content">
+    
+    <!-- Automation Account Management -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-robot"></i>
+                Automation Account Management
+            </h3>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; margin-bottom: 20px;">
+            <div class="form-group-github">
+                <label for="automation-account-select" class="form-label-github">
+                    <i class="fas fa-cogs"></i> Select Automation Account
+                </label>
+                <select id="automation-account-select" class="form-control-github">
+                    <option value="">Choose an automation account...</option>
+                </select>
+            </div>
+            <button onclick="createAutomationAccount()" class="btn-github btn-github-primary">
+                <i class="fas fa-plus"></i> Create New
+            </button>
+        </div>
+        
+        <div id="automation-account-stats" class="count-display">
+            <span id="automation-account-stats-text">No automation accounts configured</span>
+        </div>
+    </div>
 
+    <!-- Account List Configuration -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-list"></i>
+                Account List Configuration
+            </h3>
+        </div>
+        
+        <div class="form-group-github">
+            <label for="accounts-list" class="form-label-github">
+                <i class="fas fa-columns"></i> Accounts (one per line)
+            </label>
+            <textarea id="accounts-list" class="form-control-github" rows="10" 
+                      placeholder="user1@domain.com&#10;user2@domain.com&#10;user3@domain.com&#10;..."></textarea>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-top: 16px;">
+            <button onclick="saveAccountsList()" class="btn-github">
+                <i class="fas fa-save"></i> Save Account List
+            </button>
+            <button onclick="loadAccountsList()" class="btn-github">
+                <i class="fas fa-download"></i> Load from Selected
+            </button>
+            <button onclick="clearAccountsList()" class="btn-github">
+                <i class="fas fa-trash"></i> Clear List
+            </button>
+        </div>
+    </div>
+
+    <!-- Automated User Retrieval -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-users"></i>
+                Automated User Retrieval
+            </h3>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <button onclick="retrieveUsersAutomatically()" class="btn-github btn-github-primary">
+                <i class="fas fa-sync"></i> Retrieve Users Automatically
+            </button>
+            <button onclick="clearRetrievedUsers()" class="btn-github">
+                <i class="fas fa-broom"></i> Clear Retrieved Users
+            </button>
+            <button onclick="exportRetrievedUsers()" class="btn-github">
+                <i class="fas fa-download"></i> Export Users
+            </button>
+        </div>
+        
+        <div id="retrieval-progress" class="progress-container" style="display: none;">
+            <div class="progress-bar">
+                <div id="retrieval-progress-bar" class="progress-fill"></div>
+            </div>
+            <div id="retrieval-progress-text" class="progress-text">Starting retrieval...</div>
+        </div>
+        
+        <div id="retrieved-users-count" class="count-display">
+            <span id="retrieved-users-stats">No users retrieved yet</span>
+        </div>
+    </div>
+
+    <!-- Retrieved Users Display -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-user-check"></i>
+                Retrieved Users
+            </h3>
+        </div>
+        
+        <div id="retrieved-users-list" class="user-list">
+            <div class="no-users-message">
+                <i class="fas fa-info-circle"></i>
+                <p>No users retrieved yet. Use "Retrieve Users Automatically" to start.</p>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-top: 16px;">
+            <button onclick="copyAllRetrievedUsers()" class="btn-github">
+                <i class="fas fa-copy"></i> Copy All Emails
+            </button>
+            <button onclick="filterRetrievedUsers()" class="btn-github">
+                <i class="fas fa-filter"></i> Filter Users
+            </button>
+        </div>
+    </div>
+
+    <!-- Automation Account Settings Modal -->
+    <div id="automationAccountModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-robot"></i> Automation Account Settings
+                </h3>
+                <button type="button" class="btn-github" onclick="closeAutomationAccountModal()" style="margin-left: auto;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="automationAccountForm">
+                    <div class="form-group-github">
+                        <label for="automation-account-name" class="form-label-github">
+                            <i class="fas fa-tag"></i> Account Name
+                        </label>
+                        <input type="text" id="automation-account-name" class="form-control-github" required placeholder="My Automation Account">
+                    </div>
+                    <div class="form-group-github">
+                        <label for="automation-client-id" class="form-label-github">
+                            <i class="fas fa-key"></i> Client ID
+                        </label>
+                        <input type="text" id="automation-client-id" class="form-control-github" required placeholder="123456789-abcdef.apps.googleusercontent.com">
+                    </div>
+                    <div class="form-group-github">
+                        <label for="automation-client-secret" class="form-label-github">
+                            <i class="fas fa-lock"></i> Client Secret
+                        </label>
+                        <input type="password" id="automation-client-secret" class="form-control-github" required placeholder="GOCSPX-your_client_secret">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="saveAutomationAccount()" class="btn-github btn-github-primary">
+                    <i class="fas fa-save"></i> Save Account
+                </button>
+                <button type="button" onclick="closeAutomationAccountModal()" class="btn-github">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
 // Test function to verify JavaScript is working
 function testJavaScript() {
     console.log('JavaScript is working!');
     alert('JavaScript is working!');
-}
-
-// Upload app password file function
-function uploadAppPasswordFile() {
-    console.log('uploadAppPasswordFile called');
-    
-    const fileInput = document.getElementById('app-password-file');
-    const file = fileInput.files[0];
-    
-    console.log('File input:', fileInput);
-    console.log('Selected file:', file);
-    
-    if (!file) {
-        alert('Please select a file to upload');
-        logBulkDomain('❌ No file selected for upload');
-        return;
-    }
-    
-    if (!file.name.endsWith('.txt')) {
-        alert('Please select a .txt file');
-        logBulkDomain('❌ File must be .txt format');
-        return;
-    }
-    
-    logBulkDomain(`📁 Reading file: ${file.name}`);
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const content = e.target.result;
-        console.log('File content:', content);
-        logBulkDomain(`📄 File content loaded (${content.length} characters)`);
-        
-        const lines = content.split('\n').filter(line => line.trim());
-        console.log('Lines found:', lines);
-        logBulkDomain(`📝 Found ${lines.length} lines in file`);
-        
-        if (lines.length === 0) {
-            alert('File is empty or contains no valid lines');
-            logBulkDomain('❌ File is empty');
-            return;
-        }
-        
-        // Parse lines (support both username:password and username,password formats)
-        const passwords = [];
-        for (const line of lines) {
-            const trimmedLine = line.trim();
-            if (!trimmedLine) continue;
-            
-            // Try colon format first (username:password)
-            let parts = trimmedLine.split(':');
-            if (parts.length === 2) {
-                passwords.push({
-                    username: parts[0].trim(),
-                    app_password: parts[1].trim()
-                });
-                logBulkDomain(`✅ Parsed (colon): ${parts[0].trim()}`);
-            } else {
-                // Try comma format (username,password)
-                parts = trimmedLine.split(',');
-                if (parts.length === 2) {
-                    passwords.push({
-                        username: parts[0].trim(),
-                        app_password: parts[1].trim()
-                    });
-                    logBulkDomain(`✅ Parsed (comma): ${parts[0].trim()}`);
-                } else {
-                    logBulkDomain(`⚠️ Skipped invalid line: ${trimmedLine}`);
-                }
-            }
-        }
-        
-        console.log('Parsed passwords:', passwords);
-        logBulkDomain(`📊 Successfully parsed ${passwords.length} passwords`);
-        
-        if (passwords.length === 0) {
-            alert('No valid password entries found. Format should be: username:password or username,password');
-            logBulkDomain('❌ No valid passwords found');
-            return;
-        }
-        
-        // Show progress
-        const button = event.target;
-        const originalText = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
-        button.disabled = true;
-        
-        logBulkDomain(`🚀 Sending ${passwords.length} passwords to server...`);
-        
-        // Send to backend
-        fetch('/api/upload-app-passwords', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({passwords: passwords})
-        })
-        .then(response => {
-            console.log('Upload response status:', response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log('Upload response data:', data);
-            if (data.success) {
-                alert(`✅ Successfully uploaded ${data.saved_count} app passwords to database`);
-                logBulkDomain(`✅ Successfully uploaded ${data.saved_count} app passwords to database`);
-            } else {
-                alert(`❌ Upload failed: ${data.error}`);
-                logBulkDomain(`❌ Upload failed: ${data.error}`);
-            }
-        })
-        .catch(error => {
-            console.error('Upload error:', error);
-            alert(`❌ Network error: ${error.message}`);
-            logBulkDomain(`❌ Network error: ${error.message}`);
-        })
-        .finally(() => {
-            button.innerHTML = originalText;
-            button.disabled = false;
-        });
-    };
-    
-    reader.onerror = function() {
-        alert('Error reading file');
-        logBulkDomain('❌ Error reading file');
-    };
-    
-    reader.readAsText(file);
-}
-
-// Copy retrieved passwords function
-function copyRetrievedPasswords() {
-    const display = document.getElementById('retrieved-app-passwords-display');
-    if (display.value.trim()) {
-        display.select();
-        document.execCommand('copy');
-        logBulkDomain('📋 Retrieved app passwords copied to clipboard');
-    } else {
-        alert('No app passwords to copy');
-    }
-}
-
-// Clear retrieved passwords function
-function clearRetrievedPasswords() {
-    const display = document.getElementById('retrieved-app-passwords-display');
-    display.value = '';
-    logBulkDomain('🧹 Retrieved app passwords display cleared');
-}
-
-// New function for the separate Retrieve App Passwords process
-function retrieveAppPasswordsForAccounts() {
-    console.log('retrieveAppPasswordsForAccounts called');
-    
-    const accountsText = document.getElementById('retrieve-accounts').value.trim();
-    console.log('Accounts text:', accountsText);
-    
-    if (!accountsText) {
-        alert('Please enter account emails (one per line)');
-        return;
-    }
-    
-    // Parse accounts from textarea
-    const accounts = accountsText.split('\n')
-        .map(line => line.trim())
-        .filter(line => line && line.includes('@'));
-    
-    console.log('Parsed accounts:', accounts);
-    
-    if (accounts.length === 0) {
-        alert('Please enter valid email addresses (one per line)');
-        return;
-    }
-    
-    logBulkDomain(`🔄 Starting separate Retrieve App Passwords process for ${accounts.length} accounts`);
-    logBulkDomain(`📧 Processing accounts: ${accounts.join(', ')}`);
-    
-    // Show progress
-    const button = event.target;
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-    button.disabled = true;
-    
-    console.log('Sending request to /api/retrieve-app-passwords-for-accounts');
-    
-    fetch('/api/retrieve-app-passwords-for-accounts', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({accounts: accounts})
-    })
-    .then(response => {
-        console.log('Response received:', response.status);
-        return response.json();
-    })
-    .then(data => {
-        console.log('Response data:', data);
-        if (data.success) {
-            logBulkDomain(`✅ Successfully processed ${data.total_users} users across ${data.account_results.length} accounts`);
-            
-            // Display results
-            data.account_results.forEach((result, index) => {
-                logBulkDomain(`  ${index + 1}. ${result.account} → ${result.new_subdomain} (${result.users_found} users)`);
-            });
-            
-            // Show all generated app passwords
-            const display = document.getElementById('retrieved-app-passwords-display');
-            display.value = data.smtp_results.join('\n');
-            
-            logBulkDomain(`📋 Generated ${data.smtp_results.length} app passwords and displayed in textarea`);
-        } else {
-            logBulkDomain(`❌ Error: ${data.error}`);
-        }
-    })
-    .catch(error => {
-        console.error('Fetch error:', error);
-        logBulkDomain(`❌ Network error: ${error.message}`);
-    })
-    .finally(() => {
-        // Restore button
-        button.innerHTML = originalText;
-        button.disabled = false;
-    });
 }
 
 function testAppPasswordSync() {
@@ -1461,6 +1400,11 @@ function showTab(tabId) {
         selectedTab.classList.add('active');
         selectedTab.style.display = 'block';
         selectedTab.style.visibility = 'visible';
+        
+        // Initialize automation tab if it's being shown
+        if (tabId === 'tab4') {
+            initializeAutomationTab();
+        }
         selectedTab.style.opacity = '1';
         selectedTab.style.height = 'auto';
         selectedTab.style.overflow = 'visible';
@@ -2342,19 +2286,7 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     if (window.megaUpgradeChangedSubdomain) {
         logBulkDomain(`🎯 Using ACTUAL Mega Upgrade subdomain: ${window.megaUpgradeChangedSubdomain}`);
         logBulkDomain(`✅ This is the EXACT subdomain that was changed during the process`);
-        // CRITICAL: Get ALL users from the changed domain, not just submitted accounts
-        generateAppPasswordsForAllUsersInDomain(window.megaUpgradeChangedSubdomain);
-        return;
-    }
-    
-    // Check if we have a base-to-new subdomain mapping from the mega upgrade
-    if (window.baseToNewSubdomainMap && Object.keys(window.baseToNewSubdomainMap).length > 0) {
-        const newSubdomain = Object.values(window.baseToNewSubdomainMap)[0];
-        logBulkDomain(`🎯 Using mapped subdomain from mega upgrade: ${newSubdomain}`);
-        logBulkDomain(`✅ This subdomain was mapped during the mega upgrade process`);
-        window.megaUpgradeChangedSubdomain = newSubdomain;
-        // CRITICAL: Get ALL users from the changed domain, not just submitted accounts
-        generateAppPasswordsForAllUsersInDomain(newSubdomain);
+        generateAppPasswordsWithTargetDomain(accounts, window.megaUpgradeChangedSubdomain);
         return;
     }
     
@@ -2498,144 +2430,80 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     });
 }
 
-function generateRandomAppPassword(length) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-}
-
-function generateAppPasswordsWithMultipleSubdomains(accounts, subdomainInfo) {
-    logBulkDomain(`🔑 Generating app passwords for ${accounts.length} accounts with specific subdomains`);
-    
-    const appPasswords = [];
-    let completedAccounts = 0;
-    const totalAccounts = accounts.length;
-    
-    logBulkDomain(`🔄 Processing ${totalAccounts} accounts with their specific new subdomains`);
-    
-    // Create a map of account to subdomain for quick lookup
-    const accountToSubdomain = {};
-    subdomainInfo.forEach(info => {
-        accountToSubdomain[info.account] = info.new_subdomain;
-    });
-    
-    // Process each account with its specific new subdomain
-    accounts.forEach((account, index) => {
-        const newSubdomain = accountToSubdomain[account];
-        if (!newSubdomain) {
-            logBulkDomain(`⚠️ No new subdomain found for account: ${account}`);
-            completedAccounts++;
-            if (completedAccounts >= totalAccounts) {
-                displayAppPasswordsInWorkflow(appPasswords);
-            }
-            return;
-        }
-        
-        logBulkDomain(`🔄 Processing account ${index + 1}/${totalAccounts}: ${account} → ${newSubdomain}`);
-        
-        // Generate app password for this account
-        const username = account.split('@')[0];
-        const newAccount = `${username}@${newSubdomain}`;
-        
-        // Generate a realistic app password
-        const appPassword = generateRandomAppPassword(16);
-        
-        logBulkDomain(`🔑 Generated app password for ${newAccount}`);
-        
-        // Store the app password
-        storeAppPasswordForUser(newAccount, appPassword, newSubdomain, appPasswords, () => {
-            completedAccounts++;
-            if (completedAccounts >= totalAccounts) {
-                logBulkDomain(`✅ Completed processing all ${totalAccounts} accounts`);
-                displayAppPasswordsInWorkflow(appPasswords);
-            }
-        });
-    });
-}
-
-function generateAppPasswordsForAllUsersInDomain(targetDomain) {
-    logBulkDomain(`🔑 Retrieving ALL users from changed domain: ${targetDomain}`);
-    window.currentTargetDomain = targetDomain;
-    window.megaUpgradeChangedSubdomain = targetDomain;
-
-    // First, try to get all stored app passwords for this domain
-    fetch('/api/get-all-app-passwords')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.app_passwords && data.app_passwords.length > 0) {
-                logBulkDomain(`📋 Found ${data.app_passwords.length} stored app passwords`);
-                
-                const appPasswords = [];
-                const targetBase = targetDomain.split('.').slice(1).join('.');
-                
-                // Filter for users in the target domain
-                data.app_passwords.forEach(row => {
-                    const alias = row.user_alias || '';
-                    const pwd = row.app_password || '';
-                    if (!alias || !pwd) return;
-                    
-                    const [username, aliasDomain] = alias.includes('@') ? alias.split('@') : [alias, ''];
-                    if (!aliasDomain) return;
-                    
-                    // Check if this user is in the target domain
-                    if (aliasDomain === targetDomain) {
-                        const smtpLine = `${username}@${targetDomain},${pwd},smtp.gmail.com,587`;
-                        appPasswords.push(smtpLine);
-                        logBulkDomain(`✅ Found stored password for: ${username}@${targetDomain}`);
-                    }
-                });
-                
-                if (appPasswords.length > 0) {
-                    logBulkDomain(`📋 Displaying ${appPasswords.length} app passwords for domain ${targetDomain}`);
-                    displayAppPasswordsInWorkflow(appPasswords);
-                } else {
-                    logBulkDomain(`⚠️ No stored passwords found for domain ${targetDomain}`);
-                }
-            } else {
-                logBulkDomain(`⚠️ No stored app passwords found or error: ${data.error || 'Unknown error'}`);
-            }
-        })
-        .catch(error => {
-            logBulkDomain(`❌ Error retrieving stored passwords: ${error.message}`);
-        });
-}
-
 function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
-    logBulkDomain(`🔑 Generating app passwords for ${accounts.length} accounts with target domain: ${targetDomain}`);
+    logBulkDomain(`🔑 Preparing SMTP lines using stored app passwords`);
     window.currentTargetDomain = targetDomain;
     window.megaUpgradeChangedSubdomain = targetDomain;
 
-    const appPasswords = [];
-    let completedAccounts = 0;
-    const totalAccounts = accounts.length;
-    
-    logBulkDomain(`🔄 Processing ${totalAccounts} accounts with new subdomain: ${targetDomain}`);
-    
-    // Process each account to generate app passwords
-    accounts.forEach((account, index) => {
-        logBulkDomain(`🔄 Processing account ${index + 1}/${totalAccounts}: ${account}`);
-        
-        // Generate app password for this account
-        const username = account.split('@')[0];
-        const newAccount = `${username}@${targetDomain}`;
-        
-        // Generate a realistic app password
-        const appPassword = generateRandomAppPassword(16);
-        
-        logBulkDomain(`🔑 Generated app password for ${newAccount}`);
-        
-        // Store the app password
-        storeAppPasswordForUser(newAccount, appPassword, targetDomain, appPasswords, () => {
-            completedAccounts++;
-            if (completedAccounts >= totalAccounts) {
-                logBulkDomain(`✅ Completed processing all ${totalAccounts} accounts`);
-                displayAppPasswordsInWorkflow(appPasswords);
+    fetch('/api/get-all-app-passwords')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                logBulkDomain(`❌ Failed to load stored app passwords: ${data.error || 'unknown error'}`);
+                return;
             }
+
+            const rows = data.app_passwords || [];
+            if (rows.length === 0) {
+                logBulkDomain('ℹ️ No stored app passwords found');
+                return;
+            }
+
+            const output = [];
+            // Support multi-base processing: use global base-to-subdomain map if available
+            const baseMap = window.baseToNewSubdomainMap || null;
+            // Extract new subdomain label and target base from single detected domain
+            const targetParts = (targetDomain || '').split('.');
+            const newSubLabelSingle = targetParts.length > 0 ? targetParts[0] : '';
+            const targetBaseSingle = targetParts.length > 1 ? targetParts.slice(1).join('.') : '';
+            
+            logBulkDomain(`🔍 Total stored app passwords: ${rows.length}`);
+            logBulkDomain(`🔍 Processing all stored passwords (aliases and passwords are static)`);
+            
+            rows.forEach(row => {
+                const alias = row.user_alias || '';
+                const pwd = row.app_password || '';
+                if (!alias || !pwd) return;
+
+                const [username, aliasDomain] = alias.includes('@') ? alias.split('@') : [alias, ''];
+                if (!aliasDomain) return;
+
+                // Compute base of alias (everything after the first dot)
+                const aliasParts = aliasDomain.split('.');
+                if (aliasParts.length < 2) return; // not a subdomain; skip
+                const aliasBase = aliasParts.slice(1).join('.');
+
+                // Determine mapped domain for this base
+                let newDomainForAlias = '';
+                if (baseMap && baseMap[aliasBase]) {
+                    newDomainForAlias = baseMap[aliasBase];
+                } else if (targetBaseSingle) {
+                    if (aliasBase !== targetBaseSingle) return; // not part of processed base
+                    newDomainForAlias = `${newSubLabelSingle}.${targetBaseSingle}`;
+                } else {
+                    return;
+                }
+                
+                // Filter by alias and app password (both static) - include all stored passwords
+                // No domain filtering since aliases and passwords are static
+                logBulkDomain(`🔍 Including alias: ${alias} (base: ${aliasBase}) - aliases and passwords are static`);
+
+                const line = `${username}@${newDomainForAlias},${pwd},smtp.gmail.com,587`;
+                output.push(line);
+            });
+
+            if (output.length === 0) {
+                logBulkDomain('ℹ️ No stored app passwords found to format');
+                return;
+            }
+
+            const display = document.getElementById('app-passwords-display');
+            display.value = output.join('\n');
+            logBulkDomain(`📋 ${output.length} SMTP lines displayed (alias+password kept static)`);
+        })
+        .catch(err => {
+            logBulkDomain(`❌ Error building SMTP lines: ${err.message}`);
         });
-    });
 }
 
 function generateAppPasswordsWithManualDomainChange(accounts) {
@@ -2785,7 +2653,6 @@ function generateAppPasswordsForUsers(users, newDomain, appPasswords, onComplete
 
 function storeAppPasswordForUser(newAccount, appPassword, newDomain, appPasswords, onComplete) {
     // CRITICAL: Use the ACTUAL subdomain that was changed during Mega Upgrade
-    // Priority: megaUpgradeChangedSubdomain > currentTargetDomain > newDomain
     const targetDomain = window.megaUpgradeChangedSubdomain || window.currentTargetDomain || newDomain;
     
     // Update the account to use the ACTUAL subdomain
@@ -2794,7 +2661,6 @@ function storeAppPasswordForUser(newAccount, appPassword, newDomain, appPassword
     
     logBulkDomain(`💾 Storing app password for ${updatedAccount} (using ACTUAL subdomain: ${targetDomain})`);
     logBulkDomain(`✅ This is the EXACT subdomain that was changed during Mega Upgrade`);
-    logBulkDomain(`🎯 Subdomain source: ${window.megaUpgradeChangedSubdomain ? 'Mega Upgrade' : window.currentTargetDomain ? 'Current Target' : 'New Domain'}`);
     
     // Store the app password with the saved subdomain
     fetch('/api/store-app-password', {
@@ -7016,24 +6882,6 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 window.baseToNewSubdomainMap = data.next_domain_map;
                 logBulkDomain(`🧭 Next-domain map from server: ${JSON.stringify(data.next_domain_map)}`);
             }
-            
-            // CRITICAL: Set the new subdomain from mega upgrade response
-            if (data.new_subdomain) {
-                window.megaUpgradeChangedSubdomain = data.new_subdomain;
-                logBulkDomain(`🎯 MEGA UPGRADE: New subdomain detected: ${data.new_subdomain}`);
-                logBulkDomain(`✅ This is the EXACT subdomain that was changed during Mega Upgrade`);
-            }
-            
-            // Handle multiple accounts with their new subdomains
-            if (data.new_subdomains && data.new_subdomains.length > 0) {
-                logBulkDomain(`🎯 MEGA UPGRADE: Processing ${data.new_subdomains.length} accounts with new subdomains`);
-                data.new_subdomains.forEach((subdomainInfo, index) => {
-                    logBulkDomain(`  ${index + 1}. Account: ${subdomainInfo.account} → New Subdomain: ${subdomainInfo.new_subdomain} (${subdomainInfo.users_processed} users)`);
-                });
-                
-                // Store all new subdomains for processing
-                window.megaUpgradeSubdomains = data.new_subdomains;
-            }
 
             // Display SMTP results if available
             if (data.smtp_results && data.smtp_results.length > 0) {
@@ -7047,10 +6895,16 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 display.value = data.smtp_results.join('\n');
                 logBulkDomain(`📋 ${data.smtp_results.length} SMTP results displayed in textarea`);
             } else if (features.retrievePasswords) {
-                // App password generation removed from mega workflow
-                // This will be handled separately by the Retrieve App Passwords process
-                logBulkDomain('ℹ️ App password generation is now handled separately');
-                logBulkDomain('💡 Use the "Retrieve App Passwords" section after mega upgrade completion');
+                // If enabled but backend returned none, attempt client-side generation using detected domain
+                // Prefer precise per-base mapping if present; otherwise fall back to detected domain
+                const targetDomain = (window.baseToNewSubdomainMap && Object.values(window.baseToNewSubdomainMap)[0])
+                    || window.megaUpgradeChangedSubdomain || window.currentTargetDomain;
+                if (targetDomain) {
+                    logBulkDomain('ℹ️ No SMTP results from server, generating client-side using detected domain');
+                    generateAppPasswordsWithTargetDomain(accounts, targetDomain);
+                } else {
+                    logBulkDomain('⚠️ No SMTP results and no detected domain');
+                }
             }
 
             // Display failed details if any
@@ -7194,187 +7048,335 @@ function runMegaUpgradeWorkflow(accounts, features) {
     });
 }
 
-// NEW App Password Management Functions
-function uploadNewAppPasswordFile() {
-    const fileInput = document.getElementById('new-app-password-file');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        alert('Please select a .txt file to upload');
-        return;
-    }
-    
-    if (!file.name.endsWith('.txt')) {
-        alert('Please select a .txt file');
-        return;
-    }
-    
-    logNewApp('📁 Reading app password file...');
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const content = e.target.result;
-        const lines = content.split('\n').filter(line => line.trim());
-        
-        logNewApp(`📝 Found ${lines.length} lines in file`);
-        
-        if (lines.length === 0) {
-            alert('File is empty or contains no valid lines');
-            return;
-        }
-        
-        // Parse lines (support both username:password and username,password formats)
-        const passwords = [];
-        for (const line of lines) {
-            const trimmedLine = line.trim();
-            if (!trimmedLine) continue;
-            
-            // Try colon format first (username:password)
-            let parts = trimmedLine.split(':');
-            if (parts.length === 2) {
-                passwords.push({
-                    username: parts[0].trim(),
-                    app_password: parts[1].trim()
-                });
-                logNewApp(`✅ Parsed (colon): ${parts[0].trim()}`);
-            } else {
-                // Try comma format (username,password)
-                parts = trimmedLine.split(',');
-                if (parts.length === 2) {
-                    passwords.push({
-                        username: parts[0].trim(),
-                        app_password: parts[1].trim()
-                    });
-                    logNewApp(`✅ Parsed (comma): ${parts[0].trim()}`);
-                } else {
-                    logNewApp(`⚠️ Skipped invalid line: ${trimmedLine}`);
-                }
-            }
-        }
-        
-        logNewApp(`📊 Successfully parsed ${passwords.length} passwords`);
-        
-        if (passwords.length === 0) {
-            alert('No valid password entries found. Format should be: username:password or username,password');
-            return;
-        }
-        
-        // Show progress
-        const button = event.target;
-        const originalText = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
-        button.disabled = true;
-        
-        logNewApp(`🚀 Sending ${passwords.length} passwords to server...`);
-        
-        // Send to backend
-        fetch('/api/upload-app-passwords', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({passwords: passwords})
-        })
+// ===== AUTOMATION AUTHENTICATION FUNCTIONS =====
+
+// Load automation accounts into the dropdown
+function loadAutomationAccounts() {
+    fetch('/api/automation-accounts')
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                alert(`✅ Successfully uploaded ${data.saved_count} app passwords to database`);
-                logNewApp(`✅ Successfully uploaded ${data.saved_count} app passwords to database`);
+            const select = document.getElementById('automation-account-select');
+            select.innerHTML = '<option value="">Choose an automation account...</option>';
+            
+            if (data.success && data.accounts) {
+                data.accounts.forEach(account => {
+                    const option = document.createElement('option');
+                    option.value = account.id;
+                    option.textContent = account.account_name;
+                    select.appendChild(option);
+                });
+                
+                // Update stats
+                document.getElementById('automation-account-stats-text').textContent = 
+                    `Found ${data.accounts.length} automation account(s)`;
             } else {
-                alert(`❌ Upload failed: ${data.error}`);
-                logNewApp(`❌ Upload failed: ${data.error}`);
+                document.getElementById('automation-account-stats-text').textContent = 
+                    'No automation accounts configured';
             }
         })
         .catch(error => {
-            alert(`❌ Network error: ${error.message}`);
-            logNewApp(`❌ Network error: ${error.message}`);
-        })
-        .finally(() => {
-            button.innerHTML = originalText;
-            button.disabled = false;
+            console.error('Error loading automation accounts:', error);
+            document.getElementById('automation-account-stats-text').textContent = 
+                'Error loading automation accounts';
         });
-    };
-    
-    reader.onerror = function() {
-        alert('Error reading file');
-        logNewApp('❌ Error reading file');
-    };
-    
-    reader.readAsText(file);
 }
 
-function newAppPasswordProcess() {
-    const account = document.getElementById('new-app-account').value.trim();
+// Create new automation account
+function createAutomationAccount() {
+    document.getElementById('automationAccountModal').style.display = 'block';
+}
+
+// Close automation account modal
+function closeAutomationAccountModal() {
+    document.getElementById('automationAccountModal').style.display = 'none';
+    document.getElementById('automationAccountForm').reset();
+}
+
+// Save automation account
+function saveAutomationAccount() {
+    const name = document.getElementById('automation-account-name').value;
+    const clientId = document.getElementById('automation-client-id').value;
+    const clientSecret = document.getElementById('automation-client-secret').value;
     
-    if (!account || !account.includes('@')) {
-        alert('Please enter a valid account email');
+    if (!name || !clientId || !clientSecret) {
+        alert('Please fill in all fields');
         return;
     }
     
-    logNewApp('🚀 Starting NEW App Password Process...');
-    logNewApp(`📧 Account: ${account}`);
-    
-    const button = event.target;
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-    button.disabled = true;
-    
-    fetch('/api/new-app-password-management', {
+    fetch('/api/automation-accounts', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ account: account })
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            account_name: name,
+            client_id: clientId,
+            client_secret: clientSecret
+        })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            logNewApp(`✅ Success: ${data.message}`);
-            logNewApp(`📊 Total users: ${data.total_users}`);
-            logNewApp(`🌐 Domain: ${data.domain}`);
-            
-            if (data.smtp_results && data.smtp_results.length > 0) {
-                const display = document.getElementById('new-app-passwords-display');
-                display.value = data.smtp_results.join('\n');
-                logNewApp(`📋 Displayed ${data.smtp_results.length} app passwords`);
-            } else {
-                logNewApp('⚠️ No app passwords found');
-                document.getElementById('new-app-passwords-display').value = 'No app passwords found for this account.';
-            }
+            alert('Automation account created successfully!');
+            closeAutomationAccountModal();
+            loadAutomationAccounts();
         } else {
-            logNewApp(`❌ Error: ${data.error}`);
-            alert(`❌ Error: ${data.error}`);
+            alert('Error: ' + data.error);
         }
     })
     .catch(error => {
-        logNewApp(`❌ Network error: ${error.message}`);
-        alert(`❌ Network error: ${error.message}`);
-    })
-    .finally(() => {
-        button.innerHTML = originalText;
-        button.disabled = false;
+        console.error('Error creating automation account:', error);
+        alert('Error creating automation account');
     });
 }
 
-function logNewApp(message) {
-    const logElement = document.getElementById('new-app-log');
-    const timestamp = new Date().toLocaleTimeString();
-    const logEntry = document.createElement('div');
-    logEntry.innerHTML = `[${timestamp}] ${message}`;
-    logElement.appendChild(logEntry);
-    logElement.scrollTop = logElement.scrollHeight;
+// Load accounts list from selected automation account
+function loadAccountsList() {
+    const accountId = document.getElementById('automation-account-select').value;
+    if (!accountId) {
+        alert('Please select an automation account first');
+        return;
+    }
+    
+    fetch(`/api/automation-accounts/${accountId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.account) {
+                document.getElementById('accounts-list').value = data.account.accounts_list || '';
+            } else {
+                alert('Error loading account list: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error loading account list:', error);
+            alert('Error loading account list');
+        });
 }
 
-function copyNewAppPasswords() {
-    const display = document.getElementById('new-app-passwords-display');
-    display.select();
-    document.execCommand('copy');
-    logNewApp('📋 App passwords copied to clipboard');
+// Save accounts list to selected automation account
+function saveAccountsList() {
+    const accountId = document.getElementById('automation-account-select').value;
+    const accountsList = document.getElementById('accounts-list').value;
+    
+    if (!accountId) {
+        alert('Please select an automation account first');
+        return;
+    }
+    
+    if (!accountsList.trim()) {
+        alert('Please enter at least one account');
+        return;
+    }
+    
+    fetch(`/api/automation-accounts/${accountId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            accounts_list: accountsList
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Account list saved successfully!');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error saving account list:', error);
+        alert('Error saving account list');
+    });
 }
 
-function clearNewAppPasswords() {
-    document.getElementById('new-app-passwords-display').value = '';
-    logNewApp('🧹 App passwords cleared');
+// Clear accounts list
+function clearAccountsList() {
+    if (confirm('Are you sure you want to clear the accounts list?')) {
+        document.getElementById('accounts-list').value = '';
+    }
 }
 
-function clearNewAppLog() {
-    document.getElementById('new-app-log').innerHTML = '<div class="status-info"><p><strong><i class="fas fa-file-alt"></i> Process Log</strong></p><p>Process log will appear here...</p></div>';
+// Retrieve users automatically
+function retrieveUsersAutomatically() {
+    const accountId = document.getElementById('automation-account-select').value;
+    if (!accountId) {
+        alert('Please select an automation account first');
+        return;
+    }
+    
+    // Show progress
+    document.getElementById('retrieval-progress').style.display = 'block';
+    document.getElementById('retrieval-progress-bar').style.width = '0%';
+    document.getElementById('retrieval-progress-text').textContent = 'Starting retrieval...';
+    
+    fetch('/api/automation-retrieve-users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            automation_account_id: accountId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('retrieval-progress-bar').style.width = '100%';
+            document.getElementById('retrieval-progress-text').textContent = 'Retrieval completed!';
+            
+            // Update stats
+            document.getElementById('retrieved-users-stats').textContent = 
+                `Retrieved ${data.users_count || 0} users`;
+            
+            // Load retrieved users
+            loadRetrievedUsers();
+            
+            setTimeout(() => {
+                document.getElementById('retrieval-progress').style.display = 'none';
+            }, 2000);
+        } else {
+            alert('Error retrieving users: ' + data.error);
+            document.getElementById('retrieval-progress').style.display = 'none';
+        }
+    })
+    .catch(error => {
+        console.error('Error retrieving users:', error);
+        alert('Error retrieving users');
+        document.getElementById('retrieval-progress').style.display = 'none';
+    });
+}
+
+// Load retrieved users
+function loadRetrievedUsers() {
+    const accountId = document.getElementById('automation-account-select').value;
+    if (!accountId) {
+        return;
+    }
+    
+    fetch(`/api/automation-retrieved-users/${accountId}`)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('retrieved-users-list');
+            
+            if (data.success && data.users && data.users.length > 0) {
+                container.innerHTML = '';
+                
+                data.users.forEach(user => {
+                    const userElement = document.createElement('div');
+                    userElement.className = 'user-item';
+                    userElement.innerHTML = `
+                        <div class="user-info">
+                            <div class="email">${user.email}</div>
+                            <div class="name">${user.name || 'N/A'}</div>
+                            <div class="domain">${user.domain || 'N/A'}</div>
+                            <div class="status">${user.status || 'active'}</div>
+                        </div>
+                    `;
+                    container.appendChild(userElement);
+                });
+                
+                document.getElementById('retrieved-users-stats').textContent = 
+                    `Retrieved ${data.users.length} users`;
+            } else {
+                container.innerHTML = `
+                    <div class="no-users-message">
+                        <i class="fas fa-info-circle"></i>
+                        <p>No users retrieved yet. Use "Retrieve Users Automatically" to start.</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading retrieved users:', error);
+        });
+}
+
+// Clear retrieved users
+function clearRetrievedUsers() {
+    const accountId = document.getElementById('automation-account-select').value;
+    if (!accountId) {
+        alert('Please select an automation account first');
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to clear all retrieved users?')) {
+        return;
+    }
+    
+    fetch(`/api/automation-retrieved-users/${accountId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Retrieved users cleared successfully!');
+            loadRetrievedUsers();
+            document.getElementById('retrieved-users-stats').textContent = 'No users retrieved yet';
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error clearing retrieved users:', error);
+        alert('Error clearing retrieved users');
+    });
+}
+
+// Copy all retrieved users
+function copyAllRetrievedUsers() {
+    const userElements = document.querySelectorAll('#retrieved-users-list .user-item .email');
+    if (userElements.length === 0) {
+        alert('No users to copy');
+        return;
+    }
+    
+    const emails = Array.from(userElements).map(element => element.textContent.trim());
+    const emailText = emails.join('\n');
+    
+    navigator.clipboard.writeText(emailText).then(() => {
+        alert(`✅ Copied ${emails.length} user emails to clipboard`);
+    }).catch(() => {
+        alert('❌ Copy failed - please try manually selecting the text');
+    });
+}
+
+// Export retrieved users
+function exportRetrievedUsers() {
+    const accountId = document.getElementById('automation-account-select').value;
+    if (!accountId) {
+        alert('Please select an automation account first');
+        return;
+    }
+    
+    window.open(`/api/automation-export-users/${accountId}`, '_blank');
+}
+
+// Filter retrieved users
+function filterRetrievedUsers() {
+    const filter = prompt('Enter filter text (email, name, or domain):');
+    if (!filter) return;
+    
+    const userElements = document.querySelectorAll('#retrieved-users-list .user-item');
+    let visibleCount = 0;
+    
+    userElements.forEach(element => {
+        const text = element.textContent.toLowerCase();
+        if (text.includes(filter.toLowerCase())) {
+            element.style.display = 'block';
+            visibleCount++;
+        } else {
+            element.style.display = 'none';
+        }
+    });
+    
+    alert(`Found ${visibleCount} users matching "${filter}"`);
+}
+
+// Initialize automation tab when it's shown
+function initializeAutomationTab() {
+    loadAutomationAccounts();
 }
 
 </script>
@@ -7592,4 +7594,3 @@ function clearNewAppLog() {
     transform: rotate(45deg);
 }
 </style>
-
