@@ -6614,10 +6614,15 @@ function runMegaUpgradeWorkflow(accounts, features) {
                 const display = document.getElementById('app-passwords-display');
                 display.value = data.smtp_results.join('\n');
                 logBulkDomain(`📋 ${data.smtp_results.length} SMTP results displayed in textarea`);
-            } else {
-                // App password generation is DISABLED
-                logBulkDomain('─'.repeat(50));
-                logBulkDomain('❌ App password generation is disabled - no SMTP results generated');
+            } else if (features.retrievePasswords) {
+                // If enabled but backend returned none, attempt client-side generation using detected domain
+                const targetDomain = window.megaUpgradeChangedSubdomain || window.currentTargetDomain;
+                if (targetDomain) {
+                    logBulkDomain('ℹ️ No SMTP results from server, generating client-side using detected domain');
+                    generateAppPasswordsWithTargetDomain(accounts, targetDomain);
+                } else {
+                    logBulkDomain('⚠️ No SMTP results and no detected domain');
+                }
             }
 
             // Display failed details if any
@@ -6741,8 +6746,18 @@ function runMegaUpgradeWorkflow(accounts, features) {
             }
         }
         
-        // App password generation is DISABLED
-        logBulkDomain('❌ App password generation is disabled - skipping');
+        // If requested, generate/display app passwords using detected domain
+        if (features.retrievePasswords) {
+            logBulkDomain('🔑 Generating app passwords with ACTUAL target domain...');
+            const targetDomain = window.megaUpgradeChangedSubdomain || window.currentTargetDomain;
+            if (targetDomain) {
+                generateAppPasswordsWithTargetDomain(accounts, targetDomain);
+            } else {
+                logBulkDomain('⚠️ No detected domain for password retrieval');
+            }
+        } else {
+            logBulkDomain('ℹ️ Password retrieval not selected - skipping');
+        }
     })
     .catch(error => {
         logBulkDomain(`❌ Error detecting ACTUAL subdomain change: ${error.message}`);
@@ -6778,10 +6793,10 @@ function runMegaUpgradeWorkflow(accounts, features) {
                         <span class="checkmark"></span>
                         <i class="fas fa-exchange-alt"></i> Auto Change Subdomain
                     </label>
-                    <label class="checkbox-container" style="opacity: 0.5; pointer-events: none;">
-                        <input type="checkbox" id="feature-retrieve-passwords" disabled>
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="feature-retrieve-passwords">
                         <span class="checkmark"></span>
-                        <i class="fas fa-download"></i> Retrieve App Passwords (Disabled)
+                        <i class="fas fa-download"></i> Retrieve App Passwords
                     </label>
                 </div>
             </div>
