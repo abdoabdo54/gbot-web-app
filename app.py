@@ -7704,6 +7704,62 @@ def api_generate_domain_smtp():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/upload-app-passwords', methods=['POST'])
+@login_required
+def api_upload_app_passwords():
+    """Upload app passwords from file to database"""
+    try:
+        req = request.get_json(silent=True) or {}
+        passwords = req.get('passwords', [])
+        
+        if not passwords:
+            return jsonify({'success': False, 'error': 'No passwords provided'})
+        
+        from database import UserAppPassword
+        saved_count = 0
+        
+        for pwd_data in passwords:
+            username = pwd_data.get('username', '').strip()
+            app_password = pwd_data.get('app_password', '').strip()
+            
+            if not username or not app_password:
+                continue
+            
+            # Check if user already exists
+            existing = UserAppPassword.query.filter_by(username=username).first()
+            if existing:
+                # Update existing record
+                existing.app_password = app_password
+                existing.updated_at = datetime.utcnow()
+            else:
+                # Create new record
+                new_record = UserAppPassword(
+                    username=username,
+                    app_password=app_password,
+                    domain='uploaded',  # Mark as uploaded
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(new_record)
+            
+            saved_count += 1
+        
+        try:
+            db.session.commit()
+            app.logger.info(f"Uploaded {saved_count} app passwords to database")
+            return jsonify({
+                'success': True,
+                'message': f'Successfully uploaded {saved_count} app passwords',
+                'saved_count': saved_count
+            })
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Database error during upload: {e}")
+            return jsonify({'success': False, 'error': f'Database error: {str(e)}'})
+            
+    except Exception as e:
+        app.logger.error(f"Upload app passwords error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/retrieve-app-passwords-for-accounts', methods=['POST'])
 @login_required
 def api_retrieve_app_passwords_for_accounts():
@@ -7823,6 +7879,11 @@ def api_retrieve_app_passwords_for_accounts():
             # For each user in the current domain, fetch their saved app password
             from database import UserAppPassword
             
+            if len(current_domain_users) == 0:
+                app.logger.info(f"⚠️ No users found in domain {current_domain} for account {account}")
+            else:
+                app.logger.info(f"✅ Found {len(current_domain_users)} users in domain {current_domain}")
+            
             for user_email in current_domain_users:
                 username = user_email.split('@')[0]
                 app.logger.info(f"Processing user: {username}")
@@ -7833,7 +7894,7 @@ def api_retrieve_app_passwords_for_accounts():
                 if record and record.app_password:
                     # User has saved app password
                     app_password = record.app_password
-                    app.logger.info(f"Found saved app password for {username}")
+                    app.logger.info(f"✅ Found saved app password for {username}")
                 else:
                     # No saved password, generate new one
                     import secrets, string
@@ -7842,10 +7903,11 @@ def api_retrieve_app_passwords_for_accounts():
                     # Save to database
                     if record:
                         record.app_password = app_password
+                        record.domain = next_domain
                     else:
-                        db.session.add(UserAppPassword(username=username, app_password=app_password, created_at=datetime.utcnow()))
+                        db.session.add(UserAppPassword(username=username, domain=next_domain, app_password=app_password, created_at=datetime.utcnow()))
                     
-                    app.logger.info(f"Generated new app password for {username}")
+                    app.logger.info(f"🔑 Generated new app password for {username}")
                 
                 # Store alias for frontend retrieval
                 try:
@@ -7856,7 +7918,7 @@ def api_retrieve_app_passwords_for_accounts():
                 # Add to results with NEW subdomain (format: user,app_password,smtp.gmail.com,587)
                 smtp_line = f"{username}@{next_domain},{app_password},smtp.gmail.com,587"
                 smtp_results.append(smtp_line)
-                app.logger.info(f"Added SMTP line: {smtp_line}")
+                app.logger.info(f"📋 Added SMTP line: {smtp_line}")
             
             # If no users found in current domain, try to get any stored app passwords
             if len(current_domain_users) == 0:
@@ -7898,8 +7960,9 @@ def api_retrieve_app_passwords_for_accounts():
                     record = UserAppPassword.query.filter_by(username=username).first()
                     if record:
                         record.app_password = app_password
+                        record.domain = next_domain
                     else:
-                        db.session.add(UserAppPassword(username=username, app_password=app_password, created_at=datetime.utcnow()))
+                        db.session.add(UserAppPassword(username=username, domain=next_domain, app_password=app_password, created_at=datetime.utcnow()))
                     
                     # Store alias for frontend retrieval
                     try:

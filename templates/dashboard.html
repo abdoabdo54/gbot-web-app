@@ -867,14 +867,49 @@
     </div>
 
 
-    <!-- Separate Retrieve App Passwords Process -->
+    <!-- App Password Management -->
     <div class="github-card">
         <div class="github-card-header">
             <h3 class="github-card-title">
                 <i class="fas fa-key"></i>
-                Retrieve App Passwords (Post-Mega Upgrade)
+                App Password Management
             </h3>
         </div>
+        
+        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
+            Upload app password files to store them in the database, then use the Retrieve section to fetch them based on user aliases after authentication.
+        </p>
+        
+        <!-- Upload Section -->
+        <div style="margin-bottom: 24px;">
+            <h4 style="margin-bottom: 16px; color: #24292f;">
+                <i class="fas fa-upload"></i> Upload App Password File
+            </h4>
+            <div class="form-group-github">
+                <label for="app-password-file" class="form-label-github">
+                    <i class="fas fa-file-text"></i> App Password File (.txt)
+                </label>
+                <input type="file" id="app-password-file" class="form-control-github" accept=".txt" 
+                       style="padding: 12px; border: 2px dashed #d0d7de; background: #f6f8fa;">
+                <small style="color: #656d76; font-size: 12px;">
+                    Upload a .txt file with format: username:app_password (one per line)<br>
+                    Example: support:MyPassword123, alberto:AnotherPassword456
+                </small>
+            </div>
+            <button onclick="uploadAppPasswordFile()" class="btn-github btn-github-primary">
+                <i class="fas fa-upload"></i> Upload & Save to Database
+            </button>
+        </div>
+        
+        <!-- Retrieve Section -->
+        <div style="margin-bottom: 24px;">
+            <h4 style="margin-bottom: 16px; color: #24292f;">
+                <i class="fas fa-download"></i> Retrieve App Passwords (Post-Mega Upgrade)
+            </h4>
+            <p style="color: #656d76; margin-bottom: 16px; font-size: 13px;">
+                After completing the mega upgrade process, use this section to retrieve app passwords for multiple accounts. 
+                The system will authenticate, find users in current domains, and fetch their saved app passwords based on aliases.
+            </p>
         
         <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
             After completing the Mega Upgrade workflow, use this section to retrieve app passwords for all users 
@@ -1070,6 +1105,83 @@
 function testJavaScript() {
     console.log('JavaScript is working!');
     alert('JavaScript is working!');
+}
+
+// Upload app password file function
+function uploadAppPasswordFile() {
+    const fileInput = document.getElementById('app-password-file');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select a file to upload');
+        return;
+    }
+    
+    if (!file.name.endsWith('.txt')) {
+        alert('Please select a .txt file');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const content = e.target.result;
+        const lines = content.split('\n').filter(line => line.trim());
+        
+        if (lines.length === 0) {
+            alert('File is empty or contains no valid lines');
+            return;
+        }
+        
+        // Parse lines (format: username:password)
+        const passwords = [];
+        for (const line of lines) {
+            const parts = line.trim().split(':');
+            if (parts.length === 2) {
+                passwords.push({
+                    username: parts[0].trim(),
+                    app_password: parts[1].trim()
+                });
+            }
+        }
+        
+        if (passwords.length === 0) {
+            alert('No valid password entries found. Format should be: username:password');
+            return;
+        }
+        
+        // Show progress
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+        button.disabled = true;
+        
+        // Send to backend
+        fetch('/api/upload-app-passwords', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({passwords: passwords})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`✅ Successfully uploaded ${data.saved_count} app passwords to database`);
+                logBulkDomain(`📤 Uploaded ${data.saved_count} app passwords to database`);
+            } else {
+                alert(`❌ Upload failed: ${data.error}`);
+                logBulkDomain(`❌ Upload failed: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            alert(`❌ Network error: ${error.message}`);
+            logBulkDomain(`❌ Network error: ${error.message}`);
+        })
+        .finally(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        });
+    };
+    
+    reader.readAsText(file);
 }
 
 // New function for the separate Retrieve App Passwords process
