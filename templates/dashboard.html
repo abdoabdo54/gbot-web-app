@@ -2294,6 +2294,9 @@ function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
                 });
             }
             
+            logBulkDomain(`🔍 Processed account domains: ${Array.from(processedAccountDomains).join(', ')}`);
+            logBulkDomain(`🔍 Total stored app passwords: ${rows.length}`);
+            
             rows.forEach(row => {
                 const alias = row.user_alias || '';
                 const pwd = row.app_password || '';
@@ -2325,6 +2328,9 @@ function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
                         return aliasBase === procBase;
                     });
                 
+                logBulkDomain(`🔍 Checking alias: ${alias} (base: ${aliasBase}) against processed domains: ${Array.from(processedAccountDomains).join(', ')}`);
+                logBulkDomain(`🔍 Alias matches: ${aliasMatchesProcessedAccount}`);
+                
                 if (!aliasMatchesProcessedAccount) return;
 
                 const line = `${username}@${newDomainForAlias},${pwd},smtp.gmail.com,587`;
@@ -2333,6 +2339,8 @@ function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
 
             if (output.length === 0) {
                 logBulkDomain('ℹ️ No matching aliases found to format');
+                logBulkDomain(`🔍 Debug: Processed domains were: ${Array.from(processedAccountDomains).join(', ')}`);
+                logBulkDomain(`🔍 Debug: Looking for base domains: ${Array.from(processedAccountDomains).map(d => d.split('.').slice(1).join('.')).join(', ')}`);
                 return;
             }
 
