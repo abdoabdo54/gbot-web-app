@@ -5013,72 +5013,77 @@ def retrieve_app_passwords():
 @app.route('/api/clear-app-passwords', methods=['POST'])
 @login_required
 def clear_app_passwords():
-    """Clear app passwords for a specific domain"""
+    """Delete stored app passwords from SQLite app_passwords table.
+    Accepts either:
+      - domain: delete all rows matching domain
+      - emails: list of user_alias values to delete
+      - none: delete all rows (support/admin only)
+    """
     try:
         # Check if user has permission
         if session.get('role') not in ['admin', 'support']:
             return jsonify({'success': False, 'error': 'Admin or support privileges required'})
-        
-        data = request.get_json()
-        domain = data.get('domain', '').strip()
-        
-        from database import UserAppPassword
-        
-        if domain:
-            # Clear specific domain
-            deleted_count = UserAppPassword.query.filter_by(domain=domain).delete()
-            message = f"Cleared {deleted_count} app passwords for domain {domain}"
+
+        req = request.get_json(silent=True) or {}
+        domain = (req.get('domain') or '').strip()
+        emails = req.get('emails') or []
+
+        import sqlite3, os
+        db_path = os.path.join('instance', 'gbot.db')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        deleted_count = 0
+        message = ''
+
+        if emails:
+            # Normalize and delete by aliases
+            placeholders = ','.join(['?'] * len(emails))
+            cursor.execute(f"DELETE FROM app_passwords WHERE user_alias IN ({placeholders})", emails)
+            deleted_count = cursor.rowcount
+            message = f"Deleted {deleted_count} app passwords by email filter"
+        elif domain:
+            cursor.execute("DELETE FROM app_passwords WHERE domain = ?", (domain,))
+            deleted_count = cursor.rowcount
+            message = f"Deleted {deleted_count} app passwords for domain {domain}"
         else:
-            # Clear all
-            deleted_count = UserAppPassword.query.delete()
-            message = f"Cleared all {deleted_count} app passwords"
-        
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': message,
-            'deleted_count': deleted_count
-        })
-        
+            cursor.execute("DELETE FROM app_passwords")
+            deleted_count = cursor.rowcount
+            message = f"Deleted all {deleted_count} app passwords"
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': message, 'deleted_count': deleted_count})
+
     except Exception as e:
-        db.session.rollback()
         logging.error(f"Clear app passwords error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/delete-all-app-passwords', methods=['POST'])
 @login_required
 def delete_all_app_passwords():
-    """Permanently delete ALL app passwords - ADMIN ONLY"""
+    """Permanently delete ALL app passwords from SQLite - ADMIN ONLY"""
     try:
-        # Check if user is admin only
         if session.get('role') != 'admin':
             return jsonify({'success': False, 'error': 'Admin privileges required for permanent deletion'})
-        
-        from database import UserAppPassword
-        
-        # Get count before deletion for reporting
-        total_count = UserAppPassword.query.count()
-        
-        if total_count == 0:
-            return jsonify({
-                'success': True,
-                'message': 'No app passwords found to delete',
-                'deleted_count': 0
-            })
-        
-        # Permanently delete ALL app passwords
-        UserAppPassword.query.delete()
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': f'Permanently deleted all {total_count} app passwords from database',
-            'deleted_count': total_count
-        })
-        
+
+        import sqlite3, os
+        db_path = os.path.join('instance', 'gbot.db')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT COUNT(*) FROM app_passwords")
+        total_count = cursor.fetchone()[0] or 0
+
+        cursor.execute("DELETE FROM app_passwords")
+        deleted = cursor.rowcount
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': f'Permanently deleted all {deleted} app passwords from database', 'deleted_count': deleted})
+
     except Exception as e:
-        db.session.rollback()
         logging.error(f"Delete all app passwords error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
