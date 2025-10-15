@@ -2114,7 +2114,8 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     if (window.megaUpgradeChangedSubdomain) {
         logBulkDomain(`🎯 Using ACTUAL Mega Upgrade subdomain: ${window.megaUpgradeChangedSubdomain}`);
         logBulkDomain(`✅ This is the EXACT subdomain that was changed during the process`);
-        generateAppPasswordsWithTargetDomain(accounts, window.megaUpgradeChangedSubdomain);
+        // CRITICAL: Get ALL users from the changed domain, not just submitted accounts
+        generateAppPasswordsForAllUsersInDomain(window.megaUpgradeChangedSubdomain);
         return;
     }
     
@@ -2124,7 +2125,8 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
         logBulkDomain(`🎯 Using mapped subdomain from mega upgrade: ${newSubdomain}`);
         logBulkDomain(`✅ This subdomain was mapped during the mega upgrade process`);
         window.megaUpgradeChangedSubdomain = newSubdomain;
-        generateAppPasswordsWithTargetDomain(accounts, newSubdomain);
+        // CRITICAL: Get ALL users from the changed domain, not just submitted accounts
+        generateAppPasswordsForAllUsersInDomain(newSubdomain);
         return;
     }
     
@@ -2324,6 +2326,53 @@ function generateAppPasswordsWithMultipleSubdomains(accounts, subdomainInfo) {
             }
         });
     });
+}
+
+function generateAppPasswordsForAllUsersInDomain(targetDomain) {
+    logBulkDomain(`🔑 Retrieving ALL users from changed domain: ${targetDomain}`);
+    window.currentTargetDomain = targetDomain;
+    window.megaUpgradeChangedSubdomain = targetDomain;
+
+    // First, try to get all stored app passwords for this domain
+    fetch('/api/get-all-app-passwords')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.app_passwords && data.app_passwords.length > 0) {
+                logBulkDomain(`📋 Found ${data.app_passwords.length} stored app passwords`);
+                
+                const appPasswords = [];
+                const targetBase = targetDomain.split('.').slice(1).join('.');
+                
+                // Filter for users in the target domain
+                data.app_passwords.forEach(row => {
+                    const alias = row.user_alias || '';
+                    const pwd = row.app_password || '';
+                    if (!alias || !pwd) return;
+                    
+                    const [username, aliasDomain] = alias.includes('@') ? alias.split('@') : [alias, ''];
+                    if (!aliasDomain) return;
+                    
+                    // Check if this user is in the target domain
+                    if (aliasDomain === targetDomain) {
+                        const smtpLine = `${username}@${targetDomain},${pwd},smtp.gmail.com,587`;
+                        appPasswords.push(smtpLine);
+                        logBulkDomain(`✅ Found stored password for: ${username}@${targetDomain}`);
+                    }
+                });
+                
+                if (appPasswords.length > 0) {
+                    logBulkDomain(`📋 Displaying ${appPasswords.length} app passwords for domain ${targetDomain}`);
+                    displayAppPasswordsInWorkflow(appPasswords);
+                } else {
+                    logBulkDomain(`⚠️ No stored passwords found for domain ${targetDomain}`);
+                }
+            } else {
+                logBulkDomain(`⚠️ No stored app passwords found or error: ${data.error || 'Unknown error'}`);
+            }
+        })
+        .catch(error => {
+            logBulkDomain(`❌ Error retrieving stored passwords: ${error.message}`);
+        });
 }
 
 function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
@@ -6783,7 +6832,8 @@ function runMegaUpgradeWorkflow(accounts, features) {
                     if (targetDomain) {
                         logBulkDomain('ℹ️ No SMTP results from server, generating client-side using detected domain');
                         logBulkDomain(`🎯 Using target domain: ${targetDomain}`);
-                        generateAppPasswordsWithTargetDomain(accounts, targetDomain);
+                        // CRITICAL: Instead of processing only submitted accounts, get ALL users from the changed domain
+                        generateAppPasswordsForAllUsersInDomain(targetDomain);
                     } else {
                         logBulkDomain('⚠️ No SMTP results and no detected domain');
                     }
