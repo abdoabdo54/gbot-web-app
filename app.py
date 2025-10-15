@@ -7861,13 +7861,15 @@ def api_retrieve_app_passwords_for_accounts():
         
         available_domains.sort()
         
-        # FORCE FIX: Get ALL stored app passwords and process them
+        # EXACT USER REQUEST: Retrieve existing users and fetch their saved app passwords
         from database import UserAppPassword
-        all_stored_passwords = UserAppPassword.query.all()
-        app.logger.info(f"📊 FORCE FIX: Found {len(all_stored_passwords)} total stored app passwords")
         
         account_results = []
         smtp_results = []
+        
+        # Get ALL stored app passwords once
+        all_stored_passwords = UserAppPassword.query.all()
+        app.logger.info(f"📊 Found {len(all_stored_passwords)} stored app passwords in database")
         
         # Process each account
         for account in accounts:
@@ -7875,61 +7877,54 @@ def api_retrieve_app_passwords_for_accounts():
             if not account or '@' not in account:
                 continue
                 
+            app.logger.info(f"🔍 Processing account: {account}")
+            
             # Get current domain for this account
             current_domain = account.split('@')[1]
+            app.logger.info(f"🔍 Current domain: {current_domain}")
             
-            # FORCE FIX: Find next available domain (improved logic)
-            next_domain = None
+            # Find users in the CURRENT domain (existing users)
+            current_domain_users = []
+            for user in all_users:
+                email = user.get('primaryEmail', '')
+                if email and email.endswith(f'@{current_domain}') and not user.get('isAdmin', False):
+                    current_domain_users.append(email)
             
-            # Sort domains to ensure proper ordering
-            sorted_domains = sorted(available_domains)
-            app.logger.info(f"🔧 FORCE FIX: Available domains: {sorted_domains[:10]}...")
-            app.logger.info(f"🔧 FORCE FIX: Current domain: {current_domain}")
+            app.logger.info(f"🔍 Found {len(current_domain_users)} existing users in domain {current_domain}")
             
-            # Find the next domain alphabetically after current domain
-            for domain in sorted_domains:
-                if domain > current_domain:
-                    next_domain = domain
-                    break
-            
-            # If no domain found after current, use the first available
-            if not next_domain:
-                next_domain = sorted_domains[0] if sorted_domains else available_domains[0]
-            
-            app.logger.info(f"🔧 FORCE FIX: Selected next domain: {next_domain}")
-            
-            app.logger.info(f"🔧 FORCE FIX: Account {account} -> {next_domain}")
-            
-            # FORCE FIX: Process ALL stored passwords for this account
+            # For each existing user, fetch their saved app password
             account_smtp_results = []
             processed_count = 0
-            seen_users = set()  # Prevent duplicates
             
-            for stored in all_stored_passwords:
-                if stored.username and stored.app_password:
-                    # Check for duplicates
-                    if stored.username in seen_users:
-                        app.logger.info(f"⚠️ FORCE FIX: Skipping duplicate {stored.username}")
-                        continue
+            for user_email in current_domain_users:
+                username = user_email.split('@')[0]
+                app.logger.info(f"🔍 Processing existing user: {username}")
+                
+                # Look for saved app password for this user
+                record = UserAppPassword.query.filter_by(username=username).first()
+                
+                if record and record.app_password:
+                    # User has saved app password
+                    app_password = record.app_password
+                    app.logger.info(f"✅ Found saved app password for {username}")
                     
-                    seen_users.add(stored.username)
-                    app_password = stored.app_password
-                    
-                    # Create SMTP line with NEW subdomain
-                    smtp_line = f"{stored.username}@{next_domain},{app_password},smtp.gmail.com,587"
+                    # Create SMTP line with ORIGINAL domain (not wrong subdomain)
+                    smtp_line = f"{user_email},{app_password},smtp.gmail.com,587"
                     account_smtp_results.append(smtp_line)
                     processed_count += 1
                     
-                    app.logger.info(f"✅ FORCE FIX: Added {stored.username}@{next_domain}")
+                    app.logger.info(f"✅ Added: {user_email}")
+                else:
+                    app.logger.info(f"⚠️ No saved password found for {username}")
             
             # Add all results for this account
             smtp_results.extend(account_smtp_results)
             
-            app.logger.info(f"🔧 FORCE FIX: Account {account} processed {processed_count} passwords")
+            app.logger.info(f"📋 Account {account} processed {processed_count} existing users")
             
             account_results.append({
                 'account': account,
-                'new_subdomain': next_domain,
+                'new_subdomain': current_domain,  # Use original domain
                 'users_found': processed_count,
                 'status': 'success'
             })
