@@ -1884,26 +1884,29 @@ def api_get_domain_usage_stats():
 @app.route('/api/clear-old-domain-data', methods=['POST'])
 @login_required
 def api_clear_old_domain_data():
-    """Clear old domain data from database"""
+    """Reset all domain statuses from 'used' to 'available'"""
     try:
         from database import UsedDomain
         
-        # Delete domains that haven't been updated in the last 30 days
-        from datetime import datetime, timedelta
-        cutoff_date = datetime.utcnow() - timedelta(days=30)
+        # Find all domains that are marked as "used" (ever_used=True and user_count=0)
+        used_domains = UsedDomain.query.filter(
+            UsedDomain.ever_used == True,
+            UsedDomain.user_count == 0
+        ).all()
         
-        old_domains = UsedDomain.query.filter(UsedDomain.updated_at < cutoff_date).all()
-        count = len(old_domains)
+        count = len(used_domains)
         
-        for domain in old_domains:
-            db.session.delete(domain)
+        # Reset ever_used to False for all used domains
+        for domain in used_domains:
+            domain.ever_used = False
+            domain.updated_at = db.func.current_timestamp()
         
         db.session.commit()
         
         return jsonify({
             'success': True, 
-            'message': f'Cleared {count} old domain records',
-            'cleared_count': count
+            'message': f'Reset {count} domains from "used" to "available" status',
+            'reset_count': count
         })
         
     except Exception as e:

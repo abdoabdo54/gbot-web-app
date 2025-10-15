@@ -5395,11 +5395,11 @@ function clearOldDomainData() {
         return;
     }
     
-    if (!confirm('⚠️ This will clear domain data older than 30 days. Continue?')) {
+    if (!confirm('⚠️ This will reset all "used" domains back to "available" status. Continue?')) {
         return;
     }
     
-    logBulkDomain('🗑️ Clearing old domain data...');
+    logBulkDomain('🗑️ Resetting domain statuses from "used" to "available"...');
     
     fetch('/api/clear-old-domain-data', {
         method: 'POST',
@@ -5409,14 +5409,16 @@ function clearOldDomainData() {
     .then(data => {
         if (data.success) {
             logBulkDomain(`✅ ${data.message}`);
-            alert(`✅ ${data.message}`);
+            logBulkDomain(`📊 Reset ${data.reset_count} domains to available status`);
+            alert(`✅ ${data.message}\n📊 Reset ${data.reset_count} domains to available status`);
             // Refresh the display
             setTimeout(() => {
                 getDomainUsageStats();
+                retrieveAvailableDomains(); // Also refresh the domain list
             }, 500);
         } else {
-            logBulkDomain(`❌ Failed to clear old data: ${data.error}`);
-            alert('Failed to clear old data: ' + data.error);
+            logBulkDomain(`❌ Failed to reset domain statuses: ${data.error}`);
+            alert('Failed to reset domain statuses: ' + data.error);
         }
     })
     .catch(error => {
