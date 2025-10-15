@@ -5717,7 +5717,21 @@ def mega_upgrade():
                                     return
 
                                 available_domains.sort()
-                                next_domain = available_domains[0]
+                                
+                                # Use the SAME logic as auto-change subdomain: find next domain after current
+                                current_domain = acct.split('@')[1] if '@' in acct else ''
+                                next_domain = None
+                                for domain in available_domains:
+                                    if domain > current_domain:
+                                        next_domain = domain
+                                        break
+                                
+                                # If no domain found after current, use the first available domain
+                                if not next_domain:
+                                    next_domain = available_domains[0]
+                                
+                                app.logger.info(f"Auto-change logic: current={current_domain}, next={next_domain}")
+                                
                                 # Record mapping for frontend (base -> next_domain)
                                 try:
                                     if '.' in next_domain:
@@ -5748,13 +5762,28 @@ def mega_upgrade():
                                     
                                     # Store the new subdomain for this account
                                     with results_lock:
-                                        if acct not in [r.get('account') for r in final_results]:
+                                        # Check if this account is already in results
+                                        existing_result = None
+                                        for result in final_results:
+                                            if result.get('account') == acct:
+                                                existing_result = result
+                                                break
+                                        
+                                        if existing_result:
+                                            # Update existing result
+                                            existing_result['new_subdomain'] = next_domain
+                                            existing_result['users_processed'] = successful_user_changes
+                                            existing_result['status'] = 'subdomain_changed'
+                                        else:
+                                            # Add new result
                                             final_results.append({
                                                 'account': acct,
                                                 'new_subdomain': next_domain,
                                                 'users_processed': successful_user_changes,
                                                 'status': 'subdomain_changed'
                                             })
+                                        
+                                        app.logger.info(f"Account {acct}: subdomain changed to {next_domain}, {successful_user_changes} users processed")
                             finally:
                                 with session_lock:
                                     if original_session_account:
@@ -5808,13 +5837,20 @@ def mega_upgrade():
         # Cancel timeout
         signal.alarm(0)
         
-        # Extract the new subdomain from the results for frontend use
-        new_subdomain = None
+        # Extract the new subdomains from the results for frontend use
+        new_subdomains = []
         if final_results:
             for result in final_results:
                 if result.get('new_subdomain'):
-                    new_subdomain = result.get('new_subdomain')
-                    break
+                    new_subdomains.append({
+                        'account': result.get('account'),
+                        'new_subdomain': result.get('new_subdomain'),
+                        'users_processed': result.get('users_processed', 0),
+                        'status': result.get('status')
+                    })
+        
+        # For backward compatibility, use the first new subdomain
+        new_subdomain = new_subdomains[0].get('new_subdomain') if new_subdomains else None
         
         return jsonify({
             'success': True,
@@ -5826,7 +5862,8 @@ def mega_upgrade():
             'failed_details': failed_details,
             'smtp_results': smtp_results,
             'next_domain_map': next_domain_map,
-            'new_subdomain': new_subdomain
+            'new_subdomain': new_subdomain,
+            'new_subdomains': new_subdomains
         })
         
     except Exception as e:
