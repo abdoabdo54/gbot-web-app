@@ -7790,26 +7790,97 @@ def api_retrieve_app_passwords_for_accounts():
         if not accounts:
             return jsonify({'success': False, 'error': 'No accounts provided'})
         
-        app.logger.info(f"🚀 ULTRA SIMPLE: Processing {len(accounts)} accounts")
+        app.logger.info(f"🔧 WORKING: Processing {len(accounts)} accounts")
         
-        # Just return hardcoded test data
-        smtp_results = [
-            "support@jrvdtowwentksfbk.giize.com,TestPassword123,smtp.gmail.com,587",
-            "alberto@alberto.amasahistoricalsociety.space,TestPassword456,smtp.gmail.com,587",
-            "user1@jrvdtowwentksfbk.giize.com,TestPassword789,smtp.gmail.com,587",
-            "user2@alberto.amasahistoricalsociety.space,TestPassword012,smtp.gmail.com,587"
-        ]
+        # STEP 1: AUTHENTICATE (same as mega workflow)
+        if not google_api.service:
+            acct = session.get('current_account_name', '')
+            if acct and google_api.is_token_valid(acct):
+                google_api.authenticate_with_tokens(acct)
+            else:
+                return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
         
+        if not google_api.service:
+            return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
+        
+        app.logger.info("🔧 WORKING: Authentication successful")
+        
+        # STEP 2: GET USERS (same as mega workflow)
+        all_users = []
+        page_token = None
+        while True:
+            try:
+                users_result = google_api.service.users().list(
+                    customer='my_customer',
+                    maxResults=500,
+                    pageToken=page_token
+                ).execute()
+                users = users_result.get('users', [])
+                all_users.extend(users)
+                page_token = users_result.get('nextPageToken')
+                if not page_token:
+                    break
+            except Exception as e:
+                app.logger.error(f"Error getting users: {e}")
+                break
+        
+        app.logger.info(f"🔧 WORKING: Retrieved {len(all_users)} users")
+        
+        # STEP 3: GET STORED PASSWORDS FROM DATABASE
+        from database import UserAppPassword
+        all_stored_passwords = UserAppPassword.query.all()
+        app.logger.info(f"🔧 WORKING: Found {len(all_stored_passwords)} stored passwords")
+        
+        # Create password lookup
+        password_lookup = {}
+        for stored in all_stored_passwords:
+            if stored.username and stored.app_password:
+                password_lookup[stored.username] = stored.app_password
+        
+        # STEP 4: PROCESS EACH ACCOUNT
+        smtp_results = []
         account_results = []
+        
         for account in accounts:
+            account = account.strip()
+            if not account or '@' not in account:
+                continue
+            
+            current_domain = account.split('@')[1]
+            app.logger.info(f"🔧 WORKING: Processing {account} in domain {current_domain}")
+            
+            # Find users in this domain
+            domain_users = []
+            for user in all_users:
+                email = user.get('primaryEmail', '')
+                if email and email.endswith(f'@{current_domain}') and not user.get('isAdmin', False):
+                    domain_users.append(email)
+            
+            app.logger.info(f"🔧 WORKING: Found {len(domain_users)} users in {current_domain}")
+            
+            # Process each user
+            account_smtp_results = []
+            for user_email in domain_users:
+                username = user_email.split('@')[0]
+                
+                if username in password_lookup:
+                    app_password = password_lookup[username]
+                    smtp_line = f"{user_email},{app_password},smtp.gmail.com,587"
+                    account_smtp_results.append(smtp_line)
+                    app.logger.info(f"🔧 WORKING: Added {user_email}")
+                else:
+                    app.logger.info(f"🔧 WORKING: No password for {username}")
+            
+            smtp_results.extend(account_smtp_results)
+            
             account_results.append({
                 'account': account,
-                'new_subdomain': account.split('@')[1],
-                'users_found': 2,
+                'new_subdomain': current_domain,
+                'users_found': len(account_smtp_results),
                 'status': 'success'
             })
         
-        app.logger.info(f"🚀 ULTRA SIMPLE: Returning {len(smtp_results)} test results")
+        app.logger.info(f"🔧 WORKING: Total results: {len(smtp_results)}")
         
         return jsonify({
             'success': True,
