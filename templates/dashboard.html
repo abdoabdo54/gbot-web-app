@@ -880,6 +880,27 @@
             NEW: Authenticate with Google Workspace, retrieve users, and display their saved app passwords from database.
         </p>
         
+        <!-- Upload App Password File -->
+        <div style="margin-bottom: 24px;">
+            <h4 style="margin-bottom: 16px; color: #24292f;">
+                <i class="fas fa-upload"></i> Upload App Password File
+            </h4>
+            <div class="form-group-github">
+                <label for="new-app-password-file" class="form-label-github">
+                    <i class="fas fa-file-text"></i> App Password File (.txt)
+                </label>
+                <input type="file" id="new-app-password-file" class="form-control-github" accept=".txt" 
+                       style="padding: 12px; border: 2px dashed #d0d7de; background: #f6f8fa;">
+                <small style="color: #656d76; font-size: 12px;">
+                    Upload a .txt file with format: username:app_password or username,app_password (one per line)<br>
+                    Examples: support:MyPassword123, alberto,AnotherPassword456, user:ThirdPassword789
+                </small>
+            </div>
+            <button onclick="uploadNewAppPasswordFile()" class="btn-github btn-github-primary">
+                <i class="fas fa-upload"></i> Upload & Save to Database
+            </button>
+        </div>
+        
         <!-- Account Input -->
         <div style="margin-bottom: 24px;">
             <h4 style="margin-bottom: 16px; color: #24292f;">
@@ -7174,6 +7195,112 @@ function runMegaUpgradeWorkflow(accounts, features) {
 }
 
 // NEW App Password Management Functions
+function uploadNewAppPasswordFile() {
+    const fileInput = document.getElementById('new-app-password-file');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select a .txt file to upload');
+        return;
+    }
+    
+    if (!file.name.endsWith('.txt')) {
+        alert('Please select a .txt file');
+        return;
+    }
+    
+    logNewApp('📁 Reading app password file...');
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const content = e.target.result;
+        const lines = content.split('\n').filter(line => line.trim());
+        
+        logNewApp(`📝 Found ${lines.length} lines in file`);
+        
+        if (lines.length === 0) {
+            alert('File is empty or contains no valid lines');
+            return;
+        }
+        
+        // Parse lines (support both username:password and username,password formats)
+        const passwords = [];
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) continue;
+            
+            // Try colon format first (username:password)
+            let parts = trimmedLine.split(':');
+            if (parts.length === 2) {
+                passwords.push({
+                    username: parts[0].trim(),
+                    app_password: parts[1].trim()
+                });
+                logNewApp(`✅ Parsed (colon): ${parts[0].trim()}`);
+            } else {
+                // Try comma format (username,password)
+                parts = trimmedLine.split(',');
+                if (parts.length === 2) {
+                    passwords.push({
+                        username: parts[0].trim(),
+                        app_password: parts[1].trim()
+                    });
+                    logNewApp(`✅ Parsed (comma): ${parts[0].trim()}`);
+                } else {
+                    logNewApp(`⚠️ Skipped invalid line: ${trimmedLine}`);
+                }
+            }
+        }
+        
+        logNewApp(`📊 Successfully parsed ${passwords.length} passwords`);
+        
+        if (passwords.length === 0) {
+            alert('No valid password entries found. Format should be: username:password or username,password');
+            return;
+        }
+        
+        // Show progress
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+        button.disabled = true;
+        
+        logNewApp(`🚀 Sending ${passwords.length} passwords to server...`);
+        
+        // Send to backend
+        fetch('/api/upload-app-passwords', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({passwords: passwords})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`✅ Successfully uploaded ${data.saved_count} app passwords to database`);
+                logNewApp(`✅ Successfully uploaded ${data.saved_count} app passwords to database`);
+            } else {
+                alert(`❌ Upload failed: ${data.error}`);
+                logNewApp(`❌ Upload failed: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            alert(`❌ Network error: ${error.message}`);
+            logNewApp(`❌ Network error: ${error.message}`);
+        })
+        .finally(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        });
+    };
+    
+    reader.onerror = function() {
+        alert('Error reading file');
+        logNewApp('❌ Error reading file');
+    };
+    
+    reader.readAsText(file);
+}
+
 function newAppPasswordProcess() {
     const account = document.getElementById('new-app-account').value.trim();
     
