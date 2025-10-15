@@ -7757,6 +7757,9 @@ def api_new_app_password_management():
             if email and email.endswith(f'@{current_domain}') and not user.get('isAdmin', False):
                 domain_users.append(email)
         
+        # INITIALIZE SMTP RESULTS
+        smtp_results = []
+        
         # IF NO USERS FOUND IN DOMAIN, USE ALL STORED PASSWORDS
         if len(domain_users) == 0:
             # Use all stored passwords with the account's domain
