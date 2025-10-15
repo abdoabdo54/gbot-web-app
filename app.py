@@ -7782,8 +7782,8 @@ def api_upload_app_passwords():
 @app.route('/api/retrieve-app-passwords-for-accounts', methods=['POST'])
 @login_required
 def api_retrieve_app_passwords_for_accounts():
-    """Separate process to retrieve app passwords for multiple accounts
-    This replaces the app password generation in mega workflow
+    """NEW FROM SCRATCH: Retrieve app passwords for multiple accounts
+    Uses same authentication as mega workflow
     """
     try:
         req = request.get_json(silent=True) or {}
@@ -7792,44 +7792,33 @@ def api_retrieve_app_passwords_for_accounts():
         if not accounts:
             return jsonify({'success': False, 'error': 'No accounts provided'})
         
-        # Ensure Google service is available
+        app.logger.info(f"🚀 NEW APP PASSWORD: Starting fresh process for {len(accounts)} accounts")
+        
+        # STEP 1: AUTHENTICATE (same as mega workflow)
+        app.logger.info("🔐 NEW AUTH: Starting authentication process...")
+        
+        # Check if we have a valid Google service
         if not google_api.service:
+            app.logger.info("🔐 NEW AUTH: No Google service, authenticating...")
             acct = session.get('current_account_name', '')
             if acct and google_api.is_token_valid(acct):
                 google_api.authenticate_with_tokens(acct)
-        if not google_api.service:
-            return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
-        
-        # Get all domains to detect new subdomains
-        domain_result = google_api.get_domain_info()
-        if not domain_result['success']:
-            return jsonify({'success': False, 'error': f"Failed to get domain info: {domain_result['error']}"})
-        
-        domains = domain_result['domains']
-        domain_records = {r.domain_name: r for r in UsedDomain.query.all()}
-        
-        # FORCE AUTHENTICATION: Ensure Google service is available
-        app.logger.info("🔐 FORCE AUTHENTICATION: Checking Google service...")
-        if not google_api.service:
-            app.logger.info("🔐 FORCE AUTHENTICATION: Google service not available, authenticating...")
-            acct = session.get('current_account_name', '')
-            if acct and google_api.is_token_valid(acct):
-                google_api.authenticate_with_tokens(acct)
-                app.logger.info("🔐 FORCE AUTHENTICATION: Authenticated with existing tokens")
+                app.logger.info("🔐 NEW AUTH: Authenticated with existing tokens")
             else:
-                app.logger.error("🔐 FORCE AUTHENTICATION: No valid tokens found")
+                app.logger.error("🔐 NEW AUTH: No valid tokens, need re-authentication")
                 return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
         
         if not google_api.service:
-            app.logger.error("🔐 FORCE AUTHENTICATION: Failed to authenticate")
+            app.logger.error("🔐 NEW AUTH: Authentication failed")
             return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
         
-        app.logger.info("🔐 FORCE AUTHENTICATION: Google service is ready")
+        app.logger.info("🔐 NEW AUTH: Authentication successful")
         
-        # Get all users to find current domain usage
+        # STEP 2: RETRIEVE USERS (same as mega workflow)
+        app.logger.info("👥 NEW USERS: Retrieving users from Google Workspace...")
+        
         all_users = []
         page_token = None
-        app.logger.info("🔍 FORCE USER RETRIEVAL: Starting to retrieve users from Google Workspace...")
         
         while True:
             try:
@@ -7840,140 +7829,89 @@ def api_retrieve_app_passwords_for_accounts():
                 ).execute()
                 users = users_result.get('users', [])
                 all_users.extend(users)
-                app.logger.info(f"🔍 FORCE USER RETRIEVAL: Retrieved {len(users)} users in this batch")
                 page_token = users_result.get('nextPageToken')
                 if not page_token:
                     break
             except Exception as e:
-                app.logger.error(f"🔍 FORCE USER RETRIEVAL: Error getting users: {e}")
+                app.logger.error(f"👥 NEW USERS: Error getting users: {e}")
                 break
         
-        app.logger.info(f"🔍 FORCE USER RETRIEVAL: Retrieved {len(all_users)} total users from Google Workspace")
+        app.logger.info(f"👥 NEW USERS: Retrieved {len(all_users)} total users")
         
-        # Log some sample users for debugging
-        sample_users = all_users[:10] if all_users else []
-        for user in sample_users:
-            email = user.get('primaryEmail', '')
-            app.logger.info(f"🔍 Sample user: {email}")
+        # STEP 3: FETCH SAVED APP PASSWORDS FROM DATABASE
+        app.logger.info("💾 NEW PASSWORDS: Fetching saved app passwords from database...")
         
-        # Calculate domain usage
-        domain_user_counts = {}
-        for user in all_users:
-            email = user.get('primaryEmail', '')
-            if '@' in email:
-                domain = email.split('@')[1]
-                domain_user_counts[domain] = domain_user_counts.get(domain, 0) + 1
-        
-        # Find available domains (same logic as auto-change)
-        available_domains = []
-        for domain in domains:
-            domain_name = domain.get('domainName', '')
-            if not domain_name:
-                continue
-            user_count = domain_user_counts.get(domain_name, 0)
-            domain_record = domain_records.get(domain_name)
-            ever_used = bool(getattr(domain_record, 'ever_used', False)) if domain_record else False
-            
-            if user_count == 0 and not ever_used:
-                available_domains.append(domain_name)
-        
-        if not available_domains:
-            return jsonify({'success': False, 'error': 'No available domains found'})
-        
-        available_domains.sort()
-        
-        # EXACT USER REQUEST: Retrieve existing users and fetch their saved app passwords
         from database import UserAppPassword
+        all_stored_passwords = UserAppPassword.query.all()
+        app.logger.info(f"💾 NEW PASSWORDS: Found {len(all_stored_passwords)} stored passwords")
         
+        # Create a lookup dictionary for faster matching
+        password_lookup = {}
+        for stored in all_stored_passwords:
+            if stored.username and stored.app_password:
+                password_lookup[stored.username] = stored.app_password
+                app.logger.info(f"💾 NEW PASSWORDS: Loaded password for {stored.username}")
+        
+        # STEP 4: PROCESS EACH ACCOUNT
         account_results = []
         smtp_results = []
         
-        # Get ALL stored app passwords once
-        all_stored_passwords = UserAppPassword.query.all()
-        app.logger.info(f"📊 Found {len(all_stored_passwords)} stored app passwords in database")
-        
-        # Process each account
         for account in accounts:
             account = account.strip()
             if not account or '@' not in account:
                 continue
-                
-            app.logger.info(f"🔍 Processing account: {account}")
             
-            # Get current domain for this account
+            app.logger.info(f"🔄 NEW PROCESS: Processing account {account}")
+            
+            # Get current domain
             current_domain = account.split('@')[1]
-            app.logger.info(f"🔍 Current domain: {current_domain}")
+            app.logger.info(f"🔄 NEW PROCESS: Current domain {current_domain}")
             
-            # FORCE USER FINDING: Find users in the CURRENT domain (existing users)
-            current_domain_users = []
-            app.logger.info(f"🔍 FORCE USER FINDING: Looking for users in domain {current_domain}")
-            
+            # Find users in this domain
+            domain_users = []
             for user in all_users:
                 email = user.get('primaryEmail', '')
                 if email and email.endswith(f'@{current_domain}') and not user.get('isAdmin', False):
-                    current_domain_users.append(email)
-                    app.logger.info(f"🔍 FORCE USER FINDING: Found user {email}")
+                    domain_users.append(email)
+                    app.logger.info(f"🔄 NEW PROCESS: Found user {email}")
             
-            app.logger.info(f"🔍 FORCE USER FINDING: Found {len(current_domain_users)} existing users in domain {current_domain}")
+            app.logger.info(f"🔄 NEW PROCESS: Found {len(domain_users)} users in domain {current_domain}")
             
-            # If no users found in current domain, try to get ALL stored passwords
-            if len(current_domain_users) == 0:
-                app.logger.info(f"⚠️ FORCE FALLBACK: No users found in domain {current_domain}, using ALL stored passwords")
+            # Process each user in the domain
+            account_smtp_results = []
+            processed_count = 0
+            
+            for user_email in domain_users:
+                username = user_email.split('@')[0]
+                app.logger.info(f"🔄 NEW PROCESS: Processing user {username}")
                 
-                # Use ALL stored passwords and apply original domain
-                for stored in all_stored_passwords:
-                    if stored.username and stored.app_password:
-                        app_password = stored.app_password
-                        
-                        # Create SMTP line with original domain
-                        smtp_line = f"{stored.username}@{current_domain},{app_password},smtp.gmail.com,587"
-                        smtp_results.append(smtp_line)
-                        current_domain_users.append(f"{stored.username}@{current_domain}")
-                        app.logger.info(f"✅ FORCE FALLBACK: Added {stored.username}@{current_domain}")
-                
-                processed_count = len(smtp_results)
-            else:
-                # For each existing user, fetch their saved app password
-                account_smtp_results = []
-                processed_count = 0
-                
-                for user_email in current_domain_users:
-                    username = user_email.split('@')[0]
-                    app.logger.info(f"🔍 FORCE PROCESSING: Processing existing user: {username}")
+                # Look up saved password
+                if username in password_lookup:
+                    app_password = password_lookup[username]
+                    app.logger.info(f"✅ NEW PROCESS: Found saved password for {username}")
                     
-                    # Look for saved app password for this user
-                    record = UserAppPassword.query.filter_by(username=username).first()
+                    # Create SMTP line
+                    smtp_line = f"{user_email},{app_password},smtp.gmail.com,587"
+                    account_smtp_results.append(smtp_line)
+                    processed_count += 1
                     
-                    if record and record.app_password:
-                        # User has saved app password
-                        app_password = record.app_password
-                        app.logger.info(f"✅ FORCE PROCESSING: Found saved app password for {username}")
-                        
-                        # Create SMTP line with ORIGINAL domain
-                        smtp_line = f"{user_email},{app_password},smtp.gmail.com,587"
-                        account_smtp_results.append(smtp_line)
-                        processed_count += 1
-                        
-                        app.logger.info(f"✅ FORCE PROCESSING: Added {user_email}")
-                    else:
-                        app.logger.info(f"⚠️ FORCE PROCESSING: No saved password found for {username}")
-                
-                # Add all results for this account
-                smtp_results.extend(account_smtp_results)
+                    app.logger.info(f"✅ NEW PROCESS: Added {user_email}")
+                else:
+                    app.logger.info(f"⚠️ NEW PROCESS: No saved password for {username}")
             
-            app.logger.info(f"📋 FORCE RESULT: Account {account} processed {processed_count} users")
+            # Add results
+            smtp_results.extend(account_smtp_results)
+            
+            app.logger.info(f"📋 NEW RESULT: Account {account} processed {processed_count} users")
             
             account_results.append({
                 'account': account,
-                'new_subdomain': current_domain,  # Use original domain
+                'new_subdomain': current_domain,
                 'users_found': processed_count,
                 'status': 'success'
             })
         
-        try:
-            db.session.commit()
-        except Exception:
-            pass
+        app.logger.info(f"🎉 NEW SUCCESS: Processed {len(smtp_results)} total app passwords")
         
         return jsonify({
             'success': True,
@@ -7984,7 +7922,7 @@ def api_retrieve_app_passwords_for_accounts():
         })
         
     except Exception as e:
-        app.logger.error(f"Retrieve app passwords error: {e}")
+        app.logger.error(f"NEW APP PASSWORD ERROR: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
