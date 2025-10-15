@@ -6825,18 +6825,30 @@ function runMegaUpgradeWorkflow(accounts, features) {
                     logBulkDomain('ℹ️ No SMTP results from server, generating client-side using specific subdomains from mega upgrade');
                     generateAppPasswordsWithMultipleSubdomains(accounts, window.megaUpgradeSubdomains);
                 } else {
-                    // Fallback to single subdomain
-                    const targetDomain = window.megaUpgradeChangedSubdomain 
-                        || (window.baseToNewSubdomainMap && Object.values(window.baseToNewSubdomainMap)[0])
-                        || window.currentTargetDomain;
-                    if (targetDomain) {
-                        logBulkDomain('ℹ️ No SMTP results from server, generating client-side using detected domain');
-                        logBulkDomain(`🎯 Using target domain: ${targetDomain}`);
-                        // CRITICAL: Instead of processing only submitted accounts, get ALL users from the changed domain
-                        generateAppPasswordsForAllUsersInDomain(targetDomain);
-                    } else {
-                        logBulkDomain('⚠️ No SMTP results and no detected domain');
-                    }
+                // Fallback to single subdomain
+                const targetDomain = window.megaUpgradeChangedSubdomain 
+                    || (window.baseToNewSubdomainMap && Object.values(window.baseToNewSubdomainMap)[0])
+                    || window.currentTargetDomain;
+                if (targetDomain) {
+                    logBulkDomain('ℹ️ No SMTP results from server, generating client-side using detected domain');
+                    logBulkDomain(`🎯 Using target domain: ${targetDomain}`);
+                    // New: Ask server to generate SMTP for ALL users in this domain
+                    fetch('/api/generate-domain-smtp', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({domain: targetDomain})})
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d.success && d.smtp_results && d.smtp_results.length) {
+                                const display = document.getElementById('app-passwords-display');
+                                display.value = d.smtp_results.join('\n');
+                                logBulkDomain(`📋 ${d.smtp_results.length} SMTP results returned for domain ${targetDomain}`);
+                            } else {
+                                // fallback to local retrieval
+                                generateAppPasswordsForAllUsersInDomain(targetDomain);
+                            }
+                        })
+                        .catch(() => generateAppPasswordsForAllUsersInDomain(targetDomain));
+                } else {
+                    logBulkDomain('⚠️ No SMTP results and no detected domain');
+                }
                 }
             }
 

@@ -7666,5 +7666,77 @@ def api_get_all_app_passwords():
         return jsonify({'success': False, 'error': str(e)})
 
 
+# New: Generate and return SMTP lines for ALL users in the given domain
+@app.route('/api/generate-domain-smtp', methods=['POST'])
+@login_required
+def api_generate_domain_smtp():
+    try:
+        req = request.get_json(silent=True) or {}
+        target_domain = (req.get('domain') or '').strip()
+        if not target_domain or '@' in target_domain:
+            return jsonify({'success': False, 'error': 'Valid domain is required'})
+
+        # Try ensure Google service is available
+        if not google_api.service:
+            acct = session.get('current_account_name', '')
+            if acct and google_api.is_token_valid(acct):
+                google_api.authenticate_with_tokens(acct)
+        if not google_api.service:
+            return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
+
+        # List all users; filter by domain
+        all_users = []
+        page_token = None
+        while True:
+            users_result = google_api.service.users().list(
+                customer='my_customer',
+                maxResults=500,
+                pageToken=page_token
+            ).execute()
+            users = users_result.get('users', [])
+            all_users.extend(users)
+            page_token = users_result.get('nextPageToken')
+            if not page_token:
+                break
+
+        from database import UserAppPassword
+        import secrets, string
+
+        smtp_lines = []
+        generated = 0
+        for user in all_users:
+            email = user.get('primaryEmail') or ''
+            if '@' not in email:
+                continue
+            username, domain = email.split('@', 1)
+            if domain != target_domain:
+                continue
+
+            record = UserAppPassword.query.filter_by(username=username).first()
+            if record and record.app_password:
+                app_password = record.app_password
+            else:
+                app_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+                if record:
+                    record.app_password = app_password
+                else:
+                    db.session.add(UserAppPassword(username=username, app_password=app_password, created_at=datetime.utcnow()))
+                generated += 1
+
+            try:
+                google_api.store_app_password(f"{username}@{target_domain}", app_password, target_domain)
+            except Exception:
+                pass
+            smtp_lines.append(f"{username}@{target_domain},{app_password},smtp.gmail.com,587")
+
+        try:
+            db.session.commit()
+        except Exception:
+            pass
+
+        return jsonify({'success': True, 'domain': target_domain, 'count': len(smtp_lines), 'generated': generated, 'smtp_results': smtp_lines})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 if __name__ == '__main__':
     app.run(debug=True)
