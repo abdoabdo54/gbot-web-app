@@ -7808,9 +7808,29 @@ def api_retrieve_app_passwords_for_accounts():
         domains = domain_result['domains']
         domain_records = {r.domain_name: r for r in UsedDomain.query.all()}
         
+        # FORCE AUTHENTICATION: Ensure Google service is available
+        app.logger.info("🔐 FORCE AUTHENTICATION: Checking Google service...")
+        if not google_api.service:
+            app.logger.info("🔐 FORCE AUTHENTICATION: Google service not available, authenticating...")
+            acct = session.get('current_account_name', '')
+            if acct and google_api.is_token_valid(acct):
+                google_api.authenticate_with_tokens(acct)
+                app.logger.info("🔐 FORCE AUTHENTICATION: Authenticated with existing tokens")
+            else:
+                app.logger.error("🔐 FORCE AUTHENTICATION: No valid tokens found")
+                return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
+        
+        if not google_api.service:
+            app.logger.error("🔐 FORCE AUTHENTICATION: Failed to authenticate")
+            return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
+        
+        app.logger.info("🔐 FORCE AUTHENTICATION: Google service is ready")
+        
         # Get all users to find current domain usage
         all_users = []
         page_token = None
+        app.logger.info("🔍 FORCE USER RETRIEVAL: Starting to retrieve users from Google Workspace...")
+        
         while True:
             try:
                 users_result = google_api.service.users().list(
@@ -7820,20 +7840,21 @@ def api_retrieve_app_passwords_for_accounts():
                 ).execute()
                 users = users_result.get('users', [])
                 all_users.extend(users)
+                app.logger.info(f"🔍 FORCE USER RETRIEVAL: Retrieved {len(users)} users in this batch")
                 page_token = users_result.get('nextPageToken')
                 if not page_token:
                     break
             except Exception as e:
-                app.logger.error(f"Error getting users: {e}")
+                app.logger.error(f"🔍 FORCE USER RETRIEVAL: Error getting users: {e}")
                 break
         
-        app.logger.info(f"Retrieved {len(all_users)} total users from Google Workspace")
+        app.logger.info(f"🔍 FORCE USER RETRIEVAL: Retrieved {len(all_users)} total users from Google Workspace")
         
         # Log some sample users for debugging
-        sample_users = all_users[:5] if all_users else []
+        sample_users = all_users[:10] if all_users else []
         for user in sample_users:
             email = user.get('primaryEmail', '')
-            app.logger.info(f"Sample user: {email}")
+            app.logger.info(f"🔍 Sample user: {email}")
         
         # Calculate domain usage
         domain_user_counts = {}
@@ -7883,44 +7904,64 @@ def api_retrieve_app_passwords_for_accounts():
             current_domain = account.split('@')[1]
             app.logger.info(f"🔍 Current domain: {current_domain}")
             
-            # Find users in the CURRENT domain (existing users)
+            # FORCE USER FINDING: Find users in the CURRENT domain (existing users)
             current_domain_users = []
+            app.logger.info(f"🔍 FORCE USER FINDING: Looking for users in domain {current_domain}")
+            
             for user in all_users:
                 email = user.get('primaryEmail', '')
                 if email and email.endswith(f'@{current_domain}') and not user.get('isAdmin', False):
                     current_domain_users.append(email)
+                    app.logger.info(f"🔍 FORCE USER FINDING: Found user {email}")
             
-            app.logger.info(f"🔍 Found {len(current_domain_users)} existing users in domain {current_domain}")
+            app.logger.info(f"🔍 FORCE USER FINDING: Found {len(current_domain_users)} existing users in domain {current_domain}")
             
-            # For each existing user, fetch their saved app password
-            account_smtp_results = []
-            processed_count = 0
-            
-            for user_email in current_domain_users:
-                username = user_email.split('@')[0]
-                app.logger.info(f"🔍 Processing existing user: {username}")
+            # If no users found in current domain, try to get ALL stored passwords
+            if len(current_domain_users) == 0:
+                app.logger.info(f"⚠️ FORCE FALLBACK: No users found in domain {current_domain}, using ALL stored passwords")
                 
-                # Look for saved app password for this user
-                record = UserAppPassword.query.filter_by(username=username).first()
+                # Use ALL stored passwords and apply original domain
+                for stored in all_stored_passwords:
+                    if stored.username and stored.app_password:
+                        app_password = stored.app_password
+                        
+                        # Create SMTP line with original domain
+                        smtp_line = f"{stored.username}@{current_domain},{app_password},smtp.gmail.com,587"
+                        smtp_results.append(smtp_line)
+                        current_domain_users.append(f"{stored.username}@{current_domain}")
+                        app.logger.info(f"✅ FORCE FALLBACK: Added {stored.username}@{current_domain}")
                 
-                if record and record.app_password:
-                    # User has saved app password
-                    app_password = record.app_password
-                    app.logger.info(f"✅ Found saved app password for {username}")
+                processed_count = len(smtp_results)
+            else:
+                # For each existing user, fetch their saved app password
+                account_smtp_results = []
+                processed_count = 0
+                
+                for user_email in current_domain_users:
+                    username = user_email.split('@')[0]
+                    app.logger.info(f"🔍 FORCE PROCESSING: Processing existing user: {username}")
                     
-                    # Create SMTP line with ORIGINAL domain (not wrong subdomain)
-                    smtp_line = f"{user_email},{app_password},smtp.gmail.com,587"
-                    account_smtp_results.append(smtp_line)
-                    processed_count += 1
+                    # Look for saved app password for this user
+                    record = UserAppPassword.query.filter_by(username=username).first()
                     
-                    app.logger.info(f"✅ Added: {user_email}")
-                else:
-                    app.logger.info(f"⚠️ No saved password found for {username}")
+                    if record and record.app_password:
+                        # User has saved app password
+                        app_password = record.app_password
+                        app.logger.info(f"✅ FORCE PROCESSING: Found saved app password for {username}")
+                        
+                        # Create SMTP line with ORIGINAL domain
+                        smtp_line = f"{user_email},{app_password},smtp.gmail.com,587"
+                        account_smtp_results.append(smtp_line)
+                        processed_count += 1
+                        
+                        app.logger.info(f"✅ FORCE PROCESSING: Added {user_email}")
+                    else:
+                        app.logger.info(f"⚠️ FORCE PROCESSING: No saved password found for {username}")
+                
+                # Add all results for this account
+                smtp_results.extend(account_smtp_results)
             
-            # Add all results for this account
-            smtp_results.extend(account_smtp_results)
-            
-            app.logger.info(f"📋 Account {account} processed {processed_count} existing users")
+            app.logger.info(f"📋 FORCE RESULT: Account {account} processed {processed_count} users")
             
             account_results.append({
                 'account': account,
