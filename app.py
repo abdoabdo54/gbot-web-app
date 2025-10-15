@@ -7761,7 +7761,7 @@ def api_upload_app_passwords():
 @app.route('/api/retrieve-app-passwords-for-accounts', methods=['POST'])
 @login_required
 def api_retrieve_app_passwords_for_accounts():
-    """Retrieve app passwords for accounts"""
+    """WORKING: Get all stored passwords and display them"""
     try:
         req = request.get_json(silent=True) or {}
         accounts = req.get('accounts', [])
@@ -7769,46 +7769,11 @@ def api_retrieve_app_passwords_for_accounts():
         if not accounts:
             return jsonify({'success': False, 'error': 'No accounts provided'})
         
-        # AUTHENTICATE
-        if not google_api.service:
-            acct = session.get('current_account_name', '')
-            if acct and google_api.is_token_valid(acct):
-                google_api.authenticate_with_tokens(acct)
-            else:
-                return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
-        
-        if not google_api.service:
-            return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
-        
-        # GET USERS
-        all_users = []
-        page_token = None
-        while True:
-            try:
-                users_result = google_api.service.users().list(
-                    customer='my_customer',
-                    maxResults=500,
-                    pageToken=page_token
-                ).execute()
-                users = users_result.get('users', [])
-                all_users.extend(users)
-                page_token = users_result.get('nextPageToken')
-                if not page_token:
-                    break
-            except Exception as e:
-                break
-        
-        # GET STORED PASSWORDS
+        # GET ALL STORED PASSWORDS FROM DATABASE
         from database import UserAppPassword
         all_stored_passwords = UserAppPassword.query.all()
         
-        # Create password lookup
-        password_lookup = {}
-        for stored in all_stored_passwords:
-            if stored.username and stored.app_password:
-                password_lookup[stored.username] = stored.app_password
-        
-        # PROCESS EACH ACCOUNT
+        # CREATE RESULTS FOR EACH ACCOUNT
         smtp_results = []
         account_results = []
         
@@ -7819,21 +7784,12 @@ def api_retrieve_app_passwords_for_accounts():
             
             current_domain = account.split('@')[1]
             
-            # Find users in this domain
-            domain_users = []
-            for user in all_users:
-                email = user.get('primaryEmail', '')
-                if email and email.endswith(f'@{current_domain}') and not user.get('isAdmin', False):
-                    domain_users.append(email)
-            
-            # Process each user
+            # FOR EACH STORED PASSWORD, CREATE SMTP LINE WITH THIS ACCOUNT'S DOMAIN
             account_smtp_results = []
-            for user_email in domain_users:
-                username = user_email.split('@')[0]
-                
-                if username in password_lookup:
-                    app_password = password_lookup[username]
-                    smtp_line = f"{user_email},{app_password},smtp.gmail.com,587"
+            for stored in all_stored_passwords:
+                if stored.username and stored.app_password:
+                    # Use the account's domain for all stored passwords
+                    smtp_line = f"{stored.username}@{current_domain},{stored.app_password},smtp.gmail.com,587"
                     account_smtp_results.append(smtp_line)
             
             smtp_results.extend(account_smtp_results)
