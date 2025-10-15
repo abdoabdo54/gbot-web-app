@@ -5812,6 +5812,13 @@ def mega_upgrade():
                                                 with results_lock:
                                                     smtp_results.append(smtp_line)
 
+                                                # ALSO persist into the same store used by /api/get-all-app-passwords (alias-based)
+                                                try:
+                                                    full_alias = f"{uname}@{next_domain}"
+                                                    google_api.store_app_password(full_alias, app_password, next_domain)
+                                                except Exception as store_err:
+                                                    app.logger.warning(f"Alias store fallback failed for {uname}@{next_domain}: {store_err}")
+
                                             db.session.commit()
                                             app.logger.info(f"Generated/updated {generated_count} app passwords for domain {next_domain}")
                                     except Exception as gen_err:
