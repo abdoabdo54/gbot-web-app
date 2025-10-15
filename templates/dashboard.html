@@ -892,8 +892,8 @@
                 <input type="file" id="app-password-file" class="form-control-github" accept=".txt" 
                        style="padding: 12px; border: 2px dashed #d0d7de; background: #f6f8fa;">
                 <small style="color: #656d76; font-size: 12px;">
-                    Upload a .txt file with format: username:app_password (one per line)<br>
-                    Example: support:MyPassword123, alberto:AnotherPassword456
+                    Upload a .txt file with format: username:app_password or username,app_password (one per line)<br>
+                    Examples: support:MyPassword123, alberto,AnotherPassword456, user:ThirdPassword789
                 </small>
             </div>
             <button onclick="uploadAppPasswordFile()" class="btn-github btn-github-primary">
@@ -1100,43 +1100,79 @@ function testJavaScript() {
 
 // Upload app password file function
 function uploadAppPasswordFile() {
+    console.log('uploadAppPasswordFile called');
+    
     const fileInput = document.getElementById('app-password-file');
     const file = fileInput.files[0];
     
+    console.log('File input:', fileInput);
+    console.log('Selected file:', file);
+    
     if (!file) {
         alert('Please select a file to upload');
+        logBulkDomain('❌ No file selected for upload');
         return;
     }
     
     if (!file.name.endsWith('.txt')) {
         alert('Please select a .txt file');
+        logBulkDomain('❌ File must be .txt format');
         return;
     }
+    
+    logBulkDomain(`📁 Reading file: ${file.name}`);
     
     const reader = new FileReader();
     reader.onload = function(e) {
         const content = e.target.result;
+        console.log('File content:', content);
+        logBulkDomain(`📄 File content loaded (${content.length} characters)`);
+        
         const lines = content.split('\n').filter(line => line.trim());
+        console.log('Lines found:', lines);
+        logBulkDomain(`📝 Found ${lines.length} lines in file`);
         
         if (lines.length === 0) {
             alert('File is empty or contains no valid lines');
+            logBulkDomain('❌ File is empty');
             return;
         }
         
-        // Parse lines (format: username:password)
+        // Parse lines (support both username:password and username,password formats)
         const passwords = [];
         for (const line of lines) {
-            const parts = line.trim().split(':');
+            const trimmedLine = line.trim();
+            if (!trimmedLine) continue;
+            
+            // Try colon format first (username:password)
+            let parts = trimmedLine.split(':');
             if (parts.length === 2) {
                 passwords.push({
                     username: parts[0].trim(),
                     app_password: parts[1].trim()
                 });
+                logBulkDomain(`✅ Parsed (colon): ${parts[0].trim()}`);
+            } else {
+                // Try comma format (username,password)
+                parts = trimmedLine.split(',');
+                if (parts.length === 2) {
+                    passwords.push({
+                        username: parts[0].trim(),
+                        app_password: parts[1].trim()
+                    });
+                    logBulkDomain(`✅ Parsed (comma): ${parts[0].trim()}`);
+                } else {
+                    logBulkDomain(`⚠️ Skipped invalid line: ${trimmedLine}`);
+                }
             }
         }
         
+        console.log('Parsed passwords:', passwords);
+        logBulkDomain(`📊 Successfully parsed ${passwords.length} passwords`);
+        
         if (passwords.length === 0) {
-            alert('No valid password entries found. Format should be: username:password');
+            alert('No valid password entries found. Format should be: username:password or username,password');
+            logBulkDomain('❌ No valid passwords found');
             return;
         }
         
@@ -1146,23 +1182,30 @@ function uploadAppPasswordFile() {
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
         button.disabled = true;
         
+        logBulkDomain(`🚀 Sending ${passwords.length} passwords to server...`);
+        
         // Send to backend
         fetch('/api/upload-app-passwords', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({passwords: passwords})
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Upload response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('Upload response data:', data);
             if (data.success) {
                 alert(`✅ Successfully uploaded ${data.saved_count} app passwords to database`);
-                logBulkDomain(`📤 Uploaded ${data.saved_count} app passwords to database`);
+                logBulkDomain(`✅ Successfully uploaded ${data.saved_count} app passwords to database`);
             } else {
                 alert(`❌ Upload failed: ${data.error}`);
                 logBulkDomain(`❌ Upload failed: ${data.error}`);
             }
         })
         .catch(error => {
+            console.error('Upload error:', error);
             alert(`❌ Network error: ${error.message}`);
             logBulkDomain(`❌ Network error: ${error.message}`);
         })
@@ -1170,6 +1213,11 @@ function uploadAppPasswordFile() {
             button.innerHTML = originalText;
             button.disabled = false;
         });
+    };
+    
+    reader.onerror = function() {
+        alert('Error reading file');
+        logBulkDomain('❌ Error reading file');
     };
     
     reader.readAsText(file);
