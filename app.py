@@ -7710,30 +7710,46 @@ def api_generate_domain_smtp():
 def api_upload_app_passwords():
     """Upload app passwords from file to database"""
     try:
+        app.logger.info("=== UPLOAD ENDPOINT REACHED ===")
+        app.logger.info(f"Request method: {request.method}")
+        app.logger.info(f"Content-Type: {request.content_type}")
+        app.logger.info(f"Request data length: {len(request.data) if request.data else 0}")
+        
         req = request.get_json(silent=True) or {}
+        app.logger.info(f"Upload request received: {type(req)}")
+        app.logger.info(f"Request keys: {list(req.keys()) if isinstance(req, dict) else 'Not a dict'}")
+        
         passwords = req.get('passwords', [])
+        app.logger.info(f"Passwords count: {len(passwords) if passwords else 0}")
         
         if not passwords:
+            app.logger.error("No passwords provided in request")
             return jsonify({'success': False, 'error': 'No passwords provided'})
         
         from database import UserAppPassword
         saved_count = 0
         
-        for pwd_data in passwords:
+        for i, pwd_data in enumerate(passwords):
+            app.logger.info(f"Processing password {i+1}: {pwd_data}")
             username = pwd_data.get('username', '').strip()
             app_password = pwd_data.get('app_password', '').strip()
             
+            app.logger.info(f"Username: '{username}', Password: '{app_password[:5]}...'")
+            
             if not username or not app_password:
+                app.logger.warning(f"Skipping invalid entry {i+1}: username='{username}', password='{app_password[:5]}...'")
                 continue
             
             # Check if user already exists
             existing = UserAppPassword.query.filter_by(username=username).first()
             if existing:
                 # Update existing record
+                app.logger.info(f"Updating existing record for {username}")
                 existing.app_password = app_password
                 existing.updated_at = datetime.utcnow()
             else:
                 # Create new record
+                app.logger.info(f"Creating new record for {username}")
                 new_record = UserAppPassword(
                     username=username,
                     app_password=app_password,
@@ -7743,10 +7759,12 @@ def api_upload_app_passwords():
                 db.session.add(new_record)
             
             saved_count += 1
+            app.logger.info(f"Processed {saved_count} passwords so far")
         
         try:
+            app.logger.info(f"Committing {saved_count} passwords to database...")
             db.session.commit()
-            app.logger.info(f"Uploaded {saved_count} app passwords to database")
+            app.logger.info(f"✅ Successfully uploaded {saved_count} app passwords to database")
             return jsonify({
                 'success': True,
                 'message': f'Successfully uploaded {saved_count} app passwords',
@@ -7754,7 +7772,7 @@ def api_upload_app_passwords():
             })
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"Database error during upload: {e}")
+            app.logger.error(f"❌ Database error during upload: {e}")
             return jsonify({'success': False, 'error': f'Database error: {str(e)}'})
             
     except Exception as e:
