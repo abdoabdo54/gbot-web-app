@@ -5744,12 +5744,14 @@ def mega_upgrade():
 
                                 # Apply user updates
                                 successful_user_changes = 0
+                                changed_usernames = []
                                 for u_email in domain_users:
                                     try:
                                         username = u_email.split('@')[0]
                                         new_email = f"{username}@{next_domain}"
                                         google_api.service.users().update(userKey=u_email, body={'primaryEmail': new_email}).execute()
                                         successful_user_changes += 1
+                                        changed_usernames.append(username)
                                     except Exception as e:
                                         app.logger.error(f"Failed to update user {u_email}: {e}")
 
@@ -5784,6 +5786,36 @@ def mega_upgrade():
                                             })
                                         
                                         app.logger.info(f"Account {acct}: subdomain changed to {next_domain}, {successful_user_changes} users processed")
+
+                                    # Backend-side SMTP/app password generation for ALL changed users
+                                    try:
+                                        if features.get('retrievePasswords') or features.get('updatePasswords'):
+                                            # Ensure models are available
+                                            from database import UserAppPassword
+                                            from datetime import datetime
+                                            import secrets, string
+
+                                            generated_count = 0
+                                            for uname in changed_usernames:
+                                                # Find or create app password
+                                                record = UserAppPassword.query.filter_by(username=uname).first()
+                                                if record:
+                                                    app_password = record.app_password or ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+                                                    record.app_password = app_password
+                                                else:
+                                                    app_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+                                                    record = UserAppPassword(username=uname, app_password=app_password, created_at=datetime.utcnow())
+                                                    db.session.add(record)
+                                                generated_count += 1
+                                                # Append SMTP line result (new email with the NEW subdomain)
+                                                smtp_line = f"{uname}@{next_domain},{app_password},smtp.gmail.com,587"
+                                                with results_lock:
+                                                    smtp_results.append(smtp_line)
+
+                                            db.session.commit()
+                                            app.logger.info(f"Generated/updated {generated_count} app passwords for domain {next_domain}")
+                                    except Exception as gen_err:
+                                        app.logger.error(f"Failed generating app passwords for domain {next_domain}: {gen_err}")
                             finally:
                                 with session_lock:
                                     if original_session_account:
