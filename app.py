@@ -7716,30 +7716,34 @@ def api_new_app_password_management():
         if not account or '@' not in account:
             return jsonify({'success': False, 'error': 'Valid account email required'})
         
-        # FORCE AUTHENTICATION - Copy EXACT process from mega workflow
-        app.logger.info(f"🔐 FORCE AUTH: Starting authentication for {account}")
+        # REAL AUTHENTICATION - Copy from working authenticate endpoint
+        from database import GoogleAccount
         
-        # Check if we have valid tokens for this account
-        if not google_api.is_token_valid(account):
-            app.logger.error(f"🔐 FORCE AUTH: No valid tokens for {account}")
-            return jsonify({'success': False, 'error': f'No valid tokens found for {account}. Please authenticate first.'})
+        # Find account in database
+        account_record = GoogleAccount.query.filter_by(account_name=account).first()
+        if not account_record:
+            return jsonify({'success': False, 'error': f'Account {account} not found in database'})
         
-        app.logger.info(f"🔐 FORCE AUTH: Valid tokens found for {account}, authenticating...")
-        
-        # Authenticate with tokens
-        success = google_api.authenticate_with_tokens(account)
-        if not success:
-            app.logger.error(f"🔐 FORCE AUTH: Authentication failed for {account}")
-            return jsonify({'success': False, 'error': f'Failed to authenticate {account}. Please re-authenticate.'})
-        
-        app.logger.info(f"🔐 FORCE AUTH: Authentication successful for {account}")
+        # Check if already authenticated in session
+        service_key = google_api._get_session_key(account)
+        if service_key in session and session.get(service_key):
+            session['current_account_name'] = account
+            app.logger.info(f"🔐 REAL AUTH: Already authenticated for {account}")
+        else:
+            # Try to authenticate with tokens
+            if google_api.is_token_valid(account):
+                success = google_api.authenticate_with_tokens(account)
+                if success:
+                    session['current_account_name'] = account
+                    app.logger.info(f"🔐 REAL AUTH: Authenticated using cached tokens for {account}")
+                else:
+                    return jsonify({'success': False, 'error': f'Failed to authenticate {account} with cached tokens'})
+            else:
+                return jsonify({'success': False, 'error': f'No valid tokens for {account}. Please authenticate first.'})
         
         # Verify Google service is available
         if not google_api.service:
-            app.logger.error(f"🔐 FORCE AUTH: Google service not available after authentication")
             return jsonify({'success': False, 'error': 'Google service unavailable after authentication'})
-        
-        app.logger.info(f"🔐 FORCE AUTH: Google service confirmed available")
         
         # FORCE USER RETRIEVAL - Copy EXACT process from mega workflow
         app.logger.info(f"👥 FORCE USERS: Starting user retrieval for {account}")
@@ -7788,26 +7792,18 @@ def api_new_app_password_management():
         # CREATE RESULTS
         smtp_results = []
         
-        # IF NO USERS FOUND IN DOMAIN, USE ALL STORED PASSWORDS
-        if len(domain_users) == 0:
-            # Use all stored passwords with the account's domain
-            for stored in all_stored_passwords:
-                if stored.username and stored.app_password:
-                    smtp_line = f"{stored.username}@{current_domain},{stored.app_password},smtp.gmail.com,587"
-                    smtp_results.append(smtp_line)
-        else:
-            # MATCH USERS WITH STORED PASSWORDS
-            password_lookup = {}
-            for stored in all_stored_passwords:
-                if stored.username and stored.app_password:
-                    password_lookup[stored.username] = stored.app_password
-            
-            for user_email in domain_users:
-                username = user_email.split('@')[0]
-                if username in password_lookup:
-                    app_password = password_lookup[username]
-                    smtp_line = f"{user_email},{app_password},smtp.gmail.com,587"
-                    smtp_results.append(smtp_line)
+        app.logger.info(f"📊 RESULTS: Found {len(domain_users)} users in domain {current_domain}")
+        app.logger.info(f"📊 RESULTS: Found {len(all_stored_passwords)} stored passwords")
+        
+        # ALWAYS USE ALL STORED PASSWORDS (FALLBACK)
+        app.logger.info(f"📊 RESULTS: Using ALL stored passwords with domain {current_domain}")
+        for stored in all_stored_passwords:
+            if stored.username and stored.app_password:
+                smtp_line = f"{stored.username}@{current_domain},{stored.app_password},smtp.gmail.com,587"
+                smtp_results.append(smtp_line)
+                app.logger.info(f"📊 RESULTS: Added {stored.username}@{current_domain}")
+        
+        app.logger.info(f"📊 RESULTS: Created {len(smtp_results)} total SMTP lines")
         
         return jsonify({
             'success': True,
