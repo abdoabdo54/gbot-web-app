@@ -2130,7 +2130,7 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success && data.domains && data.domains.length > 0) {
+            if (data.success && data.domains && data.domains.length > 0) {
             logBulkDomain(`✅ Retrieved ${data.domains.length} domains`);
             
             // Debug: Log all domains to understand the structure
@@ -2153,14 +2153,45 @@ function storeAndDisplayAppPasswordsForWorkflow(accounts) {
             logBulkDomain(`🔍 Found ${inUseDomains.length} IN USE domains with users`);
             
             if (inUseDomains.length > 0) {
-                // Use the IN USE domain with the most users (this is the one that was just changed)
-                const selectedDomain = inUseDomains.reduce((prev, current) => 
-                    (current.user_count > prev.user_count) ? current : prev
-                );
-                targetDomain = selectedDomain.domainName || selectedDomain.domain_name;
-                const userCount = selectedDomain.user_count;
-                logBulkDomain(`🎯 Found ACTUAL changed subdomain: ${targetDomain} (${userCount} users)`);
-                logBulkDomain(`✅ This is the subdomain that was actually changed during Mega Upgrade`);
+                // Build a base->newSubdomain map by comparing IN USE vs AVAILABLE per base
+                const availableByBase = {};
+                data.domains
+                    .filter(d => (d.status === 'available' || d.status_text === 'AVAILABLE'))
+                    .forEach(d => {
+                        const dn = d.domainName || d.domain_name;
+                        if (!dn) return;
+                        const parts = dn.split('.');
+                        if (parts.length < 2) return;
+                        const base = parts.slice(1).join('.');
+                        if (!availableByBase[base]) availableByBase[base] = [];
+                        availableByBase[base].push(dn);
+                    });
+
+                const baseToNewSubdomainMap = {};
+                inUseDomains.forEach(d => {
+                    const dn = d.domainName || d.domain_name;
+                    if (!dn) return;
+                    const parts = dn.split('.');
+                    if (parts.length < 2) return;
+                    const base = parts.slice(1).join('.');
+                    const candidates = availableByBase[base] || [];
+                    if (candidates.length > 0) {
+                        // Choose the lexicographically next available as the new subdomain target
+                        candidates.sort();
+                        baseToNewSubdomainMap[base] = candidates[0];
+                    } else {
+                        // Fallback to current in-use if no available found
+                        baseToNewSubdomainMap[base] = dn;
+                    }
+                });
+
+                // Save map globally for formatter
+                window.baseToNewSubdomainMap = baseToNewSubdomainMap;
+
+                // Also pick one representative for logging/legacy path
+                const firstBase = Object.keys(baseToNewSubdomainMap)[0];
+                targetDomain = baseToNewSubdomainMap[firstBase];
+                logBulkDomain(`🎯 Using NEXT subdomain mapping per base: ${JSON.stringify(baseToNewSubdomainMap)}`);
             } else {
                 // PRIORITY 2: Look for any domain with users (fallback)
                 const domainsWithUsers = data.domains.filter(domain => 
@@ -2247,28 +2278,36 @@ function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
             }
 
             const output = [];
-            // Extract new subdomain label and target base from detected targetDomain
+            // Support multi-base processing: use global base-to-subdomain map if available
+            const baseMap = window.baseToNewSubdomainMap || null;
+            // Extract new subdomain label and target base from single detected domain
             const targetParts = (targetDomain || '').split('.');
-            const newSubLabel = targetParts.length > 0 ? targetParts[0] : '';
-            const targetBase = targetParts.length > 1 ? targetParts.slice(1).join('.') : '';
+            const newSubLabelSingle = targetParts.length > 0 ? targetParts[0] : '';
+            const targetBaseSingle = targetParts.length > 1 ? targetParts.slice(1).join('.') : '';
             rows.forEach(row => {
                 const alias = row.user_alias || '';
                 const pwd = row.app_password || '';
                 if (!alias || !pwd) return;
 
                 const [username, aliasDomain] = alias.includes('@') ? alias.split('@') : [alias, ''];
-                if (!aliasDomain || !targetBase || !newSubLabel) return;
+                if (!aliasDomain) return;
 
                 // Compute base of alias (everything after the first dot)
                 const aliasParts = aliasDomain.split('.');
                 if (aliasParts.length < 2) return; // not a subdomain; skip
                 const aliasBase = aliasParts.slice(1).join('.');
 
-                // Only update aliases that belong to the proceeded accounts (same base)
-                if (aliasBase !== targetBase) return;
+                // Determine mapped domain for this base
+                let newDomainForAlias = '';
+                if (baseMap && baseMap[aliasBase]) {
+                    newDomainForAlias = baseMap[aliasBase];
+                } else if (targetBaseSingle) {
+                    if (aliasBase !== targetBaseSingle) return; // not part of processed base
+                    newDomainForAlias = `${newSubLabelSingle}.${targetBaseSingle}`;
+                } else {
+                    return;
+                }
 
-                // Replace only the subdomain label (between @ and first .)
-                const newDomainForAlias = `${newSubLabel}.${targetBase}`;
                 const line = `${username}@${newDomainForAlias},${pwd},smtp.gmail.com,587`;
                 output.push(line);
             });
