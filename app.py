@@ -7710,61 +7710,42 @@ def api_generate_domain_smtp():
 def api_upload_app_passwords():
     """Upload app passwords from file to database"""
     try:
-        app.logger.info("=== UPLOAD ENDPOINT REACHED ===")
-        app.logger.info(f"Request method: {request.method}")
-        app.logger.info(f"Content-Type: {request.content_type}")
-        app.logger.info(f"Request data length: {len(request.data) if request.data else 0}")
-        
         req = request.get_json(silent=True) or {}
-        app.logger.info(f"Upload request received: {type(req)}")
-        app.logger.info(f"Request keys: {list(req.keys()) if isinstance(req, dict) else 'Not a dict'}")
-        
         passwords = req.get('passwords', [])
-        app.logger.info(f"Passwords count: {len(passwords) if passwords else 0}")
         
         if not passwords:
-            app.logger.error("No passwords provided in request")
             return jsonify({'success': False, 'error': 'No passwords provided'})
         
         from database import UserAppPassword
         saved_count = 0
         
-        for i, pwd_data in enumerate(passwords):
-            app.logger.info(f"Processing password {i+1}: {pwd_data}")
+        for pwd_data in passwords:
             username = pwd_data.get('username', '').strip()
             app_password = pwd_data.get('app_password', '').strip()
             
-            app.logger.info(f"Username: '{username}', Password: '{app_password[:5]}...'")
-            
             if not username or not app_password:
-                app.logger.warning(f"Skipping invalid entry {i+1}: username='{username}', password='{app_password[:5]}...'")
                 continue
             
             # Check if user already exists
             existing = UserAppPassword.query.filter_by(username=username).first()
             if existing:
                 # Update existing record
-                app.logger.info(f"Updating existing record for {username}")
                 existing.app_password = app_password
                 existing.updated_at = datetime.utcnow()
             else:
                 # Create new record
-                app.logger.info(f"Creating new record for {username}")
                 new_record = UserAppPassword(
                     username=username,
                     app_password=app_password,
-                    domain='uploaded',  # Mark as uploaded
+                    domain='uploaded',
                     created_at=datetime.utcnow()
                 )
                 db.session.add(new_record)
             
             saved_count += 1
-            app.logger.info(f"Processed {saved_count} passwords so far")
         
         try:
-            app.logger.info(f"Committing {saved_count} passwords to database...")
             db.session.commit()
-            app.logger.info(f"✅ Successfully uploaded {saved_count} app passwords to database")
             return jsonify({
                 'success': True,
                 'message': f'Successfully uploaded {saved_count} app passwords',
@@ -7772,17 +7753,15 @@ def api_upload_app_passwords():
             })
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"❌ Database error during upload: {e}")
             return jsonify({'success': False, 'error': f'Database error: {str(e)}'})
             
     except Exception as e:
-        app.logger.error(f"Upload app passwords error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/retrieve-app-passwords-for-accounts', methods=['POST'])
 @login_required
 def api_retrieve_app_passwords_for_accounts():
-    """ULTRA SIMPLE: Just return hardcoded test data"""
+    """Retrieve app passwords for accounts"""
     try:
         req = request.get_json(silent=True) or {}
         accounts = req.get('accounts', [])
@@ -7790,9 +7769,7 @@ def api_retrieve_app_passwords_for_accounts():
         if not accounts:
             return jsonify({'success': False, 'error': 'No accounts provided'})
         
-        app.logger.info(f"🔧 WORKING: Processing {len(accounts)} accounts")
-        
-        # STEP 1: AUTHENTICATE (same as mega workflow)
+        # AUTHENTICATE
         if not google_api.service:
             acct = session.get('current_account_name', '')
             if acct and google_api.is_token_valid(acct):
@@ -7803,9 +7780,7 @@ def api_retrieve_app_passwords_for_accounts():
         if not google_api.service:
             return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
         
-        app.logger.info("🔧 WORKING: Authentication successful")
-        
-        # STEP 2: GET USERS (same as mega workflow)
+        # GET USERS
         all_users = []
         page_token = None
         while True:
@@ -7821,15 +7796,11 @@ def api_retrieve_app_passwords_for_accounts():
                 if not page_token:
                     break
             except Exception as e:
-                app.logger.error(f"Error getting users: {e}")
                 break
         
-        app.logger.info(f"🔧 WORKING: Retrieved {len(all_users)} users")
-        
-        # STEP 3: GET STORED PASSWORDS FROM DATABASE
+        # GET STORED PASSWORDS
         from database import UserAppPassword
         all_stored_passwords = UserAppPassword.query.all()
-        app.logger.info(f"🔧 WORKING: Found {len(all_stored_passwords)} stored passwords")
         
         # Create password lookup
         password_lookup = {}
@@ -7837,7 +7808,7 @@ def api_retrieve_app_passwords_for_accounts():
             if stored.username and stored.app_password:
                 password_lookup[stored.username] = stored.app_password
         
-        # STEP 4: PROCESS EACH ACCOUNT
+        # PROCESS EACH ACCOUNT
         smtp_results = []
         account_results = []
         
@@ -7847,7 +7818,6 @@ def api_retrieve_app_passwords_for_accounts():
                 continue
             
             current_domain = account.split('@')[1]
-            app.logger.info(f"🔧 WORKING: Processing {account} in domain {current_domain}")
             
             # Find users in this domain
             domain_users = []
@@ -7855,8 +7825,6 @@ def api_retrieve_app_passwords_for_accounts():
                 email = user.get('primaryEmail', '')
                 if email and email.endswith(f'@{current_domain}') and not user.get('isAdmin', False):
                     domain_users.append(email)
-            
-            app.logger.info(f"🔧 WORKING: Found {len(domain_users)} users in {current_domain}")
             
             # Process each user
             account_smtp_results = []
@@ -7867,9 +7835,6 @@ def api_retrieve_app_passwords_for_accounts():
                     app_password = password_lookup[username]
                     smtp_line = f"{user_email},{app_password},smtp.gmail.com,587"
                     account_smtp_results.append(smtp_line)
-                    app.logger.info(f"🔧 WORKING: Added {user_email}")
-                else:
-                    app.logger.info(f"🔧 WORKING: No password for {username}")
             
             smtp_results.extend(account_smtp_results)
             
@@ -7880,8 +7845,6 @@ def api_retrieve_app_passwords_for_accounts():
                 'status': 'success'
             })
         
-        app.logger.info(f"🔧 WORKING: Total results: {len(smtp_results)}")
-        
         return jsonify({
             'success': True,
             'message': f'Retrieved app passwords for {len(accounts)} accounts',
@@ -7891,7 +7854,6 @@ def api_retrieve_app_passwords_for_accounts():
         })
         
     except Exception as e:
-        app.logger.error(f"ULTRA SIMPLE ERROR: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
