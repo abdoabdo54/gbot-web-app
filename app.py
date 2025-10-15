@@ -7716,36 +7716,62 @@ def api_new_app_password_management():
         if not account or '@' not in account:
             return jsonify({'success': False, 'error': 'Valid account email required'})
         
-        # REAL AUTHENTICATION - Copy from mega workflow
-        if not google_api.service:
-            # Check if we have valid tokens for this account
-            if google_api.is_token_valid(account):
-                success = google_api.authenticate_with_tokens(account)
-                if not success:
-                    return jsonify({'success': False, 'error': 'Failed to authenticate with saved tokens. Please re-authenticate.'})
-            else:
-                return jsonify({'success': False, 'error': 'No valid tokens found. Please authenticate first.'})
+        # FORCE AUTHENTICATION - Copy EXACT process from mega workflow
+        app.logger.info(f"🔐 FORCE AUTH: Starting authentication for {account}")
         
-        if not google_api.service:
-            return jsonify({'success': False, 'error': 'Google service unavailable; re-authentication required'})
+        # Check if we have valid tokens for this account
+        if not google_api.is_token_valid(account):
+            app.logger.error(f"🔐 FORCE AUTH: No valid tokens for {account}")
+            return jsonify({'success': False, 'error': f'No valid tokens found for {account}. Please authenticate first.'})
         
-        # REAL USER RETRIEVAL - Copy from mega workflow
+        app.logger.info(f"🔐 FORCE AUTH: Valid tokens found for {account}, authenticating...")
+        
+        # Authenticate with tokens
+        success = google_api.authenticate_with_tokens(account)
+        if not success:
+            app.logger.error(f"🔐 FORCE AUTH: Authentication failed for {account}")
+            return jsonify({'success': False, 'error': f'Failed to authenticate {account}. Please re-authenticate.'})
+        
+        app.logger.info(f"🔐 FORCE AUTH: Authentication successful for {account}")
+        
+        # Verify Google service is available
+        if not google_api.service:
+            app.logger.error(f"🔐 FORCE AUTH: Google service not available after authentication")
+            return jsonify({'success': False, 'error': 'Google service unavailable after authentication'})
+        
+        app.logger.info(f"🔐 FORCE AUTH: Google service confirmed available")
+        
+        # FORCE USER RETRIEVAL - Copy EXACT process from mega workflow
+        app.logger.info(f"👥 FORCE USERS: Starting user retrieval for {account}")
         all_users = []
         page_token = None
+        batch_count = 0
+        
         while True:
             try:
+                batch_count += 1
+                app.logger.info(f"👥 FORCE USERS: Fetching batch {batch_count}...")
+                
                 users_result = google_api.service.users().list(
                     customer='my_customer',
                     maxResults=500,
                     pageToken=page_token
                 ).execute()
+                
                 users = users_result.get('users', [])
                 all_users.extend(users)
+                app.logger.info(f"👥 FORCE USERS: Retrieved {len(users)} users in batch {batch_count}")
+                
                 page_token = users_result.get('nextPageToken')
                 if not page_token:
+                    app.logger.info(f"👥 FORCE USERS: No more pages, retrieval complete")
                     break
+                    
             except Exception as e:
+                app.logger.error(f"👥 FORCE USERS: Error in batch {batch_count}: {e}")
                 break
+        
+        app.logger.info(f"👥 FORCE USERS: Retrieved {len(all_users)} total users")
         
         # GET STORED PASSWORDS FROM DATABASE
         from database import UserAppPassword
