@@ -2284,6 +2284,16 @@ function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
             const targetParts = (targetDomain || '').split('.');
             const newSubLabelSingle = targetParts.length > 0 ? targetParts[0] : '';
             const targetBaseSingle = targetParts.length > 1 ? targetParts.slice(1).join('.') : '';
+            
+            // Build a set of processed account domains for filtering
+            const processedAccountDomains = new Set();
+            if (accounts && accounts.length > 0) {
+                accounts.forEach(acc => {
+                    const domain = acc.split('@')[1];
+                    if (domain) processedAccountDomains.add(domain);
+                });
+            }
+            
             rows.forEach(row => {
                 const alias = row.user_alias || '';
                 const pwd = row.app_password || '';
@@ -2307,6 +2317,15 @@ function generateAppPasswordsWithTargetDomain(accounts, targetDomain) {
                 } else {
                     return;
                 }
+                
+                // Additional filter: only include aliases that belong to processed account domains
+                const aliasMatchesProcessedAccount = processedAccountDomains.size === 0 || 
+                    Array.from(processedAccountDomains).some(procDomain => {
+                        const procBase = procDomain.split('.').slice(1).join('.');
+                        return aliasBase === procBase;
+                    });
+                
+                if (!aliasMatchesProcessedAccount) return;
 
                 const line = `${username}@${newDomainForAlias},${pwd},smtp.gmail.com,587`;
                 output.push(line);
