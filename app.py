@@ -7618,8 +7618,12 @@ def api_upload_app_passwords():
                 if not email or not app_password:
                     continue
                 
-                # Check if app password already exists for this user
-                local_part, domain_part = email.split('@', 1)
+                # Derive alias (local part) and domain (if present)
+                if '@' in email:
+                    local_part, domain_part = email.split('@', 1)
+                else:
+                    # Support alias-only lines; use wildcard domain
+                    local_part, domain_part = email, '*'
                 existing = UserAppPassword.query.filter_by(username=local_part, domain=domain_part).first()
                 
                 if existing:
@@ -7782,6 +7786,11 @@ def api_execute_automation_process():
                                         if not app_password_record:
                                             app_password_record = UserAppPassword.query.filter(
                                                 db.func.concat(UserAppPassword.username, '@', UserAppPassword.domain) == user_email
+                                            ).first()
+                                        # Try username with wildcard domain
+                                        if not app_password_record:
+                                            app_password_record = UserAppPassword.query.filter_by(
+                                                username=username, domain='*'
                                             ).first()
                                         # If still not found, try by username only (ignore domain differences)
                                         if not app_password_record:

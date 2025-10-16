@@ -64,7 +64,7 @@ class ServerConfig(db.Model):
 class UserAppPassword(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(255), nullable=False)  # username part (before @)
-    domain = db.Column(db.String(255), nullable=False)   # domain part (after @)
+    domain = db.Column(db.String(255), nullable=False)   # domain part (after @) or '*' wildcard
     app_password = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
