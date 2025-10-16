@@ -7631,9 +7631,10 @@ def api_upload_app_passwords():
                 email = m.group(1).strip()
                 app_password = m.group(2).strip()
                 
-                if not email or not app_password:
-                    continue
-                
+            if not email or not app_password:
+                continue
+            
+            try:
                 # Derive alias (local part) and domain (if present)
                 if '@' in email:
                     local_part, domain_part = email.split('@', 1)
@@ -7682,6 +7683,11 @@ def api_upload_app_passwords():
             'count': stored_count,
             'stored_sample': sample_data
         })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error uploading app passwords: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/list-app-passwords', methods=['GET'])
 @login_required
