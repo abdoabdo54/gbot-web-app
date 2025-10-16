@@ -1126,6 +1126,26 @@
             <h4>Automation Results:</h4>
             <div id="automation-results-content"></div>
         </div>
+        
+        <div id="automation-users-display" class="github-card" style="margin-top: 16px; display: none;">
+            <div class="github-card-header">
+                <h3 class="github-card-title">
+                    <i class="fas fa-users"></i>
+                    Retrieved Users
+                </h3>
+            </div>
+            <div id="automation-users-list" class="user-list" style="max-height: 400px; overflow-y: auto;">
+                <!-- Users will be populated here -->
+            </div>
+            <div style="display: flex; gap: 12px; margin-top: 16px;">
+                <button onclick="copyAutomationUsers()" class="btn-github">
+                    <i class="fas fa-copy"></i> Copy All Emails
+                </button>
+                <button onclick="exportAutomationUsers()" class="btn-github">
+                    <i class="fas fa-download"></i> Export as CSV
+                </button>
+            </div>
+        </div>
     </div>
     </div>
 </div>
@@ -6999,6 +7019,113 @@ function showAutomationResults(data) {
     
     contentDiv.innerHTML = html;
     resultsDiv.style.display = 'block';
+    
+    // If users were retrieved, fetch and display them
+    if (data.users_retrieved > 0) {
+        fetchAndDisplayAutomationUsers();
+    }
+}
+
+// Fetch and display users from the last authenticated account
+function fetchAndDisplayAutomationUsers() {
+    fetch('/api/retrieve-users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.users && data.users.length > 0) {
+            displayAutomationUsers(data.users);
+        } else {
+            console.log('No users found or error retrieving users');
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching users:', error);
+    });
+}
+
+// Display users in the automation users list
+function displayAutomationUsers(users) {
+    const usersListDiv = document.getElementById('automation-users-list');
+    const usersDisplayDiv = document.getElementById('automation-users-display');
+    
+    if (!users || users.length === 0) {
+        usersListDiv.innerHTML = '<div class="no-users-message"><i class="fas fa-info-circle"></i><p>No users found</p></div>';
+        usersDisplayDiv.style.display = 'block';
+        return;
+    }
+    
+    let html = '';
+    users.forEach(user => {
+        html += `
+            <div class="user-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee;">
+                <div class="user-info">
+                    <div class="email" style="font-weight: bold;">${user.primaryEmail || user.email || 'N/A'}</div>
+                    <div class="name" style="color: #666; font-size: 0.9em;">${user.name?.fullName || user.name?.givenName || 'N/A'}</div>
+                </div>
+                <div class="user-status" style="font-size: 0.8em; color: #666;">
+                    ${user.suspended ? 'Suspended' : 'Active'}
+                </div>
+            </div>
+        `;
+    });
+    
+    usersListDiv.innerHTML = html;
+    usersDisplayDiv.style.display = 'block';
+}
+
+// Copy all automation users
+function copyAutomationUsers() {
+    const userElements = document.querySelectorAll('#automation-users-list .user-item .email');
+    if (userElements.length === 0) {
+        alert('No users to copy');
+        return;
+    }
+    
+    const emails = Array.from(userElements).map(element => element.textContent.trim());
+    const emailText = emails.join('\n');
+    
+    navigator.clipboard.writeText(emailText).then(() => {
+        alert(`✅ Copied ${emails.length} user emails to clipboard`);
+    }).catch(() => {
+        alert('❌ Copy failed - please try manually selecting the text');
+    });
+}
+
+// Export automation users as CSV
+function exportAutomationUsers() {
+    const userElements = document.querySelectorAll('#automation-users-list .user-item');
+    if (userElements.length === 0) {
+        alert('No users to export');
+        return;
+    }
+    
+    let csvContent = 'Email,Name,Status\n';
+    
+    userElements.forEach(element => {
+        const email = element.querySelector('.email')?.textContent.trim() || '';
+        const name = element.querySelector('.name')?.textContent.trim() || '';
+        const status = element.querySelector('.user-status')?.textContent.trim() || '';
+        
+        csvContent += `"${email}","${name}","${status}"\n`;
+    });
+    
+    // Create and download CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `automation_users_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    alert(`✅ Exported ${userElements.length} users as CSV`);
 }
 
 // Clear automation list
@@ -7006,6 +7133,7 @@ function clearAutomationList() {
     if (confirm('Are you sure you want to clear the accounts list?')) {
         document.getElementById('automation-accounts-list').value = '';
         document.getElementById('automation-results').style.display = 'none';
+        document.getElementById('automation-users-display').style.display = 'none';
     }
 }
 
