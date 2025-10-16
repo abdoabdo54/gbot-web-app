@@ -7959,6 +7959,52 @@ def api_delete_specific_app_passwords():
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)})
 
+# ===== USER TYPE DETECTION API =====
+
+@app.route('/api/detect-user-types', methods=['POST'])
+@login_required
+def api_detect_user_types():
+    """Detect if users are regular users or admins"""
+    try:
+        data = request.get_json()
+        users = data.get('users', [])
+        
+        if not users:
+            return jsonify({'success': False, 'error': 'No users provided'})
+        
+        user_types = []
+        
+        for user in users:
+            email = user.get('email', '') or user.get('primaryEmail', '')
+            source_account = user.get('source_account', '')
+            
+            # Determine user type
+            user_type = 'user'  # Default to user
+            
+            # Check if it's an admin account
+            if email and source_account and email.lower() == source_account.lower():
+                user_type = 'admin'
+            elif email:
+                # Check for common admin patterns
+                email_lower = email.lower()
+                if any(pattern in email_lower for pattern in ['admin', 'support', 'noreply', 'postmaster', 'abuse', 'webmaster']):
+                    user_type = 'admin'
+            
+            user_types.append({
+                'email': email,
+                'user_type': user_type,
+                'source_account': source_account
+            })
+        
+        return jsonify({
+            'success': True,
+            'user_types': user_types
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error detecting user types: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 # ===== SIMPLIFIED AUTOMATION AUTHENTICATION API =====
 
 @app.route('/api/execute-automation-process', methods=['POST'])
