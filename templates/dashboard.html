@@ -1119,6 +1119,11 @@
                 <label for="automation-users-text" class="form-label-github">
                     <i class="fas fa-text-width"></i> Retrieved Users (one per line)
                 </label>
+                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                    <button onclick="copyRetrievedUsersText()" class="btn-github" style="padding: 6px 12px; font-size: 12px;">
+                        <i class="fas fa-copy"></i> Copy Text
+                    </button>
+                </div>
                 <textarea id="automation-users-text" class="form-control-github" rows="15" 
                           placeholder="Users will appear here after automation process..." readonly></textarea>
             </div>
@@ -7315,6 +7320,21 @@ function copyAutomationUsers() {
     
     navigator.clipboard.writeText(emailText).then(() => {
         alert(`✅ Copied ${emails.length} user emails to clipboard`);
+    }).catch(() => {
+        alert('❌ Copy failed - please try manually selecting the text');
+    });
+}
+
+// Copy retrieved users text content
+function copyRetrievedUsersText() {
+    const textArea = document.getElementById('automation-users-text');
+    if (!textArea || !textArea.value.trim()) {
+        alert('No text content to copy');
+        return;
+    }
+    
+    navigator.clipboard.writeText(textArea.value).then(() => {
+        alert('✅ Copied retrieved users text to clipboard');
     }).catch(() => {
         alert('❌ Copy failed - please try manually selecting the text');
     });

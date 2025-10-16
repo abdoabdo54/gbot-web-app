@@ -7716,7 +7716,9 @@ def api_execute_automation_process():
                                 
                                 # Try to find matching app password
                                 user_email = user.get('email', '') or user.get('primaryEmail', '')
-                                if user_email and '@' in user_email:
+                                
+                                # Skip admin/authentication accounts - only process actual users
+                                if user_email and '@' in user_email and user_email.lower() != account_email.lower():
                                     try:
                                         username, domain = user_email.split('@', 1)
                                         
@@ -7756,7 +7758,10 @@ def api_execute_automation_process():
                                         app.logger.warning(f"Error matching app password for {user_email}: {e}")
                                         user['app_password'] = None
                                 else:
+                                    # Skip admin/authentication accounts - no app password needed
                                     user['app_password'] = None
+                                    if user_email and user_email.lower() == account_email.lower():
+                                        app.logger.info(f"Skipped admin account {user_email} - no app password needed")
                             
                             all_users.extend(account_users)
                             users_retrieved += result['users_count']
