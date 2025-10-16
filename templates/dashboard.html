@@ -866,90 +866,6 @@
         </div>
     </div>
 
-    <!-- App Password Management -->
-    <div class="github-card">
-        <div class="github-card-header">
-            <h3 class="github-card-title">
-                <i class="fas fa-key"></i>
-                App Password Management
-            </h3>
-        </div>
-        
-        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
-            Upload and manage app passwords for SMTP authentication. When retrieving, the system automatically 
-            updates the domain part to match your current domain and formats output as SMTP configuration 
-            (user@domain,app_password,smtp.gmail.com,587) ready for direct use in email clients.
-        </p>
-        
-        <!-- Upload Section -->
-        <div style="margin-bottom: 24px;">
-            <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-upload"></i> Upload App Passwords
-            </h4>
-            <div class="form-group-github">
-                <label for="app-password-file" class="form-label-github">
-                    <i class="fas fa-file-text"></i> App Password File (.txt)
-                </label>
-                <input type="file" id="app-password-file" class="form-control-github" accept=".txt" 
-                       style="padding: 12px; border: 2px dashed #d0d7de; background: #f6f8fa;">
-                <small style="color: #656d76; font-size: 12px;">
-                    Upload a .txt file with format: user@domain.com:app_password (one per line)<br>
-                    Output will be formatted as: user@domain.com,app_password,smtp.gmail.com,587
-                </small>
-            </div>
-            <button onclick="uploadAppPasswords()" class="btn-github btn-github-primary">
-                <i class="fas fa-upload"></i> Upload App Passwords
-            </button>
-            <div id="app-passwords-status" class="count-display" style="margin-top: 16px;">
-                <span id="app-passwords-count">No app passwords stored</span>
-            </div>
-        </div>
-        
-        <!-- Retrieve Section -->
-        <div style="margin-bottom: 24px;">
-            <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-download"></i> Retrieve App Passwords
-            </h4>
-            <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end;">
-                <div class="form-group-github">
-                    <label for="retrieve-domain" class="form-label-github">
-                        <i class="fas fa-globe"></i> New Domain
-                    </label>
-                    <input type="text" id="retrieve-domain" class="form-control-github" 
-                           placeholder="newdomain.com" value="">
-                    <small style="color: #656d76; font-size: 12px;">
-                        Enter the domain you want to use for all usernames
-                    </small>
-                </div>
-                <button onclick="retrieveAppPasswords()" class="btn-github btn-github-primary">
-                    <i class="fas fa-sync-alt"></i> Update & Optimize
-                </button>
-            </div>
-        </div>
-        
-        <!-- Display Section -->
-        <div style="margin-bottom: 24px;">
-            <h4 style="margin-bottom: 16px; color: #24292f;">
-                <i class="fas fa-list"></i> App Passwords Display
-            </h4>
-            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                <button onclick="copyAppPasswords()" class="btn-github">
-                    <i class="fas fa-copy"></i> Copy
-                </button>
-                <button onclick="clearAppPasswordsDisplay()" class="btn-github">
-                    <i class="fas fa-broom"></i> Clear Display
-                </button>
-                <button onclick="deleteAllAppPasswords()" class="btn-github" 
-                        style="background-color: #d73a49; border-color: #d73a49; color: white;"
-                        id="delete-all-btn">
-                    <i class="fas fa-trash-alt"></i> Delete All (Admin Only)
-                </button>
-            </div>
-            <textarea id="app-passwords-display" class="form-control-github" rows="8" 
-                      placeholder="SMTP configuration will appear here in format: user@domain.com,app_password,smtp.gmail.com,587" readonly
-                      style="font-family: monospace; font-size: 13px; background: #f6f8fa;"></textarea>
-        </div>
-    </div>
 
     <!-- Results Log (Covers Both Workflows) -->
     <div class="github-card">
@@ -1092,6 +1008,43 @@
         <div id="csv-preview-area" class="csv-preview"></div>
     </div>
 
+
+    <!-- App Password Management -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-key"></i>
+                App Password Management
+            </h3>
+        </div>
+        
+        <div class="form-group-github">
+            <label for="app-passwords-file" class="form-label-github">
+                <i class="fas fa-upload"></i> Upload App Passwords File
+            </label>
+            <input type="file" id="app-passwords-file" class="form-control-github" accept=".txt" 
+                   onchange="handleAppPasswordsFile(this)">
+            <small class="form-text" style="color: #666; margin-top: 8px;">
+                Upload a .txt file with format: user@domain.com:app_password (one per line)
+            </small>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-top: 16px;">
+            <button onclick="uploadAppPasswords()" class="btn-github btn-github-primary">
+                <i class="fas fa-upload"></i> Upload & Store Passwords
+            </button>
+            <button onclick="clearAppPasswords()" class="btn-github">
+                <i class="fas fa-trash"></i> Clear All Passwords
+            </button>
+            <button onclick="downloadAppPasswordsTemplate()" class="btn-github">
+                <i class="fas fa-download"></i> Download Template
+            </button>
+        </div>
+        
+        <div id="app-passwords-status" class="count-display" style="margin-top: 16px;">
+            <span id="app-passwords-count">No app passwords stored</span>
+        </div>
+    </div>
 
     <!-- Automation Authentication Process -->
     <div class="github-card">
@@ -5134,71 +5087,7 @@ function deleteDomain(domainName) {
 }
 
 
-// App Password Management Functions
-function uploadAppPasswords() {
-    const fileInput = document.getElementById('app-password-file');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        alert('Please select a .txt file to upload');
-        return;
-    }
-    
-    if (!file.name.endsWith('.txt')) {
-        alert('Please select a .txt file');
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const button = event.target;
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
-    button.disabled = true;
-    
-    fetch('/api/upload-app-passwords', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(`✅ Successfully uploaded ${data.count} app passwords!`);
-            loadAppPasswordsStatus();
-        } else {
-            alert('❌ Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error uploading app passwords:', error);
-        alert('❌ Error uploading app passwords');
-    })
-    .finally(() => {
-        button.innerHTML = originalText;
-        button.disabled = false;
-    });
-}
 
-// Load app passwords status
-function loadAppPasswordsStatus() {
-    fetch('/api/app-passwords-status')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('app-passwords-count').textContent = 
-                    `${data.count} app passwords stored`;
-            } else {
-                document.getElementById('app-passwords-count').textContent = 
-                    'Error loading app passwords status';
-            }
-        })
-        .catch(error => {
-            console.error('Error loading app passwords status:', error);
-            document.getElementById('app-passwords-count').textContent = 
-                'Error loading status';
-        });
-}
 
 function retrieveAppPasswords() {
     const domain = document.getElementById('retrieve-domain').value.trim();
