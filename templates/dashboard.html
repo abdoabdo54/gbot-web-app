@@ -7544,22 +7544,51 @@ function displayAutomationUsers(users) {
             
             console.log(`User: ${email}, Type: ${userType}, App Password: ${appPassword}`);
             
-            // Display all users in the visual list (including admins)
+            // Display all users in the visual list (including admins) with elegant styling
             html += `
-                <div class="user-item" style="padding: 12px; border-bottom: 1px solid #eee; background: #f9f9f9; margin-bottom: 8px; border-radius: 6px;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                        <div class="user-info" style="flex: 1;">
-                            <div class="email" style="font-weight: bold; font-size: 1.1em; color: #24292f;">${email}</div>
-                            <div class="name" style="color: #666; font-size: 0.9em; margin: 4px 0;">${name}</div>
-                            <div class="source-account" style="color: #999; font-size: 0.8em;">From: ${sourceAccount}</div>
-                        </div>
-                        <div class="user-status" style="font-size: 0.8em; color: #666; background: ${status === 'Active' ? '#d4edda' : '#f8d7da'}; padding: 4px 8px; border-radius: 4px;">
-                            ${status}
+                <div class="user-item github-card" style="margin-bottom: 16px; border: 1px solid #d0d7de; border-radius: 8px; overflow: hidden; transition: all 0.2s ease;">
+                    <div class="github-card-header" style="padding: 16px; background: ${userType === 'admin' ? '#fff8e1' : '#f6f8fa'}; border-bottom: 1px solid #d0d7de;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                                    <div class="email" style="font-weight: 600; font-size: 16px; color: #24292f; line-height: 1.25;">${email}</div>
+                                    <span class="user-type-badge" style="
+                                        padding: 4px 8px; 
+                                        border-radius: 12px; 
+                                        font-size: 12px; 
+                                        font-weight: 600; 
+                                        text-transform: uppercase;
+                                        background: ${userType === 'admin' ? '#ff9800' : '#28a745'};
+                                        color: white;
+                                        letter-spacing: 0.5px;
+                                    ">${userType}</span>
+                                </div>
+                                <div class="name" style="color: #656d76; font-size: 14px; margin-bottom: 4px;">${name}</div>
+                                <div class="source-account" style="color: #8b949e; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                                    <i class="fas fa-user-circle"></i>
+                                    From: ${sourceAccount}
+                                </div>
+                            </div>
+                            <div class="user-status" style="
+                                padding: 6px 12px; 
+                                border-radius: 16px; 
+                                font-size: 12px; 
+                                font-weight: 500;
+                                background: ${status === 'Active' ? '#d4edda' : '#f8d7da'};
+                                color: ${status === 'Active' ? '#155724' : '#721c24'};
+                                border: 1px solid ${status === 'Active' ? '#c3e6cb' : '#f5c6cb'};
+                            ">
+                                <i class="fas fa-${status === 'Active' ? 'check-circle' : 'exclamation-circle'}"></i>
+                                ${status}
+                            </div>
                         </div>
                     </div>
-                    <div class="user-type-info" style="background: ${userType === 'admin' ? '#fff3cd' : '#d1ecf1'}; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
-                        <div style="color: ${userType === 'admin' ? '#856404' : '#0c5460'}; font-weight: bold; margin-bottom: 4px;">User Type:</div>
-                        <div style="color: #333; text-transform: uppercase; font-weight: bold;">${userType}</div>
+                    <div class="github-card-body" style="padding: 16px; background: white;">
+                        <div style="display: flex; align-items: center; gap: 8px; color: #656d76; font-size: 13px;">
+                            <i class="fas fa-info-circle"></i>
+                            <span>User Type: <strong style="color: ${userType === 'admin' ? '#ff9800' : '#28a745'};">${userType.toUpperCase()}</strong></span>
+                            ${userType === 'admin' ? '<span style="color: #ff9800; font-weight: 500;">• Administrative Account</span>' : '<span style="color: #28a745; font-weight: 500;">• Regular User</span>'}
+                        </div>
                     </div>
                 </div>
             `;
