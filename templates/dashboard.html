@@ -6887,11 +6887,13 @@ function uploadAppPasswords() {
     })
     .then(response => response.json())
     .then(data => {
+        console.log('Upload response:', data); // Debug log
         if (data.success) {
-            alert(`✅ Successfully uploaded ${data.count} app passwords!`);
+            const count = data.count || 0;
+            alert(`✅ Successfully uploaded ${count} app passwords!`);
             loadAppPasswordsStatus();
         } else {
-            alert('❌ Error: ' + data.error);
+            alert('❌ Error: ' + (data.error || 'Unknown error'));
         }
     })
     .catch(error => {
@@ -6947,9 +6949,11 @@ function loadAppPasswordsStatus() {
     fetch('/api/app-passwords-status')
         .then(response => response.json())
         .then(data => {
+            console.log('Status response:', data); // Debug log
             if (data.success) {
+                const count = data.count || 0;
                 document.getElementById('app-passwords-count').textContent = 
-                    `${data.count} app passwords stored`;
+                    `${count} app passwords stored`;
                 
                 // Debug: log sample data
                 if (data.sample_data && data.sample_data.length > 0) {
