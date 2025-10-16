@@ -900,6 +900,9 @@
             <button onclick="uploadAppPasswords()" class="btn-github btn-github-primary">
                 <i class="fas fa-upload"></i> Upload App Passwords
             </button>
+            <div id="app-passwords-status" class="count-display" style="margin-top: 16px;">
+                <span id="app-passwords-count">No app passwords stored</span>
+            </div>
         </div>
         
         <!-- Retrieve Section -->
@@ -1089,42 +1092,6 @@
         <div id="csv-preview-area" class="csv-preview"></div>
     </div>
 
-    <!-- App Password Management -->
-    <div class="github-card">
-        <div class="github-card-header">
-            <h3 class="github-card-title">
-                <i class="fas fa-key"></i>
-                App Password Management
-            </h3>
-        </div>
-        
-        <div class="form-group-github">
-            <label for="app-passwords-file" class="form-label-github">
-                <i class="fas fa-upload"></i> Upload App Passwords File
-            </label>
-            <input type="file" id="app-passwords-file" class="form-control-github" accept=".txt" 
-                   onchange="handleAppPasswordsFile(this)">
-            <small class="form-text" style="color: #666; margin-top: 8px;">
-                Upload a .txt file with format: user@domain.com:app_password (one per line)
-            </small>
-        </div>
-        
-        <div style="display: flex; gap: 12px; margin-top: 16px;">
-            <button onclick="uploadAppPasswords()" class="btn-github btn-github-primary">
-                <i class="fas fa-upload"></i> Upload & Store Passwords
-            </button>
-            <button onclick="clearAppPasswords()" class="btn-github">
-                <i class="fas fa-trash"></i> Clear All Passwords
-            </button>
-            <button onclick="downloadAppPasswordsTemplate()" class="btn-github">
-                <i class="fas fa-download"></i> Download Template
-            </button>
-        </div>
-        
-        <div id="app-passwords-status" class="count-display" style="margin-top: 16px;">
-            <span id="app-passwords-count">No app passwords stored</span>
-        </div>
-    </div>
 
     <!-- Automation Authentication Process -->
     <div class="github-card">
@@ -1921,6 +1888,7 @@ function autoLoadAppPasswords() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Page loaded, auto-loading app passwords...');
     setTimeout(autoLoadAppPasswords, 1000); // Wait 1 second for page to fully load
+    loadAppPasswordsStatus(); // Load status immediately
 });
 
 function clearAppPasswords() {
@@ -5196,28 +5164,40 @@ function uploadAppPasswords() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            logBulkDomain(`✅ ${data.message}`);
-            if (data.errors && data.errors.length > 0) {
-                logBulkDomain(`⚠️ Errors encountered:`);
-                data.errors.forEach(error => {
-                    logBulkDomain(`   ${error}`);
-                });
-            }
-            alert(`✅ Upload completed!\n\n${data.message}`);
+            alert(`✅ Successfully uploaded ${data.count} app passwords!`);
+            loadAppPasswordsStatus();
         } else {
-            logBulkDomain(`❌ Upload failed: ${data.error}`);
-            alert(`❌ Upload failed: ${data.error}`);
+            alert('❌ Error: ' + data.error);
         }
     })
     .catch(error => {
-        logBulkDomain(`❌ Network error: ${error}`);
-        alert(`❌ Network error: ${error.message}`);
+        console.error('Error uploading app passwords:', error);
+        alert('❌ Error uploading app passwords');
     })
     .finally(() => {
         button.innerHTML = originalText;
         button.disabled = false;
-        fileInput.value = ''; // Clear file input
     });
+}
+
+// Load app passwords status
+function loadAppPasswordsStatus() {
+    fetch('/api/app-passwords-status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('app-passwords-count').textContent = 
+                    `${data.count} app passwords stored`;
+            } else {
+                document.getElementById('app-passwords-count').textContent = 
+                    'Error loading app passwords status';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading app passwords status:', error);
+            document.getElementById('app-passwords-count').textContent = 
+                'Error loading status';
+        });
 }
 
 function retrieveAppPasswords() {
