@@ -21,6 +21,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from faker import Faker
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import re
 
 from core_logic import google_api
 from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword, AutomationAccount, RetrievedUser
@@ -7601,25 +7602,34 @@ def api_upload_app_passwords():
             content = content.decode('utf-8', errors='ignore')
 
         # Normalize newlines and split into lines
-        lines = content.replace('\r\n', '\n').replace('\r', '\n').strip().split('\n')
+        text = content.replace('\r\n', '\n').replace('\r', '\n')
+        lines = [l for l in text.split('\n')]
         
         stored_count = 0
-        for line in lines:
-            line = line.strip()
+        line_regex = re.compile(r"^\s*([^\s:,]+@[^\s:,]+)\s*[:|,]\s*([^\s]+)\s*$")
+        for raw in lines:
+            line = (raw or '').strip()
             if not line:
                 continue
-            
-            try:
-                # Accept both "user:password" and "user,password" formats
+
+            # Skip comment/header lines
+            if line.startswith('#') or line.lower().startswith('user') and ('password' in line.lower() or 'app_password' in line.lower()):
+                continue
+
+            m = line_regex.match(line)
+            if not m:
+                # Try last fallback by splitting on first colon
                 if ':' in line:
-                    email, app_password = line.split(':', 1)
+                    parts = line.split(':', 1)
                 elif ',' in line:
-                    email, app_password = line.split(',', 1)
+                    parts = line.split(',', 1)
                 else:
-                    # Unsupported format
                     continue
-                email = email.strip()
-                app_password = app_password.strip()
+                email = parts[0].strip()
+                app_password = parts[1].strip() if len(parts) > 1 else ''
+            else:
+                email = m.group(1).strip()
+                app_password = m.group(2).strip()
                 
                 if not email or not app_password:
                     continue
@@ -7672,6 +7682,25 @@ def api_upload_app_passwords():
             'count': stored_count,
             'stored_sample': sample_data
         })
+
+@app.route('/api/list-app-passwords', methods=['GET'])
+@login_required
+def api_list_app_passwords():
+    try:
+        q = UserAppPassword.query.order_by(UserAppPassword.username.asc()).limit(100).all()
+        return jsonify({
+            'success': True,
+            'count': len(q),
+            'passwords': [
+                {
+                    'username': r.username,
+                    'domain': r.domain,
+                } for r in q
+            ]
+        })
+    except Exception as e:
+        app.logger.error(f"Error listing app passwords: {e}")
+        return jsonify({'success': False, 'error': str(e)})
         
     except Exception as e:
         db.session.rollback()
