@@ -7575,7 +7575,7 @@ def api_get_all_app_passwords():
 @app.route('/api/execute-automation-process', methods=['POST'])
 @login_required
 def api_execute_automation_process():
-    """Execute the complete automation process: authenticate + retrieve users"""
+    """Execute the complete automation process: authenticate + retrieve users from multiple accounts"""
     try:
         data = request.get_json()
         accounts = data.get('accounts', [])
@@ -7585,6 +7585,7 @@ def api_execute_automation_process():
         
         results = []
         authenticated_count = 0
+        all_users = []  # Store all users from all accounts
         users_retrieved = 0
         
         # Process each account
@@ -7594,7 +7595,8 @@ def api_execute_automation_process():
                     'account': account_email,
                     'success': False,
                     'message': '',
-                    'users_count': 0
+                    'users_count': 0,
+                    'users': []
                 }
                 
                 # Find the GoogleAccount by email/account name
@@ -7626,7 +7628,15 @@ def api_execute_automation_process():
                         # Use the existing retrieve users functionality
                         users_data = google_api.get_users()
                         if users_data and 'users' in users_data:
-                            result['users_count'] = len(users_data['users'])
+                            account_users = users_data['users']
+                            result['users_count'] = len(account_users)
+                            result['users'] = account_users
+                            
+                            # Add account info to each user for identification
+                            for user in account_users:
+                                user['source_account'] = account_email
+                            
+                            all_users.extend(account_users)
                             users_retrieved += result['users_count']
                             result['message'] += f' and retrieved {result["users_count"]} users'
                         else:
@@ -7643,7 +7653,8 @@ def api_execute_automation_process():
                     'account': account_email,
                     'success': False,
                     'message': f'Error processing account: {str(e)}',
-                    'users_count': 0
+                    'users_count': 0,
+                    'users': []
                 })
         
         return jsonify({
@@ -7651,6 +7662,7 @@ def api_execute_automation_process():
             'processed_count': len(accounts),
             'authenticated_count': authenticated_count,
             'users_retrieved': users_retrieved,
+            'all_users': all_users,  # Combined users from all accounts
             'results': results
         })
         

@@ -7045,9 +7045,9 @@ function showAutomationResults(data) {
     contentDiv.innerHTML = html;
     resultsDiv.style.display = 'block';
     
-    // If users were retrieved, fetch and display them
-    if (data.users_retrieved > 0) {
-        fetchAndDisplayAutomationUsers();
+    // If users were retrieved, display them directly from the response
+    if (data.users_retrieved > 0 && data.all_users) {
+        displayAutomationUsers(data.all_users);
     }
 }
 
@@ -7096,12 +7096,14 @@ function displayAutomationUsers(users) {
         const email = user.email || user.primaryEmail || 'N/A';
         const name = user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : (user.first_name || user.name?.fullName || user.name?.givenName || 'N/A');
         const status = user.suspended ? 'Suspended' : 'Active';
+        const sourceAccount = user.source_account || 'Unknown';
         
         html += `
             <div class="user-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee;">
-                <div class="user-info">
+                <div class="user-info" style="flex: 1;">
                     <div class="email" style="font-weight: bold;">${email}</div>
                     <div class="name" style="color: #666; font-size: 0.9em;">${name}</div>
+                    <div class="source-account" style="color: #999; font-size: 0.8em;">From: ${sourceAccount}</div>
                 </div>
                 <div class="user-status" style="font-size: 0.8em; color: #666;">
                     ${status}
@@ -7144,14 +7146,15 @@ function exportAutomationUsers() {
         return;
     }
     
-    let csvContent = 'Email,Name,Status\n';
+    let csvContent = 'Email,Name,Status,Source Account\n';
     
     userElements.forEach(element => {
         const email = element.querySelector('.email')?.textContent.trim() || '';
         const name = element.querySelector('.name')?.textContent.trim() || '';
         const status = element.querySelector('.user-status')?.textContent.trim() || '';
+        const sourceAccount = element.querySelector('.source-account')?.textContent.replace('From: ', '').trim() || '';
         
-        csvContent += `"${email}","${name}","${status}"\n`;
+        csvContent += `"${email}","${name}","${status}","${sourceAccount}"\n`;
     });
     
     // Create and download CSV file
@@ -7159,7 +7162,7 @@ function exportAutomationUsers() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `automation_users_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+    a.download = `bulk_automation_users_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
