@@ -7588,128 +7588,73 @@ def api_test_app_passwords():
 @app.route('/api/upload-app-passwords', methods=['POST'])
 @login_required
 def api_upload_app_passwords():
-    """Upload and store app passwords from file"""
+    """Upload and store app passwords from file - SIMPLE VERSION"""
+    print("=== UPLOAD STARTED ===")
+    
     try:
-        # Ensure tables exist (idempotent)
-        try:
-            db.create_all()
-        except Exception as e:
-            app.logger.warning(f"create_all warning (non-fatal): {e}")
-
+        # Check if file exists
         if 'file' not in request.files:
+            print("ERROR: No file in request")
             return jsonify({'success': False, 'error': 'No file provided'})
         
         file = request.files['file']
-        if file.filename == '':
-            return jsonify({'success': False, 'error': 'No file selected'})
+        print(f"File received: {file.filename}, size: {len(file.read())}")
+        file.seek(0)  # Reset file pointer
         
-        if not file.filename.endswith('.txt'):
-            return jsonify({'success': False, 'error': 'File must be a .txt file'})
-        
-        # Read file content (support BOM and different newlines)
-        content = file.read()
-        try:
-            content = content.decode('utf-8-sig')  # gracefully handle BOM if present
-        except Exception:
-            content = content.decode('utf-8', errors='ignore')
-
-        # Normalize newlines and split into lines
-        text = content.replace('\r\n', '\n').replace('\r', '\n')
-        lines = [l for l in text.split('\n')]
+        # Read file content
+        content = file.read().decode('utf-8')
+        lines = content.split('\n')
+        print(f"File has {len(lines)} lines")
         
         stored_count = 0
-        batch: list[UserAppPassword] = []
-        app.logger.info(f"Processing {len(lines)} lines from file")
-        app.logger.info(f"First few lines: {lines[:3]}")  # Debug: show first 3 lines
         
-        for raw in lines:
-            line = (raw or '').strip()
+        for line_num, line in enumerate(lines, 1):
+            line = line.strip()
             if not line:
                 continue
-
-            # Skip comment/header lines
-            if line.startswith('#') or (line.lower().startswith('user') and ('password' in line.lower() or 'app_password' in line.lower())):
-                continue
-
-            # Simple parsing: split on first colon or comma
-            email = None
-            app_password = None
+                
+            print(f"Line {line_num}: {line}")
             
+            # Split on colon
             if ':' in line:
-                parts = line.split(':', 1)
-                email = parts[0].strip()
-                app_password = parts[1].strip() if len(parts) > 1 else ''
-            elif ',' in line:
-                parts = line.split(',', 1)
-                email = parts[0].strip()
-                app_password = parts[1].strip() if len(parts) > 1 else ''
-            else:
-                app.logger.warning(f"Skipping line (no separator): {line}")
-                continue
+                email, password = line.split(':', 1)
+                email = email.strip()
+                password = password.strip()
                 
-            if not email or not app_password:
-                app.logger.warning(f"Skipping line (empty email/password): email='{email}', password='{app_password}'")
-                continue
-            
-            app.logger.info(f"Processing: {email} -> {app_password[:10]}...")
-            
-            try:
-                # Derive alias (local part) and domain (if present)
-                if '@' in email:
-                    local_part, domain_part = email.split('@', 1)
-                else:
-                    # Support alias-only lines; use wildcard domain
-                    local_part, domain_part = email, '*'
-
-                # Normalize for consistent matching
-                local_part = local_part.strip().lower()
-                domain_part = domain_part.strip().lower()
-
-                existing = UserAppPassword.query.filter_by(username=local_part, domain=domain_part).first()
-                
-                if existing:
-                    # Update existing
-                    existing.app_password = app_password
-                else:
-                    # Create new
-                    user_app_password = UserAppPassword(
-                        username=local_part,
-                        domain=domain_part,
-                        app_password=app_password
-                    )
-                    batch.append(user_app_password)
-                
-                stored_count += 1
-                
-            except Exception as e:
-                app.logger.warning(f"Error processing line '{line}': {e}")
-                continue
+                if email and password:
+                    # Extract username and domain
+                    if '@' in email:
+                        username, domain = email.split('@', 1)
+                    else:
+                        username, domain = email, '*'
+                    
+                    # Save to database
+                    existing = UserAppPassword.query.filter_by(username=username, domain=domain).first()
+                    if existing:
+                        existing.app_password = password
+                    else:
+                        new_password = UserAppPassword(
+                            username=username,
+                            domain=domain,
+                            app_password=password
+                        )
+                        db.session.add(new_password)
+                    
+                    stored_count += 1
+                    print(f"Saved: {username}@{domain} -> {password[:5]}...")
         
-        # Bulk insert in batches to support very large files
-        if batch:
-            app.logger.info(f"Bulk inserting {len(batch)} new app passwords")
-            db.session.bulk_save_objects(batch)
         db.session.commit()
-        app.logger.info(f"App passwords stored/updated: {stored_count}")
+        print(f"=== UPLOAD COMPLETE: {stored_count} passwords stored ===")
         
-        # Return quick sample of what was just stored for verification
-        sample_passwords = UserAppPassword.query.order_by(UserAppPassword.id.desc()).limit(5).all()
-        sample_data = [{
-            'username': p.username,
-            'domain': p.domain,
-            'full_email': f"{p.username}@{p.domain}" if p.domain != '*' else p.username,
-        } for p in sample_passwords]
-
         return jsonify({
             'success': True,
-            'message': f'Successfully stored {stored_count} app passwords',
             'count': stored_count,
-            'stored_sample': sample_data
+            'message': f'Stored {stored_count} app passwords'
         })
         
     except Exception as e:
+        print(f"=== UPLOAD ERROR: {str(e)} ===")
         db.session.rollback()
-        app.logger.error(f"Error uploading app passwords: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/list-app-passwords', methods=['GET'])
