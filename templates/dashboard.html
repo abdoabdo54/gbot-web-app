@@ -1033,6 +1033,9 @@
             <button onclick="uploadAppPasswords()" class="btn-github btn-github-primary">
                 <i class="fas fa-upload"></i> Upload & Store Passwords
             </button>
+            <button onclick="testAppPasswordsAPI()" class="btn-github">
+                <i class="fas fa-test-tube"></i> Test API
+            </button>
             <button onclick="clearAppPasswords()" class="btn-github">
                 <i class="fas fa-trash"></i> Clear All Passwords
             </button>
@@ -6881,11 +6884,19 @@ function uploadAppPasswords() {
     const formData = new FormData();
     formData.append('file', appPasswordsFile);
     
+    console.log('Starting upload...', appPasswordsFile.name, appPasswordsFile.size); // Debug log
+    
     fetch('/api/upload-app-passwords', {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status); // Debug log
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         console.log('Upload response:', data); // Debug log
         if (data.success) {
@@ -6942,6 +6953,24 @@ admin@company.com:app_password_4`;
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+}
+
+// Test API connection
+function testAppPasswordsAPI() {
+    console.log('Testing API connection...');
+    fetch('/api/test-app-passwords')
+        .then(response => {
+            console.log('Test response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Test response data:', data);
+            alert(`✅ API Test: ${data.message}`);
+        })
+        .catch(error => {
+            console.error('API test error:', error);
+            alert(`❌ API Test failed: ${error.message}`);
+        });
 }
 
 // Load app passwords status

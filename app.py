@@ -7575,6 +7575,16 @@ def api_get_all_app_passwords():
 
 # ===== APP PASSWORD MANAGEMENT API =====
 
+@app.route('/api/test-app-passwords', methods=['GET'])
+@login_required
+def api_test_app_passwords():
+    """Test endpoint to verify app passwords API is working"""
+    return jsonify({
+        'success': True,
+        'message': 'App passwords API is working',
+        'timestamp': str(db.func.current_timestamp())
+    })
+
 @app.route('/api/upload-app-passwords', methods=['POST'])
 @login_required
 def api_upload_app_passwords():
