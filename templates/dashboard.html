@@ -7336,7 +7336,21 @@ function updateUsersListStats(users) {
     const filteredUsers = users.filter(user => {
         const email = user.email || user.primaryEmail || 'N/A';
         const sourceAccount = user.source_account || 'Unknown';
-        return !(email && sourceAccount && email.toLowerCase() === sourceAccount.toLowerCase());
+        
+        // Check if this is an admin account by comparing email with source account
+        if (email && sourceAccount && email.toLowerCase() === sourceAccount.toLowerCase()) {
+            return false; // Exclude admin account
+        }
+        
+        // Also check for common admin patterns
+        const isAdminAccount = email.toLowerCase().includes('admin') || 
+                              email.toLowerCase().includes('support') || 
+                              email.toLowerCase().includes('noreply') ||
+                              email.toLowerCase().includes('postmaster') ||
+                              email.toLowerCase().includes('abuse') ||
+                              email.toLowerCase().includes('webmaster');
+        
+        return !isAdminAccount; // Exclude if it's an admin account
     });
     
     let totalUsers = filteredUsers.length;
@@ -7522,8 +7536,22 @@ function displayAutomationUsers(users) {
         const appPassword = user.app_password || 'No app password';
         
         // Skip admin accounts - exclude them from the Users List
+        // Check if this is an admin account by comparing email with source account
         if (email && sourceAccount && email.toLowerCase() === sourceAccount.toLowerCase()) {
             console.log(`Skipping admin account: ${email}`);
+            return; // Skip this user
+        }
+        
+        // Also check for common admin patterns
+        const isAdminAccount = email.toLowerCase().includes('admin') || 
+                              email.toLowerCase().includes('support') || 
+                              email.toLowerCase().includes('noreply') ||
+                              email.toLowerCase().includes('postmaster') ||
+                              email.toLowerCase().includes('abuse') ||
+                              email.toLowerCase().includes('webmaster');
+        
+        if (isAdminAccount) {
+            console.log(`Skipping admin account (pattern match): ${email}`);
             return; // Skip this user
         }
         
