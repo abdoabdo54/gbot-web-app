@@ -119,6 +119,8 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
 # Configure file upload settings
 # app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # File size limit removed
 app.config['UPLOAD_FOLDER'] = 'backups'
+# Allow large .txt uploads for massive app-password lists (e.g., up to ~100MB)
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB
 
 db.init_app(app)
 
@@ -7606,6 +7608,7 @@ def api_upload_app_passwords():
         lines = [l for l in text.split('\n')]
         
         stored_count = 0
+        batch: list[UserAppPassword] = []
         line_regex = re.compile(r"^\s*([^\s:,]+@[^\s:,]+)\s*[:|,]\s*([^\s]+)\s*$")
         for raw in lines:
             line = (raw or '').strip()
@@ -7658,7 +7661,7 @@ def api_upload_app_passwords():
                         domain=domain_part,
                         app_password=app_password
                     )
-                    db.session.add(user_app_password)
+                    batch.append(user_app_password)
                 
                 stored_count += 1
                 
@@ -7666,6 +7669,9 @@ def api_upload_app_passwords():
                 app.logger.warning(f"Error processing line '{line}': {e}")
                 continue
         
+        # Bulk insert in batches to support very large files
+        if batch:
+            db.session.bulk_save_objects(batch)
         db.session.commit()
         app.logger.info(f"App passwords stored/updated: {stored_count}")
         
