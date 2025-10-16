@@ -7620,6 +7620,7 @@ def api_upload_app_passwords():
         stored_count = 0
         batch: list[UserAppPassword] = []
         app.logger.info(f"Processing {len(lines)} lines from file")
+        app.logger.info(f"First few lines: {lines[:3]}")  # Debug: show first 3 lines
         
         for raw in lines:
             line = (raw or '').strip()
