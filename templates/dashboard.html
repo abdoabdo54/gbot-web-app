@@ -1146,6 +1146,23 @@
                 </button>
             </div>
         </div>
+        
+        <!-- Users Text Display Field -->
+        <div id="automation-users-text-display" class="github-card" style="margin-top: 16px; display: none;">
+            <div class="github-card-header">
+                <h3 class="github-card-title">
+                    <i class="fas fa-list"></i>
+                    Users List (Text Format)
+                </h3>
+            </div>
+            <div class="form-group-github">
+                <label for="automation-users-text" class="form-label-github">
+                    <i class="fas fa-text-width"></i> Retrieved Users (one per line)
+                </label>
+                <textarea id="automation-users-text" class="form-control-github" rows="15" 
+                          placeholder="Users will appear here after automation process..." readonly></textarea>
+            </div>
+        </div>
     </div>
     </div>
 </div>
@@ -6959,6 +6976,14 @@ function executeAutomationProcess() {
     document.getElementById('automation-progress-bar').style.width = '0%';
     document.getElementById('automation-progress-text').textContent = 'Starting automation process...';
     
+    // Show users display areas immediately
+    document.getElementById('automation-users-display').style.display = 'block';
+    document.getElementById('automation-users-text-display').style.display = 'block';
+    
+    // Clear previous results
+    document.getElementById('automation-users-list').innerHTML = '<div class="no-users-message"><i class="fas fa-spinner fa-spin"></i><p>Processing users...</p></div>';
+    document.getElementById('automation-users-text').value = 'Processing users...';
+    
     // Execute automation process
     fetch('/api/execute-automation-process', {
         method: 'POST',
@@ -7051,31 +7076,46 @@ function fetchAndDisplayAutomationUsers() {
 // Display users in the automation users list
 function displayAutomationUsers(users) {
     const usersListDiv = document.getElementById('automation-users-list');
+    const usersTextArea = document.getElementById('automation-users-text');
     const usersDisplayDiv = document.getElementById('automation-users-display');
+    const usersTextDisplayDiv = document.getElementById('automation-users-text-display');
     
     if (!users || users.length === 0) {
         usersListDiv.innerHTML = '<div class="no-users-message"><i class="fas fa-info-circle"></i><p>No users found</p></div>';
+        usersTextArea.value = 'No users found';
         usersDisplayDiv.style.display = 'block';
+        usersTextDisplayDiv.style.display = 'block';
         return;
     }
     
+    // Populate the list view
     let html = '';
+    let emailsList = [];
+    
     users.forEach(user => {
+        const email = user.email || user.primaryEmail || 'N/A';
+        const name = user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : (user.first_name || user.name?.fullName || user.name?.givenName || 'N/A');
+        const status = user.suspended ? 'Suspended' : 'Active';
+        
         html += `
             <div class="user-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee;">
                 <div class="user-info">
-                    <div class="email" style="font-weight: bold;">${user.primaryEmail || user.email || 'N/A'}</div>
-                    <div class="name" style="color: #666; font-size: 0.9em;">${user.name?.fullName || user.name?.givenName || 'N/A'}</div>
+                    <div class="email" style="font-weight: bold;">${email}</div>
+                    <div class="name" style="color: #666; font-size: 0.9em;">${name}</div>
                 </div>
                 <div class="user-status" style="font-size: 0.8em; color: #666;">
-                    ${user.suspended ? 'Suspended' : 'Active'}
+                    ${status}
                 </div>
             </div>
         `;
+        
+        emailsList.push(email);
     });
     
     usersListDiv.innerHTML = html;
+    usersTextArea.value = emailsList.join('\n');
     usersDisplayDiv.style.display = 'block';
+    usersTextDisplayDiv.style.display = 'block';
 }
 
 // Copy all automation users
@@ -7134,6 +7174,7 @@ function clearAutomationList() {
         document.getElementById('automation-accounts-list').value = '';
         document.getElementById('automation-results').style.display = 'none';
         document.getElementById('automation-users-display').style.display = 'none';
+        document.getElementById('automation-users-text-display').style.display = 'none';
     }
 }
 
