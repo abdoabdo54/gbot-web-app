@@ -7579,11 +7579,35 @@ def api_get_all_app_passwords():
 @login_required
 def api_test_app_passwords():
     """Test endpoint to verify app passwords API is working"""
-    return jsonify({
-        'success': True,
-        'message': 'App passwords API is working',
-        'timestamp': str(db.func.current_timestamp())
-    })
+    try:
+        # Test database access
+        count = UserAppPassword.query.count()
+        
+        # Test insert
+        test_user = UserAppPassword(
+            username='test',
+            domain='test.com',
+            app_password='test123'
+        )
+        db.session.add(test_user)
+        db.session.commit()
+        
+        # Delete test
+        UserAppPassword.query.filter_by(username='test', domain='test.com').delete()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'App passwords API is working',
+            'database_count': count,
+            'test_passed': True
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Database error - table may not exist'
+        })
 
 @app.route('/api/upload-app-passwords', methods=['POST'])
 @login_required
