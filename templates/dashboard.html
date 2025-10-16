@@ -1089,6 +1089,43 @@
         <div id="csv-preview-area" class="csv-preview"></div>
     </div>
 
+    <!-- App Password Management -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-key"></i>
+                App Password Management
+            </h3>
+        </div>
+        
+        <div class="form-group-github">
+            <label for="app-passwords-file" class="form-label-github">
+                <i class="fas fa-upload"></i> Upload App Passwords File
+            </label>
+            <input type="file" id="app-passwords-file" class="form-control-github" accept=".txt" 
+                   onchange="handleAppPasswordsFile(this)">
+            <small class="form-text" style="color: #666; margin-top: 8px;">
+                Upload a .txt file with format: user@domain.com:app_password (one per line)
+            </small>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-top: 16px;">
+            <button onclick="uploadAppPasswords()" class="btn-github btn-github-primary">
+                <i class="fas fa-upload"></i> Upload & Store Passwords
+            </button>
+            <button onclick="clearAppPasswords()" class="btn-github">
+                <i class="fas fa-trash"></i> Clear All Passwords
+            </button>
+            <button onclick="downloadAppPasswordsTemplate()" class="btn-github">
+                <i class="fas fa-download"></i> Download Template
+            </button>
+        </div>
+        
+        <div id="app-passwords-status" class="count-display" style="margin-top: 16px;">
+            <span id="app-passwords-count">No app passwords stored</span>
+        </div>
+    </div>
+
     <!-- Automation Authentication Process -->
     <div class="github-card">
         <div class="github-card-header">
@@ -6952,6 +6989,110 @@ function runMegaUpgradeWorkflow(accounts, features) {
     });
 }
 
+// ===== APP PASSWORD MANAGEMENT FUNCTIONS =====
+
+let appPasswordsFile = null;
+
+// Handle app passwords file selection
+function handleAppPasswordsFile(input) {
+    const file = input.files[0];
+    if (file) {
+        appPasswordsFile = file;
+        console.log('App passwords file selected:', file.name);
+    }
+}
+
+// Upload and store app passwords
+function uploadAppPasswords() {
+    if (!appPasswordsFile) {
+        alert('Please select a file first');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', appPasswordsFile);
+    
+    fetch('/api/upload-app-passwords', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ Successfully uploaded ${data.count} app passwords!`);
+            loadAppPasswordsStatus();
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error uploading app passwords:', error);
+        alert('❌ Error uploading app passwords');
+    });
+}
+
+// Clear all app passwords
+function clearAppPasswords() {
+    if (!confirm('Are you sure you want to clear all app passwords? This action cannot be undone.')) {
+        return;
+    }
+    
+    fetch('/api/clear-app-passwords', {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ All app passwords cleared successfully!');
+            loadAppPasswordsStatus();
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error clearing app passwords:', error);
+        alert('❌ Error clearing app passwords');
+    });
+}
+
+// Download app passwords template
+function downloadAppPasswordsTemplate() {
+    const template = `user1@domain.com:app_password_1
+user2@domain.com:app_password_2
+user3@domain.com:app_password_3
+admin@company.com:app_password_4`;
+    
+    const blob = new Blob([template], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'app_passwords_template.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
+// Load app passwords status
+function loadAppPasswordsStatus() {
+    fetch('/api/app-passwords-status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('app-passwords-count').textContent = 
+                    `${data.count} app passwords stored`;
+            } else {
+                document.getElementById('app-passwords-count').textContent = 
+                    'Error loading app passwords status';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading app passwords status:', error);
+            document.getElementById('app-passwords-count').textContent = 
+                'Error loading status';
+        });
+}
+
 // ===== SIMPLIFIED AUTOMATION AUTHENTICATION FUNCTIONS =====
 
 // Execute the complete automation process
@@ -6983,6 +7124,9 @@ function executeAutomationProcess() {
     // Clear previous results
     document.getElementById('automation-users-list').innerHTML = '<div class="no-users-message"><i class="fas fa-spinner fa-spin"></i><p>Processing users...</p></div>';
     document.getElementById('automation-users-text').value = 'Processing users...';
+    
+    // Load app passwords status
+    loadAppPasswordsStatus();
     
     // Execute automation process
     fetch('/api/execute-automation-process', {
@@ -7099,14 +7243,20 @@ function displayAutomationUsers(users) {
         const sourceAccount = user.source_account || 'Unknown';
         
         html += `
-            <div class="user-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee;">
-                <div class="user-info" style="flex: 1;">
-                    <div class="email" style="font-weight: bold;">${email}</div>
-                    <div class="name" style="color: #666; font-size: 0.9em;">${name}</div>
-                    <div class="source-account" style="color: #999; font-size: 0.8em;">From: ${sourceAccount}</div>
+            <div class="user-item" style="padding: 12px; border-bottom: 1px solid #eee; background: #f9f9f9; margin-bottom: 8px; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                    <div class="user-info" style="flex: 1;">
+                        <div class="email" style="font-weight: bold; font-size: 1.1em; color: #24292f;">${email}</div>
+                        <div class="name" style="color: #666; font-size: 0.9em; margin: 4px 0;">${name}</div>
+                        <div class="source-account" style="color: #999; font-size: 0.8em;">From: ${sourceAccount}</div>
+                    </div>
+                    <div class="user-status" style="font-size: 0.8em; color: #666; background: ${status === 'Active' ? '#d4edda' : '#f8d7da'}; padding: 4px 8px; border-radius: 4px;">
+                        ${status}
+                    </div>
                 </div>
-                <div class="user-status" style="font-size: 0.8em; color: #666;">
-                    ${status}
+                <div class="smtp-info" style="background: #e3f2fd; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
+                    <div style="color: #1976d2; font-weight: bold; margin-bottom: 4px;">SMTP Configuration:</div>
+                    <div style="color: #333;">${email},${user.app_password || 'No app password'},smtp.gmail.com,587</div>
                 </div>
             </div>
         `;
@@ -7146,7 +7296,7 @@ function exportAutomationUsers() {
         return;
     }
     
-    let csvContent = 'Email,Name,Status,Source Account\n';
+    let csvContent = 'Email,Name,Status,Source Account,App Password,SMTP Config\n';
     
     userElements.forEach(element => {
         const email = element.querySelector('.email')?.textContent.trim() || '';
@@ -7154,7 +7304,13 @@ function exportAutomationUsers() {
         const status = element.querySelector('.user-status')?.textContent.trim() || '';
         const sourceAccount = element.querySelector('.source-account')?.textContent.replace('From: ', '').trim() || '';
         
-        csvContent += `"${email}","${name}","${status}","${sourceAccount}"\n`;
+        // Extract app password and SMTP config from the SMTP info section
+        const smtpInfo = element.querySelector('.smtp-info div:last-child')?.textContent.trim() || '';
+        const smtpParts = smtpInfo.split(',');
+        const appPassword = smtpParts.length > 1 ? smtpParts[1] : 'No app password';
+        const smtpConfig = smtpInfo || `${email},No app password,smtp.gmail.com,587`;
+        
+        csvContent += `"${email}","${name}","${status}","${sourceAccount}","${appPassword}","${smtpConfig}"\n`;
     });
     
     // Create and download CSV file

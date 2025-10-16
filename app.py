@@ -7570,6 +7570,110 @@ def api_get_all_app_passwords():
         logging.error(f"Get all app passwords error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+# ===== APP PASSWORD MANAGEMENT API =====
+
+@app.route('/api/upload-app-passwords', methods=['POST'])
+@login_required
+def api_upload_app_passwords():
+    """Upload and store app passwords from file"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'})
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'})
+        
+        if not file.filename.endswith('.txt'):
+            return jsonify({'success': False, 'error': 'File must be a .txt file'})
+        
+        # Read file content
+        content = file.read().decode('utf-8')
+        lines = content.strip().split('\n')
+        
+        stored_count = 0
+        for line in lines:
+            line = line.strip()
+            if not line or ':' not in line:
+                continue
+            
+            try:
+                email, app_password = line.split(':', 1)
+                email = email.strip()
+                app_password = app_password.strip()
+                
+                if not email or not app_password:
+                    continue
+                
+                # Check if app password already exists for this user
+                existing = UserAppPassword.query.filter_by(username=email.split('@')[0], domain=email.split('@')[1]).first()
+                
+                if existing:
+                    # Update existing
+                    existing.app_password = app_password
+                else:
+                    # Create new
+                    user_app_password = UserAppPassword(
+                        username=email.split('@')[0],
+                        domain=email.split('@')[1],
+                        app_password=app_password
+                    )
+                    db.session.add(user_app_password)
+                
+                stored_count += 1
+                
+            except Exception as e:
+                app.logger.warning(f"Error processing line '{line}': {e}")
+                continue
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully stored {stored_count} app passwords',
+            'count': stored_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error uploading app passwords: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/clear-app-passwords', methods=['DELETE'])
+@login_required
+def api_clear_app_passwords():
+    """Clear all stored app passwords"""
+    try:
+        # Delete all app passwords
+        UserAppPassword.query.delete()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'All app passwords cleared successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error clearing app passwords: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/app-passwords-status', methods=['GET'])
+@login_required
+def api_app_passwords_status():
+    """Get app passwords status"""
+    try:
+        count = UserAppPassword.query.count()
+        
+        return jsonify({
+            'success': True,
+            'count': count
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error getting app passwords status: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 # ===== SIMPLIFIED AUTOMATION AUTHENTICATION API =====
 
 @app.route('/api/execute-automation-process', methods=['POST'])
@@ -7632,9 +7736,29 @@ def api_execute_automation_process():
                             result['users_count'] = len(account_users)
                             result['users'] = account_users
                             
-                            # Add account info to each user for identification
+                            # Add account info and app password to each user
                             for user in account_users:
                                 user['source_account'] = account_email
+                                
+                                # Try to find matching app password
+                                user_email = user.get('email', '') or user.get('primaryEmail', '')
+                                if user_email and '@' in user_email:
+                                    try:
+                                        username, domain = user_email.split('@', 1)
+                                        app_password_record = UserAppPassword.query.filter_by(
+                                            username=username, 
+                                            domain=domain
+                                        ).first()
+                                        
+                                        if app_password_record:
+                                            user['app_password'] = app_password_record.app_password
+                                        else:
+                                            user['app_password'] = None
+                                    except Exception as e:
+                                        app.logger.warning(f"Error matching app password for {user_email}: {e}")
+                                        user['app_password'] = None
+                                else:
+                                    user['app_password'] = None
                             
                             all_users.extend(account_users)
                             users_retrieved += result['users_count']
