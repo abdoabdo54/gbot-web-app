@@ -7587,18 +7587,31 @@ def api_upload_app_passwords():
         if not file.filename.endswith('.txt'):
             return jsonify({'success': False, 'error': 'File must be a .txt file'})
         
-        # Read file content
-        content = file.read().decode('utf-8')
-        lines = content.strip().split('\n')
+        # Read file content (support BOM and different newlines)
+        content = file.read()
+        try:
+            content = content.decode('utf-8-sig')  # gracefully handle BOM if present
+        except Exception:
+            content = content.decode('utf-8', errors='ignore')
+
+        # Normalize newlines and split into lines
+        lines = content.replace('\r\n', '\n').replace('\r', '\n').strip().split('\n')
         
         stored_count = 0
         for line in lines:
             line = line.strip()
-            if not line or ':' not in line:
+            if not line:
                 continue
             
             try:
-                email, app_password = line.split(':', 1)
+                # Accept both "user:password" and "user,password" formats
+                if ':' in line:
+                    email, app_password = line.split(':', 1)
+                elif ',' in line:
+                    email, app_password = line.split(',', 1)
+                else:
+                    # Unsupported format
+                    continue
                 email = email.strip()
                 app_password = app_password.strip()
                 
@@ -7606,7 +7619,8 @@ def api_upload_app_passwords():
                     continue
                 
                 # Check if app password already exists for this user
-                existing = UserAppPassword.query.filter_by(username=email.split('@')[0], domain=email.split('@')[1]).first()
+                local_part, domain_part = email.split('@', 1)
+                existing = UserAppPassword.query.filter_by(username=local_part, domain=domain_part).first()
                 
                 if existing:
                     # Update existing
@@ -7614,8 +7628,8 @@ def api_upload_app_passwords():
                 else:
                     # Create new
                     user_app_password = UserAppPassword(
-                        username=email.split('@')[0],
-                        domain=email.split('@')[1],
+                        username=local_part,
+                        domain=domain_part,
                         app_password=app_password
                     )
                     db.session.add(user_app_password)
@@ -7768,6 +7782,11 @@ def api_execute_automation_process():
                                         if not app_password_record:
                                             app_password_record = UserAppPassword.query.filter(
                                                 db.func.concat(UserAppPassword.username, '@', UserAppPassword.domain) == user_email
+                                            ).first()
+                                        # If still not found, try by username only (ignore domain differences)
+                                        if not app_password_record:
+                                            app_password_record = UserAppPassword.query.filter_by(
+                                                username=username
                                             ).first()
                                         
                                         if app_password_record:
