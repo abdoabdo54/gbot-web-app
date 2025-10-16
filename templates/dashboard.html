@@ -7081,6 +7081,11 @@ function loadAppPasswordsStatus() {
             if (data.success) {
                 document.getElementById('app-passwords-count').textContent = 
                     `${data.count} app passwords stored`;
+                
+                // Debug: log sample data
+                if (data.sample_data && data.sample_data.length > 0) {
+                    console.log('Sample app passwords:', data.sample_data);
+                }
             } else {
                 document.getElementById('app-passwords-count').textContent = 
                     'Error loading app passwords status';
@@ -7224,6 +7229,8 @@ function displayAutomationUsers(users) {
     const usersDisplayDiv = document.getElementById('automation-users-display');
     const usersTextDisplayDiv = document.getElementById('automation-users-text-display');
     
+    console.log('Displaying users:', users);
+    
     if (!users || users.length === 0) {
         usersListDiv.innerHTML = '<div class="no-users-message"><i class="fas fa-info-circle"></i><p>No users found</p></div>';
         usersTextArea.value = 'No users found';
@@ -7241,6 +7248,9 @@ function displayAutomationUsers(users) {
         const name = user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : (user.first_name || user.name?.fullName || user.name?.givenName || 'N/A');
         const status = user.suspended ? 'Suspended' : 'Active';
         const sourceAccount = user.source_account || 'Unknown';
+        const appPassword = user.app_password || 'No app password';
+        
+        console.log(`User: ${email}, App Password: ${appPassword}`);
         
         html += `
             <div class="user-item" style="padding: 12px; border-bottom: 1px solid #eee; background: #f9f9f9; margin-bottom: 8px; border-radius: 6px;">
@@ -7256,7 +7266,7 @@ function displayAutomationUsers(users) {
                 </div>
                 <div class="smtp-info" style="background: #e3f2fd; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
                     <div style="color: #1976d2; font-weight: bold; margin-bottom: 4px;">SMTP Configuration:</div>
-                    <div style="color: #333;">${email},${user.app_password || 'No app password'},smtp.gmail.com,587</div>
+                    <div style="color: #333;">${email},${appPassword},smtp.gmail.com,587</div>
                 </div>
             </div>
         `;
@@ -7265,7 +7275,17 @@ function displayAutomationUsers(users) {
     });
     
     usersListDiv.innerHTML = html;
-    usersTextArea.value = emailsList.join('\n');
+    
+    // Create the SMTP format for the text area: user,app-password,smtp.gmail.com,587
+    let smtpFormatList = [];
+    users.forEach(user => {
+        const email = user.email || user.primaryEmail || 'N/A';
+        const appPassword = user.app_password || 'No app password';
+        const smtpLine = `${email},${appPassword},smtp.gmail.com,587`;
+        smtpFormatList.push(smtpLine);
+    });
+    
+    usersTextArea.value = smtpFormatList.join('\n');
     usersDisplayDiv.style.display = 'block';
     usersTextDisplayDiv.style.display = 'block';
 }

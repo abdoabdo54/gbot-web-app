@@ -7665,9 +7665,21 @@ def api_app_passwords_status():
     try:
         count = UserAppPassword.query.count()
         
+        # Also return some sample data for debugging
+        sample_passwords = UserAppPassword.query.limit(5).all()
+        sample_data = []
+        for pwd in sample_passwords:
+            sample_data.append({
+                'username': pwd.username,
+                'domain': pwd.domain,
+                'full_email': f"{pwd.username}@{pwd.domain}",
+                'has_password': bool(pwd.app_password)
+            })
+        
         return jsonify({
             'success': True,
-            'count': count
+            'count': count,
+            'sample_data': sample_data
         })
         
     except Exception as e:
@@ -7745,15 +7757,25 @@ def api_execute_automation_process():
                                 if user_email and '@' in user_email:
                                     try:
                                         username, domain = user_email.split('@', 1)
+                                        
+                                        # Try exact match first
                                         app_password_record = UserAppPassword.query.filter_by(
                                             username=username, 
                                             domain=domain
                                         ).first()
                                         
+                                        # If no exact match, try with full email
+                                        if not app_password_record:
+                                            app_password_record = UserAppPassword.query.filter(
+                                                db.func.concat(UserAppPassword.username, '@', UserAppPassword.domain) == user_email
+                                            ).first()
+                                        
                                         if app_password_record:
                                             user['app_password'] = app_password_record.app_password
+                                            app.logger.info(f"Found app password for {user_email}")
                                         else:
                                             user['app_password'] = None
+                                            app.logger.info(f"No app password found for {user_email}")
                                     except Exception as e:
                                         app.logger.warning(f"Error matching app password for {user_email}: {e}")
                                         user['app_password'] = None
