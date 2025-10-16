@@ -77,7 +77,7 @@
             
             <div id="account-list-area" class="account-list">
                 {% for account in accounts %}
-                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name|replace("'", "\\'") }}', {{ account.id }})" data-account-id="{{ account.id }}">
+                <div class="account-item" data-account-name="{{ account.account_name }}" data-account-id="{{ account.id }}" onclick="selectAccountFromList(this.dataset.accountName, this.dataset.accountId)">
                     {{ account.account_name }}
                 </div>
                 {% endfor %}
@@ -86,15 +86,15 @@
         
         <div class="account-actions">
             <button onclick="authenticateFromList()" class="action-button" style="height: 50px; font-size: 12px;">
-                🔑 Authenticate<br>(List Selection)
+                <i class="fas fa-key"></i> Authenticate<br>(List Selection)
             </button>
             {% if session.role == 'admin' %}
             <button onclick="openBulkDeleteModal()" class="action-button delete-button" style="background-color: #dc3545; border-color: #dc3545; height: 50px; font-size: 12px;">
-                🗑️ Bulk Delete<br>(Admin Only)
+                <i class="fas fa-trash"></i> Bulk Delete<br>(Admin Only)
             </button>
             {% endif %}
             <button onclick="deleteFromList()" class="action-button delete-button" style="height: 50px; font-size: 12px;">
-                🗑️ Delete Account<br>(List Selection)
+                <i class="fas fa-trash"></i> Delete Account<br>(List Selection)
             </button>
         </div>
     </div>
@@ -1148,26 +1148,97 @@
         
         <!-- Users Text Display Field -->
         <div id="automation-users-text-display" class="github-card" style="margin-top: 16px; display: none;">
-            <div class="github-card-header">
-                <h3 class="github-card-title">
-                    <i class="fas fa-list"></i>
-                    Users List (Text Format)
-                </h3>
-                <div id="users-list-stats" style="margin-top: 8px; font-size: 14px; color: #656d76;">
-                    <!-- Statistics will be displayed here -->
+            <div class="github-card-header" style="background: linear-gradient(135deg, #f6f8fa 0%, #e1e8ed 100%); border-bottom: 2px solid #d0d7de;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <h3 class="github-card-title" style="margin: 0; color: #24292f; font-size: 18px; font-weight: 600;">
+                            <i class="fas fa-list-alt" style="color: #0969da; margin-right: 8px;"></i>
+                            Users List (Text Format)
+                        </h3>
+                        <div id="users-list-stats" style="margin-top: 12px;">
+                            <!-- Statistics will be displayed here -->
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="padding: 6px 12px; background: #dbeafe; border-radius: 16px; font-size: 12px; font-weight: 500; color: #1e40af;">
+                            <i class="fas fa-users"></i> Ready for Export
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="form-group-github">
-                <label for="automation-users-text" class="form-label-github">
-                    <i class="fas fa-text-width"></i> Retrieved Users (one per line)
-                </label>
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <button onclick="copyRetrievedUsersText()" class="btn-github" style="padding: 6px 12px; font-size: 12px;">
-                        <i class="fas fa-copy"></i> Copy Text
-                    </button>
+            <div class="github-card-body" style="padding: 20px;">
+                <div class="form-group-github">
+                    <label for="automation-users-text" class="form-label-github" style="font-weight: 600; color: #24292f; margin-bottom: 12px;">
+                        <i class="fas fa-file-text" style="color: #0969da; margin-right: 8px;"></i> 
+                        Retrieved Users (SMTP Format)
+                    </label>
+                    <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+                        <button onclick="copyRetrievedUsersText()" class="btn-github" style="
+                            padding: 8px 16px; 
+                            font-size: 13px; 
+                            font-weight: 500;
+                            background: #0969da;
+                            color: white;
+                            border: 1px solid #0969da;
+                            border-radius: 6px;
+                            transition: all 0.2s ease;
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                        " onmouseover="this.style.background='#0550ae'" onmouseout="this.style.background='#0969da'">
+                            <i class="fas fa-copy"></i> Copy Text
+                        </button>
+                        <button onclick="exportAutomationUsers()" class="btn-github" style="
+                            padding: 8px 16px; 
+                            font-size: 13px; 
+                            font-weight: 500;
+                            background: #28a745;
+                            color: white;
+                            border: 1px solid #28a745;
+                            border-radius: 6px;
+                            transition: all 0.2s ease;
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                        " onmouseover="this.style.background='#1e7e34'" onmouseout="this.style.background='#28a745'">
+                            <i class="fas fa-download"></i> Export CSV
+                        </button>
+                    </div>
+                    <div style="position: relative;">
+                        <textarea id="automation-users-text" class="form-control-github" rows="15" 
+                                  placeholder="Users will appear here after automation process..." readonly
+                                  style="
+                                    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+                                    font-size: 13px;
+                                    line-height: 1.5;
+                                    background: #f6f8fa;
+                                    border: 2px solid #d0d7de;
+                                    border-radius: 8px;
+                                    padding: 16px;
+                                    resize: vertical;
+                                    min-height: 300px;
+                                  "></textarea>
+                        <div style="
+                            position: absolute;
+                            top: 8px;
+                            right: 8px;
+                            background: rgba(255, 255, 255, 0.9);
+                            padding: 4px 8px;
+                            border-radius: 4px;
+                            font-size: 11px;
+                            color: #656d76;
+                            font-weight: 500;
+                        ">
+                            <i class="fas fa-lock"></i> Read-only
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px; padding: 12px; background: #f6f8fa; border-radius: 6px; border-left: 4px solid #0969da;">
+                        <div style="display: flex; align-items: center; gap: 8px; color: #656d76; font-size: 12px;">
+                            <i class="fas fa-info-circle" style="color: #0969da;"></i>
+                            <span><strong>Format:</strong> email,app_password,smtp.gmail.com,587 (one per line)</span>
+                        </div>
+                    </div>
                 </div>
-                <textarea id="automation-users-text" class="form-control-github" rows="15" 
-                          placeholder="Users will appear here after automation process..." readonly></textarea>
             </div>
         </div>
     </div>
@@ -7365,11 +7436,29 @@ function updateUsersListStats(users) {
         }
     });
     
-    let html = `<div style="display: flex; gap: 16px; flex-wrap: wrap;">`;
-    html += `<span><strong>Total Users:</strong> ${totalUsers}</span>`;
-    html += `<span style="color: #28a745;"><strong>With Passwords:</strong> ${usersWithPasswords}</span>`;
-    html += `<span style="color: #dc3545;"><strong>Missing Passwords:</strong> ${usersWithoutPasswords}</span>`;
-    html += `</div>`;
+    const passwordPercentage = totalUsers > 0 ? Math.round((usersWithPasswords / totalUsers) * 100) : 0;
+    
+    // Enhanced statistics with better styling
+    const html = `
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f6f8fa; border-radius: 16px; border: 1px solid #d0d7de;">
+                <i class="fas fa-users" style="color: #0969da;"></i>
+                <span style="color: #24292f; font-weight: 600; font-size: 13px;">Total: ${totalUsers}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: #d1fae5; border-radius: 16px; border: 1px solid #10b981;">
+                <i class="fas fa-check-circle" style="color: #059669;"></i>
+                <span style="color: #065f46; font-weight: 600; font-size: 13px;">With Passwords: ${usersWithPasswords}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fee2e2; border-radius: 16px; border: 1px solid #ef4444;">
+                <i class="fas fa-exclamation-triangle" style="color: #dc2626;"></i>
+                <span style="color: #991b1b; font-weight: 600; font-size: 13px;">Missing: ${usersWithoutPasswords}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: ${passwordPercentage >= 80 ? '#dbeafe' : passwordPercentage >= 60 ? '#fef3c7' : '#fee2e2'}; border-radius: 16px; border: 1px solid ${passwordPercentage >= 80 ? '#3b82f6' : passwordPercentage >= 60 ? '#f59e0b' : '#ef4444'};">
+                <i class="fas fa-percentage" style="color: ${passwordPercentage >= 80 ? '#1d4ed8' : passwordPercentage >= 60 ? '#d97706' : '#dc2626'};"></i>
+                <span style="color: ${passwordPercentage >= 80 ? '#1e3a8a' : passwordPercentage >= 60 ? '#92400e' : '#991b1b'}; font-weight: 600; font-size: 13px;">Coverage: ${passwordPercentage}%</span>
+            </div>
+        </div>
+    `;
     
     statsDiv.innerHTML = html;
 }
