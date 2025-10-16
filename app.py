@@ -4556,7 +4556,18 @@ def generate_csv():
                 'Ronald', 'Anthony', 'Kevin', 'Jason', 'Matthew', 'Gary', 'Timothy', 'Jose', 'Larry', 'Jeffrey',
                 'Mary', 'Patricia', 'Jennifer', 'Linda', 'Elizabeth', 'Barbara', 'Susan', 'Jessica', 'Sarah', 'Karen',
                 'Nancy', 'Lisa', 'Betty', 'Helen', 'Sandra', 'Donna', 'Carol', 'Ruth', 'Sharon', 'Michelle',
-                'Laura', 'Sarah', 'Kimberly', 'Deborah', 'Dorothy', 'Lisa', 'Nancy', 'Karen', 'Betty', 'Helen'
+                'Laura', 'Kimberly', 'Deborah', 'Dorothy', 'Amanda', 'Ashley', 'Brenda', 'Catherine', 'Christine', 'Diane',
+                'Emily', 'Emma', 'Grace', 'Heather', 'Janet', 'Joyce', 'Judith', 'Julie', 'Katherine', 'Kelly',
+                'Margaret', 'Maria', 'Marie', 'Martha', 'Melissa', 'Pamela', 'Rachel', 'Rebecca', 'Shirley', 'Tammy',
+                'Teresa', 'Alexander', 'Andrew', 'Benjamin', 'Brandon', 'Carl', 'Christian', 'Eric', 'Frank', 'Gabriel',
+                'Gregory', 'Harold', 'Henry', 'Jack', 'Jacob', 'Jeremy', 'Jonathan', 'Jordan', 'Justin', 'Keith',
+                'Lawrence', 'Louis', 'Martin', 'Mason', 'Nicholas', 'Patrick', 'Peter', 'Raymond', 'Roger', 'Ryan',
+                'Samuel', 'Scott', 'Sean', 'Stephen', 'Terry', 'Tyler', 'Victor', 'Wayne', 'Zachary', 'Aaron', 'Adam',
+                'Alan', 'Albert', 'Arthur', 'Austin', 'Bruce', 'Bryan', 'Carlos', 'Craig', 'Dennis', 'Derek',
+                'Douglas', 'Eugene', 'Gregory', 'Harold', 'Howard', 'Jack', 'Jerry', 'Joe', 'Jordan', 'Joshua',
+                'Juan', 'Keith', 'Kenneth', 'Kyle', 'Lawrence', 'Louis', 'Manuel', 'Mason', 'Nicholas', 'Patrick',
+                'Peter', 'Raymond', 'Roger', 'Roy', 'Ryan', 'Samuel', 'Scott', 'Sean', 'Stephen', 'Terry',
+                'Tyler', 'Victor', 'Wayne', 'Zachary', 'Zachary', 'Aaron', 'Adam', 'Alan', 'Albert', 'Arthur'
             ]
             
             last_names = [
@@ -4564,28 +4575,113 @@ def generate_csv():
                 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin',
                 'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson',
                 'Walker', 'Young', 'Allen', 'King', 'Wright', 'Scott', 'Torres', 'Nguyen', 'Hill', 'Flores',
-                'Green', 'Adams', 'Nelson', 'Baker', 'Hall', 'Rivera', 'Campbell', 'Mitchell', 'Carter', 'Roberts'
+                'Green', 'Adams', 'Nelson', 'Baker', 'Hall', 'Rivera', 'Campbell', 'Mitchell', 'Carter', 'Roberts',
+                'Gomez', 'Phillips', 'Evans', 'Turner', 'Diaz', 'Parker', 'Cruz', 'Edwards', 'Collins', 'Reyes',
+                'Stewart', 'Morris', 'Morales', 'Murphy', 'Cook', 'Rogers', 'Gutierrez', 'Ortiz', 'Morgan', 'Cooper',
+                'Peterson', 'Bailey', 'Reed', 'Kelly', 'Howard', 'Ramos', 'Kim', 'Cox', 'Ward', 'Richardson',
+                'Watson', 'Brooks', 'Chavez', 'Wood', 'James', 'Bennett', 'Gray', 'Mendoza', 'Ruiz', 'Hughes',
+                'Price', 'Alvarez', 'Castillo', 'Sanders', 'Patel', 'Myers', 'Long', 'Ross', 'Foster', 'Jimenez',
+                'Powell', 'Jenkins', 'Perry', 'Russell', 'Sullivan', 'Bell', 'Coleman', 'Butler', 'Henderson', 'Barnes',
+                'Gonzales', 'Fisher', 'Vasquez', 'Simmons', 'Romero', 'Jordan', 'Patterson', 'Alexander', 'Hamilton', 'Graham',
+                'Reynolds', 'Griffin', 'Wallace', 'Moreno', 'West', 'Cole', 'Hayes', 'Bryant', 'Herrera', 'Gibson',
+                'Ellis', 'Tran', 'Medina', 'Aguilar', 'Stevens', 'Murray', 'Ford', 'Castro', 'Marshall', 'Owens',
+                'Harrison', 'Fernandez', 'McDonald', 'Woods', 'Washington', 'Kennedy', 'Wells', 'Vargas', 'Henry', 'Chen',
+                'Freeman', 'Webb', 'Tucker', 'Guzman', 'Burns', 'Crawford', 'Olson', 'Simpson', 'Porter', 'Hunter',
+                'Gordon', 'Mendez', 'Aguirre', 'Gutierrez', 'Schmidt', 'Carr', 'Vasquez', 'Castillo', 'Wheeler', 'Chapman',
+                'Oliver', 'Montgomery', 'Richards', 'Williamson', 'Johnston', 'Banks', 'Meyer', 'Bishop', 'McCoy', 'Howell',
+                'Alvarez', 'Morales', 'Murphy', 'Cook', 'Rogers', 'Gutierrez', 'Ortiz', 'Morgan', 'Cooper', 'Peterson',
+                'Bailey', 'Reed', 'Kelly', 'Howard', 'Ramos', 'Kim', 'Cox', 'Ward', 'Richardson', 'Watson',
+                'Brooks', 'Chavez', 'Wood', 'James', 'Bennett', 'Gray', 'Mendoza', 'Ruiz', 'Hughes', 'Price',
+                'Alvarez', 'Castillo', 'Sanders', 'Patel', 'Myers', 'Long', 'Ross', 'Foster', 'Jimenez', 'Powell'
             ]
             
-            # Generate realistic usernames/aliases
-            def generate_alias(first_name, last_name, index):
-                # Create various alias formats
-                formats = [
-                    f"{first_name.lower()}.{last_name.lower()}{index}",
-                    f"{first_name.lower()}{last_name.lower()}{index:02d}",
-                    f"{first_name[0].lower()}{last_name.lower()}{index}",
-                    f"{first_name.lower()}{last_name[0].lower()}{index:03d}",
-                    f"{last_name.lower()}.{first_name.lower()}{index}",
-                    f"{first_name.lower()}_{last_name.lower()}{index}",
-                    f"{first_name.lower()}{index}{last_name.lower()}",
-                    f"{first_name[0].lower()}{last_name[0].lower()}{index:02d}"
+            # Advanced unique alias generation system
+            used_aliases = set()
+            used_names = set()
+            
+            def generate_complex_alias(first_name, last_name, index, attempt=0):
+                """Generate complex, unique aliases with multiple strategies"""
+                import string
+                import hashlib
+                import time
+                
+                # Base components
+                fname = first_name.lower()
+                lname = last_name.lower()
+                f_initial = fname[0]
+                l_initial = lname[0]
+                
+                # Complex patterns with multiple strategies
+                patterns = [
+                    # Pattern 1: Name + Random String + Index
+                    f"{fname}{lname}{random.randint(1000, 9999)}{index:03d}",
+                    f"{fname}.{lname}.{random.randint(100, 999)}{index:02d}",
+                    f"{f_initial}{lname}{random.randint(10000, 99999)}{index}",
+                    
+                    # Pattern 2: Mixed case with numbers
+                    f"{fname}{random.randint(100, 999)}{lname}{index:03d}",
+                    f"{fname[0:3]}{lname[0:3]}{random.randint(1000, 9999)}{index}",
+                    f"{fname}{lname[0:2]}{random.randint(1000, 9999)}{index:02d}",
+                    
+                    # Pattern 3: Hash-based unique identifiers
+                    f"{fname}{lname}{hashlib.md5(f'{fname}{lname}{index}{attempt}'.encode()).hexdigest()[:6]}",
+                    f"{f_initial}{lname}{hashlib.md5(f'{index}{attempt}{time.time()}'.encode()).hexdigest()[:8]}",
+                    
+                    # Pattern 4: Complex combinations
+                    f"{fname}{random.choice(string.ascii_lowercase)}{lname}{random.randint(100, 999)}{index}",
+                    f"{fname[0:2]}{lname[0:2]}{random.randint(10000, 99999)}{index:02d}",
+                    f"{fname}{lname[0:3]}{random.randint(1000, 9999)}{index:03d}",
+                    
+                    # Pattern 5: Time-based unique identifiers
+                    f"{fname}{lname}{int(time.time() * 1000) % 100000}{index}",
+                    f"{f_initial}{lname}{int(time.time()) % 10000}{index:03d}",
+                    
+                    # Pattern 6: Advanced combinations
+                    f"{fname}{lname[0:4]}{random.randint(100, 999)}{index:02d}",
+                    f"{fname[0:3]}{lname}{random.randint(1000, 9999)}{index}",
+                    f"{fname}{lname[0:2]}{random.randint(10000, 99999)}{index:02d}",
+                    
+                    # Pattern 7: UUID-like patterns
+                    f"{fname}{lname}{random.randint(100000, 999999)}{index:03d}",
+                    f"{f_initial}{lname[0:3]}{random.randint(10000, 99999)}{index:02d}",
+                    f"{fname[0:2]}{lname[0:3]}{random.randint(1000, 9999)}{index:03d}",
+                    
+                    # Pattern 8: Complex alphanumeric
+                    f"{fname}{lname}{''.join(random.choices(string.ascii_lowercase + string.digits, k=4))}{index}",
+                    f"{f_initial}{lname}{''.join(random.choices(string.ascii_lowercase + string.digits, k=6))}{index:02d}",
+                    
+                    # Pattern 9: Multi-part unique identifiers
+                    f"{fname}{lname[0:2]}{random.randint(100, 999)}{index:03d}",
+                    f"{fname[0:4]}{lname}{random.randint(1000, 9999)}{index:02d}",
+                    f"{fname}{lname[0:3]}{random.randint(10000, 99999)}{index}",
+                    
+                    # Pattern 10: Advanced hash combinations
+                    f"{fname}{lname}{hashlib.sha256(f'{fname}{lname}{index}{attempt}{random.randint(1, 10000)}'.encode()).hexdigest()[:7]}",
+                    f"{f_initial}{lname}{hashlib.sha256(f'{index}{attempt}{time.time()}{random.randint(1, 1000)}'.encode()).hexdigest()[:9]}"
                 ]
-                return random.choice(formats)
+                
+                # Try each pattern until we find a unique one
+                for pattern in patterns:
+                    if pattern not in used_aliases:
+                        used_aliases.add(pattern)
+                        return pattern
+                
+                # If all patterns are taken, create a completely unique one
+                unique_id = f"{fname}{lname}{int(time.time() * 1000000) % 1000000}{index}{attempt}"
+                used_aliases.add(unique_id)
+                return unique_id
             
             for i in range(1, int(num_users) + 1):
-                first_name = random.choice(first_names)
-                last_name = random.choice(last_names)
-                alias = generate_alias(first_name, last_name, i)
+                # Ensure unique name combinations
+                while True:
+                    first_name = random.choice(first_names)
+                    last_name = random.choice(last_names)
+                    name_key = f"{first_name}_{last_name}"
+                    if name_key not in used_names:
+                        used_names.add(name_key)
+                        break
+                
+                alias = generate_complex_alias(first_name, last_name, i)
                 email = f"{alias}@{domain}"
                 
                 writer.writerow([
@@ -4769,7 +4865,18 @@ def preview_csv():
             'Ronald', 'Anthony', 'Kevin', 'Jason', 'Matthew', 'Gary', 'Timothy', 'Jose', 'Larry', 'Jeffrey',
             'Mary', 'Patricia', 'Jennifer', 'Linda', 'Elizabeth', 'Barbara', 'Susan', 'Jessica', 'Sarah', 'Karen',
             'Nancy', 'Lisa', 'Betty', 'Helen', 'Sandra', 'Donna', 'Carol', 'Ruth', 'Sharon', 'Michelle',
-            'Laura', 'Sarah', 'Kimberly', 'Deborah', 'Dorothy', 'Lisa', 'Nancy', 'Karen', 'Betty', 'Helen'
+            'Laura', 'Kimberly', 'Deborah', 'Dorothy', 'Amanda', 'Ashley', 'Brenda', 'Catherine', 'Christine', 'Diane',
+            'Emily', 'Emma', 'Grace', 'Heather', 'Janet', 'Joyce', 'Judith', 'Julie', 'Katherine', 'Kelly',
+            'Margaret', 'Maria', 'Marie', 'Martha', 'Melissa', 'Pamela', 'Rachel', 'Rebecca', 'Shirley', 'Tammy',
+            'Teresa', 'Alexander', 'Andrew', 'Benjamin', 'Brandon', 'Carl', 'Christian', 'Eric', 'Frank', 'Gabriel',
+            'Gregory', 'Harold', 'Henry', 'Jack', 'Jacob', 'Jeremy', 'Jonathan', 'Jordan', 'Justin', 'Keith',
+            'Lawrence', 'Louis', 'Martin', 'Mason', 'Nicholas', 'Patrick', 'Peter', 'Raymond', 'Roger', 'Ryan',
+            'Samuel', 'Scott', 'Sean', 'Stephen', 'Terry', 'Tyler', 'Victor', 'Wayne', 'Zachary', 'Aaron', 'Adam',
+            'Alan', 'Albert', 'Arthur', 'Austin', 'Bruce', 'Bryan', 'Carlos', 'Craig', 'Dennis', 'Derek',
+            'Douglas', 'Eugene', 'Gregory', 'Harold', 'Howard', 'Jack', 'Jerry', 'Joe', 'Jordan', 'Joshua',
+            'Juan', 'Keith', 'Kenneth', 'Kyle', 'Lawrence', 'Louis', 'Manuel', 'Mason', 'Nicholas', 'Patrick',
+            'Peter', 'Raymond', 'Roger', 'Roy', 'Ryan', 'Samuel', 'Scott', 'Sean', 'Stephen', 'Terry',
+            'Tyler', 'Victor', 'Wayne', 'Zachary', 'Zachary', 'Aaron', 'Adam', 'Alan', 'Albert', 'Arthur'
         ]
         
         last_names = [
@@ -4777,29 +4884,114 @@ def preview_csv():
             'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin',
             'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson',
             'Walker', 'Young', 'Allen', 'King', 'Wright', 'Scott', 'Torres', 'Nguyen', 'Hill', 'Flores',
-            'Green', 'Adams', 'Nelson', 'Baker', 'Hall', 'Rivera', 'Campbell', 'Mitchell', 'Carter', 'Roberts'
+            'Green', 'Adams', 'Nelson', 'Baker', 'Hall', 'Rivera', 'Campbell', 'Mitchell', 'Carter', 'Roberts',
+            'Gomez', 'Phillips', 'Evans', 'Turner', 'Diaz', 'Parker', 'Cruz', 'Edwards', 'Collins', 'Reyes',
+            'Stewart', 'Morris', 'Morales', 'Murphy', 'Cook', 'Rogers', 'Gutierrez', 'Ortiz', 'Morgan', 'Cooper',
+            'Peterson', 'Bailey', 'Reed', 'Kelly', 'Howard', 'Ramos', 'Kim', 'Cox', 'Ward', 'Richardson',
+            'Watson', 'Brooks', 'Chavez', 'Wood', 'James', 'Bennett', 'Gray', 'Mendoza', 'Ruiz', 'Hughes',
+            'Price', 'Alvarez', 'Castillo', 'Sanders', 'Patel', 'Myers', 'Long', 'Ross', 'Foster', 'Jimenez',
+            'Powell', 'Jenkins', 'Perry', 'Russell', 'Sullivan', 'Bell', 'Coleman', 'Butler', 'Henderson', 'Barnes',
+            'Gonzales', 'Fisher', 'Vasquez', 'Simmons', 'Romero', 'Jordan', 'Patterson', 'Alexander', 'Hamilton', 'Graham',
+            'Reynolds', 'Griffin', 'Wallace', 'Moreno', 'West', 'Cole', 'Hayes', 'Bryant', 'Herrera', 'Gibson',
+            'Ellis', 'Tran', 'Medina', 'Aguilar', 'Stevens', 'Murray', 'Ford', 'Castro', 'Marshall', 'Owens',
+            'Harrison', 'Fernandez', 'McDonald', 'Woods', 'Washington', 'Kennedy', 'Wells', 'Vargas', 'Henry', 'Chen',
+            'Freeman', 'Webb', 'Tucker', 'Guzman', 'Burns', 'Crawford', 'Olson', 'Simpson', 'Porter', 'Hunter',
+            'Gordon', 'Mendez', 'Aguirre', 'Gutierrez', 'Schmidt', 'Carr', 'Vasquez', 'Castillo', 'Wheeler', 'Chapman',
+            'Oliver', 'Montgomery', 'Richards', 'Williamson', 'Johnston', 'Banks', 'Meyer', 'Bishop', 'McCoy', 'Howell',
+            'Alvarez', 'Morales', 'Murphy', 'Cook', 'Rogers', 'Gutierrez', 'Ortiz', 'Morgan', 'Cooper', 'Peterson',
+            'Bailey', 'Reed', 'Kelly', 'Howard', 'Ramos', 'Kim', 'Cox', 'Ward', 'Richardson', 'Watson',
+            'Brooks', 'Chavez', 'Wood', 'James', 'Bennett', 'Gray', 'Mendoza', 'Ruiz', 'Hughes', 'Price',
+            'Alvarez', 'Castillo', 'Sanders', 'Patel', 'Myers', 'Long', 'Ross', 'Foster', 'Jimenez', 'Powell'
         ]
         
-        # Generate realistic usernames/aliases
-        def generate_alias(first_name, last_name, index):
-            # Create various alias formats
-            formats = [
-                f"{first_name.lower()}.{last_name.lower()}{index}",
-                f"{first_name.lower()}{last_name.lower()}{index:02d}",
-                f"{first_name[0].lower()}{last_name.lower()}{index}",
-                f"{first_name.lower()}{last_name[0].lower()}{index:03d}",
-                f"{last_name.lower()}.{first_name.lower()}{index}",
-                f"{first_name.lower()}_{last_name.lower()}{index}",
-                f"{first_name.lower()}{index}{last_name.lower()}",
-                f"{first_name[0].lower()}{last_name[0].lower()}{index:02d}"
+        # Advanced unique alias generation system for preview
+        used_aliases_preview = set()
+        used_names_preview = set()
+        
+        def generate_complex_alias_preview(first_name, last_name, index, attempt=0):
+            """Generate complex, unique aliases with multiple strategies for preview"""
+            import string
+            import hashlib
+            import time
+            
+            # Base components
+            fname = first_name.lower()
+            lname = last_name.lower()
+            f_initial = fname[0]
+            l_initial = lname[0]
+            
+            # Complex patterns with multiple strategies
+            patterns = [
+                # Pattern 1: Name + Random String + Index
+                f"{fname}{lname}{random.randint(1000, 9999)}{index:03d}",
+                f"{fname}.{lname}.{random.randint(100, 999)}{index:02d}",
+                f"{f_initial}{lname}{random.randint(10000, 99999)}{index}",
+                
+                # Pattern 2: Mixed case with numbers
+                f"{fname}{random.randint(100, 999)}{lname}{index:03d}",
+                f"{fname[0:3]}{lname[0:3]}{random.randint(1000, 9999)}{index}",
+                f"{fname}{lname[0:2]}{random.randint(1000, 9999)}{index:02d}",
+                
+                # Pattern 3: Hash-based unique identifiers
+                f"{fname}{lname}{hashlib.md5(f'{fname}{lname}{index}{attempt}'.encode()).hexdigest()[:6]}",
+                f"{f_initial}{lname}{hashlib.md5(f'{index}{attempt}{time.time()}'.encode()).hexdigest()[:8]}",
+                
+                # Pattern 4: Complex combinations
+                f"{fname}{random.choice(string.ascii_lowercase)}{lname}{random.randint(100, 999)}{index}",
+                f"{fname[0:2]}{lname[0:2]}{random.randint(10000, 99999)}{index:02d}",
+                f"{fname}{lname[0:3]}{random.randint(1000, 9999)}{index:03d}",
+                
+                # Pattern 5: Time-based unique identifiers
+                f"{fname}{lname}{int(time.time() * 1000) % 100000}{index}",
+                f"{f_initial}{lname}{int(time.time()) % 10000}{index:03d}",
+                
+                # Pattern 6: Advanced combinations
+                f"{fname}{lname[0:4]}{random.randint(100, 999)}{index:02d}",
+                f"{fname[0:3]}{lname}{random.randint(1000, 9999)}{index}",
+                f"{fname}{lname[0:2]}{random.randint(10000, 99999)}{index:02d}",
+                
+                # Pattern 7: UUID-like patterns
+                f"{fname}{lname}{random.randint(100000, 999999)}{index:03d}",
+                f"{f_initial}{lname[0:3]}{random.randint(10000, 99999)}{index:02d}",
+                f"{fname[0:2]}{lname[0:3]}{random.randint(1000, 9999)}{index:03d}",
+                
+                # Pattern 8: Complex alphanumeric
+                f"{fname}{lname}{''.join(random.choices(string.ascii_lowercase + string.digits, k=4))}{index}",
+                f"{f_initial}{lname}{''.join(random.choices(string.ascii_lowercase + string.digits, k=6))}{index:02d}",
+                
+                # Pattern 9: Multi-part unique identifiers
+                f"{fname}{lname[0:2]}{random.randint(100, 999)}{index:03d}",
+                f"{fname[0:4]}{lname}{random.randint(1000, 9999)}{index:02d}",
+                f"{fname}{lname[0:3]}{random.randint(10000, 99999)}{index}",
+                
+                # Pattern 10: Advanced hash combinations
+                f"{fname}{lname}{hashlib.sha256(f'{fname}{lname}{index}{attempt}{random.randint(1, 10000)}'.encode()).hexdigest()[:7]}",
+                f"{f_initial}{lname}{hashlib.sha256(f'{index}{attempt}{time.time()}{random.randint(1, 1000)}'.encode()).hexdigest()[:9]}"
             ]
-            return random.choice(formats)
+            
+            # Try each pattern until we find a unique one
+            for pattern in patterns:
+                if pattern not in used_aliases_preview:
+                    used_aliases_preview.add(pattern)
+                    return pattern
+            
+            # If all patterns are taken, create a completely unique one
+            unique_id = f"{fname}{lname}{int(time.time() * 1000000) % 1000000}{index}{attempt}"
+            used_aliases_preview.add(unique_id)
+            return unique_id
         
         # Generate preview users
         for i in range(1, min(int(num_users), 10) + 1):  # Max 10 for preview
-            first_name = random.choice(first_names)
-            last_name = random.choice(last_names)
-            alias = generate_alias(first_name, last_name, i)
+            # Ensure unique name combinations for preview
+            while True:
+                first_name = random.choice(first_names)
+                last_name = random.choice(last_names)
+                name_key = f"{first_name}_{last_name}"
+                if name_key not in used_names_preview:
+                    used_names_preview.add(name_key)
+                    break
+            
+            alias = generate_complex_alias_preview(first_name, last_name, i)
             email = f"{alias}@{domain}"
             
             writer.writerow([
