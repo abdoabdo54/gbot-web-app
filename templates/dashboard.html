@@ -1155,35 +1155,19 @@
                 padding: 20px;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             ">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                        <h3 class="github-card-title" style="
-                            margin: 0; 
-                            color: #24292f; 
-                            font-size: 20px; 
-                            font-weight: 700;
-                            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-                        ">
-                            <i class="fas fa-list-alt" style="color: #0969da; margin-right: 10px; font-size: 22px;"></i>
-                            Users List (Text Format)
-                        </h3>
-                        <div id="users-list-stats" style="margin-top: 16px;">
-                            <!-- Statistics will be displayed here -->
-                        </div>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="
-                            padding: 8px 16px; 
-                            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); 
-                            border-radius: 20px; 
-                            font-size: 13px; 
-                            font-weight: 600; 
-                            color: #1e40af;
-                            border: 1px solid #3b82f6;
-                            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
-                        ">
-                            <i class="fas fa-users" style="margin-right: 6px;"></i> Ready for Export
-                        </div>
+                <div>
+                    <h3 class="github-card-title" style="
+                        margin: 0; 
+                        color: #24292f; 
+                        font-size: 20px; 
+                        font-weight: 700;
+                        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+                    ">
+                        <i class="fas fa-list-alt" style="color: #0969da; margin-right: 10px; font-size: 22px;"></i>
+                        Users List (Text Format)
+                    </h3>
+                    <div id="users-list-stats" style="margin-top: 16px;">
+                        <!-- Statistics will be displayed here -->
                     </div>
                 </div>
             </div>
@@ -7848,55 +7832,131 @@ function copyAutomationUsers() {
 // Copy retrieved users text content
 function copyRetrievedUsersText() {
     const textArea = document.getElementById('automation-users-text');
-    if (!textArea || !textArea.value.trim()) {
-        alert('No text content to copy');
+    if (!textArea) {
+        console.error('Text area not found');
+        alert('❌ Text area not found');
         return;
     }
     
-    navigator.clipboard.writeText(textArea.value).then(() => {
-        alert('✅ Copied retrieved users text to clipboard');
-    }).catch(() => {
+    if (!textArea.value.trim()) {
+        alert('❌ No text content to copy');
+        return;
+    }
+    
+    console.log('Copying text:', textArea.value.substring(0, 100) + '...');
+    
+    // Try modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(textArea.value).then(() => {
+            console.log('✅ Text copied to clipboard successfully');
+            alert('✅ Copied retrieved users text to clipboard');
+        }).catch(err => {
+            console.error('Clipboard API failed:', err);
+            // Fallback to legacy method
+            copyTextFallback(textArea);
+        });
+    } else {
+        // Fallback for older browsers or non-secure contexts
+        copyTextFallback(textArea);
+    }
+}
+
+// Fallback copy method for older browsers
+function copyTextFallback(textArea) {
+    try {
+        textArea.select();
+        textArea.setSelectionRange(0, 99999); // For mobile devices
+        
+        const successful = document.execCommand('copy');
+        if (successful) {
+            console.log('✅ Text copied using fallback method');
+            alert('✅ Copied retrieved users text to clipboard');
+        } else {
+            console.error('❌ Fallback copy failed');
+            alert('❌ Copy failed - please try manually selecting the text');
+        }
+    } catch (err) {
+        console.error('❌ Copy fallback error:', err);
         alert('❌ Copy failed - please try manually selecting the text');
-    });
+    }
 }
 
 // Export automation users as CSV
 function exportAutomationUsers() {
+    console.log('Starting CSV export...');
+    
+    // First try to get users from the visual list
     const userElements = document.querySelectorAll('#automation-users-list .user-item');
-    if (userElements.length === 0) {
-        alert('No users to export');
+    console.log('Found visual user elements:', userElements.length);
+    
+    let csvContent = 'Email,Name,Status,Source Account,App Password,SMTP Config\n';
+    let userCount = 0;
+    
+    if (userElements.length > 0) {
+        // Export from visual list
+        userElements.forEach(element => {
+            const email = element.querySelector('.email')?.textContent.trim() || '';
+            const name = element.querySelector('.name')?.textContent.trim() || '';
+            const status = element.querySelector('.user-status')?.textContent.trim() || '';
+            const sourceAccount = element.querySelector('.source-account')?.textContent.replace('From: ', '').trim() || '';
+            
+            // Extract app password and SMTP config from the SMTP info section
+            const smtpInfo = element.querySelector('.smtp-info div:last-child')?.textContent.trim() || '';
+            const smtpParts = smtpInfo.split(',');
+            const appPassword = smtpParts.length > 1 ? smtpParts[1] : 'No app password';
+            const smtpConfig = smtpInfo || `${email},No app password,smtp.gmail.com,587`;
+            
+            csvContent += `"${email}","${name}","${status}","${sourceAccount}","${appPassword}","${smtpConfig}"\n`;
+            userCount++;
+        });
+    } else {
+        // Fallback: try to get users from text area
+        const textArea = document.getElementById('automation-users-text');
+        if (textArea && textArea.value.trim()) {
+            console.log('Using text area content for export');
+            const lines = textArea.value.trim().split('\n');
+            lines.forEach(line => {
+                if (line.trim()) {
+                    const parts = line.split(',');
+                    if (parts.length >= 4) {
+                        const email = parts[0];
+                        const appPassword = parts[1];
+                        const smtpServer = parts[2];
+                        const smtpPort = parts[3];
+                        csvContent += `"${email}","","","","${appPassword}","${email},${appPassword},${smtpServer},${smtpPort}"\n`;
+                        userCount++;
+                    }
+                }
+            });
+        }
+    }
+    
+    if (userCount === 0) {
+        alert('❌ No users to export');
         return;
     }
     
-    let csvContent = 'Email,Name,Status,Source Account,App Password,SMTP Config\n';
+    console.log(`Exporting ${userCount} users to CSV`);
     
-    userElements.forEach(element => {
-        const email = element.querySelector('.email')?.textContent.trim() || '';
-        const name = element.querySelector('.name')?.textContent.trim() || '';
-        const status = element.querySelector('.user-status')?.textContent.trim() || '';
-        const sourceAccount = element.querySelector('.source-account')?.textContent.replace('From: ', '').trim() || '';
+    try {
+        // Create and download CSV file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bulk_automation_users_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
         
-        // Extract app password and SMTP config from the SMTP info section
-        const smtpInfo = element.querySelector('.smtp-info div:last-child')?.textContent.trim() || '';
-        const smtpParts = smtpInfo.split(',');
-        const appPassword = smtpParts.length > 1 ? smtpParts[1] : 'No app password';
-        const smtpConfig = smtpInfo || `${email},No app password,smtp.gmail.com,587`;
-        
-        csvContent += `"${email}","${name}","${status}","${sourceAccount}","${appPassword}","${smtpConfig}"\n`;
-    });
-    
-    // Create and download CSV file
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bulk_automation_users_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-    
-    alert(`✅ Exported ${userElements.length} users as CSV`);
+        console.log('✅ CSV file downloaded successfully');
+        alert(`✅ CSV file downloaded successfully (${userCount} users exported)`);
+    } catch (error) {
+        console.error('❌ CSV export failed:', error);
+        alert('❌ CSV export failed: ' + error.message);
+    }
 }
 
 // Clear automation list
