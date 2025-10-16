@@ -1060,7 +1060,7 @@
                     <i class="fas fa-search"></i> Search App Password Users
                 </label>
                 <input type="text" id="search-app-passwords" class="form-control-github" 
-                       placeholder="Search by username, domain, or email..." 
+                       placeholder="Search by alias (username)..." 
                        onkeyup="searchAppPasswordUsers()">
             </div>
             
@@ -7167,9 +7167,7 @@ function searchAppPasswordUsers() {
         .then(data => {
             if (data.success && data.users) {
                 const filteredUsers = data.users.filter(user => 
-                    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    user.domain.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    `${user.username}@${user.domain}`.toLowerCase().includes(searchTerm.toLowerCase())
+                    user.username.toLowerCase().includes(searchTerm.toLowerCase())
                 );
                 
                 displaySearchResults(filteredUsers);
@@ -7334,11 +7332,18 @@ function updateUsersListStats(users) {
     const statsDiv = document.getElementById('users-list-stats');
     if (!statsDiv || !users) return;
     
-    let totalUsers = users.length;
+    // Filter out admin accounts for statistics
+    const filteredUsers = users.filter(user => {
+        const email = user.email || user.primaryEmail || 'N/A';
+        const sourceAccount = user.source_account || 'Unknown';
+        return !(email && sourceAccount && email.toLowerCase() === sourceAccount.toLowerCase());
+    });
+    
+    let totalUsers = filteredUsers.length;
     let usersWithPasswords = 0;
     let usersWithoutPasswords = 0;
     
-    users.forEach(user => {
+    filteredUsers.forEach(user => {
         if (user.app_password && user.app_password !== 'No app password') {
             usersWithPasswords++;
         } else {
@@ -7515,6 +7520,12 @@ function displayAutomationUsers(users) {
         const status = user.suspended ? 'Suspended' : 'Active';
         const sourceAccount = user.source_account || 'Unknown';
         const appPassword = user.app_password || 'No app password';
+        
+        // Skip admin accounts - exclude them from the Users List
+        if (email && sourceAccount && email.toLowerCase() === sourceAccount.toLowerCase()) {
+            console.log(`Skipping admin account: ${email}`);
+            return; // Skip this user
+        }
         
         console.log(`User: ${email}, App Password: ${appPassword}`);
         
