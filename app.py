@@ -7609,33 +7609,38 @@ def api_upload_app_passwords():
         
         stored_count = 0
         batch: list[UserAppPassword] = []
-        line_regex = re.compile(r"^\s*([^\s:,]+@[^\s:,]+)\s*[:|,]\s*([^\s]+)\s*$")
+        app.logger.info(f"Processing {len(lines)} lines from file")
+        
         for raw in lines:
             line = (raw or '').strip()
             if not line:
                 continue
 
             # Skip comment/header lines
-            if line.startswith('#') or line.lower().startswith('user') and ('password' in line.lower() or 'app_password' in line.lower()):
+            if line.startswith('#') or (line.lower().startswith('user') and ('password' in line.lower() or 'app_password' in line.lower())):
                 continue
 
-            m = line_regex.match(line)
-            if not m:
-                # Try last fallback by splitting on first colon
-                if ':' in line:
-                    parts = line.split(':', 1)
-                elif ',' in line:
-                    parts = line.split(',', 1)
-                else:
-                    continue
+            # Simple parsing: split on first colon or comma
+            email = None
+            app_password = None
+            
+            if ':' in line:
+                parts = line.split(':', 1)
+                email = parts[0].strip()
+                app_password = parts[1].strip() if len(parts) > 1 else ''
+            elif ',' in line:
+                parts = line.split(',', 1)
                 email = parts[0].strip()
                 app_password = parts[1].strip() if len(parts) > 1 else ''
             else:
-                email = m.group(1).strip()
-                app_password = m.group(2).strip()
+                app.logger.warning(f"Skipping line (no separator): {line}")
+                continue
                 
             if not email or not app_password:
+                app.logger.warning(f"Skipping line (empty email/password): email='{email}', password='{app_password}'")
                 continue
+            
+            app.logger.info(f"Processing: {email} -> {app_password[:10]}...")
             
             try:
                 # Derive alias (local part) and domain (if present)
@@ -7671,6 +7676,7 @@ def api_upload_app_passwords():
         
         # Bulk insert in batches to support very large files
         if batch:
+            app.logger.info(f"Bulk inserting {len(batch)} new app passwords")
             db.session.bulk_save_objects(batch)
         db.session.commit()
         app.logger.info(f"App passwords stored/updated: {stored_count}")
