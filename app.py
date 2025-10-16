@@ -320,8 +320,7 @@ def health_check():
 @login_required
 def dashboard():
     accounts = GoogleAccount.query.all()
-    automation_accounts = AutomationAccount.query.filter_by(is_active=True).all()
-    return render_template('dashboard.html', accounts=accounts, automation_accounts=automation_accounts, user=session.get('user'), role=session.get('role'))
+    return render_template('dashboard.html', accounts=accounts, user=session.get('user'), role=session.get('role'))
 
 @app.route('/users')
 @login_required
@@ -7571,318 +7570,92 @@ def api_get_all_app_passwords():
         logging.error(f"Get all app passwords error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-# ===== AUTOMATION AUTHENTICATION API ENDPOINTS =====
+# ===== SIMPLIFIED AUTOMATION AUTHENTICATION API =====
 
-@app.route('/api/automation-accounts', methods=['GET'])
+@app.route('/api/execute-automation-process', methods=['POST'])
 @login_required
-def api_get_automation_accounts():
-    """Get all automation accounts"""
-    try:
-        accounts = AutomationAccount.query.filter_by(is_active=True).all()
-        accounts_data = []
-        
-        for account in accounts:
-            accounts_data.append({
-                'id': account.id,
-                'account_name': account.account_name,
-                'client_id': account.client_id,
-                'created_at': account.created_at.isoformat() if account.created_at else None,
-                'last_retrieval': account.last_retrieval.isoformat() if account.last_retrieval else None,
-                'retrieval_count': account.retrieval_count,
-                'accounts_list': account.accounts_list
-            })
-        
-        return jsonify({
-            'success': True,
-            'accounts': accounts_data
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error getting automation accounts: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/automation-accounts', methods=['POST'])
-@login_required
-def api_create_automation_account():
-    """Create a new automation account"""
+def api_execute_automation_process():
+    """Execute the complete automation process: authenticate + retrieve users"""
     try:
         data = request.get_json()
-        account_name = data.get('account_name')
-        client_id = data.get('client_id')
-        client_secret = data.get('client_secret')
+        accounts = data.get('accounts', [])
         
-        if not all([account_name, client_id, client_secret]):
-            return jsonify({'success': False, 'error': 'All fields are required'})
+        if not accounts:
+            return jsonify({'success': False, 'error': 'No accounts provided'})
         
-        # Check if account name already exists
-        existing = AutomationAccount.query.filter_by(account_name=account_name).first()
-        if existing:
-            return jsonify({'success': False, 'error': 'Account name already exists'})
+        results = []
+        authenticated_count = 0
+        users_retrieved = 0
         
-        # Create new automation account
-        automation_account = AutomationAccount(
-            account_name=account_name,
-            client_id=client_id,
-            client_secret=client_secret,
-            accounts_list=''
-        )
-        
-        db.session.add(automation_account)
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Automation account created successfully',
-            'account_id': automation_account.id
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Error creating automation account: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/automation-accounts/<int:account_id>', methods=['GET'])
-@login_required
-def api_get_automation_account(account_id):
-    """Get specific automation account"""
-    try:
-        account = AutomationAccount.query.get(account_id)
-        if not account:
-            return jsonify({'success': False, 'error': 'Account not found'})
-        
-        return jsonify({
-            'success': True,
-            'account': {
-                'id': account.id,
-                'account_name': account.account_name,
-                'client_id': account.client_id,
-                'accounts_list': account.accounts_list,
-                'created_at': account.created_at.isoformat() if account.created_at else None,
-                'last_retrieval': account.last_retrieval.isoformat() if account.last_retrieval else None,
-                'retrieval_count': account.retrieval_count
-            }
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error getting automation account: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/automation-accounts/<int:account_id>', methods=['PUT'])
-@login_required
-def api_update_automation_account(account_id):
-    """Update automation account"""
-    try:
-        account = AutomationAccount.query.get(account_id)
-        if not account:
-            return jsonify({'success': False, 'error': 'Account not found'})
-        
-        data = request.get_json()
-        
-        # Update fields if provided
-        if 'accounts_list' in data:
-            account.accounts_list = data['accounts_list']
-        
-        if 'account_name' in data:
-            account.account_name = data['account_name']
-        
-        if 'client_id' in data:
-            account.client_id = data['client_id']
-        
-        if 'client_secret' in data:
-            account.client_secret = data['client_secret']
-        
-        account.updated_at = datetime.now()
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Account updated successfully'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Error updating automation account: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/automation-accounts/<int:account_id>', methods=['DELETE'])
-@login_required
-def api_delete_automation_account(account_id):
-    """Delete automation account"""
-    try:
-        account = AutomationAccount.query.get(account_id)
-        if not account:
-            return jsonify({'success': False, 'error': 'Account not found'})
-        
-        # Delete associated retrieved users first
-        RetrievedUser.query.filter_by(automation_account_id=account_id).delete()
-        
-        # Delete the account
-        db.session.delete(account)
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Account deleted successfully'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Error deleting automation account: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/automation-retrieve-users', methods=['POST'])
-@login_required
-def api_automation_retrieve_users():
-    """Retrieve users automatically for automation account"""
-    try:
-        data = request.get_json()
-        automation_account_id = data.get('automation_account_id')
-        
-        if not automation_account_id:
-            return jsonify({'success': False, 'error': 'Automation account ID is required'})
-        
-        account = AutomationAccount.query.get(automation_account_id)
-        if not account:
-            return jsonify({'success': False, 'error': 'Automation account not found'})
-        
-        if not account.accounts_list:
-            return jsonify({'success': False, 'error': 'No accounts list configured'})
-        
-        # Parse accounts list (one per line)
-        accounts_to_retrieve = [line.strip() for line in account.accounts_list.split('\n') if line.strip()]
-        
-        if not accounts_to_retrieve:
-            return jsonify({'success': False, 'error': 'No valid accounts in the list'})
-        
-        # Clear existing retrieved users for this account
-        RetrievedUser.query.filter_by(automation_account_id=automation_account_id).delete()
-        
-        retrieved_count = 0
-        
-        # For each account, try to retrieve user information
-        for email in accounts_to_retrieve:
+        # Process each account
+        for account_email in accounts:
             try:
-                # Extract domain from email
-                domain = email.split('@')[1] if '@' in email else None
+                result = {
+                    'account': account_email,
+                    'success': False,
+                    'message': '',
+                    'users_count': 0
+                }
                 
-                # Create retrieved user record
-                retrieved_user = RetrievedUser(
-                    automation_account_id=automation_account_id,
-                    email=email,
-                    domain=domain,
-                    status='active'  # Default status
-                )
+                # Find the GoogleAccount by email/account name
+                google_account = GoogleAccount.query.filter_by(account_name=account_email).first()
                 
-                db.session.add(retrieved_user)
-                retrieved_count += 1
+                if not google_account:
+                    result['message'] = 'Account not found in database'
+                    results.append(result)
+                    continue
+                
+                # Try to authenticate the account using existing tokens
+                auth_success = False
+                try:
+                    if google_api.is_token_valid(google_account.account_name):
+                        auth_success = google_api.authenticate_with_tokens(google_account.account_name)
+                        if auth_success:
+                            # Set the current account in session
+                            session['current_account_name'] = google_account.account_name
+                except Exception as e:
+                    app.logger.warning(f"Token authentication failed for {account_email}: {e}")
+                
+                if auth_success:
+                    authenticated_count += 1
+                    result['success'] = True
+                    result['message'] = 'Successfully authenticated'
+                    
+                    # Try to retrieve users for this account
+                    try:
+                        # Use the existing retrieve users functionality
+                        users_data = google_api.get_users()
+                        if users_data and 'users' in users_data:
+                            result['users_count'] = len(users_data['users'])
+                            users_retrieved += result['users_count']
+                            result['message'] += f' and retrieved {result["users_count"]} users'
+                        else:
+                            result['message'] += ' but no users found'
+                    except Exception as e:
+                        result['message'] += f' but failed to retrieve users: {str(e)}'
+                else:
+                    result['message'] = 'Failed to authenticate - may need OAuth authorization'
+                
+                results.append(result)
                 
             except Exception as e:
-                app.logger.warning(f"Error processing account {email}: {e}")
-                continue
-        
-        # Update automation account stats
-        account.last_retrieval = datetime.now()
-        account.retrieval_count += 1
-        
-        db.session.commit()
+                results.append({
+                    'account': account_email,
+                    'success': False,
+                    'message': f'Error processing account: {str(e)}',
+                    'users_count': 0
+                })
         
         return jsonify({
             'success': True,
-            'message': f'Retrieved {retrieved_count} users successfully',
-            'users_count': retrieved_count
+            'processed_count': len(accounts),
+            'authenticated_count': authenticated_count,
+            'users_retrieved': users_retrieved,
+            'results': results
         })
         
     except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Error retrieving users automatically: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/automation-retrieved-users/<int:account_id>', methods=['GET'])
-@login_required
-def api_get_automation_retrieved_users(account_id):
-    """Get retrieved users for automation account"""
-    try:
-        users = RetrievedUser.query.filter_by(automation_account_id=account_id).all()
-        
-        users_data = []
-        for user in users:
-            users_data.append({
-                'id': user.id,
-                'email': user.email,
-                'name': user.name,
-                'domain': user.domain,
-                'status': user.status,
-                'retrieved_at': user.retrieved_at.isoformat() if user.retrieved_at else None
-            })
-        
-        return jsonify({
-            'success': True,
-            'users': users_data
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error getting retrieved users: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/automation-retrieved-users/<int:account_id>', methods=['DELETE'])
-@login_required
-def api_clear_automation_retrieved_users(account_id):
-    """Clear retrieved users for automation account"""
-    try:
-        # Delete all retrieved users for this account
-        RetrievedUser.query.filter_by(automation_account_id=account_id).delete()
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Retrieved users cleared successfully'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Error clearing retrieved users: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/automation-export-users/<int:account_id>')
-@login_required
-def api_export_automation_users(account_id):
-    """Export retrieved users as CSV"""
-    try:
-        users = RetrievedUser.query.filter_by(automation_account_id=account_id).all()
-        
-        # Create CSV content
-        output = io.StringIO()
-        writer = csv.writer(output)
-        
-        # Write header
-        writer.writerow(['Email', 'Name', 'Domain', 'Status', 'Retrieved At'])
-        
-        # Write data
-        for user in users:
-            writer.writerow([
-                user.email,
-                user.name or '',
-                user.domain or '',
-                user.status or '',
-                user.retrieved_at.isoformat() if user.retrieved_at else ''
-            ])
-        
-        # Get CSV content
-        csv_content = output.getvalue()
-        output.close()
-        
-        # Return CSV file
-        from flask import Response
-        return Response(
-            csv_content,
-            mimetype='text/csv',
-            headers={
-                'Content-Disposition': f'attachment; filename="automation_users_{account_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
-            }
-        )
-        
-    except Exception as e:
-        app.logger.error(f"Error exporting users: {e}")
+        app.logger.error(f"Error executing automation process: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 

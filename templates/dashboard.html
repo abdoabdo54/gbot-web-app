@@ -18,10 +18,6 @@
             <i class="fas fa-exchange-alt"></i>
             <span>Bulk Domain Change & SMTP/CSV</span>
         </button>
-        <button class="tab-button" onclick="showTab('tab4')">
-            <i class="fas fa-robot"></i>
-            <span>Automation Authentication</span>
-        </button>
     </nav>
 </div>
 
@@ -81,7 +77,7 @@
             
             <div id="account-list-area" class="account-list">
                 {% for account in accounts %}
-                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name|e }}', {{ account.id }})" data-account-id="{{ account.id }}">
+                <div class="account-item" onclick="selectAccountFromList('{{ account.account_name|replace("'", "\\'") }}', {{ account.id }})" data-account-id="{{ account.id }}">
                     {{ account.account_name }}
                 </div>
                 {% endfor %}
@@ -1092,173 +1088,48 @@
         
         <div id="csv-preview-area" class="csv-preview"></div>
     </div>
-    </div>
-</div>
 
-<!-- Tab 4: Automation Authentication -->
-<div id="tab4" class="tab-content">
-    
-    <!-- Automation Account Management -->
+    <!-- Automation Authentication Process -->
     <div class="github-card">
         <div class="github-card-header">
             <h3 class="github-card-title">
                 <i class="fas fa-robot"></i>
-                Automation Account Management
-            </h3>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; margin-bottom: 20px;">
-            <div class="form-group-github">
-                <label for="automation-account-select" class="form-label-github">
-                    <i class="fas fa-cogs"></i> Select Automation Account
-                </label>
-                <select id="automation-account-select" class="form-control-github">
-                    <option value="">Choose an automation account...</option>
-                </select>
-            </div>
-            <button onclick="createAutomationAccount()" class="btn-github btn-github-primary">
-                <i class="fas fa-plus"></i> Create New
-            </button>
-        </div>
-        
-        <div id="automation-account-stats" class="count-display">
-            <span id="automation-account-stats-text">No automation accounts configured</span>
-        </div>
-    </div>
-
-    <!-- Account List Configuration -->
-    <div class="github-card">
-        <div class="github-card-header">
-            <h3 class="github-card-title">
-                <i class="fas fa-list"></i>
-                Account List Configuration
+                Automation Authentication Process
             </h3>
         </div>
         
         <div class="form-group-github">
-            <label for="accounts-list" class="form-label-github">
-                <i class="fas fa-columns"></i> Accounts (one per line)
+            <label for="automation-accounts-list" class="form-label-github">
+                <i class="fas fa-columns"></i> Accounts to Process (one per line)
             </label>
-            <textarea id="accounts-list" class="form-control-github" rows="10" 
+            <textarea id="automation-accounts-list" class="form-control-github" rows="8" 
                       placeholder="user1@domain.com&#10;user2@domain.com&#10;user3@domain.com&#10;..."></textarea>
         </div>
         
-        <div style="display: flex; gap: 12px; margin-top: 16px;">
-            <button onclick="saveAccountsList()" class="btn-github">
-                <i class="fas fa-save"></i> Save Account List
+        <div style="display: flex; gap: 12px; margin-top: 16px; margin-bottom: 20px;">
+            <button onclick="executeAutomationProcess()" class="btn-github btn-github-primary">
+                <i class="fas fa-play"></i> Execute Automation Process
             </button>
-            <button onclick="loadAccountsList()" class="btn-github">
-                <i class="fas fa-download"></i> Load from Selected
-            </button>
-            <button onclick="clearAccountsList()" class="btn-github">
+            <button onclick="clearAutomationList()" class="btn-github">
                 <i class="fas fa-trash"></i> Clear List
             </button>
         </div>
-    </div>
-
-    <!-- Automated User Retrieval -->
-    <div class="github-card">
-        <div class="github-card-header">
-            <h3 class="github-card-title">
-                <i class="fas fa-users"></i>
-                Automated User Retrieval
-            </h3>
-        </div>
         
-        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
-            <button onclick="retrieveUsersAutomatically()" class="btn-github btn-github-primary">
-                <i class="fas fa-sync"></i> Retrieve Users Automatically
-            </button>
-            <button onclick="clearRetrievedUsers()" class="btn-github">
-                <i class="fas fa-broom"></i> Clear Retrieved Users
-            </button>
-            <button onclick="exportRetrievedUsers()" class="btn-github">
-                <i class="fas fa-download"></i> Export Users
-            </button>
-        </div>
-        
-        <div id="retrieval-progress" class="progress-container" style="display: none;">
+        <div id="automation-progress" class="progress-container" style="display: none;">
             <div class="progress-bar">
-                <div id="retrieval-progress-bar" class="progress-fill"></div>
+                <div id="automation-progress-bar" class="progress-fill"></div>
             </div>
-            <div id="retrieval-progress-text" class="progress-text">Starting retrieval...</div>
+            <div id="automation-progress-text" class="progress-text">Starting automation process...</div>
         </div>
         
-        <div id="retrieved-users-count" class="count-display">
-            <span id="retrieved-users-stats">No users retrieved yet</span>
+        <div id="automation-results" class="data-display" style="margin-top: 16px; display: none;">
+            <h4>Automation Results:</h4>
+            <div id="automation-results-content"></div>
         </div>
     </div>
-
-    <!-- Retrieved Users Display -->
-    <div class="github-card">
-        <div class="github-card-header">
-            <h3 class="github-card-title">
-                <i class="fas fa-user-check"></i>
-                Retrieved Users
-            </h3>
-        </div>
-        
-        <div id="retrieved-users-list" class="user-list">
-            <div class="no-users-message">
-                <i class="fas fa-info-circle"></i>
-                <p>No users retrieved yet. Use "Retrieve Users Automatically" to start.</p>
-            </div>
-        </div>
-        
-        <div style="display: flex; gap: 12px; margin-top: 16px;">
-            <button onclick="copyAllRetrievedUsers()" class="btn-github">
-                <i class="fas fa-copy"></i> Copy All Emails
-            </button>
-            <button onclick="filterRetrievedUsers()" class="btn-github">
-                <i class="fas fa-filter"></i> Filter Users
-            </button>
-        </div>
-    </div>
-
-    <!-- Automation Account Settings Modal -->
-    <div id="automationAccountModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">
-                    <i class="fas fa-robot"></i> Automation Account Settings
-                </h3>
-                <button type="button" class="btn-github" onclick="closeAutomationAccountModal()" style="margin-left: auto;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="automationAccountForm">
-                    <div class="form-group-github">
-                        <label for="automation-account-name" class="form-label-github">
-                            <i class="fas fa-tag"></i> Account Name
-                        </label>
-                        <input type="text" id="automation-account-name" class="form-control-github" required placeholder="My Automation Account">
-                    </div>
-                    <div class="form-group-github">
-                        <label for="automation-client-id" class="form-label-github">
-                            <i class="fas fa-key"></i> Client ID
-                        </label>
-                        <input type="text" id="automation-client-id" class="form-control-github" required placeholder="123456789-abcdef.apps.googleusercontent.com">
-                    </div>
-                    <div class="form-group-github">
-                        <label for="automation-client-secret" class="form-label-github">
-                            <i class="fas fa-lock"></i> Client Secret
-                        </label>
-                        <input type="password" id="automation-client-secret" class="form-control-github" required placeholder="GOCSPX-your_client_secret">
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" onclick="saveAutomationAccount()" class="btn-github btn-github-primary">
-                    <i class="fas fa-save"></i> Save Account
-                </button>
-                <button type="button" onclick="closeAutomationAccountModal()" class="btn-github">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-            </div>
-        </div>
     </div>
 </div>
+
 
 <script>
 // Test function to verify JavaScript is working
@@ -1401,10 +1272,6 @@ function showTab(tabId) {
         selectedTab.style.display = 'block';
         selectedTab.style.visibility = 'visible';
         
-        // Initialize automation tab if it's being shown
-        if (tabId === 'tab4') {
-            initializeAutomationTab();
-        }
         selectedTab.style.opacity = '1';
         selectedTab.style.height = 'auto';
         selectedTab.style.overflow = 'visible';
@@ -7048,335 +6915,98 @@ function runMegaUpgradeWorkflow(accounts, features) {
     });
 }
 
-// ===== AUTOMATION AUTHENTICATION FUNCTIONS =====
+// ===== SIMPLIFIED AUTOMATION AUTHENTICATION FUNCTIONS =====
 
-// Load automation accounts into the dropdown
-function loadAutomationAccounts() {
-    fetch('/api/automation-accounts')
-        .then(response => response.json())
-        .then(data => {
-            const select = document.getElementById('automation-account-select');
-            select.innerHTML = '<option value="">Choose an automation account...</option>';
-            
-            if (data.success && data.accounts) {
-                data.accounts.forEach(account => {
-                    const option = document.createElement('option');
-                    option.value = account.id;
-                    option.textContent = account.account_name;
-                    select.appendChild(option);
-                });
-                
-                // Update stats
-                document.getElementById('automation-account-stats-text').textContent = 
-                    `Found ${data.accounts.length} automation account(s)`;
-            } else {
-                document.getElementById('automation-account-stats-text').textContent = 
-                    'No automation accounts configured';
-            }
-        })
-        .catch(error => {
-            console.error('Error loading automation accounts:', error);
-            document.getElementById('automation-account-stats-text').textContent = 
-                'Error loading automation accounts';
-        });
-}
-
-// Create new automation account
-function createAutomationAccount() {
-    document.getElementById('automationAccountModal').style.display = 'block';
-}
-
-// Close automation account modal
-function closeAutomationAccountModal() {
-    document.getElementById('automationAccountModal').style.display = 'none';
-    document.getElementById('automationAccountForm').reset();
-}
-
-// Save automation account
-function saveAutomationAccount() {
-    const name = document.getElementById('automation-account-name').value;
-    const clientId = document.getElementById('automation-client-id').value;
-    const clientSecret = document.getElementById('automation-client-secret').value;
+// Execute the complete automation process
+function executeAutomationProcess() {
+    const accountsList = document.getElementById('automation-accounts-list').value.trim();
     
-    if (!name || !clientId || !clientSecret) {
-        alert('Please fill in all fields');
+    if (!accountsList) {
+        alert('Please enter at least one account to process');
         return;
     }
     
-    fetch('/api/automation-accounts', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            account_name: name,
-            client_id: clientId,
-            client_secret: clientSecret
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Automation account created successfully!');
-            closeAutomationAccountModal();
-            loadAutomationAccounts();
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error creating automation account:', error);
-        alert('Error creating automation account');
-    });
-}
-
-// Load accounts list from selected automation account
-function loadAccountsList() {
-    const accountId = document.getElementById('automation-account-select').value;
-    if (!accountId) {
-        alert('Please select an automation account first');
-        return;
-    }
+    // Parse accounts list (one per line)
+    const accounts = accountsList.split('\n').map(line => line.trim()).filter(line => line);
     
-    fetch(`/api/automation-accounts/${accountId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.account) {
-                document.getElementById('accounts-list').value = data.account.accounts_list || '';
-            } else {
-                alert('Error loading account list: ' + (data.error || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Error loading account list:', error);
-            alert('Error loading account list');
-        });
-}
-
-// Save accounts list to selected automation account
-function saveAccountsList() {
-    const accountId = document.getElementById('automation-account-select').value;
-    const accountsList = document.getElementById('accounts-list').value;
-    
-    if (!accountId) {
-        alert('Please select an automation account first');
-        return;
-    }
-    
-    if (!accountsList.trim()) {
-        alert('Please enter at least one account');
-        return;
-    }
-    
-    fetch(`/api/automation-accounts/${accountId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            accounts_list: accountsList
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Account list saved successfully!');
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error saving account list:', error);
-        alert('Error saving account list');
-    });
-}
-
-// Clear accounts list
-function clearAccountsList() {
-    if (confirm('Are you sure you want to clear the accounts list?')) {
-        document.getElementById('accounts-list').value = '';
-    }
-}
-
-// Retrieve users automatically
-function retrieveUsersAutomatically() {
-    const accountId = document.getElementById('automation-account-select').value;
-    if (!accountId) {
-        alert('Please select an automation account first');
+    if (accounts.length === 0) {
+        alert('Please enter valid accounts (one per line)');
         return;
     }
     
     // Show progress
-    document.getElementById('retrieval-progress').style.display = 'block';
-    document.getElementById('retrieval-progress-bar').style.width = '0%';
-    document.getElementById('retrieval-progress-text').textContent = 'Starting retrieval...';
+    document.getElementById('automation-progress').style.display = 'block';
+    document.getElementById('automation-progress-bar').style.width = '0%';
+    document.getElementById('automation-progress-text').textContent = 'Starting automation process...';
     
-    fetch('/api/automation-retrieve-users', {
+    // Execute automation process
+    fetch('/api/execute-automation-process', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            automation_account_id: accountId
+            accounts: accounts
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            document.getElementById('retrieval-progress-bar').style.width = '100%';
-            document.getElementById('retrieval-progress-text').textContent = 'Retrieval completed!';
+            document.getElementById('automation-progress-bar').style.width = '100%';
+            document.getElementById('automation-progress-text').textContent = 'Automation completed!';
             
-            // Update stats
-            document.getElementById('retrieved-users-stats').textContent = 
-                `Retrieved ${data.users_count || 0} users`;
-            
-            // Load retrieved users
-            loadRetrievedUsers();
+            // Show results
+            showAutomationResults(data);
             
             setTimeout(() => {
-                document.getElementById('retrieval-progress').style.display = 'none';
-            }, 2000);
+                document.getElementById('automation-progress').style.display = 'none';
+            }, 3000);
         } else {
-            alert('Error retrieving users: ' + data.error);
-            document.getElementById('retrieval-progress').style.display = 'none';
+            alert('Error in automation process: ' + data.error);
+            document.getElementById('automation-progress').style.display = 'none';
         }
     })
     .catch(error => {
-        console.error('Error retrieving users:', error);
-        alert('Error retrieving users');
-        document.getElementById('retrieval-progress').style.display = 'none';
+        console.error('Error executing automation process:', error);
+        alert('Error executing automation process');
+        document.getElementById('automation-progress').style.display = 'none';
     });
 }
 
-// Load retrieved users
-function loadRetrievedUsers() {
-    const accountId = document.getElementById('automation-account-select').value;
-    if (!accountId) {
-        return;
-    }
+// Show automation results
+function showAutomationResults(data) {
+    const resultsDiv = document.getElementById('automation-results');
+    const contentDiv = document.getElementById('automation-results-content');
     
-    fetch(`/api/automation-retrieved-users/${accountId}`)
-        .then(response => response.json())
-        .then(data => {
-            const container = document.getElementById('retrieved-users-list');
-            
-            if (data.success && data.users && data.users.length > 0) {
-                container.innerHTML = '';
-                
-                data.users.forEach(user => {
-                    const userElement = document.createElement('div');
-                    userElement.className = 'user-item';
-                    userElement.innerHTML = `
-                        <div class="user-info">
-                            <div class="email">${user.email}</div>
-                            <div class="name">${user.name || 'N/A'}</div>
-                            <div class="domain">${user.domain || 'N/A'}</div>
-                            <div class="status">${user.status || 'active'}</div>
-                        </div>
-                    `;
-                    container.appendChild(userElement);
-                });
-                
-                document.getElementById('retrieved-users-stats').textContent = 
-                    `Retrieved ${data.users.length} users`;
-            } else {
-                container.innerHTML = `
-                    <div class="no-users-message">
-                        <i class="fas fa-info-circle"></i>
-                        <p>No users retrieved yet. Use "Retrieve Users Automatically" to start.</p>
-                    </div>
-                `;
-            }
-        })
-        .catch(error => {
-            console.error('Error loading retrieved users:', error);
+    let html = `
+        <div style="margin-bottom: 16px;">
+            <strong>Processed Accounts:</strong> ${data.processed_count || 0}<br>
+            <strong>Successfully Authenticated:</strong> ${data.authenticated_count || 0}<br>
+            <strong>Users Retrieved:</strong> ${data.users_retrieved || 0}
+        </div>
+    `;
+    
+    if (data.results && data.results.length > 0) {
+        html += '<div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: #f9f9f9;">';
+        data.results.forEach(result => {
+            const status = result.success ? '✅' : '❌';
+            html += `<div style="margin-bottom: 8px;">
+                ${status} <strong>${result.account}</strong> - ${result.message}
+            </div>`;
         });
-}
-
-// Clear retrieved users
-function clearRetrievedUsers() {
-    const accountId = document.getElementById('automation-account-select').value;
-    if (!accountId) {
-        alert('Please select an automation account first');
-        return;
+        html += '</div>';
     }
     
-    if (!confirm('Are you sure you want to clear all retrieved users?')) {
-        return;
+    contentDiv.innerHTML = html;
+    resultsDiv.style.display = 'block';
+}
+
+// Clear automation list
+function clearAutomationList() {
+    if (confirm('Are you sure you want to clear the accounts list?')) {
+        document.getElementById('automation-accounts-list').value = '';
+        document.getElementById('automation-results').style.display = 'none';
     }
-    
-    fetch(`/api/automation-retrieved-users/${accountId}`, {
-        method: 'DELETE'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Retrieved users cleared successfully!');
-            loadRetrievedUsers();
-            document.getElementById('retrieved-users-stats').textContent = 'No users retrieved yet';
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error clearing retrieved users:', error);
-        alert('Error clearing retrieved users');
-    });
-}
-
-// Copy all retrieved users
-function copyAllRetrievedUsers() {
-    const userElements = document.querySelectorAll('#retrieved-users-list .user-item .email');
-    if (userElements.length === 0) {
-        alert('No users to copy');
-        return;
-    }
-    
-    const emails = Array.from(userElements).map(element => element.textContent.trim());
-    const emailText = emails.join('\n');
-    
-    navigator.clipboard.writeText(emailText).then(() => {
-        alert(`✅ Copied ${emails.length} user emails to clipboard`);
-    }).catch(() => {
-        alert('❌ Copy failed - please try manually selecting the text');
-    });
-}
-
-// Export retrieved users
-function exportRetrievedUsers() {
-    const accountId = document.getElementById('automation-account-select').value;
-    if (!accountId) {
-        alert('Please select an automation account first');
-        return;
-    }
-    
-    window.open(`/api/automation-export-users/${accountId}`, '_blank');
-}
-
-// Filter retrieved users
-function filterRetrievedUsers() {
-    const filter = prompt('Enter filter text (email, name, or domain):');
-    if (!filter) return;
-    
-    const userElements = document.querySelectorAll('#retrieved-users-list .user-item');
-    let visibleCount = 0;
-    
-    userElements.forEach(element => {
-        const text = element.textContent.toLowerCase();
-        if (text.includes(filter.toLowerCase())) {
-            element.style.display = 'block';
-            visibleCount++;
-        } else {
-            element.style.display = 'none';
-        }
-    });
-    
-    alert(`Found ${visibleCount} users matching "${filter}"`);
-}
-
-// Initialize automation tab when it's shown
-function initializeAutomationTab() {
-    loadAutomationAccounts();
 }
 
 </script>
