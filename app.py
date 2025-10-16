@@ -7577,6 +7577,12 @@ def api_get_all_app_passwords():
 def api_upload_app_passwords():
     """Upload and store app passwords from file"""
     try:
+        # Ensure tables exist (idempotent)
+        try:
+            db.create_all()
+        except Exception as e:
+            app.logger.warning(f"create_all warning (non-fatal): {e}")
+
         if 'file' not in request.files:
             return jsonify({'success': False, 'error': 'No file provided'})
         
@@ -7650,6 +7656,7 @@ def api_upload_app_passwords():
                 continue
         
         db.session.commit()
+        app.logger.info(f"App passwords stored/updated: {stored_count}")
         
         # Return quick sample of what was just stored for verification
         sample_passwords = UserAppPassword.query.order_by(UserAppPassword.id.desc()).limit(5).all()
