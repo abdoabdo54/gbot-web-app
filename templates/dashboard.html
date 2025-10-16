@@ -6861,144 +6861,254 @@ function runMegaUpgradeWorkflow(accounts, features) {
     });
 }
 
-// ===== APP PASSWORD MANAGEMENT FUNCTIONS =====
+// ===== APP PASSWORD MANAGEMENT FUNCTIONS (REFACTORED) =====
 
-let appPasswordsFile = null;
+// Global state for app password management
+const AppPasswordManager = {
+    currentFile: null,
+    isUploading: false
+};
 
-// Handle app passwords file selection
+// Handle file selection
 function handleAppPasswordsFile(input) {
     const file = input.files[0];
-    if (file) {
-        appPasswordsFile = file;
-        console.log('App passwords file selected:', file.name);
+    if (!file) {
+        AppPasswordManager.currentFile = null;
+        console.log('No file selected');
+        return;
     }
+    
+    // Validate file type
+    if (!file.name.endsWith('.txt')) {
+        alert('Please select a .txt file');
+        input.value = '';
+        AppPasswordManager.currentFile = null;
+        return;
+    }
+    
+    AppPasswordManager.currentFile = file;
+    console.log(`File selected: ${file.name} (${file.size} bytes)`);
 }
 
-// Upload and store app passwords
+// Upload app passwords with better error handling
 function uploadAppPasswords() {
-    if (!appPasswordsFile) {
+    // Check if already uploading
+    if (AppPasswordManager.isUploading) {
+        alert('Upload already in progress...');
+        return;
+    }
+    
+    // Check if file is selected
+    if (!AppPasswordManager.currentFile) {
         alert('Please select a file first');
         return;
     }
     
+    // Get the button element
+    const button = event.target || document.querySelector('button[onclick*="uploadAppPasswords"]');
+    const originalHTML = button.innerHTML;
+    
+    // Set uploading state
+    AppPasswordManager.isUploading = true;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    
+    // Create form data
     const formData = new FormData();
-    formData.append('file', appPasswordsFile);
+    formData.append('file', AppPasswordManager.currentFile);
     
-    console.log('Starting upload...', appPasswordsFile.name, appPasswordsFile.size); // Debug log
+    console.log(`Uploading file: ${AppPasswordManager.currentFile.name}`);
     
+    // Perform upload
     fetch('/api/upload-app-passwords', {
         method: 'POST',
         body: formData
     })
     .then(response => {
-        console.log('Response status:', response.status); // Debug log
+        console.log(`Upload response status: ${response.status}`);
+        
+        // Check if response is ok
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            return response.text().then(text => {
+                throw new Error(`Server error ${response.status}: ${text}`);
+            });
         }
+        
         return response.json();
     })
     .then(data => {
-        console.log('Upload response:', data); // Debug log
+        console.log('Upload response data:', data);
+        
         if (data.success) {
             const count = data.count || 0;
             alert(`✅ Successfully uploaded ${count} app passwords!`);
+            
+            // Clear file input
+            const fileInput = document.getElementById('app-passwords-file');
+            if (fileInput) fileInput.value = '';
+            AppPasswordManager.currentFile = null;
+            
+            // Reload status
             loadAppPasswordsStatus();
         } else {
-            alert('❌ Error: ' + (data.error || 'Unknown error'));
+            const errorMsg = data.error || 'Unknown error occurred';
+            alert(`❌ Upload failed: ${errorMsg}`);
         }
     })
     .catch(error => {
-        console.error('Error uploading app passwords:', error);
-        alert('❌ Error uploading app passwords');
+        console.error('Upload error:', error);
+        alert(`❌ Upload error: ${error.message}`);
+    })
+    .finally(() => {
+        // Reset button state
+        AppPasswordManager.isUploading = false;
+        button.disabled = false;
+        button.innerHTML = originalHTML;
     });
 }
 
-// Clear all app passwords
+// Clear all app passwords with confirmation
 function clearAppPasswords() {
-    if (!confirm('Are you sure you want to clear all app passwords? This action cannot be undone.')) {
+    if (!confirm('Are you sure you want to clear all app passwords?\nThis action cannot be undone.')) {
         return;
     }
+    
+    console.log('Clearing all app passwords...');
     
     fetch('/api/clear-app-passwords', {
         method: 'DELETE'
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Server error ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Clear response:', data);
+        
         if (data.success) {
             alert('✅ All app passwords cleared successfully!');
             loadAppPasswordsStatus();
         } else {
-            alert('❌ Error: ' + data.error);
+            alert(`❌ Error: ${data.error || 'Failed to clear passwords'}`);
         }
     })
     .catch(error => {
-        console.error('Error clearing app passwords:', error);
-        alert('❌ Error clearing app passwords');
+        console.error('Clear error:', error);
+        alert(`❌ Error clearing passwords: ${error.message}`);
     });
 }
 
-// Download app passwords template
+// Download template file
 function downloadAppPasswordsTemplate() {
-    const template = `user1@domain.com:app_password_1
-user2@domain.com:app_password_2
-user3@domain.com:app_password_3
-admin@company.com:app_password_4`;
+    console.log('Downloading template...');
+    
+    const template = [
+        '# App Passwords Template',
+        '# Format: email:password',
+        '# One entry per line',
+        '',
+        'user1@example.com:app_password_1',
+        'user2@example.com:app_password_2',
+        'admin@company.com:app_password_3',
+        'john.doe@domain.com:app_password_4'
+    ].join('\n');
     
     const blob = new Blob([template], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'app_passwords_template.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const link = document.createElement('a');
+    
+    link.href = url;
+    link.download = 'app_passwords_template.txt';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
     window.URL.revokeObjectURL(url);
+    
+    console.log('Template downloaded');
 }
 
-// Test API connection
+// Test API endpoint
 function testAppPasswordsAPI() {
-    console.log('Testing API connection...');
+    console.log('Testing App Password API...');
+    
     fetch('/api/test-app-passwords')
         .then(response => {
-            console.log('Test response status:', response.status);
+            console.log(`Test API status: ${response.status}`);
+            
+            if (!response.ok) {
+                throw new Error(`API test failed with status ${response.status}`);
+            }
+            
             return response.json();
         })
         .then(data => {
-            console.log('Test response data:', data);
-            alert(`✅ API Test: ${data.message}`);
-        })
-        .catch(error => {
-            console.error('API test error:', error);
-            alert(`❌ API Test failed: ${error.message}`);
-        });
-}
-
-// Load app passwords status
-function loadAppPasswordsStatus() {
-    fetch('/api/app-passwords-status')
-        .then(response => response.json())
-        .then(data => {
-            console.log('Status response:', data); // Debug log
+            console.log('Test API response:', data);
+            
             if (data.success) {
-                const count = data.count || 0;
-                document.getElementById('app-passwords-count').textContent = 
-                    `${count} app passwords stored`;
-                
-                // Debug: log sample data
-                if (data.sample_data && data.sample_data.length > 0) {
-                    console.log('Sample app passwords:', data.sample_data);
-                }
+                alert(`✅ API Test Passed!\n\nDatabase count: ${data.database_count || 0}\nTest operations: ${data.test_passed ? 'Success' : 'Failed'}`);
             } else {
-                document.getElementById('app-passwords-count').textContent = 
-                    'Error loading app passwords status';
+                alert(`❌ API Test Failed!\n\nError: ${data.error || 'Unknown error'}\nMessage: ${data.message || ''}`);
             }
         })
         .catch(error => {
-            console.error('Error loading app passwords status:', error);
-            document.getElementById('app-passwords-count').textContent = 
-                'Error loading status';
+            console.error('Test API error:', error);
+            alert(`❌ API Test Error: ${error.message}`);
         });
 }
+
+// Load and display app passwords status
+function loadAppPasswordsStatus() {
+    console.log('Loading app passwords status...');
+    
+    fetch('/api/app-passwords-status')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Status API failed with status ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Status response:', data);
+            
+            const statusElement = document.getElementById('app-passwords-count');
+            if (!statusElement) {
+                console.error('Status element not found');
+                return;
+            }
+            
+            if (data.success) {
+                const count = data.count || 0;
+                statusElement.textContent = `${count} app passwords stored`;
+                
+                // Log sample data if available
+                if (data.sample_data && data.sample_data.length > 0) {
+                    console.log('Sample stored passwords:', data.sample_data);
+                }
+            } else {
+                statusElement.textContent = 'Error loading status';
+                console.error('Status error:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Status loading error:', error);
+            const statusElement = document.getElementById('app-passwords-count');
+            if (statusElement) {
+                statusElement.textContent = 'Error loading status';
+            }
+        });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Load status when page loads
+    setTimeout(() => {
+        console.log('Initializing App Password Manager...');
+        loadAppPasswordsStatus();
+    }, 500);
+});
 
 // ===== SIMPLIFIED AUTOMATION AUTHENTICATION FUNCTIONS =====
 
