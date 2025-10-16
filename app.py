@@ -7978,27 +7978,37 @@ def api_detect_user_types():
             email = user.get('email', '') or user.get('primaryEmail', '')
             source_account = user.get('source_account', '')
             
+            # Debug logging
+            app.logger.info(f"Processing user: {email}")
+            app.logger.info(f"User data keys: {list(user.keys())}")
+            app.logger.info(f"isAdmin field: {user.get('isAdmin', 'NOT_FOUND')}")
+            app.logger.info(f"isAdmin type: {type(user.get('isAdmin', 'NOT_FOUND'))}")
+            
             # Determine user type using Google Admin API data
             user_type = 'user'  # Default to user
             
             # Method 1: Check if user has isAdmin field from Google Admin API
-            if user.get('isAdmin', False):
+            is_admin_api = user.get('isAdmin', False)
+            if is_admin_api:
                 user_type = 'admin'
+                app.logger.info(f"Admin detected via API for {email}")
             # Method 2: Check if email matches source account (authentication account)
             elif email and source_account and email.lower() == source_account.lower():
                 user_type = 'admin'
+                app.logger.info(f"Admin detected via source account match for {email}")
             # Method 3: Check for common admin patterns in email
             elif email:
                 email_lower = email.lower()
                 admin_patterns = ['admin', 'support', 'noreply', 'postmaster', 'abuse', 'webmaster', 'administrator', 'contact']
                 if any(pattern in email_lower for pattern in admin_patterns):
                     user_type = 'admin'
+                    app.logger.info(f"Admin detected via pattern match for {email}")
             
             user_types.append({
                 'email': email,
                 'user_type': user_type,
                 'source_account': source_account,
-                'is_admin_api': user.get('isAdmin', False)
+                'is_admin_api': is_admin_api
             })
         
         return jsonify({

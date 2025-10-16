@@ -7625,6 +7625,13 @@ function displayAutomationUsers(users) {
 function detectUserTypes(users, callback) {
     console.log('Detecting user types for', users.length, 'users');
     
+    // Debug: Log the first user to see what fields are available
+    if (users.length > 0) {
+        console.log('Sample user data:', users[0]);
+        console.log('isAdmin field:', users[0].isAdmin);
+        console.log('All user fields:', Object.keys(users[0]));
+    }
+    
     fetch('/api/detect-user-types', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -7634,6 +7641,12 @@ function detectUserTypes(users, callback) {
     .then(data => {
         if (data.success) {
             console.log('User types detected:', data.user_types);
+            // Debug: Log the detection results
+            data.user_types.forEach(ut => {
+                if (ut.user_type === 'admin') {
+                    console.log(`Admin detected: ${ut.email}, isAdmin API: ${ut.is_admin_api}`);
+                }
+            });
             callback(data.user_types);
         } else {
             console.error('Error detecting user types:', data.error);
