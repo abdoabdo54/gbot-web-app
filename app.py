@@ -7624,6 +7624,11 @@ def api_upload_app_passwords():
                 else:
                     # Support alias-only lines; use wildcard domain
                     local_part, domain_part = email, '*'
+
+                # Normalize for consistent matching
+                local_part = local_part.strip().lower()
+                domain_part = domain_part.strip().lower()
+
                 existing = UserAppPassword.query.filter_by(username=local_part, domain=domain_part).first()
                 
                 if existing:
@@ -7646,10 +7651,19 @@ def api_upload_app_passwords():
         
         db.session.commit()
         
+        # Return quick sample of what was just stored for verification
+        sample_passwords = UserAppPassword.query.order_by(UserAppPassword.id.desc()).limit(5).all()
+        sample_data = [{
+            'username': p.username,
+            'domain': p.domain,
+            'full_email': f"{p.username}@{p.domain}" if p.domain != '*' else p.username,
+        } for p in sample_passwords]
+
         return jsonify({
             'success': True,
             'message': f'Successfully stored {stored_count} app passwords',
-            'count': stored_count
+            'count': stored_count,
+            'stored_sample': sample_data
         })
         
     except Exception as e:
@@ -7776,6 +7790,10 @@ def api_execute_automation_process():
                                     try:
                                         username, domain = user_email.split('@', 1)
                                         
+                                        # Normalize username & domain for matching
+                                        username = (username or '').strip().lower()
+                                        domain = (domain or '').strip().lower()
+
                                         # Try exact match first
                                         app_password_record = UserAppPassword.query.filter_by(
                                             username=username, 
