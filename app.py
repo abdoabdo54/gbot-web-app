@@ -7840,6 +7840,125 @@ def api_app_passwords_status():
         app.logger.error(f"Error getting app passwords status: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+# ===== ADVANCED APP PASSWORD MANAGEMENT API =====
+
+@app.route('/api/update-app-password', methods=['POST'])
+@login_required
+def api_update_app_password():
+    """Update a specific app password"""
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        domain = data.get('domain', '').strip()
+        app_password = data.get('app_password', '').strip()
+        
+        if not username or not app_password:
+            return jsonify({'success': False, 'error': 'Username and app password are required'})
+        
+        # Find the existing record
+        existing = UserAppPassword.query.filter_by(username=username, domain=domain).first()
+        if not existing:
+            return jsonify({'success': False, 'error': 'App password record not found'})
+        
+        # Update the password
+        existing.app_password = app_password
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'App password updated successfully'})
+        
+    except Exception as e:
+        app.logger.error(f"Error updating app password: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/delete-app-password', methods=['POST'])
+@login_required
+def api_delete_app_password():
+    """Delete a specific app password"""
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        domain = data.get('domain', '').strip()
+        
+        if not username:
+            return jsonify({'success': False, 'error': 'Username is required'})
+        
+        # Find and delete the record
+        existing = UserAppPassword.query.filter_by(username=username, domain=domain).first()
+        if not existing:
+            return jsonify({'success': False, 'error': 'App password record not found'})
+        
+        db.session.delete(existing)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'App password deleted successfully'})
+        
+    except Exception as e:
+        app.logger.error(f"Error deleting app password: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/delete-specific-app-passwords', methods=['POST'])
+@login_required
+def api_delete_specific_app_passwords():
+    """Delete specific app passwords by username/email list"""
+    try:
+        data = request.get_json()
+        users = data.get('users', [])
+        
+        if not users:
+            return jsonify({'success': False, 'error': 'No users provided'})
+        
+        deleted_count = 0
+        errors = []
+        
+        for user_input in users:
+            user_input = user_input.strip()
+            if not user_input:
+                continue
+                
+            try:
+                # Handle both email format (user@domain) and username format
+                if '@' in user_input:
+                    username, domain = user_input.split('@', 1)
+                else:
+                    username = user_input
+                    domain = '*'  # Try wildcard domain first
+                
+                # Try to find and delete the record
+                existing = UserAppPassword.query.filter_by(username=username, domain=domain).first()
+                if existing:
+                    db.session.delete(existing)
+                    deleted_count += 1
+                else:
+                    # Try with wildcard domain if not found
+                    if domain != '*':
+                        existing = UserAppPassword.query.filter_by(username=username, domain='*').first()
+                        if existing:
+                            db.session.delete(existing)
+                            deleted_count += 1
+                        else:
+                            errors.append(f"User not found: {user_input}")
+                    else:
+                        errors.append(f"User not found: {user_input}")
+                        
+            except Exception as e:
+                errors.append(f"Error processing {user_input}: {str(e)}")
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'deleted_count': deleted_count,
+            'errors': errors,
+            'message': f'Successfully deleted {deleted_count} app password(s)'
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error deleting specific app passwords: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
 # ===== SIMPLIFIED AUTOMATION AUTHENTICATION API =====
 
 @app.route('/api/execute-automation-process', methods=['POST'])

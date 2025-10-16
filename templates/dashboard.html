@@ -1047,6 +1047,45 @@
         <div id="app-passwords-status" class="count-display" style="margin-top: 16px;">
             <span id="app-passwords-count">No app passwords stored</span>
         </div>
+        
+        <!-- Advanced App Password Management -->
+        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #d0d7de;">
+            <h4 style="color: #24292f; margin-bottom: 16px; font-size: 16px;">
+                <i class="fas fa-cogs"></i> Advanced Management
+            </h4>
+            
+            <!-- Search and Select Users -->
+            <div class="form-group-github">
+                <label for="search-app-passwords" class="form-label-github">
+                    <i class="fas fa-search"></i> Search App Password Users
+                </label>
+                <input type="text" id="search-app-passwords" class="form-control-github" 
+                       placeholder="Search by username, domain, or email..." 
+                       onkeyup="searchAppPasswordUsers()">
+            </div>
+            
+            <!-- User Selection and Management -->
+            <div id="app-passwords-search-results" style="max-height: 200px; overflow-y: auto; border: 1px solid #d0d7de; border-radius: 6px; padding: 12px; margin-bottom: 16px; display: none;">
+                <!-- Search results will be populated here -->
+            </div>
+            
+            <!-- Delete Specific Users -->
+            <div class="form-group-github">
+                <label for="delete-app-passwords" class="form-label-github">
+                    <i class="fas fa-trash-alt"></i> Delete Specific Users (one per line)
+                </label>
+                <textarea id="delete-app-passwords" class="form-control-github" rows="4" 
+                          placeholder="Enter usernames or emails to delete (one per line):&#10;user1@domain.com&#10;user2@domain.com&#10;username3"></textarea>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button onclick="deleteSpecificAppPasswords()" class="btn-github" style="background-color: #dc3545; color: white;">
+                        <i class="fas fa-trash"></i> Delete Selected
+                    </button>
+                    <button onclick="clearDeleteField()" class="btn-github">
+                        <i class="fas fa-times"></i> Clear Field
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Automation Authentication Process -->
@@ -1114,6 +1153,9 @@
                     <i class="fas fa-list"></i>
                     Users List (Text Format)
                 </h3>
+                <div id="users-list-stats" style="margin-top: 8px; font-size: 14px; color: #656d76;">
+                    <!-- Statistics will be displayed here -->
+                </div>
             </div>
             <div class="form-group-github">
                 <label for="automation-users-text" class="form-label-github">
@@ -7106,6 +7148,213 @@ function loadAppPasswordsStatus() {
         });
 }
 
+// Advanced App Password Management Functions
+
+// Search app password users
+function searchAppPasswordUsers() {
+    const searchTerm = document.getElementById('search-app-passwords').value.trim();
+    const resultsDiv = document.getElementById('app-passwords-search-results');
+    
+    if (!searchTerm) {
+        resultsDiv.style.display = 'none';
+        return;
+    }
+    
+    console.log('Searching app password users:', searchTerm);
+    
+    fetch('/api/list-app-passwords')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.users) {
+                const filteredUsers = data.users.filter(user => 
+                    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    user.domain.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    `${user.username}@${user.domain}`.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+                
+                displaySearchResults(filteredUsers);
+            } else {
+                resultsDiv.innerHTML = '<div style="color: #6a737d; font-style: italic;">No users found</div>';
+                resultsDiv.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error searching app password users:', error);
+            resultsDiv.innerHTML = '<div style="color: #dc3545;">Error searching users</div>';
+            resultsDiv.style.display = 'block';
+        });
+}
+
+// Display search results
+function displaySearchResults(users) {
+    const resultsDiv = document.getElementById('app-passwords-search-results');
+    
+    if (users.length === 0) {
+        resultsDiv.innerHTML = '<div style="color: #6a737d; font-style: italic;">No matching users found</div>';
+        resultsDiv.style.display = 'block';
+        return;
+    }
+    
+    let html = '<div style="font-size: 14px;">';
+    html += `<div style="margin-bottom: 8px; font-weight: bold; color: #24292f;">Found ${users.length} user(s):</div>`;
+    
+    users.forEach((user, index) => {
+        const email = user.domain === '*' ? user.username : `${user.username}@${user.domain}`;
+        html += `<div style="padding: 8px; border: 1px solid #d0d7de; border-radius: 4px; margin-bottom: 4px; background: #f6f8fa;">`;
+        html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
+        html += `<div><strong>${email}</strong><br><small style="color: #656d76;">Password: ${user.app_password ? '••••••••' : 'Not set'}</small></div>`;
+        html += `<div style="display: flex; gap: 4px;">`;
+        html += `<button onclick="editAppPasswordUser('${user.username}', '${user.domain}')" class="btn-github" style="padding: 4px 8px; font-size: 12px;"><i class="fas fa-edit"></i></button>`;
+        html += `<button onclick="deleteAppPasswordUser('${user.username}', '${user.domain}')" class="btn-github" style="padding: 4px 8px; font-size: 12px; background-color: #dc3545; color: white;"><i class="fas fa-trash"></i></button>`;
+        html += `</div></div></div>`;
+    });
+    
+    html += '</div>';
+    resultsDiv.innerHTML = html;
+    resultsDiv.style.display = 'block';
+}
+
+// Edit app password user
+function editAppPasswordUser(username, domain) {
+    const newPassword = prompt(`Edit app password for ${username}@${domain}:`, '');
+    if (newPassword === null) return;
+    
+    if (!newPassword.trim()) {
+        alert('Password cannot be empty');
+        return;
+    }
+    
+    fetch('/api/update-app-password', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            username: username,
+            domain: domain,
+            app_password: newPassword.trim()
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ App password updated successfully');
+            searchAppPasswordUsers(); // Refresh search results
+            loadAppPasswordsStatus(); // Refresh status
+        } else {
+            alert(`❌ Error updating app password: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error updating app password:', error);
+        alert(`❌ Error updating app password: ${error.message}`);
+    });
+}
+
+// Delete single app password user
+function deleteAppPasswordUser(username, domain) {
+    if (!confirm(`Are you sure you want to delete the app password for ${username}@${domain}?`)) {
+        return;
+    }
+    
+    fetch('/api/delete-app-password', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            username: username,
+            domain: domain
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ App password deleted successfully');
+            searchAppPasswordUsers(); // Refresh search results
+            loadAppPasswordsStatus(); // Refresh status
+        } else {
+            alert(`❌ Error deleting app password: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting app password:', error);
+        alert(`❌ Error deleting app password: ${error.message}`);
+    });
+}
+
+// Delete specific app passwords
+function deleteSpecificAppPasswords() {
+    const deleteField = document.getElementById('delete-app-passwords');
+    const usersToDelete = deleteField.value.trim();
+    
+    if (!usersToDelete) {
+        alert('Please enter users to delete (one per line)');
+        return;
+    }
+    
+    const userList = usersToDelete.split('\n').filter(line => line.trim());
+    if (userList.length === 0) {
+        alert('Please enter at least one user to delete');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${userList.length} app password(s)?\n\nThis action cannot be undone!`)) {
+        return;
+    }
+    
+    console.log('Deleting specific app passwords:', userList);
+    
+    fetch('/api/delete-specific-app-passwords', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            users: userList
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ Successfully deleted ${data.deleted_count} app password(s)`);
+            deleteField.value = ''; // Clear the field
+            loadAppPasswordsStatus(); // Refresh status
+        } else {
+            alert(`❌ Error deleting app passwords: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting specific app passwords:', error);
+        alert(`❌ Error deleting app passwords: ${error.message}`);
+    });
+}
+
+// Clear delete field
+function clearDeleteField() {
+    document.getElementById('delete-app-passwords').value = '';
+}
+
+// Update users list statistics
+function updateUsersListStats(users) {
+    const statsDiv = document.getElementById('users-list-stats');
+    if (!statsDiv || !users) return;
+    
+    let totalUsers = users.length;
+    let usersWithPasswords = 0;
+    let usersWithoutPasswords = 0;
+    
+    users.forEach(user => {
+        if (user.app_password && user.app_password !== 'No app password') {
+            usersWithPasswords++;
+        } else {
+            usersWithoutPasswords++;
+        }
+    });
+    
+    let html = `<div style="display: flex; gap: 16px; flex-wrap: wrap;">`;
+    html += `<span><strong>Total Users:</strong> ${totalUsers}</span>`;
+    html += `<span style="color: #28a745;"><strong>With Passwords:</strong> ${usersWithPasswords}</span>`;
+    html += `<span style="color: #dc3545;"><strong>Missing Passwords:</strong> ${usersWithoutPasswords}</span>`;
+    html += `</div>`;
+    
+    statsDiv.innerHTML = html;
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Load status when page loads
@@ -7305,6 +7554,9 @@ function displayAutomationUsers(users) {
     usersTextArea.value = smtpFormatList.join('\n');
     usersDisplayDiv.style.display = 'block';
     usersTextDisplayDiv.style.display = 'block';
+    
+    // Update statistics display
+    updateUsersListStats(users);
 }
 
 // Copy all automation users
