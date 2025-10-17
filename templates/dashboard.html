@@ -1037,6 +1037,9 @@
             <button onclick="testAppPasswordsAPI()" class="btn-github">
                 <i class="fas fa-test-tube"></i> Test API
             </button>
+            <button onclick="debugAppPasswords()" class="btn-github">
+                <i class="fas fa-bug"></i> Debug Search
+            </button>
             <button onclick="clearAppPasswords()" class="btn-github">
                 <i class="fas fa-trash"></i> Clear All Passwords
             </button>
@@ -7183,6 +7186,36 @@ function testAppPasswordsAPI() {
         });
 }
 
+// Debug app passwords search
+function debugAppPasswords() {
+    console.log('=== DEBUGGING APP PASSWORDS SEARCH ===');
+    
+    // First, get all app passwords
+    fetch('/api/list-app-passwords')
+        .then(response => response.json())
+        .then(data => {
+            console.log('All app passwords in database:', data);
+            
+            if (data.success && data.users) {
+                console.log(`Total users in database: ${data.users.length}`);
+                console.log('Sample users:', data.users.slice(0, 5));
+                
+                // Show in alert for easy viewing
+                const sampleUsers = data.users.slice(0, 10).map(user => 
+                    `${user.username}@${user.domain}`
+                ).join('\n');
+                
+                alert(`Found ${data.users.length} users in database:\n\n${sampleUsers}${data.users.length > 10 ? '\n... and more' : ''}`);
+            } else {
+                alert('No users found in database or API error');
+            }
+        })
+        .catch(error => {
+            console.error('Debug API error:', error);
+            alert(`Debug API Error: ${error.message}`);
+        });
+}
+
 // Load and display app passwords status
 function loadAppPasswordsStatus() {
     console.log('Loading app passwords status...');
@@ -7247,13 +7280,26 @@ function searchAppPasswordUsers() {
     fetch('/api/list-app-passwords')
         .then(response => response.json())
         .then(data => {
+            console.log('Search API response:', data);
+            
             if (data.success && data.users) {
-                const filteredUsers = data.users.filter(user => 
-                    user.username.toLowerCase().includes(searchTerm.toLowerCase())
-                );
+                const filteredUsers = data.users.filter(user => {
+                    const username = user.username.toLowerCase();
+                    const domain = user.domain.toLowerCase();
+                    const fullEmail = `${username}@${domain}`;
+                    const searchLower = searchTerm.toLowerCase();
+                    
+                    // Search by username, domain, or full email
+                    return username.includes(searchLower) || 
+                           domain.includes(searchLower) || 
+                           fullEmail.includes(searchLower) ||
+                           (searchLower.includes('@') && fullEmail === searchLower);
+                });
                 
+                console.log(`Found ${filteredUsers.length} matching users:`, filteredUsers);
                 displaySearchResults(filteredUsers);
             } else {
+                console.log('No users data in response');
                 resultsDiv.innerHTML = '<div style="color: #6a737d; font-style: italic;">No users found</div>';
                 resultsDiv.style.display = 'block';
             }

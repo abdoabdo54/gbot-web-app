@@ -7785,10 +7785,11 @@ def api_list_app_passwords():
         return jsonify({
             'success': True,
             'count': len(q),
-            'passwords': [
+            'users': [
                 {
                     'username': r.username,
                     'domain': r.domain,
+                    'app_password': r.app_password
                 } for r in q
             ]
         })
