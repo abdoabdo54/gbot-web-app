@@ -1990,8 +1990,7 @@ function testFeatures() {
     console.log('Testing features...');
     const features = {
         authenticate: document.getElementById('feature-authenticate')?.checked || false,
-        changeSubdomain: document.getElementById('feature-change-subdomain')?.checked || false,
-        retrievePasswords: document.getElementById('feature-retrieve-passwords')?.checked || false
+        changeSubdomain: document.getElementById('feature-change-subdomain')?.checked || false
     };
     
     console.log('Features:', features);
@@ -6582,8 +6581,7 @@ function startMegaUpgrade() {
     // Get selected features
     const features = {
         authenticate: document.getElementById('feature-authenticate').checked,
-        changeSubdomain: document.getElementById('feature-change-subdomain').checked,
-        retrievePasswords: document.getElementById('feature-retrieve-passwords').checked
+        changeSubdomain: document.getElementById('feature-change-subdomain').checked
     };
     
     console.log('Selected features:', features);
@@ -6625,63 +6623,6 @@ function updateMegaProgress(percentage, message) {
     }
 }
 
-function testMegaUpgrade() {
-    const accountsText = document.getElementById('mega-accounts-list').value.trim();
-    
-    if (!accountsText) {
-        alert('Please enter at least one account');
-        return;
-    }
-    
-    // Parse accounts from textarea (one per line)
-    const accounts = accountsText.split('\n')
-        .map(line => line.trim())
-        .filter(line => line && line.includes('@')); // Filter out empty lines and invalid emails
-    
-    if (accounts.length === 0) {
-        alert('Please enter valid email addresses (one per line)');
-        return;
-    }
-    
-    // Get selected features
-    const features = {
-        authenticate: document.getElementById('feature-authenticate').checked,
-        changeSubdomain: document.getElementById('feature-change-subdomain').checked,
-        retrievePasswords: document.getElementById('feature-retrieve-passwords').checked,
-    };
-    
-    logBulkDomain('🧪 Starting SIMPLE Test Mega Upgrade...');
-    logBulkDomain(`📊 Testing ${accounts.length} accounts with selected features`);
-    logBulkDomain(`🔧 Features: ${Object.keys(features).filter(k => features[k]).join(', ')}`);
-    logBulkDomain('─'.repeat(50));
-    
-    // Test the NEW simple endpoint
-    fetch('/api/test-simple-mega', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            accounts: accounts,
-            features: features
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            logBulkDomain(`✅ SIMPLE Test completed successfully: ${data.message}`);
-            logBulkDomain(`📊 Received accounts: ${data.received_accounts.join(', ')}`);
-            logBulkDomain(`🔧 Received features: ${JSON.stringify(data.received_features)}`);
-            logBulkDomain(`📋 Total accounts: ${data.total_accounts}`);
-            logBulkDomain('─'.repeat(50));
-            logBulkDomain('🎉 SIMPLE Test completed - Basic communication works!');
-        } else {
-            logBulkDomain(`❌ SIMPLE Test failed: ${data.error}`);
-        }
-    })
-    .catch(error => {
-        logBulkDomain(`❌ SIMPLE Test error: ${error.message}`);
-        console.error('SIMPLE Test Error:', error);
-    });
-}
 
 function debugMegaUpgrade() {
     const accountsText = document.getElementById('mega-accounts-list').value.trim();
@@ -6704,8 +6645,7 @@ function debugMegaUpgrade() {
     // Get selected features
     const features = {
         authenticate: document.getElementById('feature-authenticate').checked,
-        changeSubdomain: document.getElementById('feature-change-subdomain').checked,
-        retrievePasswords: document.getElementById('feature-retrieve-passwords').checked,
+        changeSubdomain: document.getElementById('feature-change-subdomain').checked
     };
     
     logBulkDomain('🐛 Starting DEBUG Mega Upgrade...');
@@ -8112,11 +8052,6 @@ function clearAutomationList() {
                         <span class="checkmark"></span>
                         <i class="fas fa-exchange-alt"></i> Auto Change Subdomain
                     </label>
-                    <label class="checkbox-container">
-                        <input type="checkbox" id="feature-retrieve-passwords">
-                        <span class="checkmark"></span>
-                        <i class="fas fa-download"></i> Retrieve App Passwords
-                    </label>
                 </div>
             </div>
             
@@ -8170,9 +8105,6 @@ function clearAutomationList() {
             <div style="display: flex; gap: 12px; justify-content: center;">
                 <button onclick="startMegaUpgrade()" class="btn-github btn-github-primary" id="megaStartBtn">
                     <i class="fas fa-play"></i> Run Mega Upgrade
-                </button>
-                <button onclick="testMegaUpgrade()" class="btn-github" style="background-color: #28a745; border-color: #28a745; color: white;">
-                    <i class="fas fa-vial"></i> Test (No Threading)
                 </button>
                 <button onclick="debugMegaUpgrade()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
                     <i class="fas fa-bug"></i> Debug Mega Upgrade
