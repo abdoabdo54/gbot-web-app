@@ -4600,7 +4600,7 @@ def generate_csv():
             used_names = set()
             
             def generate_complex_alias(first_name, last_name, index, attempt=0):
-                """Generate complex, unique aliases with multiple strategies"""
+                """Generate complex, unique aliases using only letters"""
                 import string
                 import hashlib
                 import time
@@ -4611,53 +4611,57 @@ def generate_csv():
                 f_initial = fname[0]
                 l_initial = lname[0]
                 
-                # Complex patterns with multiple strategies
+                # Generate random letter sequences
+                def random_letters(length):
+                    return ''.join(random.choice(string.ascii_lowercase) for _ in range(length))
+                
+                # Complex patterns with letters only
                 patterns = [
-                    # Pattern 1: Name + Random String + Index
-                    f"{fname}{lname}{random.randint(1000, 9999)}{index:03d}",
-                    f"{fname}.{lname}.{random.randint(100, 999)}{index:02d}",
-                    f"{f_initial}{lname}{random.randint(10000, 99999)}{index}",
+                    # Pattern 1: Name + Random Letters + Index letters
+                    f"{fname}{lname}{random_letters(4)}{chr(97 + (index % 26))}{chr(97 + ((index // 26) % 26))}",
+                    f"{fname}{random_letters(3)}{lname}{random_letters(3)}",
+                    f"{f_initial}{lname}{random_letters(5)}{chr(97 + (index % 26))}",
                     
-                    # Pattern 2: Mixed case with numbers
-                    f"{fname}{random.randint(100, 999)}{lname}{index:03d}",
-                    f"{fname[0:3]}{lname[0:3]}{random.randint(1000, 9999)}{index}",
-                    f"{fname}{lname[0:2]}{random.randint(1000, 9999)}{index:02d}",
+                    # Pattern 2: Mixed combinations with letters
+                    f"{fname}{random_letters(3)}{lname}{random_letters(2)}",
+                    f"{fname[0:3]}{lname[0:3]}{random_letters(4)}",
+                    f"{fname}{lname[0:2]}{random_letters(4)}{chr(97 + (index % 26))}",
                     
-                    # Pattern 3: Hash-based unique identifiers
-                    f"{fname}{lname}{hashlib.md5(f'{fname}{lname}{index}{attempt}'.encode()).hexdigest()[:6]}",
-                    f"{f_initial}{lname}{hashlib.md5(f'{index}{attempt}{time.time()}'.encode()).hexdigest()[:8]}",
+                    # Pattern 3: Hash-based unique identifiers (letters only)
+                    f"{fname}{lname}{hashlib.md5(f'{fname}{lname}{index}{attempt}'.encode()).hexdigest()[:6].replace('0', 'a').replace('1', 'b').replace('2', 'c').replace('3', 'd').replace('4', 'e').replace('5', 'f').replace('6', 'g').replace('7', 'h').replace('8', 'i').replace('9', 'j')}",
+                    f"{f_initial}{lname}{hashlib.md5(f'{index}{attempt}{time.time()}'.encode()).hexdigest()[:8].replace('0', 'k').replace('1', 'l').replace('2', 'm').replace('3', 'n').replace('4', 'o').replace('5', 'p').replace('6', 'q').replace('7', 'r').replace('8', 's').replace('9', 't')}",
                     
-                    # Pattern 4: Complex combinations
-                    f"{fname}{random.choice(string.ascii_lowercase)}{lname}{random.randint(100, 999)}{index}",
-                    f"{fname[0:2]}{lname[0:2]}{random.randint(10000, 99999)}{index:02d}",
-                    f"{fname}{lname[0:3]}{random.randint(1000, 9999)}{index:03d}",
+                    # Pattern 4: Complex letter combinations
+                    f"{fname}{random.choice(string.ascii_lowercase)}{lname}{random_letters(3)}",
+                    f"{fname[0:2]}{lname[0:2]}{random_letters(5)}",
+                    f"{fname}{lname[0:3]}{random_letters(4)}{chr(97 + (index % 26))}",
                     
-                    # Pattern 5: Time-based unique identifiers
-                    f"{fname}{lname}{int(time.time() * 1000) % 100000}{index}",
-                    f"{f_initial}{lname}{int(time.time()) % 10000}{index:03d}",
+                    # Pattern 5: Time-based unique identifiers (letters only)
+                    f"{fname}{lname}{random_letters(6)}{chr(97 + (index % 26))}",
+                    f"{f_initial}{lname}{random_letters(5)}{chr(97 + (index % 26))}",
                     
-                    # Pattern 6: Advanced combinations
-                    f"{fname}{lname[0:4]}{random.randint(100, 999)}{index:02d}",
-                    f"{fname[0:3]}{lname}{random.randint(1000, 9999)}{index}",
-                    f"{fname}{lname[0:2]}{random.randint(10000, 99999)}{index:02d}",
+                    # Pattern 6: Advanced letter combinations
+                    f"{fname}{lname[0:4]}{random_letters(3)}",
+                    f"{fname[0:3]}{lname}{random_letters(4)}",
+                    f"{fname}{lname[0:2]}{random_letters(5)}{chr(97 + (index % 26))}",
                     
-                    # Pattern 7: UUID-like patterns
-                    f"{fname}{lname}{random.randint(100000, 999999)}{index:03d}",
-                    f"{f_initial}{lname[0:3]}{random.randint(10000, 99999)}{index:02d}",
-                    f"{fname[0:2]}{lname[0:3]}{random.randint(1000, 9999)}{index:03d}",
+                    # Pattern 7: Complex letter patterns
+                    f"{fname}{lname}{random_letters(6)}",
+                    f"{f_initial}{lname[0:3]}{random_letters(5)}",
+                    f"{fname[0:2]}{lname[0:3]}{random_letters(4)}",
                     
-                    # Pattern 8: Complex alphanumeric
-                    f"{fname}{lname}{''.join(random.choices(string.ascii_lowercase + string.digits, k=4))}{index}",
-                    f"{f_initial}{lname}{''.join(random.choices(string.ascii_lowercase + string.digits, k=6))}{index:02d}",
+                    # Pattern 8: Advanced letter combinations
+                    f"{fname}{lname}{random_letters(4)}{chr(97 + (index % 26))}",
+                    f"{f_initial}{lname}{random_letters(6)}{chr(97 + (index % 26))}",
                     
-                    # Pattern 9: Multi-part unique identifiers
-                    f"{fname}{lname[0:2]}{random.randint(100, 999)}{index:03d}",
-                    f"{fname[0:4]}{lname}{random.randint(1000, 9999)}{index:02d}",
-                    f"{fname}{lname[0:3]}{random.randint(10000, 99999)}{index}",
+                    # Pattern 9: Multi-part unique identifiers (letters only)
+                    f"{fname}{lname[0:2]}{random_letters(3)}{chr(97 + (index % 26))}",
+                    f"{fname[0:4]}{lname}{random_letters(4)}{chr(97 + (index % 26))}",
+                    f"{fname}{lname[0:3]}{random_letters(5)}{chr(97 + (index % 26))}",
                     
-                    # Pattern 10: Advanced hash combinations
-                    f"{fname}{lname}{hashlib.sha256(f'{fname}{lname}{index}{attempt}{random.randint(1, 10000)}'.encode()).hexdigest()[:7]}",
-                    f"{f_initial}{lname}{hashlib.sha256(f'{index}{attempt}{time.time()}{random.randint(1, 1000)}'.encode()).hexdigest()[:9]}"
+                    # Pattern 10: Advanced hash combinations (letters only)
+                    f"{fname}{lname}{hashlib.sha256(f'{fname}{lname}{index}{attempt}{random_letters(4)}'.encode()).hexdigest()[:7].replace('0', 'a').replace('1', 'b').replace('2', 'c').replace('3', 'd').replace('4', 'e').replace('5', 'f').replace('6', 'g').replace('7', 'h').replace('8', 'i').replace('9', 'j')}",
+                    f"{f_initial}{lname}{hashlib.sha256(f'{index}{attempt}{time.time()}{random_letters(3)}'.encode()).hexdigest()[:9].replace('0', 'k').replace('1', 'l').replace('2', 'm').replace('3', 'n').replace('4', 'o').replace('5', 'p').replace('6', 'q').replace('7', 'r').replace('8', 's').replace('9', 't')}"
                 ]
                 
                 # Try each pattern until we find a unique one
@@ -4666,8 +4670,8 @@ def generate_csv():
                         used_aliases.add(pattern)
                         return pattern
                 
-                # If all patterns are taken, create a completely unique one
-                unique_id = f"{fname}{lname}{int(time.time() * 1000000) % 1000000}{index}{attempt}"
+                # If all patterns are taken, create a completely unique one (letters only)
+                unique_id = f"{fname}{lname}{random_letters(8)}{chr(97 + (index % 26))}{chr(97 + (attempt % 26))}"
                 used_aliases.add(unique_id)
                 return unique_id
             
@@ -4909,7 +4913,7 @@ def preview_csv():
         used_names_preview = set()
         
         def generate_complex_alias_preview(first_name, last_name, index, attempt=0):
-            """Generate complex, unique aliases with multiple strategies for preview"""
+            """Generate complex, unique aliases using only letters for preview"""
             import string
             import hashlib
             import time
@@ -4920,53 +4924,57 @@ def preview_csv():
             f_initial = fname[0]
             l_initial = lname[0]
             
-            # Complex patterns with multiple strategies
+            # Generate random letter sequences
+            def random_letters(length):
+                return ''.join(random.choice(string.ascii_lowercase) for _ in range(length))
+            
+            # Complex patterns with letters only
             patterns = [
-                # Pattern 1: Name + Random String + Index
-                f"{fname}{lname}{random.randint(1000, 9999)}{index:03d}",
-                f"{fname}.{lname}.{random.randint(100, 999)}{index:02d}",
-                f"{f_initial}{lname}{random.randint(10000, 99999)}{index}",
+                # Pattern 1: Name + Random Letters + Index letters
+                f"{fname}{lname}{random_letters(4)}{chr(97 + (index % 26))}{chr(97 + ((index // 26) % 26))}",
+                f"{fname}{random_letters(3)}{lname}{random_letters(3)}",
+                f"{f_initial}{lname}{random_letters(5)}{chr(97 + (index % 26))}",
                 
-                # Pattern 2: Mixed case with numbers
-                f"{fname}{random.randint(100, 999)}{lname}{index:03d}",
-                f"{fname[0:3]}{lname[0:3]}{random.randint(1000, 9999)}{index}",
-                f"{fname}{lname[0:2]}{random.randint(1000, 9999)}{index:02d}",
+                # Pattern 2: Mixed combinations with letters
+                f"{fname}{random_letters(3)}{lname}{random_letters(2)}",
+                f"{fname[0:3]}{lname[0:3]}{random_letters(4)}",
+                f"{fname}{lname[0:2]}{random_letters(4)}{chr(97 + (index % 26))}",
                 
-                # Pattern 3: Hash-based unique identifiers
-                f"{fname}{lname}{hashlib.md5(f'{fname}{lname}{index}{attempt}'.encode()).hexdigest()[:6]}",
-                f"{f_initial}{lname}{hashlib.md5(f'{index}{attempt}{time.time()}'.encode()).hexdigest()[:8]}",
+                # Pattern 3: Hash-based unique identifiers (letters only)
+                f"{fname}{lname}{hashlib.md5(f'{fname}{lname}{index}{attempt}'.encode()).hexdigest()[:6].replace('0', 'a').replace('1', 'b').replace('2', 'c').replace('3', 'd').replace('4', 'e').replace('5', 'f').replace('6', 'g').replace('7', 'h').replace('8', 'i').replace('9', 'j')}",
+                f"{f_initial}{lname}{hashlib.md5(f'{index}{attempt}{time.time()}'.encode()).hexdigest()[:8].replace('0', 'k').replace('1', 'l').replace('2', 'm').replace('3', 'n').replace('4', 'o').replace('5', 'p').replace('6', 'q').replace('7', 'r').replace('8', 's').replace('9', 't')}",
                 
-                # Pattern 4: Complex combinations
-                f"{fname}{random.choice(string.ascii_lowercase)}{lname}{random.randint(100, 999)}{index}",
-                f"{fname[0:2]}{lname[0:2]}{random.randint(10000, 99999)}{index:02d}",
-                f"{fname}{lname[0:3]}{random.randint(1000, 9999)}{index:03d}",
+                # Pattern 4: Complex letter combinations
+                f"{fname}{random.choice(string.ascii_lowercase)}{lname}{random_letters(3)}",
+                f"{fname[0:2]}{lname[0:2]}{random_letters(5)}",
+                f"{fname}{lname[0:3]}{random_letters(4)}{chr(97 + (index % 26))}",
                 
-                # Pattern 5: Time-based unique identifiers
-                f"{fname}{lname}{int(time.time() * 1000) % 100000}{index}",
-                f"{f_initial}{lname}{int(time.time()) % 10000}{index:03d}",
+                # Pattern 5: Time-based unique identifiers (letters only)
+                f"{fname}{lname}{random_letters(6)}{chr(97 + (index % 26))}",
+                f"{f_initial}{lname}{random_letters(5)}{chr(97 + (index % 26))}",
                 
-                # Pattern 6: Advanced combinations
-                f"{fname}{lname[0:4]}{random.randint(100, 999)}{index:02d}",
-                f"{fname[0:3]}{lname}{random.randint(1000, 9999)}{index}",
-                f"{fname}{lname[0:2]}{random.randint(10000, 99999)}{index:02d}",
+                # Pattern 6: Advanced letter combinations
+                f"{fname}{lname[0:4]}{random_letters(3)}",
+                f"{fname[0:3]}{lname}{random_letters(4)}",
+                f"{fname}{lname[0:2]}{random_letters(5)}{chr(97 + (index % 26))}",
                 
-                # Pattern 7: UUID-like patterns
-                f"{fname}{lname}{random.randint(100000, 999999)}{index:03d}",
-                f"{f_initial}{lname[0:3]}{random.randint(10000, 99999)}{index:02d}",
-                f"{fname[0:2]}{lname[0:3]}{random.randint(1000, 9999)}{index:03d}",
+                # Pattern 7: Complex letter patterns
+                f"{fname}{lname}{random_letters(6)}",
+                f"{f_initial}{lname[0:3]}{random_letters(5)}",
+                f"{fname[0:2]}{lname[0:3]}{random_letters(4)}{chr(97 + (index % 26))}",
                 
-                # Pattern 8: Complex alphanumeric
-                f"{fname}{lname}{''.join(random.choices(string.ascii_lowercase + string.digits, k=4))}{index}",
-                f"{f_initial}{lname}{''.join(random.choices(string.ascii_lowercase + string.digits, k=6))}{index:02d}",
+                # Pattern 8: Advanced letter combinations
+                f"{fname}{lname}{random_letters(4)}{chr(97 + (index % 26))}",
+                f"{f_initial}{lname}{random_letters(6)}{chr(97 + (index % 26))}",
                 
-                # Pattern 9: Multi-part unique identifiers
-                f"{fname}{lname[0:2]}{random.randint(100, 999)}{index:03d}",
-                f"{fname[0:4]}{lname}{random.randint(1000, 9999)}{index:02d}",
-                f"{fname}{lname[0:3]}{random.randint(10000, 99999)}{index}",
+                # Pattern 9: Multi-part unique identifiers (letters only)
+                f"{fname}{lname[0:2]}{random_letters(3)}{chr(97 + (index % 26))}",
+                f"{fname[0:4]}{lname}{random_letters(4)}{chr(97 + (index % 26))}",
+                f"{fname}{lname[0:3]}{random_letters(5)}{chr(97 + (index % 26))}",
                 
-                # Pattern 10: Advanced hash combinations
-                f"{fname}{lname}{hashlib.sha256(f'{fname}{lname}{index}{attempt}{random.randint(1, 10000)}'.encode()).hexdigest()[:7]}",
-                f"{f_initial}{lname}{hashlib.sha256(f'{index}{attempt}{time.time()}{random.randint(1, 1000)}'.encode()).hexdigest()[:9]}"
+                # Pattern 10: Advanced hash combinations (letters only)
+                f"{fname}{lname}{hashlib.sha256(f'{fname}{lname}{index}{attempt}{random_letters(4)}'.encode()).hexdigest()[:7].replace('0', 'a').replace('1', 'b').replace('2', 'c').replace('3', 'd').replace('4', 'e').replace('5', 'f').replace('6', 'g').replace('7', 'h').replace('8', 'i').replace('9', 'j')}",
+                f"{f_initial}{lname}{hashlib.sha256(f'{index}{attempt}{time.time()}{random_letters(3)}'.encode()).hexdigest()[:9].replace('0', 'k').replace('1', 'l').replace('2', 'm').replace('3', 'n').replace('4', 'o').replace('5', 'p').replace('6', 'q').replace('7', 'r').replace('8', 's').replace('9', 't')}"
             ]
             
             # Try each pattern until we find a unique one
@@ -4975,8 +4983,8 @@ def preview_csv():
                     used_aliases_preview.add(pattern)
                     return pattern
             
-            # If all patterns are taken, create a completely unique one
-            unique_id = f"{fname}{lname}{int(time.time() * 1000000) % 1000000}{index}{attempt}"
+            # If all patterns are taken, create a completely unique one (letters only)
+            unique_id = f"{fname}{lname}{random_letters(8)}{chr(97 + (index % 26))}{chr(97 + (attempt % 26))}"
             used_aliases_preview.add(unique_id)
             return unique_id
         
