@@ -352,11 +352,27 @@ def emergency_access():
         # Check if IP already exists
         existing_ip = WhitelistedIP.query.filter_by(ip_address=client_ip).first()
         if not existing_ip:
-            new_ip = WhitelistedIP(ip_address=client_ip)
-            db.session.add(new_ip)
-            db.session.commit()
-            app.logger.info(f"IP {client_ip} auto-whitelisted successfully")
-            flash(f'IP {client_ip} has been automatically whitelisted!', 'success')
+            try:
+                new_ip = WhitelistedIP(ip_address=client_ip)
+                db.session.add(new_ip)
+                db.session.commit()
+                app.logger.info(f"IP {client_ip} auto-whitelisted successfully")
+                flash(f'IP {client_ip} has been automatically whitelisted!', 'success')
+            except Exception as db_error:
+                db.session.rollback()
+                app.logger.error(f"Database error auto-whitelisting IP {client_ip}: {db_error}")
+                
+                # If it's a unique constraint violation, the IP might already exist
+                if "duplicate key value violates unique constraint" in str(db_error):
+                    # Check again if it was added by another process
+                    existing_ip = WhitelistedIP.query.filter_by(ip_address=client_ip).first()
+                    if existing_ip:
+                        app.logger.info(f"IP {client_ip} was already whitelisted")
+                        flash(f'IP {client_ip} is already whitelisted!', 'info')
+                    else:
+                        flash(f'Database error: {str(db_error)}', 'error')
+                else:
+                    flash(f'Database error: {str(db_error)}', 'error')
         else:
             app.logger.info(f"IP {client_ip} already whitelisted")
             flash(f'IP {client_ip} is already whitelisted!', 'info')
@@ -411,10 +427,27 @@ def api_emergency_add_ip():
             app.logger.info(f"IP {ip_address} already exists in whitelist")
             return jsonify({'success': True, 'message': f'IP address {ip_address} is already whitelisted'})
         
-        # Add new IP to whitelist
-        new_ip = WhitelistedIP(ip_address=ip_address)
-        db.session.add(new_ip)
-        db.session.commit()
+        # Add new IP to whitelist with error handling
+        try:
+            new_ip = WhitelistedIP(ip_address=ip_address)
+            db.session.add(new_ip)
+            db.session.commit()
+            app.logger.info(f"IP {ip_address} successfully added to whitelist")
+        except Exception as db_error:
+            db.session.rollback()
+            app.logger.error(f"Database error adding IP {ip_address}: {db_error}")
+            
+            # If it's a unique constraint violation, the IP might already exist
+            if "duplicate key value violates unique constraint" in str(db_error):
+                # Check again if it was added by another process
+                existing_ip = WhitelistedIP.query.filter_by(ip_address=ip_address).first()
+                if existing_ip:
+                    app.logger.info(f"IP {ip_address} was added by another process")
+                    return jsonify({'success': True, 'message': f'IP address {ip_address} is already whitelisted'})
+                else:
+                    return jsonify({'success': False, 'error': f'Database constraint violation: {str(db_error)}'})
+            else:
+                return jsonify({'success': False, 'error': f'Database error: {str(db_error)}'})
         
         app.logger.info(f"IP {ip_address} successfully whitelisted via emergency access")
         
@@ -689,13 +722,76 @@ def api_add_whitelist_ip():
         if WhitelistedIP.query.filter_by(ip_address=ip_address).first():
             return jsonify({'success': False, 'error': 'IP address already exists'})
         
-        new_ip = WhitelistedIP(ip_address=ip_address)
-        db.session.add(new_ip)
-        db.session.commit()
+        try:
+            new_ip = WhitelistedIP(ip_address=ip_address)
+            db.session.add(new_ip)
+            db.session.commit()
+        except Exception as db_error:
+            db.session.rollback()
+            app.logger.error(f"Database error adding IP {ip_address}: {db_error}")
+            
+            # If it's a unique constraint violation, the IP might already exist
+            if "duplicate key value violates unique constraint" in str(db_error):
+                # Check again if it was added by another process
+                existing_ip = WhitelistedIP.query.filter_by(ip_address=ip_address).first()
+                if existing_ip:
+                    return jsonify({'success': False, 'error': 'IP address already exists'})
+                else:
+                    return jsonify({'success': False, 'error': f'Database constraint violation: {str(db_error)}'})
+            else:
+                return jsonify({'success': False, 'error': f'Database error: {str(db_error)}'})
         
         return jsonify({'success': True, 'message': f'IP address {ip_address} whitelisted successfully'})
         
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/fix-database-sequences', methods=['POST'])
+@login_required
+def api_fix_database_sequences():
+    """Fix database sequences that might be out of sync"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin access required'})
+    
+    try:
+        # Fix whitelisted_ip sequence
+        result = db.session.execute(db.text("SELECT setval('whitelisted_ip_id_seq', (SELECT MAX(id) FROM whitelisted_ip))"))
+        db.session.commit()
+        
+        app.logger.info("Database sequences fixed successfully")
+        return jsonify({'success': True, 'message': 'Database sequences fixed successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error fixing database sequences: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/cleanup-duplicate-ips', methods=['POST'])
+@login_required
+def api_cleanup_duplicate_ips():
+    """Clean up duplicate IP addresses in the whitelist"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin access required'})
+    
+    try:
+        # Find and remove duplicate IPs, keeping only the first one
+        duplicates = db.session.execute(db.text("""
+            DELETE FROM whitelisted_ip 
+            WHERE id NOT IN (
+                SELECT MIN(id) 
+                FROM whitelisted_ip 
+                GROUP BY ip_address
+            )
+        """))
+        
+        db.session.commit()
+        
+        app.logger.info(f"Cleaned up {duplicates.rowcount} duplicate IP addresses")
+        return jsonify({'success': True, 'message': f'Cleaned up {duplicates.rowcount} duplicate IP addresses'})
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error cleaning up duplicate IPs: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/list-whitelist-ips', methods=['GET'])
