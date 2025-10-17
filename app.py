@@ -5694,6 +5694,9 @@ def mega_upgrade():
                                     'error': f"Account not found in database. Available accounts: {[acc.account_name for acc in all_accounts]}"
                                 })
                             return
+                        
+                        app.logger.info(f"Found account in database: {google_account.account_name} (input was: {acct})")
+                        app.logger.info(f"Case comparison: '{acct.lower()}' == '{google_account.account_name.lower()}' = {acct.lower() == google_account.account_name.lower()}")
 
                         original_account_name = google_account.account_name
 
@@ -5712,8 +5715,12 @@ def mega_upgrade():
 
                         # Step 2: Authenticate
                         if features.get('authenticate'):
-                            if google_api.is_token_valid(acct):
-                                if not google_api.authenticate_with_tokens(acct):
+                            # Use the database account name (correct case) for authentication
+                            db_account_name = google_account.account_name
+                            app.logger.info(f"Authenticating with database account name: {db_account_name}")
+                            
+                            if google_api.is_token_valid(db_account_name):
+                                if not google_api.authenticate_with_tokens(db_account_name):
                                     with results_lock:
                                         failed_accounts += 1
                                         failed_details.append({
@@ -5738,7 +5745,7 @@ def mega_upgrade():
                         if features.get('changeSubdomain'):
                             with session_lock:
                                 original_session_account = session.get('current_account_name')
-                                session['current_account_name'] = acct
+                                session['current_account_name'] = db_account_name
                             try:
                                 result = google_api.get_domain_info()
                                 if not result['success']:
