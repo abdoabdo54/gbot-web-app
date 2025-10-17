@@ -722,24 +722,37 @@ class WebGoogleAPI:
             }
 
     def store_app_password(self, user_alias, app_password, domain=None):
-        """Store app password for a user alias"""
+        """Store app password for a user alias in PostgreSQL UserAppPassword table"""
         try:
-            import sqlite3
-            import os
+            from database import UserAppPassword, db
             
-            db_path = os.path.join('instance', 'gbot.db')
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
+            # Parse user_alias to get username and domain
+            if '@' in user_alias:
+                username, user_domain = user_alias.split('@', 1)
+            else:
+                username = user_alias
+                user_domain = domain or '*'
             
-            # Insert or update app password
-            cursor.execute('''
-                INSERT OR REPLACE INTO app_passwords 
-                (user_alias, app_password, domain, updated_at) 
-                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-            ''', (user_alias, app_password, domain))
+            # Check if record exists
+            existing = UserAppPassword.query.filter_by(
+                username=username.lower(),
+                domain=user_domain.lower()
+            ).first()
             
-            conn.commit()
-            conn.close()
+            if existing:
+                # Update existing record
+                existing.app_password = app_password
+                existing.updated_at = db.func.current_timestamp()
+            else:
+                # Create new record
+                new_password = UserAppPassword(
+                    username=username.lower(),
+                    domain=user_domain.lower(),
+                    app_password=app_password
+                )
+                db.session.add(new_password)
+            
+            db.session.commit()
             
             return {
                 'success': True,
@@ -753,28 +766,35 @@ class WebGoogleAPI:
             }
 
     def get_app_password(self, user_alias):
-        """Get app password for a user alias"""
+        """Get app password for a user alias from PostgreSQL UserAppPassword table"""
         try:
-            import sqlite3
-            import os
+            from database import UserAppPassword
             
-            db_path = os.path.join('instance', 'gbot.db')
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
+            # Parse user_alias to get username and domain
+            if '@' in user_alias:
+                username, domain = user_alias.split('@', 1)
+            else:
+                username = user_alias
+                domain = '*'
             
-            cursor.execute('''
-                SELECT app_password, domain FROM app_passwords 
-                WHERE user_alias = ?
-            ''', (user_alias,))
+            # Try exact match first
+            record = UserAppPassword.query.filter_by(
+                username=username.lower(),
+                domain=domain.lower()
+            ).first()
             
-            result = cursor.fetchone()
-            conn.close()
+            # If no exact match, try with wildcard domain
+            if not record and domain != '*':
+                record = UserAppPassword.query.filter_by(
+                    username=username.lower(),
+                    domain='*'
+                ).first()
             
-            if result:
+            if record:
                 return {
                     'success': True,
-                    'app_password': result[0],
-                    'domain': result[1]
+                    'app_password': record.app_password,
+                    'domain': record.domain
                 }
             else:
                 return {
@@ -789,32 +809,24 @@ class WebGoogleAPI:
             }
 
     def get_all_app_passwords(self):
-        """Get all stored app passwords"""
+        """Get all stored app passwords from PostgreSQL UserAppPassword table"""
         try:
-            import sqlite3
-            import os
+            from database import UserAppPassword
             
-            db_path = os.path.join('instance', 'gbot.db')
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                SELECT user_alias, app_password, domain, created_at, updated_at 
-                FROM app_passwords 
-                ORDER BY updated_at DESC
-            ''')
-            
-            results = cursor.fetchall()
-            conn.close()
+            # Query the PostgreSQL UserAppPassword table
+            app_password_records = UserAppPassword.query.order_by(UserAppPassword.updated_at.desc()).all()
             
             app_passwords = []
-            for row in results:
+            for record in app_password_records:
+                # Create user_alias from username and domain
+                user_alias = f"{record.username}@{record.domain}" if record.domain != '*' else record.username
+                
                 app_passwords.append({
-                    'user_alias': row[0],
-                    'app_password': row[1],
-                    'domain': row[2],
-                    'created_at': row[3],
-                    'updated_at': row[4]
+                    'user_alias': user_alias,
+                    'app_password': record.app_password,
+                    'domain': record.domain,
+                    'created_at': record.created_at.isoformat() if record.created_at else None,
+                    'updated_at': record.updated_at.isoformat() if record.updated_at else None
                 })
             
             return {

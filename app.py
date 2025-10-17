@@ -5109,82 +5109,9 @@ def retrieve_app_passwords():
         logging.error(f"Retrieve app passwords error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/api/clear-app-passwords', methods=['POST'])
-@login_required
-def clear_app_passwords():
-    """Delete stored app passwords from SQLite app_passwords table.
-    Accepts either:
-      - domain: delete all rows matching domain
-      - emails: list of user_alias values to delete
-      - none: delete all rows (support/admin only)
-    """
-    try:
-        # Check if user has permission
-        if session.get('role') not in ['admin', 'support']:
-            return jsonify({'success': False, 'error': 'Admin or support privileges required'})
+# OLD SQLite-based clear function removed - now using PostgreSQL-based function below
 
-        req = request.get_json(silent=True) or {}
-        domain = (req.get('domain') or '').strip()
-        emails = req.get('emails') or []
-
-        import sqlite3, os
-        db_path = os.path.join('instance', 'gbot.db')
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-
-        deleted_count = 0
-        message = ''
-
-        if emails:
-            # Normalize and delete by aliases
-            placeholders = ','.join(['?'] * len(emails))
-            cursor.execute(f"DELETE FROM app_passwords WHERE user_alias IN ({placeholders})", emails)
-            deleted_count = cursor.rowcount
-            message = f"Deleted {deleted_count} app passwords by email filter"
-        elif domain:
-            cursor.execute("DELETE FROM app_passwords WHERE domain = ?", (domain,))
-            deleted_count = cursor.rowcount
-            message = f"Deleted {deleted_count} app passwords for domain {domain}"
-        else:
-            cursor.execute("DELETE FROM app_passwords")
-            deleted_count = cursor.rowcount
-            message = f"Deleted all {deleted_count} app passwords"
-
-        conn.commit()
-        conn.close()
-
-        return jsonify({'success': True, 'message': message, 'deleted_count': deleted_count})
-
-    except Exception as e:
-        logging.error(f"Clear app passwords error: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/delete-all-app-passwords', methods=['POST'])
-@login_required
-def delete_all_app_passwords():
-    """Permanently delete ALL app passwords from SQLite - ADMIN ONLY"""
-    try:
-        if session.get('role') != 'admin':
-            return jsonify({'success': False, 'error': 'Admin privileges required for permanent deletion'})
-
-        import sqlite3, os
-        db_path = os.path.join('instance', 'gbot.db')
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT COUNT(*) FROM app_passwords")
-        total_count = cursor.fetchone()[0] or 0
-
-        cursor.execute("DELETE FROM app_passwords")
-        deleted = cursor.rowcount
-        conn.commit()
-        conn.close()
-
-        return jsonify({'success': True, 'message': f'Permanently deleted all {deleted} app passwords from database', 'deleted_count': deleted})
-
-    except Exception as e:
-        logging.error(f"Delete all app passwords error: {e}")
-        return jsonify({'success': False, 'error': str(e)})
+# OLD SQLite-based delete function removed - now using PostgreSQL-based function below
 
 @app.route('/api/add-from-server-json', methods=['POST'])
 @login_required
