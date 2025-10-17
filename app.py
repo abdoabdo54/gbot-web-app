@@ -5679,10 +5679,15 @@ def mega_upgrade():
 
                         app.logger.info(f"🔧 Worker {index+1} processing account: {acct}")
 
-                        # Step 1: Find account in database
-                        google_account = GoogleAccount.query.filter(
-                            func.lower(GoogleAccount.account_name) == acct.lower()
-                        ).first()
+                        # Step 1: Find account in database (use exact match like manual authentication)
+                        google_account = GoogleAccount.query.filter_by(account_name=acct).first()
+                        
+                        # If exact match fails, try case-insensitive match as fallback
+                        if not google_account:
+                            app.logger.info(f"Exact match failed for {acct}, trying case-insensitive match")
+                            google_account = GoogleAccount.query.filter(
+                                func.lower(GoogleAccount.account_name) == acct.lower()
+                            ).first()
                         if not google_account:
                             app.logger.warning(f"Account {acct} not found in database")
                             all_accounts = GoogleAccount.query.all()
@@ -5697,6 +5702,16 @@ def mega_upgrade():
                         
                         app.logger.info(f"Found account in database: {google_account.account_name} (input was: {acct})")
                         app.logger.info(f"Case comparison: '{acct.lower()}' == '{google_account.account_name.lower()}' = {acct.lower() == google_account.account_name.lower()}")
+                        
+                        # Debug: Check if this account has tokens
+                        app.logger.info(f"Checking tokens for account: {google_account.account_name}")
+                        has_tokens = google_api.is_token_valid(google_account.account_name)
+                        app.logger.info(f"Token validation result: {has_tokens}")
+                        
+                        # Debug: Also check with the original input case
+                        app.logger.info(f"Checking tokens for original input: {acct}")
+                        has_tokens_original = google_api.is_token_valid(acct)
+                        app.logger.info(f"Token validation result for original: {has_tokens_original}")
 
                         original_account_name = google_account.account_name
 
@@ -5714,22 +5729,30 @@ def mega_upgrade():
                             return
 
                         # Step 2: Authenticate
+                        authenticated_account_name = None
                         if features.get('authenticate'):
                             # Use the database account name (correct case) for authentication
                             db_account_name = google_account.account_name
                             app.logger.info(f"Authenticating with database account name: {db_account_name}")
                             
+                            # Try authentication with database account name first
+                            auth_success = False
                             if google_api.is_token_valid(db_account_name):
-                                if not google_api.authenticate_with_tokens(db_account_name):
-                                    with results_lock:
-                                        failed_accounts += 1
-                                        failed_details.append({
-                                            'account': acct,
-                                            'step': 'authentication',
-                                            'error': 'Failed to authenticate with cached tokens'
-                                        })
-                                    return
-                            else:
+                                auth_success = google_api.authenticate_with_tokens(db_account_name)
+                                app.logger.info(f"Authentication with db account name result: {auth_success}")
+                                if auth_success:
+                                    authenticated_account_name = db_account_name
+                            
+                            # If that fails, try with original input (in case tokens are stored under original case)
+                            if not auth_success and acct != db_account_name:
+                                app.logger.info(f"Trying authentication with original input: {acct}")
+                                if google_api.is_token_valid(acct):
+                                    auth_success = google_api.authenticate_with_tokens(acct)
+                                    app.logger.info(f"Authentication with original input result: {auth_success}")
+                                    if auth_success:
+                                        authenticated_account_name = acct
+                            
+                            if not auth_success:
                                 with results_lock:
                                     failed_accounts += 1
                                     failed_details.append({
@@ -5745,7 +5768,8 @@ def mega_upgrade():
                         if features.get('changeSubdomain'):
                             with session_lock:
                                 original_session_account = session.get('current_account_name')
-                                session['current_account_name'] = db_account_name
+                                # Use the account name that successfully authenticated
+                                session['current_account_name'] = authenticated_account_name or db_account_name
                             try:
                                 result = google_api.get_domain_info()
                                 if not result['success']:
