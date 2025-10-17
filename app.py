@@ -5629,13 +5629,17 @@ def mega_upgrade():
         def timeout_handler(signum, frame):
             raise TimeoutError("Mega upgrade timeout")
         
-        # Set timeout to 20 minutes (1200 seconds) for large user bases
+        # Set timeout to 30 minutes (1800 seconds) for large user bases with multiple accounts
         signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(1200)
+        signal.alarm(1800)
         
         data = request.get_json()
         accounts = data.get('accounts', [])
         features = data.get('features', {})
+        
+        app.logger.info(f"🚀 Starting Mega Upgrade for {len(accounts)} accounts with 30-minute timeout")
+        app.logger.info(f"📋 Accounts to process: {accounts}")
+        app.logger.info(f"🔧 Features enabled: {features}")
         
         if not accounts:
             return jsonify({'success': False, 'error': 'No accounts provided'})
@@ -5883,14 +5887,19 @@ def mega_upgrade():
             futures = [executor.submit(process_account, acc, idx) for idx, acc in enumerate(accounts)]
             app.logger.info(f"Submitted {len(futures)} tasks to thread pool")
             
+            completed_tasks = 0
             for i, f in enumerate(as_completed(futures)):
                 try:
                     result = f.result()
-                    app.logger.info(f"Task {i+1}/{len(futures)} completed successfully")
+                    completed_tasks += 1
+                    progress_percent = int((completed_tasks / len(futures)) * 100)
+                    app.logger.info(f"Task {completed_tasks}/{len(futures)} completed successfully ({progress_percent}%)")
                 except Exception as e:
-                    app.logger.error(f"Task {i+1}/{len(futures)} failed: {e}")
+                    completed_tasks += 1
+                    progress_percent = int((completed_tasks / len(futures)) * 100)
+                    app.logger.error(f"Task {completed_tasks}/{len(futures)} failed ({progress_percent}%): {e}")
                     import traceback
-                    app.logger.error(f"Task {i+1} traceback: {traceback.format_exc()}")
+                    app.logger.error(f"Task {completed_tasks} traceback: {traceback.format_exc()}")
         
         app.logger.info(f"MEGA UPGRADE completed using EXISTING functions: {successful_accounts} successful, {failed_accounts} failed")
         
@@ -5909,11 +5918,33 @@ def mega_upgrade():
             'next_domain_map': next_domain_map
         })
         
+    except TimeoutError as e:
+        # Cancel timeout
+        signal.alarm(0)
+        app.logger.error(f"Mega upgrade timeout after 30 minutes: {e}")
+        return jsonify({
+            'success': False, 
+            'error': f'Process timed out after 30 minutes. Partial results: {successful_accounts} successful, {failed_accounts} failed',
+            'partial_results': {
+                'successful_accounts': successful_accounts,
+                'failed_accounts': failed_accounts,
+                'failed_details': failed_details,
+                'next_domain_map': next_domain_map
+            }
+        })
     except Exception as e:
         # Cancel timeout
         signal.alarm(0)
         app.logger.error(f"Error in mega upgrade: {e}")
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({
+            'success': False, 
+            'error': str(e),
+            'partial_results': {
+                'successful_accounts': successful_accounts if 'successful_accounts' in locals() else 0,
+                'failed_accounts': failed_accounts if 'failed_accounts' in locals() else 0,
+                'failed_details': failed_details if 'failed_details' in locals() else []
+            }
+        })
 
 @app.route('/api/debug-progress', methods=['GET'])
 @login_required
@@ -7798,6 +7829,9 @@ def api_upload_app_passwords():
     print("=== UPLOAD STARTED ===")
     
     try:
+        # Test database connection first
+        test_count = UserAppPassword.query.count()
+        print(f"Database connection test: {test_count} existing records")
         # Check if file exists
         if 'file' not in request.files:
             print("ERROR: No file in request")
@@ -7811,6 +7845,7 @@ def api_upload_app_passwords():
         content = file.read().decode('utf-8')
         lines = content.split('\n')
         print(f"File has {len(lines)} lines")
+        print(f"First few lines: {lines[:3]}")
         
         stored_count = 0
         updated_count = 0
@@ -7890,7 +7925,50 @@ def api_upload_app_passwords():
         
     except Exception as e:
         print(f"=== UPLOAD ERROR: {str(e)} ===")
+        print(f"Error type: {type(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         db.session.rollback()
+        return jsonify({'success': False, 'error': str(e), 'error_type': str(type(e))})
+
+@app.route('/api/test-upload-endpoint', methods=['POST'])
+@login_required
+def api_test_upload_endpoint():
+    """Test endpoint to verify upload functionality"""
+    try:
+        print("=== TEST UPLOAD ENDPOINT ===")
+        
+        # Test database connection
+        count = UserAppPassword.query.count()
+        print(f"Database test: {count} records")
+        
+        # Test file handling
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file in request'})
+        
+        file = request.files['file']
+        print(f"File test: {file.filename}, size: {len(file.read())}")
+        file.seek(0)
+        
+        content = file.read().decode('utf-8')
+        lines = content.split('\n')
+        print(f"Content test: {len(lines)} lines")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Upload endpoint test successful',
+            'file_info': {
+                'filename': file.filename,
+                'size': len(content),
+                'lines': len(lines)
+            },
+            'database_count': count
+        })
+        
+    except Exception as e:
+        print(f"Test endpoint error: {e}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/list-app-passwords', methods=['GET'])

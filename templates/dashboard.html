@@ -6717,19 +6717,25 @@ function runMegaUpgradeWorkflow(accounts, features) {
     
     updateMegaProgress(40, 'Preparing for server request...');
     logBulkDomain('🔑 Step 4: Preparing app password generation...');
+    logBulkDomain('⏰ Note: Processing multiple accounts may take 10-30 minutes depending on user count');
     
     updateMegaProgress(50, 'Sending request to server...');
     
-    // Start the mega upgrade process
+    // Start the mega upgrade process with extended timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25 * 60 * 1000); // 25 minutes timeout
+    
     fetch('/api/mega-upgrade', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             accounts: accounts,
             features: features
-        })
+        }),
+        signal: controller.signal
     })
     .then(response => {
+        clearTimeout(timeoutId); // Clear the timeout since we got a response
         updateMegaProgress(70, 'Processing server response...');
         logBulkDomain(`📡 Response received: ${response.status} ${response.statusText}`);
         return response.json();
@@ -6811,17 +6817,51 @@ function runMegaUpgradeWorkflow(accounts, features) {
             document.getElementById('megaStartBtn').style.display = 'inline-block';
             document.getElementById('megaStopBtn').style.display = 'none';
             logBulkDomain(`❌ Mega upgrade failed: ${data.error}`);
+            
+            // Check for partial results
+            if (data.partial_results) {
+                logBulkDomain('─'.repeat(50));
+                logBulkDomain('📊 PARTIAL RESULTS:');
+                logBulkDomain(`✅ Successful accounts: ${data.partial_results.successful_accounts}`);
+                logBulkDomain(`❌ Failed accounts: ${data.partial_results.failed_accounts}`);
+                
+                if (data.partial_results.failed_details && data.partial_results.failed_details.length > 0) {
+                    logBulkDomain('📋 Failed account details:');
+                    data.partial_results.failed_details.forEach((detail, index) => {
+                        logBulkDomain(`  ${index + 1}. Account: ${detail.account}`);
+                        logBulkDomain(`     Step: ${detail.step}`);
+                        logBulkDomain(`     Error: ${detail.error}`);
+                    });
+                }
+                
+                if (data.partial_results.next_domain_map && Object.keys(data.partial_results.next_domain_map).length > 0) {
+                    logBulkDomain('🌐 Domain changes completed:');
+                    Object.entries(data.partial_results.next_domain_map).forEach(([base, new_domain]) => {
+                        logBulkDomain(`  ${base} → ${new_domain}`);
+                    });
+                }
+            }
+            
             logBulkDomain('─'.repeat(50));
             logBulkDomain('🔍 Check server logs for more details');
         }
     })
     .catch(error => {
+        clearTimeout(timeoutId); // Clear timeout on error
         updateMegaProgress(100, 'Network Error');
         document.getElementById('megaStartBtn').style.display = 'inline-block';
         document.getElementById('megaStopBtn').style.display = 'none';
-        logBulkDomain(`❌ Network Error: ${error.message}`);
-        logBulkDomain('─'.repeat(50));
-        logBulkDomain('🔍 Check server connection and logs');
+        
+        if (error.name === 'AbortError') {
+            logBulkDomain(`⏰ Request timeout after 25 minutes - process may still be running on server`);
+            logBulkDomain('─'.repeat(50));
+            logBulkDomain('🔍 Check server logs to see if processing completed');
+            logBulkDomain('💡 Try refreshing the page and checking domain status');
+        } else {
+            logBulkDomain(`❌ Network Error: ${error.message}`);
+            logBulkDomain('─'.repeat(50));
+            logBulkDomain('🔍 Check server connection and logs');
+        }
         console.error('Mega Upgrade Error:', error);
         
     // Even if server times out, find the ACTUAL changed subdomain
@@ -6993,11 +7033,22 @@ function uploadAppPasswords() {
     })
     .then(response => {
         console.log(`Upload response status: ${response.status}`);
+        console.log(`Upload response headers:`, response.headers);
         
         // Check if response is ok
         if (!response.ok) {
             return response.text().then(text => {
+                console.error('Server error response:', text);
                 throw new Error(`Server error ${response.status}: ${text}`);
+            });
+        }
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            return response.text().then(text => {
+                console.error('Non-JSON response:', text);
+                throw new Error(`Expected JSON response but got: ${contentType}`);
             });
         }
         
