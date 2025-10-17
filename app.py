@@ -7705,6 +7705,92 @@ def api_test_app_passwords():
             'message': 'Database error - table may not exist'
         })
 
+@app.route('/api/debug-app-password-matching', methods=['POST'])
+@login_required
+def api_debug_app_password_matching():
+    """Debug app password matching for a specific email"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '')
+        
+        if not email:
+            return jsonify({'success': False, 'error': 'Email required'})
+        
+        username, domain = email.split('@', 1)
+        username = username.strip().lower()
+        domain = domain.strip().lower()
+        email_lower = email.lower()
+        
+        debug_info = {
+            'email': email,
+            'username': username,
+            'domain': domain,
+            'email_lower': email_lower,
+            'matches': []
+        }
+        
+        # Test all matching strategies
+        strategies = [
+            ('Exact match', UserAppPassword.query.filter_by(username=username, domain=domain).first()),
+            ('Case-insensitive exact', UserAppPassword.query.filter(
+                db.func.lower(UserAppPassword.username) == username,
+                db.func.lower(UserAppPassword.domain) == domain
+            ).first()),
+            ('Full email match', UserAppPassword.query.filter(
+                db.func.lower(db.func.concat(UserAppPassword.username, '@', UserAppPassword.domain)) == email_lower
+            ).first()),
+            ('Wildcard domain', UserAppPassword.query.filter(
+                db.func.lower(UserAppPassword.username) == username,
+                UserAppPassword.domain == '*'
+            ).first()),
+            ('Username only', UserAppPassword.query.filter(
+                db.func.lower(UserAppPassword.username) == username
+            ).first()),
+            ('Partial username', UserAppPassword.query.filter(
+                db.func.lower(UserAppPassword.username).like(f'%{username}%')
+            ).first()),
+            ('Prefix match', UserAppPassword.query.filter(
+                db.func.lower(UserAppPassword.username).like(f'{username}%')
+            ).first())
+        ]
+        
+        for strategy_name, result in strategies:
+            if result:
+                debug_info['matches'].append({
+                    'strategy': strategy_name,
+                    'found': True,
+                    'username': result.username,
+                    'domain': result.domain,
+                    'has_password': bool(result.app_password)
+                })
+            else:
+                debug_info['matches'].append({
+                    'strategy': strategy_name,
+                    'found': False
+                })
+        
+        # Also show similar records
+        similar_records = UserAppPassword.query.filter(
+            db.func.lower(UserAppPassword.username).like(f'%{username}%')
+        ).limit(10).all()
+        
+        debug_info['similar_records'] = [
+            {
+                'username': record.username,
+                'domain': record.domain,
+                'has_password': bool(record.app_password)
+            } for record in similar_records
+        ]
+        
+        return jsonify({
+            'success': True,
+            'debug_info': debug_info
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Debug app password matching error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/upload-app-passwords', methods=['POST'])
 @login_required
 def api_upload_app_passwords():
@@ -7727,49 +7813,79 @@ def api_upload_app_passwords():
         print(f"File has {len(lines)} lines")
         
         stored_count = 0
+        updated_count = 0
+        added_count = 0
+        error_count = 0
         
-        for line_num, line in enumerate(lines, 1):
-            line = line.strip()
-            if not line:
-                continue
-                
-            print(f"Line {line_num}: {line}")
-            
-            # Split on colon
-            if ':' in line:
-                email, password = line.split(':', 1)
-                email = email.strip()
-                password = password.strip()
-                
-                if email and password:
-                    # Extract username and domain
-                    if '@' in email:
-                        username, domain = email.split('@', 1)
-                    else:
-                        username, domain = email, '*'
+        # Use session.no_autoflush to prevent premature flushes
+        with db.session.no_autoflush:
+            for line_num, line in enumerate(lines, 1):
+                line = line.strip()
+                if not line:
+                    continue
                     
-                    # Save to database
-                    existing = UserAppPassword.query.filter_by(username=username, domain=domain).first()
-                    if existing:
-                        existing.app_password = password
-                    else:
-                        new_password = UserAppPassword(
-                            username=username,
-                            domain=domain,
-                            app_password=password
-                        )
-                        db.session.add(new_password)
+                print(f"Line {line_num}: {line}")
+                
+                # Split on colon
+                if ':' in line:
+                    email, password = line.split(':', 1)
+                    email = email.strip()
+                    password = password.strip()
                     
-                    stored_count += 1
-                    print(f"Saved: {username}@{domain} -> {password[:5]}...")
+                    if email and password:
+                        # Extract username and domain
+                        if '@' in email:
+                            username, domain = email.split('@', 1)
+                        else:
+                            username, domain = email, '*'
+                        
+                        # Normalize for case-insensitive matching
+                        username = username.strip().lower()
+                        domain = domain.strip().lower()
+                        
+                        try:
+                            # Check for existing record with case-insensitive matching
+                            existing = UserAppPassword.query.filter(
+                                db.func.lower(UserAppPassword.username) == username,
+                                db.func.lower(UserAppPassword.domain) == domain
+                            ).first()
+                            
+                            if existing:
+                                # Update existing record
+                                existing.app_password = password
+                                existing.updated_at = db.func.current_timestamp()
+                                updated_count += 1
+                                print(f"Updated: {username}@{domain} -> {password[:5]}...")
+                            else:
+                                # Create new record
+                                new_password = UserAppPassword(
+                                    username=username,
+                                    domain=domain,
+                                    app_password=password
+                                )
+                                db.session.add(new_password)
+                                added_count += 1
+                                print(f"Added: {username}@{domain} -> {password[:5]}...")
+                            
+                            stored_count += 1
+                            
+                        except Exception as e:
+                            error_count += 1
+                            print(f"Error processing {username}@{domain}: {e}")
+                            # Try to continue with other records
+                            continue
         
         db.session.commit()
-        print(f"=== UPLOAD COMPLETE: {stored_count} passwords stored ===")
+        print(f"=== UPLOAD COMPLETE: {stored_count} passwords processed ===")
+        print(f"Added: {added_count}, Updated: {updated_count}, Errors: {error_count}")
         
         return jsonify({
             'success': True,
             'count': stored_count,
-            'message': f'Stored {stored_count} app passwords'
+            'added': added_count,
+            'updated': updated_count,
+            'errors': error_count,
+            'message': f'Processed {stored_count} app passwords (Added: {added_count}, Updated: {updated_count}, Errors: {error_count})'
         })
         
     except Exception as e:
@@ -8106,35 +8222,86 @@ def api_execute_automation_process():
                                         # Normalize username & domain for matching
                                         username = (username or '').strip().lower()
                                         domain = (domain or '').strip().lower()
+                                        user_email_lower = user_email.lower()
 
-                                        # Try exact match first
+                                        app.logger.info(f"Searching app password for: {user_email} (username: {username}, domain: {domain})")
+
+                                        # Strategy 1: Exact match (username + domain)
                                         app_password_record = UserAppPassword.query.filter_by(
                                             username=username, 
                                             domain=domain
                                         ).first()
                                         
-                                        # If no exact match, try with full email
-                                        if not app_password_record:
+                                        if app_password_record:
+                                            app.logger.info(f"Found exact match for {user_email}")
+                                        else:
+                                            # Strategy 2: Case-insensitive exact match
                                             app_password_record = UserAppPassword.query.filter(
-                                                db.func.concat(UserAppPassword.username, '@', UserAppPassword.domain) == user_email
+                                                db.func.lower(UserAppPassword.username) == username,
+                                                db.func.lower(UserAppPassword.domain) == domain
                                             ).first()
-                                        # Try username with wildcard domain
-                                        if not app_password_record:
-                                            app_password_record = UserAppPassword.query.filter_by(
-                                                username=username, domain='*'
-                                            ).first()
-                                        # If still not found, try by username only (ignore domain differences)
-                                        if not app_password_record:
-                                            app_password_record = UserAppPassword.query.filter_by(
-                                                username=username
-                                            ).first()
-                                        
+                                            
+                                            if app_password_record:
+                                                app.logger.info(f"Found case-insensitive exact match for {user_email}")
+                                            else:
+                                                # Strategy 3: Full email match (case-insensitive)
+                                                app_password_record = UserAppPassword.query.filter(
+                                                    db.func.lower(db.func.concat(UserAppPassword.username, '@', UserAppPassword.domain)) == user_email_lower
+                                                ).first()
+                                                
+                                                if app_password_record:
+                                                    app.logger.info(f"Found full email match for {user_email}")
+                                                else:
+                                                    # Strategy 4: Username with wildcard domain
+                                                    app_password_record = UserAppPassword.query.filter(
+                                                        db.func.lower(UserAppPassword.username) == username,
+                                                        UserAppPassword.domain == '*'
+                                                    ).first()
+                                                    
+                                                    if app_password_record:
+                                                        app.logger.info(f"Found wildcard domain match for {user_email}")
+                                                    else:
+                                                        # Strategy 5: Username only (ignore domain differences)
+                                                        app_password_record = UserAppPassword.query.filter(
+                                                            db.func.lower(UserAppPassword.username) == username
+                                                        ).first()
+                                                        
+                                                        if app_password_record:
+                                                            app.logger.info(f"Found username-only match for {user_email}")
+                                                        else:
+                                                            # Strategy 6: Partial username match (for complex aliases)
+                                                            app_password_record = UserAppPassword.query.filter(
+                                                                db.func.lower(UserAppPassword.username).like(f'%{username}%')
+                                                            ).first()
+                                                            
+                                                            if app_password_record:
+                                                                app.logger.info(f"Found partial username match for {user_email}")
+                                                            else:
+                                                                # Strategy 7: Check if username is contained in stored username
+                                                                app_password_record = UserAppPassword.query.filter(
+                                                                    db.func.lower(UserAppPassword.username).like(f'{username}%')
+                                                                ).first()
+                                                                
+                                                                if app_password_record:
+                                                                    app.logger.info(f"Found prefix match for {user_email}")
+                                                                
                                         if app_password_record:
                                             user['app_password'] = app_password_record.app_password
-                                            app.logger.info(f"Found app password for {user_email}")
+                                            app.logger.info(f"✅ Found app password for {user_email} -> {app_password_record.username}@{app_password_record.domain}")
                                         else:
                                             user['app_password'] = None
-                                            app.logger.info(f"No app password found for {user_email}")
+                                            app.logger.info(f"❌ No app password found for {user_email} after trying all strategies")
+                                            
+                                            # Debug: Show what's in the database for this username
+                                            debug_records = UserAppPassword.query.filter(
+                                                db.func.lower(UserAppPassword.username).like(f'%{username}%')
+                                            ).limit(5).all()
+                                            
+                                            if debug_records:
+                                                app.logger.info(f"Debug: Found similar records for {username}:")
+                                                for record in debug_records:
+                                                    app.logger.info(f"  - {record.username}@{record.domain}")
+                                            
                                     except Exception as e:
                                         app.logger.warning(f"Error matching app password for {user_email}: {e}")
                                         user['app_password'] = None

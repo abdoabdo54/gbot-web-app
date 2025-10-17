@@ -7068,7 +7068,19 @@ function uploadAppPasswords() {
         
         if (data.success) {
             const count = data.count || 0;
-            alert(`✅ Successfully uploaded ${count} app passwords from this file!`);
+            const added = data.added || 0;
+            const updated = data.updated || 0;
+            const errors = data.errors || 0;
+            
+            let message = `✅ Successfully processed ${count} app passwords from this file!\n\n`;
+            message += `📊 Details:\n`;
+            message += `• Added: ${added} new passwords\n`;
+            message += `• Updated: ${updated} existing passwords\n`;
+            if (errors > 0) {
+                message += `• Errors: ${errors} failed to process\n`;
+            }
+            
+            alert(message);
             
             // Clear file input but keep the ability to upload more files
             const fileInput = document.getElementById('app-passwords-file');
@@ -7216,6 +7228,57 @@ function debugAppPasswords() {
         });
 }
 
+// Debug app password matching for specific email
+function debugAppPasswordMatching(email) {
+    if (!email) {
+        email = prompt('Enter email to debug matching:');
+        if (!email) return;
+    }
+    
+    console.log(`=== DEBUGGING APP PASSWORD MATCHING FOR: ${email} ===`);
+    
+    fetch('/api/debug-app-password-matching', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email: email})
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Debug matching response:', data);
+        
+        if (data.success && data.debug_info) {
+            const info = data.debug_info;
+            let message = `Debug Results for: ${info.email}\n\n`;
+            message += `Username: ${info.username}\n`;
+            message += `Domain: ${info.domain}\n\n`;
+            
+            message += 'Matching Strategies:\n';
+            info.matches.forEach(match => {
+                if (match.found) {
+                    message += `✅ ${match.strategy}: ${match.username}@${match.domain}\n`;
+                } else {
+                    message += `❌ ${match.strategy}: Not found\n`;
+                }
+            });
+            
+            if (info.similar_records.length > 0) {
+                message += '\nSimilar Records in Database:\n';
+                info.similar_records.forEach(record => {
+                    message += `- ${record.username}@${record.domain}\n`;
+                });
+            }
+            
+            alert(message);
+        } else {
+            alert(`Debug failed: ${data.error || 'Unknown error'}`);
+        }
+    })
+    .catch(error => {
+        console.error('Debug matching error:', error);
+        alert(`Debug Error: ${error.message}`);
+    });
+}
+
 // Load and display app passwords status
 function loadAppPasswordsStatus() {
     console.log('Loading app passwords status...');
@@ -7332,6 +7395,7 @@ function displaySearchResults(users) {
         html += `<div style="display: flex; gap: 4px;">`;
         html += `<button onclick="editAppPasswordUser('${user.username}', '${user.domain}')" class="btn-github" style="padding: 4px 8px; font-size: 12px;"><i class="fas fa-edit"></i></button>`;
         html += `<button onclick="deleteAppPasswordUser('${user.username}', '${user.domain}')" class="btn-github" style="padding: 4px 8px; font-size: 12px; background-color: #dc3545; color: white;"><i class="fas fa-trash"></i></button>`;
+        html += `<button onclick="debugAppPasswordMatching('${email}')" class="btn-github" style="padding: 4px 8px; font-size: 12px; background-color: #17a2b8; color: white;"><i class="fas fa-bug"></i></button>`;
         html += `</div></div></div>`;
     });
     
