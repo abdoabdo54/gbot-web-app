@@ -8210,22 +8210,60 @@ def api_execute_automation_process():
                     'users': []
                 }
                 
-                # Find the GoogleAccount by email/account name
-                google_account = GoogleAccount.query.filter_by(account_name=account_email).first()
+                # Find the GoogleAccount by email/account name (case-insensitive)
+                google_account = GoogleAccount.query.filter(
+                    db.func.lower(GoogleAccount.account_name) == account_email.lower()
+                ).first()
                 
                 if not google_account:
-                    result['message'] = 'Account not found in database'
+                    # Try exact match as fallback
+                    google_account = GoogleAccount.query.filter_by(account_name=account_email).first()
+                
+                # If still not found, try partial domain matching
+                if not google_account:
+                    app.logger.info(f"Trying partial domain matching for {account_email}")
+                    # Extract domain from account email
+                    if '@' in account_email:
+                        domain_part = account_email.split('@')[1].lower()
+                        # Try to find accounts with similar domains
+                        similar_accounts = GoogleAccount.query.filter(
+                            db.func.lower(GoogleAccount.account_name).like(f'%@{domain_part}')
+                        ).all()
+                        app.logger.info(f"Found {len(similar_accounts)} accounts with similar domain: {[acc.account_name for acc in similar_accounts]}")
+                        
+                        # Try to find the closest match
+                        for acc in similar_accounts:
+                            if domain_part in acc.account_name.lower():
+                                google_account = acc
+                                app.logger.info(f"Found partial domain match: {acc.account_name}")
+                                break
+                
+                if not google_account:
+                    # Debug: List all accounts in database for troubleshooting
+                    all_accounts = GoogleAccount.query.all()
+                    account_names = [acc.account_name for acc in all_accounts]
+                    app.logger.warning(f"Account {account_email} not found in database. Available accounts: {account_names}")
+                    result['message'] = f'Account not found in database. Available accounts: {account_names[:5]}...'  # Show first 5 for brevity
                     results.append(result)
                     continue
+                
+                app.logger.info(f"Found account in database: {google_account.account_name} (input was: {account_email})")
                 
                 # Try to authenticate the account using existing tokens
                 auth_success = False
                 try:
-                    if google_api.is_token_valid(google_account.account_name):
-                        auth_success = google_api.authenticate_with_tokens(google_account.account_name)
+                    # Use the database account name for authentication
+                    db_account_name = google_account.account_name
+                    app.logger.info(f"Authenticating with database account name: {db_account_name}")
+                    
+                    if google_api.is_token_valid(db_account_name):
+                        auth_success = google_api.authenticate_with_tokens(db_account_name)
                         if auth_success:
                             # Set the current account in session
-                            session['current_account_name'] = google_account.account_name
+                            session['current_account_name'] = db_account_name
+                            app.logger.info(f"Successfully authenticated with {db_account_name}")
+                    else:
+                        app.logger.warning(f"No valid tokens found for {db_account_name}")
                 except Exception as e:
                     app.logger.warning(f"Token authentication failed for {account_email}: {e}")
                 
