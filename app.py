@@ -1344,6 +1344,7 @@ def api_complete_oauth():
         token = GoogleToken.query.filter_by(account_id=account.id).first()
         if not token:
             token = GoogleToken(account_id=account.id)
+            db.session.add(token)  # Only add if it's a new token
 
         token.token = credentials.token
         token.refresh_token = credentials.refresh_token
@@ -1358,13 +1359,29 @@ def api_complete_oauth():
                 db.session.add(scope)
             token.scopes.append(scope)
 
-        db.session.add(token)
         db.session.commit()
         
         return jsonify({'success': True, 'message': f'Authentication completed for {account_name}'})
         
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        error_msg = str(e)
+        
+        # Handle specific database constraint violations
+        if "duplicate key value violates unique constraint" in error_msg:
+            if "google_token_pkey" in error_msg:
+                return jsonify({
+                    'success': False, 
+                    'error': 'Database sequence error. Please contact support or try again later.',
+                    'details': 'GoogleToken sequence is out of sync. This is a known issue that can be fixed.'
+                })
+            elif "whitelisted_ip_pkey" in error_msg:
+                return jsonify({
+                    'success': False, 
+                    'error': 'IP address already exists in whitelist.',
+                    'details': 'This IP address is already whitelisted.'
+                })
+        
+        return jsonify({'success': False, 'error': error_msg})
 
 @app.route('/api/create-gsuite-user', methods=['POST'])
 @login_required
