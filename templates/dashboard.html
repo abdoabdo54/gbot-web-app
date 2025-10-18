@@ -1016,7 +1016,7 @@
                 <i class="fas fa-key"></i>
                 App Password Management
             </h3>
-        </div>
+</div>
         
         <div class="form-group-github">
             <label for="app-passwords-file" class="form-label-github">
@@ -1028,8 +1028,8 @@
                 Upload a .txt file with format: user@domain.com:app_password (one per line)<br>
                 <strong>💡 You can upload multiple files - all passwords will be stored in one place!</strong>
             </small>
-        </div>
-        
+</div>
+
         <div style="display: flex; gap: 12px; margin-top: 16px;">
             <button onclick="uploadAppPasswords()" class="btn-github btn-github-primary">
                 <i class="fas fa-upload"></i> Upload & Store Passwords
@@ -1384,9 +1384,13 @@ function showTab(tabId) {
     const buttons = document.querySelectorAll('.tab-button');
     buttons.forEach(button => {
         button.classList.remove('active');
-        button.style.background = 'var(--color-canvas-subtle)';
-        button.style.borderBottom = '1px solid var(--color-border-default)';
-        button.style.color = 'var(--color-fg-muted)';
+        // Remove any inline styles to let CSS handle the styling
+        button.style.background = '';
+        button.style.borderBottom = '';
+        button.style.color = '';
+        button.style.fontWeight = '';
+        button.style.transform = '';
+        button.style.boxShadow = '';
     });
     
     // Show selected tab
@@ -1410,11 +1414,17 @@ function showTab(tabId) {
     const clickedButton = event ? event.target.closest('.tab-button') : document.querySelector(`[onclick="showTab('${tabId}')"]`);
     if (clickedButton) {
         clickedButton.classList.add('active');
-        clickedButton.style.background = 'var(--color-canvas-default)';
-        clickedButton.style.borderBottom = '3px solid var(--color-accent-emphasis)';
-        clickedButton.style.color = 'var(--color-fg-default)';
-        clickedButton.style.fontWeight = '600';
+        // Remove any inline styles to let CSS handle the active styling
+        clickedButton.style.background = '';
+        clickedButton.style.borderBottom = '';
+        clickedButton.style.color = '';
+        clickedButton.style.fontWeight = '';
+        clickedButton.style.transform = '';
+        clickedButton.style.boxShadow = '';
     }
+    
+    // Auto-refresh domain data when domains tab is shown
+    checkTabRefresh(tabId);
 }
 
 // Initialize tabs on page load
@@ -1737,26 +1747,9 @@ async function checkCurrentAuthenticationStatus() {
     }
 }
 
-
-// Tab switching function
-function showTab(tabId) {
-    // Hide all tabs
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // Remove active class from all buttons
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    // Show selected tab
-    document.getElementById(tabId).classList.add('active');
-    
-    // Mark button as active
-    event.target.classList.add('active');
     
     // Auto-refresh domain data when domains tab is shown
+function checkTabRefresh(tabId) {
     if (tabId === 'tab3' && isAuthenticated) {
         setTimeout(() => {
             retrieveAvailableDomains();
@@ -6859,9 +6852,9 @@ function runMegaUpgradeWorkflow(accounts, features) {
             logBulkDomain('🔍 Check server logs to see if processing completed');
             logBulkDomain('💡 Try refreshing the page and checking domain status');
         } else {
-            logBulkDomain(`❌ Network Error: ${error.message}`);
-            logBulkDomain('─'.repeat(50));
-            logBulkDomain('🔍 Check server connection and logs');
+        logBulkDomain(`❌ Network Error: ${error.message}`);
+        logBulkDomain('─'.repeat(50));
+        logBulkDomain('🔍 Check server connection and logs');
         }
         console.error('Mega Upgrade Error:', error);
         
