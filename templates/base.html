@@ -540,11 +540,12 @@
         .header-container {
             max-width: 1280px;
             margin: 0 auto;
-            padding: 16px 32px;
+            padding: 20px 32px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            min-height: 64px;
+            min-height: 72px;
+            gap: 32px;
         }
 
         .header-logo {
@@ -553,111 +554,192 @@
             gap: 12px;
             color: var(--color-header-text);
             text-decoration: none;
-            font-weight: 600;
-            font-size: 20px;
-            transition: opacity 0.2s ease;
+            font-weight: 700;
+            font-size: 22px;
+            transition: all 0.3s ease;
+            padding: 8px 16px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(240, 246, 252, 0.08) 0%, rgba(240, 246, 252, 0.04) 100%);
+            border: 1px solid rgba(240, 246, 252, 0.1);
         }
 
         .header-logo:hover {
             color: var(--color-header-text);
             text-decoration: none;
-            opacity: 0.8;
+            background: linear-gradient(135deg, rgba(240, 246, 252, 0.12) 0%, rgba(240, 246, 252, 0.08) 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
         .header-logo i {
-            font-size: 24px;
+            font-size: 26px;
+            background: linear-gradient(135deg, #0969da 0%, #0550ae 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .header-nav {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 8px;
+            flex: 1;
+            justify-content: center;
         }
 
         .nav-item {
             color: var(--color-header-text);
             text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 500;
-            font-size: 14px;
-            transition: all 0.2s ease;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             white-space: nowrap;
+            position: relative;
+            background: rgba(240, 246, 252, 0.04);
+            border: 1px solid rgba(240, 246, 252, 0.08);
         }
 
         .nav-item:hover {
-            background-color: rgba(240, 246, 252, 0.12);
+            background: linear-gradient(135deg, rgba(240, 246, 252, 0.15) 0%, rgba(240, 246, 252, 0.08) 100%);
             color: var(--color-header-text);
             text-decoration: none;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            border-color: rgba(240, 246, 252, 0.2);
         }
 
         .nav-item.active {
-            background-color: rgba(240, 246, 252, 0.16);
+            background: linear-gradient(135deg, rgba(9, 105, 218, 0.15) 0%, rgba(5, 80, 174, 0.1) 100%);
             color: var(--color-header-text);
+            border-color: rgba(9, 105, 218, 0.3);
+            box-shadow: 0 4px 16px rgba(9, 105, 218, 0.2);
+        }
+
+        .nav-item i {
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item:hover i {
+            transform: scale(1.1);
         }
 
         .header-user {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 20px;
         }
 
         .theme-toggle {
-            background: none;
-            border: 1px solid rgba(240, 246, 252, 0.3);
+            background: linear-gradient(135deg, rgba(240, 246, 252, 0.08) 0%, rgba(240, 246, 252, 0.04) 100%);
+            border: 1px solid rgba(240, 246, 252, 0.15);
             color: var(--color-header-text);
-            padding: 8px;
-            border-radius: 6px;
+            padding: 10px;
+            border-radius: 10px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
         }
 
         .theme-toggle:hover {
-            background-color: rgba(240, 246, 252, 0.12);
-            border-color: rgba(240, 246, 252, 0.5);
+            background: linear-gradient(135deg, rgba(240, 246, 252, 0.15) 0%, rgba(240, 246, 252, 0.08) 100%);
+            border-color: rgba(240, 246, 252, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         .user-info {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
-            background-color: rgba(240, 246, 252, 0.1);
-            border-radius: 6px;
-            font-size: 14px;
+            gap: 10px;
+            padding: 10px 16px;
+            background: linear-gradient(135deg, rgba(240, 246, 252, 0.1) 0%, rgba(240, 246, 252, 0.05) 100%);
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
             color: var(--color-header-text);
-            border: 1px solid rgba(240, 246, 252, 0.2);
+            border: 1px solid rgba(240, 246, 252, 0.15);
+            transition: all 0.3s ease;
+        }
+
+        .user-info:hover {
+            background: linear-gradient(135deg, rgba(240, 246, 252, 0.15) 0%, rgba(240, 246, 252, 0.08) 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         .btn-logout {
-            background-color: var(--color-btn-danger-bg);
-            color: var(--color-btn-danger-text);
-            border: 1px solid var(--color-btn-danger-border);
-            padding: 8px 16px;
-            border-radius: 6px;
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            border: 1px solid #dc3545;
+            padding: 12px 20px;
+            border-radius: 12px;
             text-decoration: none;
-            font-weight: 500;
-            font-size: 14px;
-            transition: all 0.2s ease;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
         }
 
         .btn-logout:hover {
-            background-color: var(--color-btn-danger-hover-bg);
-            color: var(--color-btn-danger-text);
+            background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);
+            color: white;
             text-decoration: none;
-            transform: translateY(-1px);
-            box-shadow: 0 3px 6px var(--color-shadow);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 53, 69, 0.3);
+        }
+
+        /* Responsive Header */
+        @media (max-width: 768px) {
+            .header-container {
+                padding: 16px 20px;
+                gap: 16px;
+                flex-wrap: wrap;
+            }
+            
+            .header-logo {
+                font-size: 18px;
+                padding: 6px 12px;
+            }
+            
+            .header-nav {
+                gap: 4px;
+                order: 3;
+                width: 100%;
+                justify-content: center;
+                margin-top: 12px;
+            }
+            
+            .nav-item {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+            
+            .header-user {
+                gap: 12px;
+            }
+            
+            .user-info {
+                font-size: 13px;
+                padding: 8px 12px;
+            }
+            
+            .btn-logout {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
         }
 
         /* Main Content */
