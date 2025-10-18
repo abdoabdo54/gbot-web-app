@@ -6,15 +6,15 @@
 <!-- Tab Navigation -->
 <div class="tab-navigation">
     <nav>
-        <button class="tab-button active" onclick="showTab('tab1')">
+        <button class="tab-button active" onclick="console.log('Tab 1 clicked'); showTab('tab1');">
             <i class="fas fa-user-friends"></i>
             <span>Account & User Mgmt</span>
         </button>
-        <button class="tab-button" onclick="showTab('tab2')">
+        <button class="tab-button" onclick="console.log('Tab 2 clicked'); showTab('tab2');">
             <i class="fas fa-user-plus"></i>
             <span>User Create/Delete/Domain</span>
         </button>
-        <button class="tab-button" onclick="showTab('tab3')">
+        <button class="tab-button" onclick="console.log('Tab 3 clicked'); showTab('tab3');">
             <i class="fas fa-exchange-alt"></i>
             <span>Bulk Domain Change & SMTP/CSV</span>
         </button>
@@ -1303,7 +1303,9 @@ let selectedDomain = null;
 
 // Tab switching functionality
 function showTab(tabId) {
+    console.log('=== TAB SWITCH DEBUG ===');
     console.log('Switching to tab:', tabId);
+    console.log('Event object:', event);
     
     // Hide all tab contents
     const tabs = document.querySelectorAll('.tab-content');
@@ -1329,15 +1331,17 @@ function showTab(tabId) {
     const selectedTab = document.getElementById(tabId);
     if (selectedTab) {
         console.log('Found tab element:', selectedTab);
+        console.log('Tab classes before:', selectedTab.className);
         selectedTab.classList.add('active');
-        selectedTab.style.display = 'block';
-        selectedTab.style.visibility = 'visible';
-        
-        selectedTab.style.opacity = '1';
-        selectedTab.style.height = 'auto';
-        selectedTab.style.overflow = 'visible';
-        
-        // No special handling needed for 3-tab layout
+        console.log('Tab classes after:', selectedTab.className);
+        console.log('Tab computed style display:', window.getComputedStyle(selectedTab).display);
+        // Remove any inline styles to let CSS handle the display
+        selectedTab.style.display = '';
+        selectedTab.style.visibility = '';
+        selectedTab.style.opacity = '';
+        selectedTab.style.height = '';
+        selectedTab.style.overflow = '';
+        console.log('Tab computed style display after:', window.getComputedStyle(selectedTab).display);
     } else {
         console.error('Tab not found:', tabId);
     }
