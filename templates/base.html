@@ -636,6 +636,73 @@
             color: #ffffff !important;
         }
 
+        /* SPECIFIC FIXES for the exact HTML structure provided */
+        /* Domain Summary grid containers */
+        [data-color-mode="dark"] div[style*="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr))"] {
+            background-color: #1a1a1a !important;
+        }
+
+        [data-color-mode="dark"] div[style*="text-align: center; padding: 8px; background: white"] {
+            background-color: #2a2a2a !important;
+            color: #ffffff !important;
+            border: 1px solid #444444 !important;
+        }
+
+        [data-color-mode="dark"] div[style*="text-align: center; padding: 8px; background: white"] div {
+            color: #ffffff !important;
+        }
+
+        [data-color-mode="dark"] div[style*="color: #666"] {
+            color: #cccccc !important;
+        }
+
+        /* Users List section fixes */
+        [data-color-mode="dark"] .github-card-header[style*="background: linear-gradient(135deg, #f6f8fa 0%, #e1e8ed 100%)"] {
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%) !important;
+            border-bottom-color: #444444 !important;
+        }
+
+        [data-color-mode="dark"] .github-card-title[style*="color: #24292f"] {
+            color: #ffffff !important;
+        }
+
+        [data-color-mode="dark"] div[style*="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)"] {
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%) !important;
+            border-color: #444444 !important;
+        }
+
+        /* Status boxes with gradients */
+        [data-color-mode="dark"] div[style*="background: linear-gradient(135deg, #f6f8fa 0%, #e9ecef 100%)"] {
+            background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%) !important;
+            border-color: #555555 !important;
+        }
+
+        [data-color-mode="dark"] div[style*="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)"] {
+            background: linear-gradient(135deg, #1a4d1a 0%, #0d3d0d 100%) !important;
+            border-color: #2d5a2d !important;
+        }
+
+        [data-color-mode="dark"] div[style*="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)"] {
+            background: linear-gradient(135deg, #4d1a1a 0%, #3d0d0d 100%) !important;
+            border-color: #5a2d2d !important;
+        }
+
+        [data-color-mode="dark"] div[style*="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)"] {
+            background: linear-gradient(135deg, #1a2a4d 0%, #0d1a3d 100%) !important;
+            border-color: #2d3a5a !important;
+        }
+
+        /* Force all text in these elements to be white */
+        [data-color-mode="dark"] div[style*="background: linear-gradient"] span,
+        [data-color-mode="dark"] div[style*="background: linear-gradient"] div {
+            color: #ffffff !important;
+        }
+
+        /* Icons in dark mode */
+        [data-color-mode="dark"] .fas {
+            color: #ffffff !important;
+        }
+
         /* Force all black text on white backgrounds to appropriate dark mode colors */
         [data-color-mode="dark"] *[style*="color: black"],
         [data-color-mode="dark"] *[style*="color: #000"],
