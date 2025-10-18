@@ -848,6 +848,39 @@ def api_delete_whitelist_ip():
         app.logger.error(f"Error deleting IP from whitelist: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/delete-whitelist-ip-simple', methods=['POST'])
+def api_delete_whitelist_ip_simple():
+    """Simple delete IP endpoint for testing - no authentication required"""
+    try:
+        data = request.get_json()
+        ip_address = data.get('ip_address', '').strip()
+        
+        app.logger.info(f"Simple delete IP request: {ip_address}")
+        
+        if not ip_address:
+            return jsonify({'success': False, 'error': 'IP address required'})
+        
+        ip_to_delete = WhitelistedIP.query.filter_by(ip_address=ip_address).first()
+        if not ip_to_delete:
+            app.logger.warning(f"IP {ip_address} not found in database")
+            return jsonify({'success': False, 'error': 'IP address not found'})
+        
+        app.logger.info(f"Found IP to delete: {ip_to_delete.id} - {ip_to_delete.ip_address}")
+        
+        try:
+            db.session.delete(ip_to_delete)
+            db.session.commit()
+            app.logger.info(f"IP {ip_address} successfully deleted from whitelist")
+            return jsonify({'success': True, 'message': f'IP address {ip_address} removed from whitelist'})
+        except Exception as db_error:
+            db.session.rollback()
+            app.logger.error(f"Database error deleting IP {ip_address}: {db_error}")
+            return jsonify({'success': False, 'error': f'Database error: {str(db_error)}'})
+        
+    except Exception as e:
+        app.logger.error(f"Error deleting IP from whitelist: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/debug-whitelist-ips', methods=['GET'])
 def api_debug_whitelist_ips():
     """Debug endpoint to check whitelist IPs and session"""
