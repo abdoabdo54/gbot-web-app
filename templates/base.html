@@ -524,6 +524,118 @@
             color: var(--color-fg-default) !important;
         }
 
+        /* NUCLEAR OPTION - Force specific problematic elements to dark */
+        [data-color-mode="dark"] div[style*="background-color: white"],
+        [data-color-mode="dark"] div[style*="background: white"],
+        [data-color-mode="dark"] section[style*="background-color: white"],
+        [data-color-mode="dark"] section[style*="background: white"],
+        [data-color-mode="dark"] .github-card[style*="background"],
+        [data-color-mode="dark"] .card[style*="background"],
+        [data-color-mode="dark"] .container[style*="background"] {
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
+        }
+
+        /* Override specific white background elements */
+        [data-color-mode="dark"] div[style*="background: white"],
+        [data-color-mode="dark"] div[style*="background-color: white"],
+        [data-color-mode="dark"] div[style*="background: #fff"],
+        [data-color-mode="dark"] div[style*="background-color: #fff"],
+        [data-color-mode="dark"] div[style*="background: #ffffff"],
+        [data-color-mode="dark"] div[style*="background-color: #ffffff"],
+        [data-color-mode="dark"] section[style*="background: white"],
+        [data-color-mode="dark"] section[style*="background-color: white"],
+        [data-color-mode="dark"] section[style*="background: #fff"],
+        [data-color-mode="dark"] section[style*="background-color: #fff"],
+        [data-color-mode="dark"] section[style*="background: #ffffff"],
+        [data-color-mode="dark"] section[style*="background-color: #ffffff"] {
+            background-color: var(--color-canvas-default) !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        /* Force all text in white backgrounds to be white */
+        [data-color-mode="dark"] div[style*="background: white"] *,
+        [data-color-mode="dark"] div[style*="background-color: white"] *,
+        [data-color-mode="dark"] div[style*="background: #fff"] *,
+        [data-color-mode="dark"] div[style*="background-color: #fff"] *,
+        [data-color-mode="dark"] section[style*="background: white"] *,
+        [data-color-mode="dark"] section[style*="background-color: white"] *,
+        [data-color-mode="dark"] section[style*="background: #fff"] *,
+        [data-color-mode="dark"] section[style*="background-color: #fff"] * {
+            color: var(--color-fg-default) !important;
+        }
+
+        /* Target specific classes that might be causing white backgrounds */
+        [data-color-mode="dark"] .github-card,
+        [data-color-mode="dark"] .github-card-header,
+        [data-color-mode="dark"] .github-card-body,
+        [data-color-mode="dark"] .github-card-footer,
+        [data-color-mode="dark"] .card,
+        [data-color-mode="dark"] .card-header,
+        [data-color-mode="dark"] .card-body,
+        [data-color-mode="dark"] .card-footer,
+        [data-color-mode="dark"] .container,
+        [data-color-mode="dark"] .container-fluid,
+        [data-color-mode="dark"] .row,
+        [data-color-mode="dark"] .col,
+        [data-color-mode="dark"] .col-*,
+        [data-color-mode="dark"] .grid-container,
+        [data-color-mode="dark"] .grid-item,
+        [data-color-mode="dark"] .summary-card,
+        [data-color-mode="dark"] .stats-container,
+        [data-color-mode="dark"] .details-container,
+        [data-color-mode="dark"] .domain-summary,
+        [data-color-mode="dark"] .users-list-section,
+        [data-color-mode="dark"] .users-list-content,
+        [data-color-mode="dark"] .status-box,
+        [data-color-mode="dark"] .count-display,
+        [data-color-mode="dark"] .status-info {
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
+            border-color: #333333 !important;
+        }
+
+        /* Force all child elements to be white text */
+        [data-color-mode="dark"] .github-card *,
+        [data-color-mode="dark"] .card *,
+        [data-color-mode="dark"] .container *,
+        [data-color-mode="dark"] .row *,
+        [data-color-mode="dark"] .col *,
+        [data-color-mode="dark"] .grid-container *,
+        [data-color-mode="dark"] .grid-item *,
+        [data-color-mode="dark"] .summary-card *,
+        [data-color-mode="dark"] .stats-container *,
+        [data-color-mode="dark"] .details-container *,
+        [data-color-mode="dark"] .domain-summary *,
+        [data-color-mode="dark"] .users-list-section *,
+        [data-color-mode="dark"] .users-list-content *,
+        [data-color-mode="dark"] .status-box *,
+        [data-color-mode="dark"] .count-display *,
+        [data-color-mode="dark"] .status-info * {
+            color: #ffffff !important;
+        }
+
+        /* FINAL NUCLEAR OPTION - Override ANY white background with hard-coded dark */
+        [data-color-mode="dark"] *[style*="background-color: white"],
+        [data-color-mode="dark"] *[style*="background: white"],
+        [data-color-mode="dark"] *[style*="background-color: #fff"],
+        [data-color-mode="dark"] *[style*="background: #fff"],
+        [data-color-mode="dark"] *[style*="background-color: #ffffff"],
+        [data-color-mode="dark"] *[style*="background: #ffffff"] {
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
+        }
+
+        /* Force ALL elements with white backgrounds to have white text */
+        [data-color-mode="dark"] *[style*="background-color: white"] *,
+        [data-color-mode="dark"] *[style*="background: white"] *,
+        [data-color-mode="dark"] *[style*="background-color: #fff"] *,
+        [data-color-mode="dark"] *[style*="background: #fff"] *,
+        [data-color-mode="dark"] *[style*="background-color: #ffffff"] *,
+        [data-color-mode="dark"] *[style*="background: #ffffff"] * {
+            color: #ffffff !important;
+        }
+
         /* Force all black text on white backgrounds to appropriate dark mode colors */
         [data-color-mode="dark"] *[style*="color: black"],
         [data-color-mode="dark"] *[style*="color: #000"],
