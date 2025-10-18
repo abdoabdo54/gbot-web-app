@@ -1053,8 +1053,31 @@ def api_add_account():
         return jsonify({'success': True, 'message': f'Account {account_name} added successfully'})
             
     except Exception as e:
-        logging.error(f"Add account error: {e}")
-        return jsonify({'success': False, 'error': str(e)})
+        error_msg = str(e)
+        logging.error(f"Add account error: {error_msg}")
+        
+        # Handle specific database constraint violations
+        if "duplicate key value violates unique constraint" in error_msg:
+            if "google_account_pkey" in error_msg:
+                return jsonify({
+                    'success': False, 
+                    'error': 'Database sequence error. Please contact support or try again later.',
+                    'details': 'GoogleAccount sequence is out of sync. This is a known issue that can be fixed.'
+                })
+            elif "google_token_pkey" in error_msg:
+                return jsonify({
+                    'success': False, 
+                    'error': 'Database sequence error. Please contact support or try again later.',
+                    'details': 'GoogleToken sequence is out of sync. This is a known issue that can be fixed.'
+                })
+            elif "whitelisted_ip_pkey" in error_msg:
+                return jsonify({
+                    'success': False, 
+                    'error': 'IP address already exists in whitelist.',
+                    'details': 'This IP address is already whitelisted.'
+                })
+        
+        return jsonify({'success': False, 'error': error_msg})
 
 @app.route('/api/list-accounts', methods=['GET'])
 @login_required
