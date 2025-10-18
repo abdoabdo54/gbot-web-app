@@ -109,10 +109,16 @@
                         <i class="fas fa-list"></i>
                         Whitelisted IPs
                     </h3>
-                    <button class="btn-github" id="refreshBtn">
-                        <i class="fas fa-sync-alt"></i>
-                        Refresh
-                    </button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-github" id="refreshBtn">
+                            <i class="fas fa-sync-alt"></i>
+                            Refresh
+                        </button>
+                        <button class="btn-github" id="deleteAllBtn" style="background-color: #dc3545; border-color: #dc3545; color: white;" onmouseover="this.style.backgroundColor='#c82333'" onmouseout="this.style.backgroundColor='#dc3545'">
+                            <i class="fas fa-trash-alt"></i>
+                            Delete All
+                        </button>
+                    </div>
                 </div>
             </div>
             
@@ -239,6 +245,11 @@
         $('#refreshBtn').click(function() {
             console.log('Refresh button clicked');
             refreshIPList();
+        });
+        
+        $('#deleteAllBtn').click(function() {
+            console.log('Delete All button clicked');
+            deleteAllIPs();
         });
         
         // Add IP form submission
@@ -422,6 +433,65 @@
         console.log('jQuery loaded:', typeof $ !== 'undefined');
         console.log('AJAX available:', typeof $.ajax !== 'undefined');
         alert('Delete function test - check console for details');
+    }
+
+    function deleteAllIPs() {
+        console.log('=== DELETE ALL IPs CLICKED ===');
+        
+        // Show confirmation dialog with warning
+        if (confirm('⚠️ WARNING: This will delete ALL whitelisted IPs!\n\nThis action cannot be undone.\n\nAre you sure you want to continue?')) {
+            console.log('User confirmed deletion of all IPs');
+            
+            // Show loading state
+            showStatus('🔄 Deleting all IPs...', 'info');
+            
+            // Try the simple endpoint first (no authentication required)
+            $.ajax({
+                url: "/api/delete-all-whitelist-ips-simple",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({}),
+                success: function(response) {
+                    console.log('Simple delete all IPs response:', response);
+                    if (response.success) {
+                        showStatus('✅ ' + response.message, 'success');
+                        // Refresh the page after a short delay
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        showStatus('❌ ' + response.error, 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Simple delete all IPs error:', xhr.responseText);
+                    // Try the original endpoint as fallback
+                    $.ajax({
+                        url: "/api/delete-all-whitelist-ips",
+                        type: "POST",
+                        contentType: "application/json",
+                        data: JSON.stringify({}),
+                        success: function(response) {
+                            console.log('Original delete all IPs response:', response);
+                            if (response.success) {
+                                showStatus('✅ ' + response.message, 'success');
+                                setTimeout(function() {
+                                    location.reload();
+                                }, 1500);
+                            } else {
+                                showStatus('❌ ' + response.error, 'error');
+                            }
+                        },
+                        error: function(xhr2, status2, error2) {
+                            console.error('Original delete all IPs error:', xhr2.responseText);
+                            showStatus('❌ Error deleting all IPs: ' + error2, 'error');
+                        }
+                    });
+                }
+            });
+        } else {
+            console.log('User cancelled delete all operation');
+        }
     }
 
     function deleteIPDirect(ipAddress) {

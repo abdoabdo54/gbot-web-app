@@ -881,6 +881,67 @@ def api_delete_whitelist_ip_simple():
         app.logger.error(f"Error deleting IP from whitelist: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/delete-all-whitelist-ips', methods=['POST'])
+def api_delete_all_whitelist_ips():
+    """Delete all IPs from whitelist - accessible via emergency access or admin login"""
+    # Check if user has emergency access or is logged in as admin
+    if not session.get('emergency_access') and not session.get('user'):
+        return jsonify({'success': False, 'error': 'Access denied. Please use emergency access or log in.'})
+    
+    if session.get('role') != 'admin' and not session.get('emergency_access'):
+        return jsonify({'success': False, 'error': 'Admin access required'})
+    
+    try:
+        # Get count before deletion
+        total_count = WhitelistedIP.query.count()
+        app.logger.info(f"Deleting all {total_count} whitelisted IPs by user: {session.get('user', 'emergency_access')}")
+        
+        if total_count == 0:
+            return jsonify({'success': True, 'message': 'No IPs to delete', 'deleted_count': 0})
+        
+        # Delete all whitelisted IPs
+        WhitelistedIP.query.delete()
+        db.session.commit()
+        
+        app.logger.info(f"Successfully deleted all {total_count} whitelisted IPs")
+        return jsonify({
+            'success': True, 
+            'message': f'Successfully deleted all {total_count} whitelisted IPs',
+            'deleted_count': total_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error deleting all whitelisted IPs: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/delete-all-whitelist-ips-simple', methods=['POST'])
+def api_delete_all_whitelist_ips_simple():
+    """Simple delete all IPs endpoint for testing - no authentication required"""
+    try:
+        # Get count before deletion
+        total_count = WhitelistedIP.query.count()
+        app.logger.info(f"Simple delete all {total_count} whitelisted IPs")
+        
+        if total_count == 0:
+            return jsonify({'success': True, 'message': 'No IPs to delete', 'deleted_count': 0})
+        
+        # Delete all whitelisted IPs
+        WhitelistedIP.query.delete()
+        db.session.commit()
+        
+        app.logger.info(f"Successfully deleted all {total_count} whitelisted IPs (simple)")
+        return jsonify({
+            'success': True, 
+            'message': f'Successfully deleted all {total_count} whitelisted IPs',
+            'deleted_count': total_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error deleting all whitelisted IPs (simple): {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/debug-whitelist-ips', methods=['GET'])
 def api_debug_whitelist_ips():
     """Debug endpoint to check whitelist IPs and session"""
