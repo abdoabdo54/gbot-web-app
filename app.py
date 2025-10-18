@@ -821,21 +821,57 @@ def api_delete_whitelist_ip():
         data = request.get_json()
         ip_address = data.get('ip_address', '').strip()
         
+        app.logger.info(f"Delete IP request: {ip_address}")
+        app.logger.info(f"Session data: user={session.get('user')}, role={session.get('role')}, emergency_access={session.get('emergency_access')}")
+        
         if not ip_address:
             return jsonify({'success': False, 'error': 'IP address required'})
         
         ip_to_delete = WhitelistedIP.query.filter_by(ip_address=ip_address).first()
         if not ip_to_delete:
+            app.logger.warning(f"IP {ip_address} not found in database")
             return jsonify({'success': False, 'error': 'IP address not found'})
         
-        db.session.delete(ip_to_delete)
-        db.session.commit()
+        app.logger.info(f"Found IP to delete: {ip_to_delete.id} - {ip_to_delete.ip_address}")
         
-        app.logger.info(f"IP {ip_address} deleted from whitelist by user: {session.get('user', 'emergency_access')}")
-        return jsonify({'success': True, 'message': f'IP address {ip_address} removed from whitelist'})
+        try:
+            db.session.delete(ip_to_delete)
+            db.session.commit()
+            app.logger.info(f"IP {ip_address} successfully deleted from whitelist by user: {session.get('user', 'emergency_access')}")
+            return jsonify({'success': True, 'message': f'IP address {ip_address} removed from whitelist'})
+        except Exception as db_error:
+            db.session.rollback()
+            app.logger.error(f"Database error deleting IP {ip_address}: {db_error}")
+            return jsonify({'success': False, 'error': f'Database error: {str(db_error)}'})
         
     except Exception as e:
         app.logger.error(f"Error deleting IP from whitelist: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/debug-whitelist-ips', methods=['GET'])
+def api_debug_whitelist_ips():
+    """Debug endpoint to check whitelist IPs and session"""
+    try:
+        # Get all whitelisted IPs
+        ips = WhitelistedIP.query.all()
+        ip_list = [{'id': ip.id, 'ip_address': ip.ip_address} for ip in ips]
+        
+        # Get session info
+        session_info = {
+            'user': session.get('user'),
+            'role': session.get('role'),
+            'emergency_access': session.get('emergency_access'),
+            'session_keys': list(session.keys())
+        }
+        
+        return jsonify({
+            'success': True,
+            'ip_count': len(ip_list),
+            'ips': ip_list,
+            'session': session_info
+        })
+        
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/authenticate', methods=['POST'])
@@ -8053,15 +8089,22 @@ def api_list_app_passwords():
 @app.route('/api/clear-app-passwords', methods=['DELETE'])
 @login_required
 def api_clear_app_passwords():
-    """Clear all stored app passwords"""
+    """Clear all stored app passwords - Admin only"""
+    # Check if user is admin
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin access required'})
+    
     try:
         # Delete all app passwords
+        deleted_count = UserAppPassword.query.count()
         UserAppPassword.query.delete()
         db.session.commit()
         
+        app.logger.info(f"All app passwords cleared by admin: {session.get('user', 'unknown')}")
+        
         return jsonify({
             'success': True,
-            'message': 'All app passwords cleared successfully'
+            'message': f'All {deleted_count} app passwords cleared successfully'
         })
         
     except Exception as e:
