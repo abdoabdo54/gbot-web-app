@@ -147,7 +147,8 @@
                                 </td>
                                 <td>
                                     <button class="btn-github btn-github-danger delete-ip-btn" data-ip="{{ ip }}" 
-                                            title="Remove IP from whitelist" style="padding: 4px 12px; font-size: 12px;">
+                                            title="Remove IP from whitelist" style="padding: 4px 12px; font-size: 12px;"
+                                            onclick="deleteIPDirect('{{ ip }}')">
                                         <i class="fas fa-trash"></i> Delete
                                     </button>
                                 </td>
@@ -414,6 +415,76 @@
     function refreshIPList() {
         console.log('Refreshing IP list...');
         location.reload();
+    }
+
+    function testDeleteFunction() {
+        console.log('=== TESTING DELETE FUNCTION ===');
+        console.log('jQuery loaded:', typeof $ !== 'undefined');
+        console.log('AJAX available:', typeof $.ajax !== 'undefined');
+        alert('Delete function test - check console for details');
+    }
+
+    function deleteIPDirect(ipAddress) {
+        console.log('=== DELETE BUTTON CLICKED ===');
+        console.log('Direct delete IP:', ipAddress);
+        console.log('jQuery loaded:', typeof $ !== 'undefined');
+        console.log('AJAX available:', typeof $.ajax !== 'undefined');
+        
+        if (!ipAddress) {
+            console.error('No IP address provided for deletion');
+            showStatus('❌ Error: No IP address specified', 'error');
+            return;
+        }
+        
+        // Show confirmation dialog
+        if (confirm('Are you sure you want to delete IP: ' + ipAddress + '?')) {
+            console.log('User confirmed deletion of:', ipAddress);
+            
+            // Try the simple endpoint first (no authentication required)
+            $.ajax({
+                url: "/api/delete-whitelist-ip-simple",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ ip_address: ipAddress }),
+                success: function(response) {
+                    console.log('Simple delete response:', response);
+                    if (response.success) {
+                        showStatus('✅ ' + response.message, 'success');
+                        // Refresh the page after a short delay
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        showStatus('❌ ' + response.error, 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Simple delete error:', xhr.responseText);
+                    // Try the original endpoint as fallback
+                    $.ajax({
+                        url: "/api/delete-whitelist-ip",
+                        type: "POST",
+                        contentType: "application/json",
+                        data: JSON.stringify({ ip_address: ipAddress }),
+                        success: function(response) {
+                            console.log('Original delete response:', response);
+                            if (response.success) {
+                                showStatus('✅ ' + response.message, 'success');
+                                setTimeout(function() {
+                                    location.reload();
+                                }, 1000);
+                            } else {
+                                showStatus('❌ ' + response.error, 'error');
+                            }
+                        },
+                        error: function(xhr2, status2, error2) {
+                            console.error('Original delete error:', xhr2.responseText);
+                            showStatus('❌ Error deleting IP: ' + error2, 'error');
+                        }
+                    });
+                }
+            });
+        }
     }
 
     function deleteIPFromWhitelist(ipAddress) {
