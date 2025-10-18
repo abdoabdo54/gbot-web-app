@@ -551,16 +551,16 @@
         .header-logo {
             display: flex;
             align-items: center;
-            gap: 12px;
+            justify-content: center;
             color: var(--color-header-text);
             text-decoration: none;
-            font-weight: 700;
-            font-size: 22px;
             transition: all 0.3s ease;
-            padding: 8px 16px;
+            padding: 12px;
             border-radius: 12px;
             background: linear-gradient(135deg, rgba(240, 246, 252, 0.08) 0%, rgba(240, 246, 252, 0.04) 100%);
             border: 1px solid rgba(240, 246, 252, 0.1);
+            width: 48px;
+            height: 48px;
         }
 
         .header-logo:hover {
@@ -710,8 +710,9 @@
             }
             
             .header-logo {
-                font-size: 18px;
-                padding: 6px 12px;
+                width: 40px;
+                height: 40px;
+                padding: 8px;
             }
             
             .header-nav {
@@ -1788,7 +1789,6 @@
         <div class="header-container">
             <a href="/dashboard" class="header-logo">
                 <i class="fas fa-robot"></i>
-                <span>GBot Web</span>
             </a>
             <nav class="header-nav">
                 <a href="/dashboard" class="nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
