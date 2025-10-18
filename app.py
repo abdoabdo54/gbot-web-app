@@ -353,11 +353,11 @@ def emergency_access():
         existing_ip = WhitelistedIP.query.filter_by(ip_address=client_ip).first()
         if not existing_ip:
             try:
-            new_ip = WhitelistedIP(ip_address=client_ip)
-            db.session.add(new_ip)
-            db.session.commit()
-            app.logger.info(f"IP {client_ip} auto-whitelisted successfully")
-            flash(f'IP {client_ip} has been automatically whitelisted!', 'success')
+                new_ip = WhitelistedIP(ip_address=client_ip)
+                db.session.add(new_ip)
+                db.session.commit()
+                app.logger.info(f"IP {client_ip} auto-whitelisted successfully")
+                flash(f'IP {client_ip} has been automatically whitelisted!', 'success')
             except Exception as db_error:
                 db.session.rollback()
                 app.logger.error(f"Database error auto-whitelisting IP {client_ip}: {db_error}")
@@ -429,9 +429,9 @@ def api_emergency_add_ip():
         
         # Add new IP to whitelist with error handling
         try:
-        new_ip = WhitelistedIP(ip_address=ip_address)
-        db.session.add(new_ip)
-        db.session.commit()
+            new_ip = WhitelistedIP(ip_address=ip_address)
+            db.session.add(new_ip)
+            db.session.commit()
             app.logger.info(f"IP {ip_address} successfully added to whitelist")
         except Exception as db_error:
             db.session.rollback()
@@ -723,9 +723,9 @@ def api_add_whitelist_ip():
             return jsonify({'success': False, 'error': 'IP address already exists'})
         
         try:
-        new_ip = WhitelistedIP(ip_address=ip_address)
-        db.session.add(new_ip)
-        db.session.commit()
+            new_ip = WhitelistedIP(ip_address=ip_address)
+            db.session.add(new_ip)
+            db.session.commit()
         except Exception as db_error:
             db.session.rollback()
             app.logger.error(f"Database error adding IP {ip_address}: {db_error}")
@@ -835,8 +835,8 @@ def api_delete_whitelist_ip():
         app.logger.info(f"Found IP to delete: {ip_to_delete.id} - {ip_to_delete.ip_address}")
         
         try:
-        db.session.delete(ip_to_delete)
-        db.session.commit()
+            db.session.delete(ip_to_delete)
+            db.session.commit()
             app.logger.info(f"IP {ip_address} successfully deleted from whitelist by user: {session.get('user', 'emergency_access')}")
             return jsonify({'success': True, 'message': f'IP address {ip_address} removed from whitelist'})
         except Exception as db_error:
@@ -871,7 +871,7 @@ def api_delete_whitelist_ip_simple():
             db.session.delete(ip_to_delete)
             db.session.commit()
             app.logger.info(f"IP {ip_address} successfully deleted from whitelist")
-        return jsonify({'success': True, 'message': f'IP address {ip_address} removed from whitelist'})
+            return jsonify({'success': True, 'message': f'IP address {ip_address} removed from whitelist'})
         except Exception as db_error:
             db.session.rollback()
             app.logger.error(f"Database error deleting IP {ip_address}: {db_error}")
@@ -4904,8 +4904,8 @@ def generate_csv():
             for i in range(1, int(num_users) + 1):
                 # Ensure unique name combinations
                 while True:
-                first_name = random.choice(first_names)
-                last_name = random.choice(last_names)
+                    first_name = random.choice(first_names)
+                    last_name = random.choice(last_names)
                     name_key = f"{first_name}_{last_name}"
                     if name_key not in used_names:
                         used_names.add(name_key)
@@ -5218,8 +5218,8 @@ def preview_csv():
         for i in range(1, min(int(num_users), 10) + 1):  # Max 10 for preview
             # Ensure unique name combinations for preview
             while True:
-            first_name = random.choice(first_names)
-            last_name = random.choice(last_names)
+                first_name = random.choice(first_names)
+                last_name = random.choice(last_names)
                 name_key = f"{first_name}_{last_name}"
                 if name_key not in used_names_preview:
                     used_names_preview.add(name_key)
