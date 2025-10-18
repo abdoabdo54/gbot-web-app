@@ -6,15 +6,15 @@
 <!-- Tab Navigation -->
 <div class="tab-navigation">
     <nav>
-        <button class="tab-button active" onclick="console.log('Tab 1 clicked'); showTab('tab1');">
+        <button class="tab-button active" onclick="showTab('tab1')">
             <i class="fas fa-user-friends"></i>
             <span>Account & User Mgmt</span>
         </button>
-        <button class="tab-button" onclick="console.log('Tab 2 clicked'); showTab('tab2');">
+        <button class="tab-button" onclick="showTab('tab2')">
             <i class="fas fa-user-plus"></i>
             <span>User Create/Delete/Domain</span>
         </button>
-        <button class="tab-button" onclick="console.log('Tab 3 clicked'); showTab('tab3');">
+        <button class="tab-button" onclick="showTab('tab3')">
             <i class="fas fa-exchange-alt"></i>
             <span>Bulk Domain Change & SMTP/CSV</span>
         </button>
@@ -845,6 +845,25 @@
         <button onclick="openMegaUpgradeModal()" class="btn-github btn-github-primary" style="width: 100%; padding: 16px; font-size: 16px;">
             <i class="fas fa-magic"></i> Launch Mega Upgrade Workflow
         </button>
+        
+        <!-- Test Buttons -->
+        <div style="margin-top: 16px; display: flex; gap: 8px;">
+        <button onclick="testModalOpen()" class="btn-github" style="background-color: #28a745; border-color: #28a745; color: white;">
+            <i class="fas fa-vial"></i> Test Modal
+        </button>
+        <button onclick="testFeatures()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
+            <i class="fas fa-cog"></i> Test Features
+        </button>
+        <button onclick="testJavaScript()" class="btn-github" style="background-color: #d73a49; border-color: #d73a49; color: white;">
+            <i class="fas fa-bug"></i> Test JS
+        </button>
+        <button onclick="testAppPasswordSync()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
+            <i class="fas fa-key"></i> Test Sync
+        </button>
+        <button onclick="debugAppPasswords()" class="btn-github" style="background-color: #ff6b35; border-color: #ff6b35; color: white;">
+            <i class="fas fa-bug"></i> Debug
+        </button>
+        </div>
     </div>
 
 
@@ -1238,6 +1257,55 @@
 
 
 <script>
+// Test function to verify JavaScript is working
+function testJavaScript() {
+    console.log('JavaScript is working!');
+    alert('JavaScript is working!');
+}
+
+function testAppPasswordSync() {
+    console.log('Testing app password sync...');
+    
+    // Test storing a single app password
+    const testData = {
+        user_alias: 'test@example.com',
+        app_password: 'testpassword123',
+        domain: 'example.com'
+    };
+    
+    console.log('Sending test data:', testData);
+    logResult('🧪 Testing app password storage...');
+    
+    fetch('/api/store-app-password', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(testData)
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        logResult(`📊 Test result: ${JSON.stringify(data)}`);
+        
+        if (data.success) {
+            logResult('✅ Test app password stored successfully!');
+            // Now test retrieving all passwords
+            loadAllAppPasswords();
+        } else {
+            logResult(`❌ Test failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Test error:', error);
+        logResult(`❌ Test error: ${error.message}`);
+    });
+}
+
+function debugAppPasswords() {
+    console.log('🔍 Debugging app passwords...');
+    logResult('🔍 Debugging app password system...');
     
     // Check if we can access the SMTP credentials
     const smtpCredentials = document.getElementById('smtp-credentials').value.trim();
@@ -1303,9 +1371,7 @@ let selectedDomain = null;
 
 // Tab switching functionality
 function showTab(tabId) {
-    console.log('=== TAB SWITCH DEBUG ===');
     console.log('Switching to tab:', tabId);
-    console.log('Event object:', event);
     
     // Hide all tab contents
     const tabs = document.querySelectorAll('.tab-content');
@@ -1331,17 +1397,15 @@ function showTab(tabId) {
     const selectedTab = document.getElementById(tabId);
     if (selectedTab) {
         console.log('Found tab element:', selectedTab);
-        console.log('Tab classes before:', selectedTab.className);
         selectedTab.classList.add('active');
-        console.log('Tab classes after:', selectedTab.className);
-        console.log('Tab computed style display:', window.getComputedStyle(selectedTab).display);
-        // Remove any inline styles to let CSS handle the display
-        selectedTab.style.display = '';
-        selectedTab.style.visibility = '';
-        selectedTab.style.opacity = '';
-        selectedTab.style.height = '';
-        selectedTab.style.overflow = '';
-        console.log('Tab computed style display after:', window.getComputedStyle(selectedTab).display);
+        selectedTab.style.display = 'block';
+        selectedTab.style.visibility = 'visible';
+        
+        selectedTab.style.opacity = '1';
+        selectedTab.style.height = 'auto';
+        selectedTab.style.overflow = 'visible';
+        
+        // No special handling needed for 3-tab layout
     } else {
         console.error('Tab not found:', tabId);
     }
@@ -1907,6 +1971,24 @@ document.addEventListener('DOMContentLoaded', function() {
 function clearAppPasswords() {
     document.getElementById('app-passwords-display').innerHTML = '<div style="color: #6a737d; font-style: italic;">📝 App passwords will appear here...</div>';
     logResult('🧹 App passwords display cleared');
+}
+
+// Test functions for debugging
+function testModalOpen() {
+    console.log('Testing modal open...');
+    alert('Testing modal open function...');
+    openMegaUpgradeModal();
+}
+
+function testFeatures() {
+    console.log('Testing features...');
+    const features = {
+        authenticate: document.getElementById('feature-authenticate')?.checked || false,
+        changeSubdomain: document.getElementById('feature-change-subdomain')?.checked || false
+    };
+    
+    console.log('Features:', features);
+    alert(`Features: ${JSON.stringify(features, null, 2)}`);
 }
 
 // Sync SMTP credentials to App Password Management
@@ -7101,6 +7183,35 @@ function testAppPasswordsAPI() {
         });
 }
 
+// Debug app passwords search
+function debugAppPasswords() {
+    console.log('=== DEBUGGING APP PASSWORDS SEARCH ===');
+    
+    // First, get all app passwords
+    fetch('/api/list-app-passwords')
+        .then(response => response.json())
+        .then(data => {
+            console.log('All app passwords in database:', data);
+            
+            if (data.success && data.users) {
+                console.log(`Total users in database: ${data.users.length}`);
+                console.log('Sample users:', data.users.slice(0, 5));
+                
+                // Show in alert for easy viewing
+                const sampleUsers = data.users.slice(0, 10).map(user => 
+                    `${user.username}@${user.domain}`
+                ).join('\n');
+                
+                alert(`Found ${data.users.length} users in database:\n\n${sampleUsers}${data.users.length > 10 ? '\n... and more' : ''}`);
+            } else {
+                alert('No users found in database or API error');
+            }
+        })
+        .catch(error => {
+            console.error('Debug API error:', error);
+            alert(`Debug API Error: ${error.message}`);
+        });
+}
 
 // Debug app password matching for specific email
 function debugAppPasswordMatching(email) {
