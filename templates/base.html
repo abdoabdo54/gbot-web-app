@@ -1912,6 +1912,53 @@
             margin: 16px 0;
             text-align: center;
         }
+
+        /* Dark mode for grid elements and containers */
+        [data-color-mode="dark"] [style*="grid-template-columns"],
+        [data-color-mode="dark"] [style*="display: grid"],
+        [data-color-mode="dark"] .grid-container,
+        [data-color-mode="dark"] .grid-item,
+        [data-color-mode="dark"] .domain-summary,
+        [data-color-mode="dark"] .domain-details,
+        [data-color-mode="dark"] .summary-card,
+        [data-color-mode="dark"] .stats-container,
+        [data-color-mode="dark"] .details-container {
+            background-color: var(--color-canvas-default) !important;
+            color: var(--color-fg-default) !important;
+            border-color: var(--color-border-default) !important;
+        }
+
+        /* Dark mode for grid children */
+        [data-color-mode="dark"] [style*="grid-template-columns"] *,
+        [data-color-mode="dark"] [style*="display: grid"] *,
+        [data-color-mode="dark"] .grid-container *,
+        [data-color-mode="dark"] .grid-item *,
+        [data-color-mode="dark"] .domain-summary *,
+        [data-color-mode="dark"] .domain-details *,
+        [data-color-mode="dark"] .summary-card *,
+        [data-color-mode="dark"] .stats-container *,
+        [data-color-mode="dark"] .details-container * {
+            color: var(--color-fg-default) !important;
+        }
+
+        /* Force dark mode for any white background containers */
+        [data-color-mode="dark"] [style*="background: white"],
+        [data-color-mode="dark"] [style*="background-color: white"],
+        [data-color-mode="dark"] [style*="background: #fff"],
+        [data-color-mode="dark"] [style*="background-color: #fff"],
+        [data-color-mode="dark"] [style*="background: #ffffff"],
+        [data-color-mode="dark"] [style*="background-color: #ffffff"] {
+            background-color: var(--color-canvas-default) !important;
+            color: var(--color-fg-default) !important;
+        }
+
+        /* Force white text for any light colored text in dark mode */
+        [data-color-mode="dark"] [style*="color: #656d76"],
+        [data-color-mode="dark"] [style*="color: #7d8590"],
+        [data-color-mode="dark"] [style*="color: #6e7781"],
+        [data-color-mode="dark"] [style*="color: #8b949e"] {
+            color: var(--color-fg-default) !important;
+        }
     </style>
     
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">

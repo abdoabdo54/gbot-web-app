@@ -846,24 +846,6 @@
             <i class="fas fa-magic"></i> Launch Mega Upgrade Workflow
         </button>
         
-        <!-- Test Buttons -->
-        <div style="margin-top: 16px; display: flex; gap: 8px;">
-        <button onclick="testModalOpen()" class="btn-github" style="background-color: #28a745; border-color: #28a745; color: white;">
-            <i class="fas fa-vial"></i> Test Modal
-        </button>
-        <button onclick="testFeatures()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
-            <i class="fas fa-cog"></i> Test Features
-        </button>
-        <button onclick="testJavaScript()" class="btn-github" style="background-color: #d73a49; border-color: #d73a49; color: white;">
-            <i class="fas fa-bug"></i> Test JS
-        </button>
-        <button onclick="testAppPasswordSync()" class="btn-github" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
-            <i class="fas fa-key"></i> Test Sync
-        </button>
-        <button onclick="debugAppPasswords()" class="btn-github" style="background-color: #ff6b35; border-color: #ff6b35; color: white;">
-            <i class="fas fa-bug"></i> Debug
-        </button>
-        </div>
     </div>
 
 
@@ -1257,52 +1239,6 @@
 
 
 <script>
-// Test function to verify JavaScript is working
-function testJavaScript() {
-    console.log('JavaScript is working!');
-    alert('JavaScript is working!');
-}
-
-function testAppPasswordSync() {
-    console.log('Testing app password sync...');
-    
-    // Test storing a single app password
-    const testData = {
-        user_alias: 'test@example.com',
-        app_password: 'testpassword123',
-        domain: 'example.com'
-    };
-    
-    console.log('Sending test data:', testData);
-    logResult('🧪 Testing app password storage...');
-    
-    fetch('/api/store-app-password', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(testData)
-    })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.json();
-    })
-    .then(data => {
-        console.log('Response data:', data);
-        logResult(`📊 Test result: ${JSON.stringify(data)}`);
-        
-        if (data.success) {
-            logResult('✅ Test app password stored successfully!');
-            // Now test retrieving all passwords
-            loadAllAppPasswords();
-        } else {
-            logResult(`❌ Test failed: ${data.error}`);
-        }
-    })
-    .catch(error => {
-        console.error('Test error:', error);
-        logResult(`❌ Test error: ${error.message}`);
-    });
-}
-
 function debugAppPasswords() {
     console.log('🔍 Debugging app passwords...');
     logResult('🔍 Debugging app password system...');
@@ -1973,23 +1909,6 @@ function clearAppPasswords() {
     logResult('🧹 App passwords display cleared');
 }
 
-// Test functions for debugging
-function testModalOpen() {
-    console.log('Testing modal open...');
-    alert('Testing modal open function...');
-    openMegaUpgradeModal();
-}
-
-function testFeatures() {
-    console.log('Testing features...');
-    const features = {
-        authenticate: document.getElementById('feature-authenticate')?.checked || false,
-        changeSubdomain: document.getElementById('feature-change-subdomain')?.checked || false
-    };
-    
-    console.log('Features:', features);
-    alert(`Features: ${JSON.stringify(features, null, 2)}`);
-}
 
 // Sync SMTP credentials to App Password Management
 function syncSMTPToAppPasswords() {
@@ -7183,35 +7102,6 @@ function testAppPasswordsAPI() {
         });
 }
 
-// Debug app passwords search
-function debugAppPasswords() {
-    console.log('=== DEBUGGING APP PASSWORDS SEARCH ===');
-    
-    // First, get all app passwords
-    fetch('/api/list-app-passwords')
-        .then(response => response.json())
-        .then(data => {
-            console.log('All app passwords in database:', data);
-            
-            if (data.success && data.users) {
-                console.log(`Total users in database: ${data.users.length}`);
-                console.log('Sample users:', data.users.slice(0, 5));
-                
-                // Show in alert for easy viewing
-                const sampleUsers = data.users.slice(0, 10).map(user => 
-                    `${user.username}@${user.domain}`
-                ).join('\n');
-                
-                alert(`Found ${data.users.length} users in database:\n\n${sampleUsers}${data.users.length > 10 ? '\n... and more' : ''}`);
-            } else {
-                alert('No users found in database or API error');
-            }
-        })
-        .catch(error => {
-            console.error('Debug API error:', error);
-            alert(`Debug API Error: ${error.message}`);
-        });
-}
 
 // Debug app password matching for specific email
 function debugAppPasswordMatching(email) {
