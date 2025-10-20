@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 {% block title %}Dashboard - GBot Web{% endblock %}
 
@@ -694,7 +693,6 @@
         <div id="results-log" class="data-display" style="font-family: monospace; font-size: 13px;"></div>
     </div>
 </div>
-
 <!-- Tab 3: Bulk Domain Change -->
 <div id="tab3" class="tab-content">
     
@@ -1245,62 +1243,56 @@
 
 <script>
 function debugAppPasswords() {
-    console.log('🔍 Debugging app passwords...');
-    logResult('🔍 Debugging app password system...');
+    console.log('=== DEBUG APP PASSWORDS ===');
     
-    // Check if we can access the SMTP credentials
-    const smtpCredentials = document.getElementById('smtp-credentials').value.trim();
-    console.log('SMTP credentials:', smtpCredentials);
-    logResult(`📝 SMTP credentials length: ${smtpCredentials.length}`);
-    
-    if (smtpCredentials) {
-        const lines = smtpCredentials.split('\n').filter(line => line.trim());
-        logResult(`📊 Found ${lines.length} credential lines`);
-        
-        lines.forEach((line, index) => {
-            logResult(`Line ${index + 1}: "${line}"`);
+    fetch('/api/debug-app-passwords')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Debug API response:', data);
             
-            // Parse the line
-            if (line.includes(',')) {
-                const parts = line.split(',');
-                logResult(`  CSV format: ${parts.length} parts`);
-                if (parts.length >= 2) {
-                    const email = parts[0].trim();
-                    const password = parts[1].trim();
-                    logResult(`  Email: ${email}, Password: ${password.substring(0, 4)}...`);
-                }
-            } else if (line.includes(':')) {
-                const parts = line.split(':');
-                logResult(`  Colon format: ${parts.length} parts`);
-                if (parts.length >= 2) {
-                    const email = parts[0].trim();
-                    const password = parts.slice(1).join(':').trim();
-                    logResult(`  Email: ${email}, Password: ${password.substring(0, 4)}...`);
-                }
+            if (data.success) {
+                const info = data.debug_info;
+                console.log(`Total app passwords in database: ${info.total_count}`);
+                console.log('Sample records:', info.sample_records);
+                console.log('Recent records:', info.recent_records);
+                
+                alert(`Debug Info:\n\nTotal records: ${info.total_count}\n\nCheck browser console for detailed information.`);
             } else {
-                logResult(`  ❌ Unknown format`);
+                console.error('Debug API failed:', data.error);
+                alert(`Debug failed: ${data.error}`);
             }
+        })
+        .catch(error => {
+            console.error('Debug request failed:', error);
+            alert(`Debug request failed: ${error.message}`);
         });
-    } else {
-        logResult('❌ No SMTP credentials found');
+}
+
+// Normalize email to avoid duplicated domain segments like base.base at the end
+function normalizeEmail(rawEmail) {
+    if (!rawEmail || typeof rawEmail !== 'string') return rawEmail;
+    const trimmed = rawEmail.trim();
+    const atIndex = trimmed.lastIndexOf('@');
+    if (atIndex === -1) return trimmed; // not an email
+    const local = trimmed.slice(0, atIndex);
+    let domain = trimmed.slice(atIndex + 1);
+
+    // Collapse duplicated trailing domain sequences, e.g.
+    // foo@abc.def.ghi.abc.def.ghi -> foo@abc.def.ghi
+    // Strategy: find the longest suffix that is repeated twice contiguously
+    const labels = domain.split('.');
+    for (let windowSize = Math.floor(labels.length / 2); windowSize >= 1; windowSize--) {
+        const firstStart = labels.length - 2 * windowSize;
+        if (firstStart < 0) continue;
+        const left = labels.slice(firstStart, firstStart + windowSize).join('.');
+        const right = labels.slice(firstStart + windowSize).join('.');
+        if (left === right) {
+            domain = labels.slice(0, firstStart + windowSize).join('.');
+            break;
+        }
     }
-    
-    // Test the API endpoint
-    logResult('🧪 Testing API endpoint...');
-    fetch('/api/get-all-app-passwords')
-    .then(response => {
-        console.log('API response status:', response.status);
-        logResult(`📡 API response status: ${response.status}`);
-        return response.json();
-    })
-    .then(data => {
-        console.log('API response data:', data);
-        logResult(`📊 API response: ${JSON.stringify(data, null, 2)}`);
-    })
-    .catch(error => {
-        console.error('API error:', error);
-        logResult(`❌ API error: ${error.message}`);
-    });
+
+    return `${local}@${domain}`;
 }
 
 let currentAccount = null;
@@ -1486,7 +1478,6 @@ function showAccountChecking(item, accountName) {
     statusSpan.style.cssText = 'float: right; margin-left: 10px; color: orange;';
     item.appendChild(statusSpan);
 }
-
 // Update account visual status
 function updateAccountVisual(item, accountName, isValid) {
     const oldStatus = item.querySelector('.token-status');
@@ -2186,7 +2177,6 @@ function storeAppPasswordsForWorkflow(accounts) {
         });
     });
 }
-
 function storeAndDisplayAppPasswordsForWorkflow(accounts) {
     logBulkDomain('💾 Storing and displaying app passwords for workflow...');
     logBulkDomain('🔄 REFACTORED: Enhanced app password retrieval with new subdomains');
@@ -2931,7 +2921,6 @@ function updateAuthStatus(account, authenticated, message) {
         statusBox.className = 'status-box error';
     }
 }
-
 function authenticateAccount() {
     const select = document.getElementById('account-select');
     const accountName = select.value;
@@ -3162,7 +3151,7 @@ function retrieveUsers() {
             <div class="status-info" style="background: #f8d7da; border-color: #f5c6cb;">
                     <p><strong>❌ ${errorMessage}</strong></p>
                     <p>${errorDetails}</p>
-                    <p><small>If you have a very large user base (10k+ users), this may be a timeout. We’ve raised server timeouts to handle this.</small></p>
+                    <p><small>If you have a very large user base (10k+ users), this may be a timeout. We've raised server timeouts to handle this.</small></p>
             </div>`;
         }
     });
@@ -3713,8 +3702,6 @@ function authenticateFromList() {
     // Call the updated authenticate function
     authenticateAccount();
 }
-
-
 function deleteFromList() {
     if (!selectedAccountFromList || !selectedAccountId) {
         alert('Please select an account from the list first');
@@ -4478,7 +4465,6 @@ function createRandomAdminUsers() {
         logResult(`💡 Solution: Check your internet connection and try again`);
     });
 }
-
 function updateUserPasswords() {
     const usersText = document.getElementById('password-update-users').value;
     const newPassword = document.getElementById('password-update-new-password').value;
@@ -5267,7 +5253,6 @@ function deleteAllAppPasswords() {
         button.disabled = false;
     });
 }
-
 // Tab 3 Functions - Bulk Domain Change (Desktop App Style)
 
 
@@ -6058,7 +6043,6 @@ function logBulkDomain(message) {
 function clearBulkDomainLog() {
     document.getElementById('bulk-domain-results').innerHTML = '<p class="placeholder-text">Processing results will appear here...</p>';
 }
-
 function autoChangeSubdomain() {
     if (!isAuthenticated) {
         alert('Please authenticate an account first');
@@ -6606,7 +6590,6 @@ function debugMegaUpgrade() {
         console.error('DEBUG Error:', error);
     });
 }
-
 function runMegaUpgradeWorkflow(accounts, features) {
     logBulkDomain('🚀 Starting Mega Upgrade Workflow...');
     logBulkDomain(`📊 Processing ${accounts.length} accounts with selected features`);
@@ -7393,7 +7376,6 @@ function deleteAppPasswordUser(username, domain) {
         alert(`❌ Error deleting app password: ${error.message}`);
     });
 }
-
 // Delete specific app passwords
 function deleteSpecificAppPasswords() {
     const deleteField = document.getElementById('delete-app-passwords');
@@ -7787,8 +7769,10 @@ function displayAutomationUsers(users) {
         // Create the SMTP format for the text area: user,app-password,smtp.gmail.com,587 (only non-admin users)
         let smtpFormatList = [];
         filteredUsers.forEach(user => {
-            const email = user.email || user.primaryEmail || 'N/A';
+            const rawEmail = user.email || user.primaryEmail || 'N/A';
+            const email = normalizeEmail(rawEmail);
             const appPassword = user.app_password || 'No app password';
+            // Always append host:port exactly once
             const smtpLine = `${email},${appPassword},smtp.gmail.com,587`;
             smtpFormatList.push(smtpLine);
         });
@@ -8189,7 +8173,6 @@ function clearAutomationList() {
 .modal-body {
     padding: 20px;
 }
-
 /* Checkbox Styles */
 .checkbox-container {
     display: block;
