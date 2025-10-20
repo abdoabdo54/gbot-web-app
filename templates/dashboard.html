@@ -7828,27 +7828,53 @@ function copyRetrievedUsersText() {
         alert('❌ Text area not found');
         return;
     }
-    
-    if (!textArea.value.trim()) {
+
+    const raw = textArea.value.trim();
+    if (!raw) {
         alert('❌ No text content to copy');
         return;
     }
-    
-    console.log('Copying text:', textArea.value.substring(0, 100) + '...');
-    
+
+    // Filter out lines with missing app passwords
+    const lines = raw.split('\n');
+    const filtered = lines.filter(line => {
+        const parts = line.split(',');
+        if (parts.length < 4) return false; // malformed
+        const appPwd = (parts[1] || '').trim().toLowerCase();
+        if (!appPwd) return false;
+        if (appPwd === 'no app password' || appPwd === 'no-app-password') return false;
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        alert('❌ No users with app passwords to copy');
+        return;
+    }
+
+    const content = filtered.join('\n');
+    console.log('Copying filtered text (lines):', filtered.length);
+
     // Try modern clipboard API first
     if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(textArea.value).then(() => {
+        navigator.clipboard.writeText(content).then(() => {
             console.log('✅ Text copied to clipboard successfully');
-            alert('✅ Copied retrieved users text to clipboard');
+            alert(`✅ Copied ${filtered.length} user(s) with app passwords to clipboard`);
         }).catch(err => {
             console.error('Clipboard API failed:', err);
-            // Fallback to legacy method
-            copyTextFallback(textArea);
+            // Fallback to legacy method using a temporary textarea
+            const temp = document.createElement('textarea');
+            temp.value = content;
+            document.body.appendChild(temp);
+            copyTextFallback(temp);
+            document.body.removeChild(temp);
         });
     } else {
         // Fallback for older browsers or non-secure contexts
-        copyTextFallback(textArea);
+        const temp = document.createElement('textarea');
+        temp.value = content;
+        document.body.appendChild(temp);
+        copyTextFallback(temp);
+        document.body.removeChild(temp);
     }
 }
 
