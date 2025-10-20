@@ -8287,6 +8287,14 @@ def api_upload_app_passwords():
                     email = email.strip()
                     password = password.strip()
                     
+                    # Remove SMTP part if it's already included in the password
+                    if password.endswith(',smtp.gmail.com,587'):
+                        password = password[:-len(',smtp.gmail.com,587')]
+                        print(f"Removed SMTP part from password: {password}")
+                    elif password.endswith(',smtp.gmail.com,587,smtp.gmail.com,587'):
+                        password = password[:-len(',smtp.gmail.com,587,smtp.gmail.com,587')]
+                        print(f"Removed duplicated SMTP part from password: {password}")
+                    
                     if email and password:
                         # Extract username and domain
                         if '@' in email:

@@ -7771,7 +7771,17 @@ function displayAutomationUsers(users) {
         filteredUsers.forEach(user => {
             const rawEmail = user.email || user.primaryEmail || 'N/A';
             const email = normalizeEmail(rawEmail);
-            const appPassword = user.app_password || 'No app password';
+            let appPassword = user.app_password || 'No app password';
+            
+            // Remove SMTP part if it's already included in the app password
+            if (appPassword.endsWith(',smtp.gmail.com,587')) {
+                appPassword = appPassword.slice(0, -',smtp.gmail.com,587'.length);
+                console.log(`Removed SMTP part from app password: ${appPassword}`);
+            } else if (appPassword.endsWith(',smtp.gmail.com,587,smtp.gmail.com,587')) {
+                appPassword = appPassword.slice(0, -',smtp.gmail.com,587,smtp.gmail.com,587'.length);
+                console.log(`Removed duplicated SMTP part from app password: ${appPassword}`);
+            }
+            
             // Always append host:port exactly once
             const smtpLine = `${email},${appPassword},smtp.gmail.com,587`;
             smtpFormatList.push(smtpLine);
@@ -7881,9 +7891,18 @@ function copyRetrievedUsersText() {
 
         // Normalize to exactly 4 columns: email, app_password, smtp.gmail.com, 587
         const email = parts[0];
+        let appPassword = parts[1];
+        
+        // Remove SMTP part if it's already included in the app password
+        if (appPassword.endsWith(',smtp.gmail.com,587')) {
+            appPassword = appPassword.slice(0, -',smtp.gmail.com,587'.length);
+        } else if (appPassword.endsWith(',smtp.gmail.com,587,smtp.gmail.com,587')) {
+            appPassword = appPassword.slice(0, -',smtp.gmail.com,587,smtp.gmail.com,587'.length);
+        }
+        
         const smtp = parts[2] && parts[2].length ? parts[2] : 'smtp.gmail.com';
         const port = parts[3] && parts[3].length ? parts[3] : '587';
-        filtered.push([email, parts[1], smtp, port].join(','));
+        filtered.push([email, appPassword, smtp, port].join(','));
     });
 
     if (filtered.length === 0) {
