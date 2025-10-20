@@ -5834,6 +5834,19 @@ def mega_upgrade():
         app.logger.info(f"📋 Accounts to process: {accounts}")
         app.logger.info(f"🔧 Features enabled: {features}")
         
+        # Initialize progress tracking
+        import time
+        progress_data = {
+            'status': 'running',
+            'total_accounts': len(accounts),
+            'completed_accounts': 0,
+            'successful_accounts': 0,
+            'failed_accounts': 0,
+            'current_account': None,
+            'started_at': time.time(),
+            'account_details': []
+        }
+        
         if not accounts:
             return jsonify({'success': False, 'error': 'No accounts provided'})
         
@@ -6055,23 +6068,137 @@ def mega_upgrade():
                                     pass
                                 domain_users = all_regular_users
 
-                                # Apply user updates
+                                # Apply user updates with retry logic
                                 successful_user_changes = 0
+                                failed_user_changes = []
+                                max_retries = 3
+                                
+                                app.logger.info(f"🔄 Starting domain change for {len(domain_users)} users in account {acct}")
+                                
                                 for u_email in domain_users:
-                                    try:
-                                        username = u_email.split('@')[0]
-                                        new_email = f"{username}@{next_domain}"
-                                        google_api.service.users().update(userKey=u_email, body={'primaryEmail': new_email}).execute()
-                                        successful_user_changes += 1
-                                    except Exception as e:
-                                        app.logger.error(f"Failed to update user {u_email}: {e}")
-
+                                    username = u_email.split('@')[0]
+                                    new_email = f"{username}@{next_domain}"
+                                    user_success = False
+                                    
+                                    # Retry logic for each user
+                                    for retry_attempt in range(max_retries):
+                                        try:
+                                            app.logger.info(f"🔄 Attempt {retry_attempt + 1}/{max_retries} for user {u_email} -> {new_email}")
+                                            google_api.service.users().update(userKey=u_email, body={'primaryEmail': new_email}).execute()
+                                            successful_user_changes += 1
+                                            user_success = True
+                                            app.logger.info(f"✅ Successfully updated user {u_email} -> {new_email}")
+                                            break
+                                        except Exception as e:
+                                            app.logger.warning(f"⚠️ Attempt {retry_attempt + 1} failed for user {u_email}: {e}")
+                                            if retry_attempt < max_retries - 1:
+                                                import time
+                                                time.sleep(1)  # Wait 1 second before retry
+                                            else:
+                                                app.logger.error(f"❌ All attempts failed for user {u_email}: {e}")
+                                                failed_user_changes.append({
+                                                    'user': u_email,
+                                                    'error': str(e),
+                                                    'attempts': max_retries
+                                                })
+                                    
+                                    # If user failed, we need to ensure 100% completion
+                                    if not user_success:
+                                        app.logger.error(f"❌ CRITICAL: User {u_email} failed to update after {max_retries} attempts")
+                                
+                                # Log completion status
+                                total_users = len(domain_users)
+                                success_rate = (successful_user_changes / total_users) * 100 if total_users > 0 else 0
+                                app.logger.info(f"📊 Account {acct} domain change results:")
+                                app.logger.info(f"   Total users: {total_users}")
+                                app.logger.info(f"   Successful: {successful_user_changes}")
+                                app.logger.info(f"   Failed: {len(failed_user_changes)}")
+                                app.logger.info(f"   Success rate: {success_rate:.1f}%")
+                                
+                                # Validation: Check if all users were actually changed
+                                if successful_user_changes < total_users:
+                                    app.logger.warning(f"⚠️ INCOMPLETE: Only {successful_user_changes}/{total_users} users changed for account {acct}")
+                                    # List the failed users for debugging
+                                    for failed_user in failed_user_changes:
+                                        app.logger.warning(f"   Failed user: {failed_user['user']} - {failed_user['error']}")
+                                else:
+                                    app.logger.info(f"✅ COMPLETE: All {total_users} users successfully changed for account {acct}")
+                                
+                                # Only proceed if we have 100% success or handle partial failures
                                 if successful_user_changes > 0:
                                     if next_domain in domain_records:
                                         domain_records[next_domain].user_count += successful_user_changes
                                     else:
                                         db.session.add(UsedDomain(domain_name=next_domain, user_count=successful_user_changes, is_verified=True, ever_used=True))
                                     db.session.commit()
+                                    
+                                    # If we have failures, we need to retry the entire account
+                                    if len(failed_user_changes) > 0:
+                                        app.logger.warning(f"⚠️ Account {acct} has {len(failed_user_changes)} failed users - marking for retry")
+                                        # Mark this account as needing retry
+                                        with results_lock:
+                                            failed_accounts += 1
+                                            failed_details.append({
+                                                'account': acct,
+                                                'step': 'changeSubdomain',
+                                                'error': f"Partial failure: {len(failed_user_changes)}/{total_users} users failed to update",
+                                                'failed_users': failed_user_changes,
+                                                'success_rate': f"{success_rate:.1f}%",
+                                                'retry_needed': True
+                                            })
+                                        return
+                                    
+                                    # Final validation: Verify the changes were actually applied
+                                    app.logger.info(f"🔍 Validating domain changes for account {acct}...")
+                                    try:
+                                        # Get updated user list to verify changes
+                                        verification_users = []
+                                        page_token = None
+                                        while True:
+                                            try:
+                                                users_result = google_api.service.users().list(
+                                                    customer='my_customer',
+                                                    maxResults=500,
+                                                    pageToken=page_token
+                                                ).execute()
+                                                users = users_result.get('users', [])
+                                                verification_users.extend(users)
+                                                page_token = users_result.get('nextPageToken')
+                                                if not page_token:
+                                                    break
+                                            except Exception as e:
+                                                app.logger.error(f"Error during verification: {e}")
+                                                break
+                                        
+                                        # Count users on the new domain
+                                        users_on_new_domain = 0
+                                        for user in verification_users:
+                                            email = user.get('primaryEmail', '')
+                                            if email.endswith(f'@{next_domain}'):
+                                                users_on_new_domain += 1
+                                        
+                                        app.logger.info(f"🔍 Verification results for {acct}:")
+                                        app.logger.info(f"   Expected users on {next_domain}: {successful_user_changes}")
+                                        app.logger.info(f"   Actual users on {next_domain}: {users_on_new_domain}")
+                                        
+                                        if users_on_new_domain != successful_user_changes:
+                                            app.logger.warning(f"⚠️ Verification mismatch for {acct}: expected {successful_user_changes}, found {users_on_new_domain}")
+                                        else:
+                                            app.logger.info(f"✅ Verification successful for {acct}: all {users_on_new_domain} users confirmed on {next_domain}")
+                                            
+                                    except Exception as e:
+                                        app.logger.error(f"❌ Verification failed for {acct}: {e}")
+                                else:
+                                    app.logger.error(f"❌ No users were successfully updated for account {acct}")
+                                    with results_lock:
+                                        failed_accounts += 1
+                                        failed_details.append({
+                                            'account': acct,
+                                            'step': 'changeSubdomain',
+                                            'error': 'No users were successfully updated',
+                                            'failed_users': failed_user_changes
+                                        })
+                                    return
                             finally:
                                 with session_lock:
                                     if original_session_account:
@@ -6084,29 +6211,54 @@ def mega_upgrade():
 
                         with results_lock:
                             successful_accounts += 1
-                            final_results.append({
+                            account_result = {
                                 'account': acct,
                                 'new_account_name': original_account_name,
-                                'users_processed': 0,  # No app passwords generated
-                                'status': 'success'
-                            })
-                            app.logger.info(f"✅ Worker {index+1} completed successfully for {acct}")
+                                'users_processed': successful_user_changes,
+                                'total_users': len(domain_users) if domain_users else 0,
+                                'success_rate': f"{success_rate:.1f}%",
+                                'status': 'success',
+                                'domain_changed': next_domain if next_domain else None,
+                                'completed_at': time.time()
+                            }
+                            final_results.append(account_result)
+                            
+                            # Update progress tracking
+                            progress_data['successful_accounts'] = successful_accounts
+                            progress_data['completed_accounts'] = successful_accounts + failed_accounts
+                            progress_data['account_details'].append(account_result)
+                            
+                            app.logger.info(f"✅ Worker {index+1} completed successfully for {acct} - {successful_user_changes}/{len(domain_users) if domain_users else 0} users changed ({success_rate:.1f}%)")
             except Exception as e:
                 app.logger.error(f"❌ Worker {index+1} failed for account {account_email}: {e}")
                 import traceback
                 app.logger.error(f"Worker {index+1} traceback: {traceback.format_exc()}")
                 with results_lock:
                     failed_accounts += 1
-                    failed_details.append({
+                    failed_detail = {
                         'account': account_email,
                         'step': 'processing',
-                        'error': str(e)
+                        'error': str(e),
+                        'completed_at': time.time()
+                    }
+                    failed_details.append(failed_detail)
+                    
+                    # Update progress tracking
+                    progress_data['failed_accounts'] = failed_accounts
+                    progress_data['completed_accounts'] = successful_accounts + failed_accounts
+                    progress_data['account_details'].append({
+                        'account': account_email,
+                        'status': 'failed',
+                        'error': str(e),
+                        'completed_at': time.time()
                     })
 
-        # Run with a thread pool (6 workers)
+        # Run with a thread pool (6 workers) and retry mechanism
         max_workers = min(6, len(accounts))
+        max_account_retries = 2  # Retry failed accounts once
         app.logger.info(f"Starting parallel processing with {max_workers} workers for {len(accounts)} accounts")
         
+        # First pass - process all accounts
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [executor.submit(process_account, acc, idx) for idx, acc in enumerate(accounts)]
             app.logger.info(f"Submitted {len(futures)} tasks to thread pool")
@@ -6125,7 +6277,41 @@ def mega_upgrade():
                     import traceback
                     app.logger.error(f"Task {completed_tasks} traceback: {traceback.format_exc()}")
         
-        app.logger.info(f"MEGA UPGRADE completed using EXISTING functions: {successful_accounts} successful, {failed_accounts} failed")
+        # Second pass - retry failed accounts
+        if failed_accounts > 0:
+            app.logger.info(f"🔄 Retrying {failed_accounts} failed accounts...")
+            retry_accounts = [detail['account'] for detail in failed_details if 'changeSubdomain' in detail.get('step', '')]
+            
+            if retry_accounts:
+                app.logger.info(f"🔄 Retrying domain change for: {retry_accounts}")
+                with ThreadPoolExecutor(max_workers=min(3, len(retry_accounts))) as retry_executor:
+                    retry_futures = [retry_executor.submit(process_account, acc, idx + 1000) for idx, acc in enumerate(retry_accounts)]
+                    
+                    for f in as_completed(retry_futures):
+                        try:
+                            result = f.result()
+                            app.logger.info(f"✅ Retry successful for account")
+                        except Exception as e:
+                            app.logger.error(f"❌ Retry failed: {e}")
+        
+        # Final progress update
+        progress_data['status'] = 'completed'
+        progress_data['completed_at'] = time.time()
+        progress_data['total_time'] = progress_data['completed_at'] - progress_data['started_at']
+        
+        app.logger.info(f"🎯 MEGA UPGRADE FINAL RESULTS:")
+        app.logger.info(f"   Total accounts: {len(accounts)}")
+        app.logger.info(f"   Successful: {successful_accounts}")
+        app.logger.info(f"   Failed: {failed_accounts}")
+        app.logger.info(f"   Success rate: {(successful_accounts / len(accounts)) * 100:.1f}%")
+        app.logger.info(f"   Total time: {progress_data['total_time']:.1f} seconds")
+        
+        # Log detailed results for each account
+        for result in final_results:
+            app.logger.info(f"   ✅ {result['account']}: {result['users_processed']}/{result['total_users']} users ({result['success_rate']})")
+        
+        for detail in failed_details:
+            app.logger.info(f"   ❌ {detail['account']}: {detail.get('error', 'Unknown error')}")
         
         # Cancel timeout
         signal.alarm(0)
@@ -6136,10 +6322,13 @@ def mega_upgrade():
             'total_accounts': len(accounts),
             'successful_accounts': successful_accounts,
             'failed_accounts': failed_accounts,
+            'success_rate': f"{(successful_accounts / len(accounts)) * 100:.1f}%",
+            'total_time': f"{progress_data['total_time']:.1f} seconds",
             'final_results': final_results,
             'failed_details': failed_details,
             'smtp_results': smtp_results,
-            'next_domain_map': next_domain_map
+            'next_domain_map': next_domain_map,
+            'progress_data': progress_data
         })
         
     except TimeoutError as e:
