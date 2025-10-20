@@ -8076,8 +8076,14 @@ def api_upload_app_passwords():
         added_count = 0
         error_count = 0
         
+        # Use a set to avoid duplicates within the same upload file
+        processed_pairs = set()
+
         # Use session.no_autoflush to prevent premature flushes
         with db.session.no_autoflush:
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+            from sqlalchemy.exc import IntegrityError
+
             for line_num, line in enumerate(lines, 1):
                 line = line.strip()
                 if not line:
@@ -8085,9 +8091,10 @@ def api_upload_app_passwords():
                     
                 print(f"Line {line_num}: {line}")
                 
-                # Split on colon
-                if ':' in line:
-                    email, password = line.split(':', 1)
+                # Accept both colon and comma separators
+                if ':' in line or ',' in line:
+                    sep = ':' if ':' in line else ','
+                    email, password = line.split(sep, 1)
                     email = email.strip()
                     password = password.strip()
                     
@@ -8101,36 +8108,76 @@ def api_upload_app_passwords():
                         # Normalize for case-insensitive matching
                         username = username.strip().lower()
                         domain = domain.strip().lower()
+                        pair_key = (username, domain)
+
+                        # Skip duplicates in the same upload file
+                        if pair_key in processed_pairs:
+                            print(f"Skipping duplicate within file: {username}@{domain}")
+                            continue
                         
                         try:
-                            # Check for existing record with case-insensitive matching
+                            # PostgreSQL upsert to avoid unique constraint violations
+                            stmt = pg_insert(UserAppPassword).values(
+                                username=username,
+                                domain=domain,
+                                app_password=password
+                            )
+                            stmt = stmt.on_conflict_do_update(
+                                index_elements=[UserAppPassword.username, UserAppPassword.domain],
+                                set_={
+                                    'app_password': password,
+                                    'updated_at': db.func.current_timestamp()
+                                }
+                            )
+                            db.session.execute(stmt)
+
+                            # Track counters based on whether it already existed
                             existing = UserAppPassword.query.filter(
                                 db.func.lower(UserAppPassword.username) == username,
                                 db.func.lower(UserAppPassword.domain) == domain
                             ).first()
-                            
-                            if existing:
-                                # Update existing record
-                                existing.app_password = password
-                                existing.updated_at = db.func.current_timestamp()
+                            if existing and existing.app_password == password:
+                                # Treat as update when the record was there
                                 updated_count += 1
-                                print(f"Updated: {username}@{domain} -> {password[:5]}...")
                             else:
-                                # Create new record
-                                new_password = UserAppPassword(
-                                    username=username,
-                                    domain=domain,
-                                    app_password=password
-                                )
-                                db.session.add(new_password)
                                 added_count += 1
-                                print(f"Added: {username}@{domain} -> {password[:5]}...")
-                            
+
+                            processed_pairs.add(pair_key)
                             stored_count += 1
-                            
+
+                        except IntegrityError as ie:
+                            # In the rare case of race conditions, fallback to update path
+                            db.session.rollback()
+                            try:
+                                existing = UserAppPassword.query.filter(
+                                    db.func.lower(UserAppPassword.username) == username,
+                                    db.func.lower(UserAppPassword.domain) == domain
+                                ).first()
+                                if existing:
+                                    existing.app_password = password
+                                    existing.updated_at = db.func.current_timestamp()
+                                    updated_count += 1
+                                    stored_count += 1
+                                    processed_pairs.add(pair_key)
+                                else:
+                                    # Retry insert
+                                    db.session.add(UserAppPassword(
+                                        username=username,
+                                        domain=domain,
+                                        app_password=password
+                                    ))
+                                    added_count += 1
+                                    stored_count += 1
+                                    processed_pairs.add(pair_key)
+                            except Exception as e2:
+                                error_count += 1
+                                print(f"Integrity fallback failed for {username}@{domain}: {e2}")
+                                db.session.rollback()
+                                continue
                         except Exception as e:
                             error_count += 1
                             print(f"Error processing {username}@{domain}: {e}")
+                            db.session.rollback()
                             # Try to continue with other records
                             continue
         
