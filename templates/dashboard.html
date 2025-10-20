@@ -7837,13 +7837,19 @@ function copyRetrievedUsersText() {
 
     // Filter out lines with missing app passwords
     const lines = raw.split('\n');
-    const filtered = lines.filter(line => {
-        const parts = line.split(',');
-        if (parts.length < 4) return false; // malformed
-        const appPwd = (parts[1] || '').trim().toLowerCase();
-        if (!appPwd) return false;
-        if (appPwd === 'no app password' || appPwd === 'no-app-password') return false;
-        return true;
+    const filtered = [];
+    lines.forEach(line => {
+        if (!line.trim()) return;
+        const parts = line.split(',').map(p => p.trim());
+        if (parts.length < 2) return; // malformed
+        const appPwd = (parts[1] || '').toLowerCase();
+        if (!appPwd || appPwd === 'no app password' || appPwd === 'no-app-password') return;
+
+        // Normalize to exactly 4 columns: email, app_password, smtp.gmail.com, 587
+        const email = parts[0];
+        const smtp = parts[2] && parts[2].length ? parts[2] : 'smtp.gmail.com';
+        const port = parts[3] && parts[3].length ? parts[3] : '587';
+        filtered.push([email, parts[1], smtp, port].join(','));
     });
 
     if (filtered.length === 0) {
