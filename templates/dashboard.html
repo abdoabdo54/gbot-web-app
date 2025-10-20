@@ -1049,6 +1049,11 @@
                 <input type="text" id="search-app-passwords" class="form-control-github" 
                        placeholder="Search by alias (username)..." 
                        onkeyup="searchAppPasswordUsers()">
+                <div style="margin-top: 8px;">
+                    <button onclick="debugAppPasswords()" class="btn-github" style="font-size: 12px; padding: 4px 8px;">
+                        <i class="fas fa-bug"></i> Debug Search
+                    </button>
+                </div>
             </div>
             
             <!-- User Selection and Management -->
@@ -7203,6 +7208,33 @@ function loadAppPasswordsStatus() {
 
 // Advanced App Password Management Functions
 
+// Debug app passwords
+function debugAppPasswords() {
+    console.log('=== DEBUG APP PASSWORDS ===');
+    
+    fetch('/api/debug-app-passwords')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Debug API response:', data);
+            
+            if (data.success) {
+                const info = data.debug_info;
+                console.log(`Total app passwords in database: ${info.total_count}`);
+                console.log('Sample records:', info.sample_records);
+                console.log('Recent records:', info.recent_records);
+                
+                alert(`Debug Info:\n\nTotal records: ${info.total_count}\n\nCheck browser console for detailed information.`);
+            } else {
+                console.error('Debug API failed:', data.error);
+                alert(`Debug failed: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Debug request failed:', error);
+            alert(`Debug request failed: ${error.message}`);
+        });
+}
+
 // Search app password users
 function searchAppPasswordUsers() {
     const searchTerm = document.getElementById('search-app-passwords').value.trim();
@@ -7216,25 +7248,43 @@ function searchAppPasswordUsers() {
     console.log('Searching app password users:', searchTerm);
     
     fetch('/api/list-app-passwords')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             console.log('Search API response:', data);
             
-            if (data.success && data.users) {
+            if (data.success && data.users && Array.isArray(data.users)) {
+                const searchLower = searchTerm.toLowerCase();
                 const filteredUsers = data.users.filter(user => {
+                    if (!user || !user.username || !user.domain) {
+                        console.log('Invalid user record:', user);
+                        return false;
+                    }
+                    
                     const username = user.username.toLowerCase();
                     const domain = user.domain.toLowerCase();
                     const fullEmail = `${username}@${domain}`;
-                    const searchLower = searchTerm.toLowerCase();
                     
-                    // Search by username, domain, or full email
-                    return username.includes(searchLower) || 
-                           domain.includes(searchLower) || 
-                           fullEmail.includes(searchLower) ||
-                           (searchLower.includes('@') && fullEmail === searchLower);
+                    // Enhanced search logic
+                    const matchesUsername = username.includes(searchLower);
+                    const matchesDomain = domain.includes(searchLower);
+                    const matchesFullEmail = fullEmail.includes(searchLower);
+                    const exactEmailMatch = searchLower.includes('@') && fullEmail === searchLower;
+                    
+                    const matches = matchesUsername || matchesDomain || matchesFullEmail || exactEmailMatch;
+                    
+                    if (matches) {
+                        console.log(`Match found: ${username}@${domain} (search: ${searchLower})`);
+                    }
+                    
+                    return matches;
                 });
                 
-                console.log(`Found ${filteredUsers.length} matching users:`, filteredUsers);
+                console.log(`Found ${filteredUsers.length} matching users out of ${data.users.length} total:`, filteredUsers);
                 displaySearchResults(filteredUsers);
             } else {
                 console.log('No users data in response');

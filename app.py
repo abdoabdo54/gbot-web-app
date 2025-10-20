@@ -8246,20 +8246,76 @@ def api_test_upload_endpoint():
 @login_required
 def api_list_app_passwords():
     try:
-        q = UserAppPassword.query.order_by(UserAppPassword.username.asc()).limit(100).all()
-        return jsonify({
-            'success': True,
-            'count': len(q),
-            'users': [
-                {
+        # Get all app passwords, not just first 100
+        q = UserAppPassword.query.order_by(UserAppPassword.username.asc()).all()
+        
+        app.logger.info(f"Retrieved {len(q)} app passwords from database")
+        
+        users = []
+        for r in q:
+            if r.username and r.domain:  # Only include valid records
+                users.append({
                     'username': r.username,
                     'domain': r.domain,
-                    'app_password': r.app_password
-                } for r in q
-            ]
+                    'app_password': r.app_password,
+                    'has_password': bool(r.app_password and r.app_password.strip())
+                })
+        
+        app.logger.info(f"Returning {len(users)} valid app password records")
+        
+        return jsonify({
+            'success': True,
+            'count': len(users),
+            'total_in_db': len(q),
+            'users': users
         })
     except Exception as e:
         app.logger.error(f"Error listing app passwords: {e}")
+        import traceback
+        app.logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/debug-app-passwords', methods=['GET'])
+@login_required
+def api_debug_app_passwords():
+    """Debug endpoint to check app password data"""
+    try:
+        # Get total count
+        total_count = UserAppPassword.query.count()
+        
+        # Get sample records
+        sample_records = UserAppPassword.query.limit(10).all()
+        
+        # Get records with specific patterns
+        recent_records = UserAppPassword.query.order_by(UserAppPassword.created_at.desc()).limit(5).all()
+        
+        debug_info = {
+            'total_count': total_count,
+            'sample_records': [
+                {
+                    'username': r.username,
+                    'domain': r.domain,
+                    'has_password': bool(r.app_password),
+                    'created_at': str(r.created_at) if r.created_at else None
+                } for r in sample_records
+            ],
+            'recent_records': [
+                {
+                    'username': r.username,
+                    'domain': r.domain,
+                    'has_password': bool(r.app_password),
+                    'created_at': str(r.created_at) if r.created_at else None
+                } for r in recent_records
+            ]
+        }
+        
+        return jsonify({
+            'success': True,
+            'debug_info': debug_info
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Debug app passwords error: {e}")
         return jsonify({'success': False, 'error': str(e)})
         
     except Exception as e:
