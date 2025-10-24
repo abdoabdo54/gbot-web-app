@@ -1,0 +1,21 @@
+[Unit]
+Description=GBot Web Application
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/gbot-web-app
+Environment=PATH=/opt/gbot-web-app/venv/bin
+ExecStart=/opt/gbot-web-app/venv/bin/gunicorn --bind unix:/opt/gbot-web-app/gbot.sock --workers 4 --timeout 300 --keep-alive 2 --max-requests 1000 --max-requests-jitter 100 --preload app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gbot
+
+[Install]
+WantedBy=multi-user.target
