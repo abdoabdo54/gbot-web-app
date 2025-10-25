@@ -9068,29 +9068,40 @@ def api_generate_otp():
                 with sftp.open(target_key_file, 'r') as file:
                     content = file.read().decode()
                 
+                # Debug logging - show original content
+                app.logger.info(f"Raw file content: '{content}'")
+                
                 # Handle different key formats
                 if ':' in content:
                     # Format: "email:key" - extract the key part
                     parts = content.split(':')
                     key_part = parts[-1].strip()
+                    app.logger.info(f"Extracted key part from email:key format: '{key_part}'")
                 else:
                     # Format: just the key (with or without spaces)
                     key_part = content.strip()
+                    app.logger.info(f"Using direct key format: '{key_part}'")
                 
-                # Clean the key: remove spaces and convert to uppercase
+                # ONLY remove spaces - no other transformations
                 # This handles keys like "dh2o 666t x64r dknd xj7l w6vu nm2k dpt6"
-                secret_key = key_part.replace(' ', '').upper()
+                secret_key = key_part.replace(' ', '')
                 
                 # Debug logging
                 app.logger.info(f"Original key part: '{key_part}'")
-                app.logger.info(f"Cleaned secret key: '{secret_key}'")
+                app.logger.info(f"After removing spaces: '{secret_key}'")
+                
+                # Convert to uppercase for Base32 validation
+                secret_key_upper = secret_key.upper()
                 
                 # Additional validation - ensure it contains only valid Base32 characters
-                if not re.match(r'^[A-Z2-7]+$', secret_key):
-                    raise Exception(f"Invalid key format after cleaning: {secret_key}")
+                if not re.match(r'^[A-Z2-7]+$', secret_key_upper):
+                    raise Exception(f"Invalid key format after cleaning: {secret_key_upper}")
 
                 if not secret_key:
                     raise Exception("No valid key found in file after cleaning.")
+                
+                # Use the uppercase version for TOTP generation
+                secret_key = secret_key_upper
 
                 # Write the cleaned key back to aa.txt
                 with sftp.open(target_key_file, 'w') as file:
