@@ -15,6 +15,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import logging.handlers
 import threading
 import uuid
+import paramiko
+import pyotp
+import re
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -8990,6 +8993,123 @@ def api_execute_automation_process():
         
     except Exception as e:
         app.logger.error(f"Error executing automation process: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/generate-otp', methods=['POST'])
+@login_required
+def api_generate_otp():
+    """Generate OTP for a specific account"""
+    try:
+        data = request.get_json()
+        account_name = data.get('account_name', '').strip()
+        
+        if not account_name:
+            return jsonify({'success': False, 'error': 'Account name is required'})
+        
+        # Sanitize account name
+        account_name = re.sub(r'[^a-zA-Z0-9._@-]', '', account_name)
+        
+        # SSH Configuration (same as in the Python script)
+        SSH_CONFIG = {
+            "host": "91.98.224.35",
+            "port": 22,
+            "user": "root",
+            "pass": "JnsQ3G98JU027QP"
+        }
+        
+        folder_path = f"/home/brightmindscampus/{account_name}"
+        target_key_file = f"{folder_path}/aa.txt"
+        
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
+        try:
+            # Connect to SSH
+            ssh.connect(
+                SSH_CONFIG["host"],
+                port=SSH_CONFIG["port"],
+                username=SSH_CONFIG["user"],
+                password=SSH_CONFIG["pass"]
+            )
+            
+            # Step 1: Forcefully remove aa.txt
+            rm_cmd = f'rm -f "{target_key_file}"'
+            stdin, stdout, stderr = ssh.exec_command(rm_cmd)
+            rm_error = stderr.read().decode().strip()
+            if rm_error:
+                raise Exception(f"Server error cleaning up file: {rm_error}")
+
+            # Step 2: Find original .txt file
+            find_cmd = f'find "{folder_path}" -maxdepth 1 -name "*.txt" | head -n 1'
+            stdin, stdout, stderr = ssh.exec_command(find_cmd)
+            
+            original_file = stdout.read().decode().strip()
+            find_error = stderr.read().decode().strip()
+            
+            if find_error:
+                raise Exception(f"Server error finding file: {find_error}")
+            if not original_file:
+                raise Exception(f"No .txt files found in {folder_path}")
+
+            # Step 3: Duplicate the file to aa.txt
+            cp_cmd = f"cp \"{original_file}\" \"{target_key_file}\""
+            stdin, stdout, stderr = ssh.exec_command(cp_cmd)
+            
+            cp_error = stderr.read().decode().strip()
+            if cp_error:
+                raise Exception(f"Server error duplicating file: {cp_error}")
+
+            # Step 4: Read, Parse, and Clean the Key
+            sftp = None
+            try:
+                sftp = ssh.open_sftp()
+                
+                with sftp.open(target_key_file, 'r') as file:
+                    content = file.read().decode()
+                
+                parts = content.split(':')
+                
+                if len(parts) < 2:
+                    key_part = content
+                else:
+                    key_part = parts[-1]
+                
+                # Clean the key: convert to uppercase and remove invalid characters
+                key_part_upper = key_part.upper()
+                secret_key = re.sub(r'[^A-Z2-7]', '', key_part_upper)
+
+                if not secret_key:
+                    raise Exception("No valid key found in file after cleaning.")
+
+                # Write the cleaned key back to aa.txt
+                with sftp.open(target_key_file, 'w') as file:
+                    file.write(secret_key)
+                    
+            except Exception as sftp_e:
+                raise Exception(f"SFTP error: {sftp_e}")
+            finally:
+                if sftp:
+                    sftp.close()
+            
+            # Step 5: Generate OTP
+            totp = pyotp.TOTP(secret_key)
+            otp_code = totp.now()
+            
+            return jsonify({
+                'success': True,
+                'otp_code': otp_code,
+                'account_name': account_name
+            })
+
+        except Exception as e:
+            raise e
+            
+        finally:
+            ssh.close()
+
+    except Exception as e:
+        app.logger.error(f"Error generating OTP: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 

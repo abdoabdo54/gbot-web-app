@@ -103,6 +103,40 @@
     <div id="auth-status" class="status-box">
         <p>No account authenticated</p>
     </div>
+    
+    <!-- OTP Generator -->
+    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #d0d7de;">
+        <h4 style="color: #24292f; margin-bottom: 16px; font-size: 16px;">
+            <i class="fas fa-key"></i> OTP Generator
+        </h4>
+        
+        <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: end;">
+            <div class="form-group-github">
+                <label for="otp-account-input" class="form-label-github">
+                    <i class="fas fa-user"></i> Account Name
+                </label>
+                <input type="text" id="otp-account-input" class="form-control-github" 
+                       placeholder="Enter account name (e.g., email address)">
+            </div>
+            
+            <button onclick="generateOTP()" class="btn-github btn-github-primary">
+                <i class="fas fa-key"></i> Generate OTP
+            </button>
+            
+            <button onclick="copyOTP()" class="btn-github" id="copy-otp-btn" disabled>
+                <i class="fas fa-copy"></i> Copy OTP
+            </button>
+        </div>
+        
+        <div id="otp-status" class="status-box" style="margin-top: 12px; display: none;">
+            <p id="otp-status-text">Enter account and click 'Generate OTP'</p>
+        </div>
+        
+        <div id="otp-result" class="data-display" style="margin-top: 12px; display: none;">
+            <h4>Generated OTP:</h4>
+            <div id="otp-code-display" style="font-family: monospace; font-size: 18px; font-weight: bold; color: #0969da; text-align: center; padding: 12px; background-color: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px;"></div>
+        </div>
+    </div>
 </div>
 
 <!-- Add Account Modal -->
@@ -5277,8 +5311,91 @@ function clearBulkSubdomainsList() {
     logResult('🧹 Bulk subdomain deletion list cleared');
 }
 
+// OTP Generator Functions
+let currentOTPCode = null;
 
+function generateOTP() {
+    const accountName = document.getElementById('otp-account-input').value.trim();
+    
+    if (!accountName) {
+        alert('Please enter an account name');
+        return;
+    }
+    
+    // Show status
+    const statusDiv = document.getElementById('otp-status');
+    const statusText = document.getElementById('otp-status-text');
+    const resultDiv = document.getElementById('otp-result');
+    const copyBtn = document.getElementById('copy-otp-btn');
+    
+    statusDiv.style.display = 'block';
+    statusText.textContent = 'Connecting to server...';
+    statusText.style.color = '#0969da';
+    resultDiv.style.display = 'none';
+    copyBtn.disabled = true;
+    
+    fetch('/api/generate-otp', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ account_name: accountName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentOTPCode = data.otp_code;
+            statusText.textContent = `✅ OTP generated successfully for ${data.account_name}`;
+            statusText.style.color = '#28a745';
+            
+            // Show the OTP code
+            resultDiv.style.display = 'block';
+            document.getElementById('otp-code-display').textContent = data.otp_code;
+            copyBtn.disabled = false;
+            
+            logResult(`🔑 OTP generated for ${data.account_name}: ${data.otp_code}`);
+        } else {
+            statusText.textContent = `❌ Error: ${data.error}`;
+            statusText.style.color = '#dc3545';
+            resultDiv.style.display = 'none';
+            copyBtn.disabled = true;
+            currentOTPCode = null;
+            
+            logResult(`❌ OTP generation failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        statusText.textContent = `❌ Network error: ${error.message}`;
+        statusText.style.color = '#dc3545';
+        resultDiv.style.display = 'none';
+        copyBtn.disabled = true;
+        currentOTPCode = null;
+        
+        logResult(`❌ OTP generation network error: ${error.message}`);
+    });
+}
 
+function copyOTP() {
+    if (currentOTPCode) {
+        navigator.clipboard.writeText(currentOTPCode).then(() => {
+            const statusText = document.getElementById('otp-status-text');
+            const originalText = statusText.textContent;
+            statusText.textContent = `📋 OTP '${currentOTPCode}' copied to clipboard!`;
+            statusText.style.color = '#28a745';
+            
+            // Reset status after 3 seconds
+            setTimeout(() => {
+                statusText.textContent = originalText;
+                statusText.style.color = '#0969da';
+            }, 3000);
+            
+            logResult(`📋 OTP '${currentOTPCode}' copied to clipboard`);
+        }).catch(err => {
+            alert('Failed to copy to clipboard: ' + err);
+            logResult(`❌ Failed to copy OTP to clipboard: ${err}`);
+        });
+    } else {
+        alert('No OTP code available to copy');
+    }
+}
 
 function retrieveAppPasswords() {
     const domain = document.getElementById('retrieve-domain').value.trim();
