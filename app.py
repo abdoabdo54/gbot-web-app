@@ -8999,18 +8999,13 @@ def api_execute_automation_process():
 @app.route('/api/generate-otp', methods=['POST'])
 @login_required
 def api_generate_otp():
-    """Generate OTP for a specific account - SIMPLIFIED VERSION v2.0"""
+    """Generate OTP - FINAL VERSION - ONLY REMOVE SPACES"""
     try:
         data = request.get_json()
         account_name = data.get('account_name', '').strip()
         
         if not account_name:
             return jsonify({'success': False, 'error': 'Account name is required'})
-        
-        # Sanitize account name
-        account_name = re.sub(r'[^a-zA-Z0-9._@-]', '', account_name)
-        
-        app.logger.info(f"=== NEW OTP FUNCTION v3.0 - Generating OTP for account: {account_name} ===")
         
         # SSH Configuration
         SSH_CONFIG = {
@@ -9034,79 +9029,39 @@ def api_generate_otp():
                 password=SSH_CONFIG["pass"]
             )
             
-            # Find and read the secret file in one command
-            find_and_read_cmd = f'find "{folder_path}" -maxdepth 1 -name "*.txt" -exec cat {{}} \\; | head -n 1'
-            stdin, stdout, stderr = ssh.exec_command(find_and_read_cmd)
-            
+            # Read the file content
+            cat_cmd = f'find "{folder_path}" -name "*.txt" -exec cat {{}} \\; | head -n 1'
+            stdin, stdout, stderr = ssh.exec_command(cat_cmd)
             content = stdout.read().decode().strip()
-            error_output = stderr.read().decode().strip()
-            
-            app.logger.info(f"=== DEBUGGING OTP KEY PROCESSING ===")
-            app.logger.info(f"Raw content from server: '{content}'")
-            app.logger.info(f"Content length: {len(content)}")
-            app.logger.info(f"Content bytes: {content.encode('utf-8')}")
-            
-            if error_output:
-                app.logger.warning(f"Command stderr: {error_output}")
             
             if not content:
-                raise Exception(f"No content found in {folder_path}")
+                raise Exception("No content found")
             
-            # Extract key - handle both formats
+            # Extract key from content
             if ':' in content:
-                # Format: "email:key"
-                key_part = content.split(':')[-1].strip()
-                app.logger.info(f"Email:key format detected, extracted: '{key_part}'")
+                key = content.split(':')[-1].strip()
             else:
-                # Format: just the key
-                key_part = content.strip()
-                app.logger.info(f"Direct key format detected: '{key_part}'")
+                key = content.strip()
             
-            app.logger.info(f"Key part before processing: '{key_part}'")
-            app.logger.info(f"Key part length: {len(key_part)}")
-            
-            # SIMPLE: Just remove spaces, nothing else
-            secret_key = key_part.replace(' ', '')
-            
-            app.logger.info(f"After removing spaces: '{secret_key}'")
-            app.logger.info(f"Final secret key: '{secret_key}'")
-            app.logger.info(f"Key length: {len(secret_key)}")
-            app.logger.info(f"=== END DEBUGGING ===")
-            
-            if not secret_key:
-                raise Exception("No valid key found")
+            # ONLY REMOVE SPACES - NOTHING ELSE
+            secret_key = key.replace(' ', '')
             
             # Generate OTP
-            try:
-                totp = pyotp.TOTP(secret_key)
-                otp_code = totp.now()
-                
-                app.logger.info(f"OTP generated successfully: {otp_code}")
-                
-                return jsonify({
-                    'success': True,
-                    'otp_code': otp_code,
-                    'account_name': account_name,
-                    'version': 'v3.0-debug'
-                })
-                
-            except Exception as totp_error:
-                app.logger.error(f"TOTP generation failed: {totp_error}")
-                app.logger.error(f"Key that failed: '{secret_key}'")
-                return jsonify({
-                    'success': False, 
-                    'error': f'TOTP generation failed: {totp_error}. Key used: {secret_key}'
-                })
-
-        except Exception as e:
-            app.logger.error(f"SSH/File error: {e}")
-            return jsonify({'success': False, 'error': str(e)})
+            totp = pyotp.TOTP(secret_key)
+            otp_code = totp.now()
             
+            return jsonify({
+                'success': True,
+                'otp_code': otp_code,
+                'account_name': account_name
+            })
+            
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)})
         finally:
             ssh.close()
-
+            
     except Exception as e:
-        app.logger.error(f"Error generating OTP: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 
