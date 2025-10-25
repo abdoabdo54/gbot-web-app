@@ -9033,14 +9033,7 @@ def api_generate_otp():
                 password=SSH_CONFIG["pass"]
             )
             
-            # Step 1: Forcefully remove aa.txt
-            rm_cmd = f'rm -f "{target_key_file}"'
-            stdin, stdout, stderr = ssh.exec_command(rm_cmd)
-            rm_error = stderr.read().decode().strip()
-            if rm_error:
-                raise Exception(f"Server error cleaning up file: {rm_error}")
-
-            # Step 2: Find original .txt file
+            # Step 1: Find original .txt file
             find_cmd = f'find "{folder_path}" -maxdepth 1 -name "*.txt" | head -n 1'
             stdin, stdout, stderr = ssh.exec_command(find_cmd)
             
@@ -9054,81 +9047,42 @@ def api_generate_otp():
             if not original_file:
                 raise Exception(f"No .txt files found in {folder_path}")
 
-            # Step 2.5: Read the original file content BEFORE copying
+            # Step 2: Read the original file content directly via SSH (no copying)
             cat_cmd = f'cat "{original_file}"'
             stdin, stdout, stderr = ssh.exec_command(cat_cmd)
-            original_content = stdout.read().decode().strip()
+            content = stdout.read().decode().strip()
             cat_error = stderr.read().decode().strip()
             
-            app.logger.info(f"Original file content: '{original_content}'")
+            app.logger.info(f"Original file content via SSH: '{content}'")
             if cat_error:
                 app.logger.warning(f"Cat command error: {cat_error}")
 
-            # Step 3: Duplicate the file to aa.txt
-            cp_cmd = f"cp \"{original_file}\" \"{target_key_file}\""
-            stdin, stdout, stderr = ssh.exec_command(cp_cmd)
+            # Step 3: Process the key directly from SSH output
+            # Handle different key formats
+            if ':' in content:
+                # Format: "email:key" - extract the key part
+                parts = content.split(':')
+                key_part = parts[-1].strip()
+                app.logger.info(f"Extracted key part from email:key format: '{key_part}'")
+            else:
+                # Format: just the key (with or without spaces)
+                key_part = content.strip()
+                app.logger.info(f"Using direct key format: '{key_part}'")
             
-            cp_error = stderr.read().decode().strip()
-            if cp_error:
-                raise Exception(f"Server error duplicating file: {cp_error}")
+            # BYPASS ALL VALIDATION - Just remove spaces and use as-is
+            # This handles keys like "dh2o 666t x64r dknd xj7l w6vu nm2k dpt6"
+            secret_key = key_part.replace(' ', '')
             
-            app.logger.info(f"File copied successfully from {original_file} to {target_key_file}")
+            # Debug logging
+            app.logger.info(f"Original key part: '{key_part}'")
+            app.logger.info(f"After removing spaces only: '{secret_key}'")
+            app.logger.info(f"Secret key length: {len(secret_key)}")
+            
+            # NO VALIDATION - Just use the key as-is
+            app.logger.warning(f"BYPASSING ALL VALIDATION - Using key as-is: '{secret_key}'")
 
-            # Step 4: Read, Parse, and Clean the Key
-            sftp = None
-            try:
-                sftp = ssh.open_sftp()
-                
-                with sftp.open(target_key_file, 'r') as file:
-                    content = file.read().decode()
-                
-                # Debug logging - show original content
-                app.logger.info(f"Raw file content: '{content}'")
-                app.logger.info(f"Raw file content bytes: {content.encode('utf-8')}")
-                
-                # Compare with original content
-                if original_content != content:
-                    app.logger.error(f"CONTENT MISMATCH!")
-                    app.logger.error(f"Original content: '{original_content}'")
-                    app.logger.error(f"Copied content: '{content}'")
-                else:
-                    app.logger.info(f"Content matches original: '{content}'")
-                
-                # Handle different key formats
-                if ':' in content:
-                    # Format: "email:key" - extract the key part
-                    parts = content.split(':')
-                    key_part = parts[-1].strip()
-                    app.logger.info(f"Extracted key part from email:key format: '{key_part}'")
-                else:
-                    # Format: just the key (with or without spaces)
-                    key_part = content.strip()
-                    app.logger.info(f"Using direct key format: '{key_part}'")
-                
-                # BYPASS ALL VALIDATION - Just remove spaces and use as-is
-                # This handles keys like "dh2o 666t x64r dknd xj7l w6vu nm2k dpt6"
-                secret_key = key_part.replace(' ', '')
-                
-                # Debug logging
-                app.logger.info(f"Original key part: '{key_part}'")
-                app.logger.info(f"After removing spaces only: '{secret_key}'")
-                app.logger.info(f"Secret key length: {len(secret_key)}")
-                
-                # NO VALIDATION - Just use the key as-is
-                app.logger.warning(f"BYPASSING ALL VALIDATION - Using key as-is: '{secret_key}'")
-
-                if not secret_key:
-                    raise Exception("No valid key found in file after cleaning.")
-                
-                # Write the cleaned key back to aa.txt
-                with sftp.open(target_key_file, 'w') as file:
-                    file.write(secret_key)
-                    
-            except Exception as sftp_e:
-                raise Exception(f"SFTP error: {sftp_e}")
-            finally:
-                if sftp:
-                    sftp.close()
+            if not secret_key:
+                raise Exception("No valid key found in file after cleaning.")
             
             # Step 5: Generate OTP
             try:
