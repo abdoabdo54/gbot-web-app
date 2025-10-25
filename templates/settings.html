@@ -123,6 +123,114 @@
         </form>
     </div>
 
+    <!-- OTP Generator SSH Settings Section -->
+    <div class="github-card" style="margin-bottom: 24px;">
+        <div class="github-card-header">
+            <h3 class="github-card-title" style="font-size: 18px;">
+                <i class="fas fa-key"></i>
+                OTP Generator SSH Settings
+            </h3>
+        </div>
+        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
+            Configure the SSH server connection for OTP generation. This server should contain the authenticator secret key files for generating OTP codes.
+        </p>
+        
+        <form id="otp-ssh-config-form">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div class="form-group-github">
+                    <label for="otp_server_host" class="form-label-github">
+                        <i class="fas fa-globe"></i> Server Host/IP
+                    </label>
+                    <input type="text" class="form-control-github" id="otp_server_host" 
+                           placeholder="91.98.224.35" required>
+                    <small style="color: #656d76; font-size: 12px;">
+                        IP address or hostname of the OTP server
+                    </small>
+                </div>
+                <div class="form-group-github">
+                    <label for="otp_server_port" class="form-label-github">
+                        <i class="fas fa-plug"></i> Port
+                    </label>
+                    <input type="number" class="form-control-github" id="otp_server_port" 
+                           value="22" min="1" max="65535" required>
+                    <small style="color: #656d76; font-size: 12px;">
+                        SSH port (default: 22)
+                    </small>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div class="form-group-github">
+                    <label for="otp_server_username" class="form-label-github">
+                        <i class="fas fa-user"></i> Username
+                    </label>
+                    <input type="text" class="form-control-github" id="otp_server_username" 
+                           placeholder="root" required>
+                    <small style="color: #656d76; font-size: 12px;">
+                        SSH username for server access
+                    </small>
+                </div>
+                <div class="form-group-github">
+                    <label for="otp_server_auth_method" class="form-label-github">
+                        <i class="fas fa-lock"></i> Authentication Method
+                    </label>
+                    <select class="form-control-github" id="otp_server_auth_method" required>
+                        <option value="password">Password</option>
+                        <option value="key">SSH Key</option>
+                    </select>
+                    <small style="color: #656d76; font-size: 12px;">
+                        Choose authentication method
+                    </small>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div class="form-group-github" id="otp_password_field">
+                    <label for="otp_server_password" class="form-label-github">
+                        <i class="fas fa-key"></i> Password
+                    </label>
+                    <input type="password" class="form-control-github" id="otp_server_password" 
+                           placeholder="Server password">
+                    <small style="color: #656d76; font-size: 12px;">
+                        SSH password (if using password auth)
+                    </small>
+                </div>
+                <div class="form-group-github" id="otp_key_field" style="display: none;">
+                    <label for="otp_server_private_key" class="form-label-github">
+                        <i class="fas fa-key"></i> Private Key
+                    </label>
+                    <textarea class="form-control-github" id="otp_server_private_key" rows="4" 
+                              placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" 
+                              style="resize: vertical; font-family: 'Courier New', monospace; font-size: 12px;"></textarea>
+                    <small style="color: #656d76; font-size: 12px;">
+                        SSH private key content (if using key auth)
+                    </small>
+                </div>
+            </div>
+            
+            <div class="form-group-github">
+                <label for="otp_secret_keys_path" class="form-label-github">
+                    <i class="fas fa-folder"></i> Secret Keys Directory Structure
+                </label>
+                <div style="background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 12px; margin-bottom: 8px;">
+                    <code style="color: #0969da; font-size: 14px;">/home/brightmindscampus/{account}/{account}_authenticator_secret_key.txt</code>
+                </div>
+                <small style="color: #656d76; font-size: 12px;">
+                    Each account has its own directory containing the authenticator secret key file. The system will automatically look for the secret key file in each account's directory.
+                </small>
+            </div>
+            
+            <div style="display: flex; gap: 16px; justify-content: center; margin-top: 24px;">
+                <button type="button" class="btn-github" onclick="testOTPServerConnection()">
+                    <i class="fas fa-search"></i> Test Connection
+                </button>
+                <button type="submit" class="btn-github btn-github-primary">
+                    <i class="fas fa-save"></i> Save OTP Settings
+                </button>
+            </div>
+        </form>
+    </div>
+
     <!-- Database Backup Section -->
     <div class="github-card" style="margin-bottom: 24px;">
         <div class="github-card-header">
@@ -423,10 +531,32 @@ $(document).ready(function() {
         }
     });
     
+    // Handle OTP authentication method change
+    $('#otp_server_auth_method').change(function() {
+        const method = $(this).val();
+        if (method === 'password') {
+            $('#otp_password_field').show();
+            $('#otp_key_field').hide();
+            $('#otp_server_password').prop('required', true);
+            $('#otp_server_private_key').prop('required', false);
+        } else {
+            $('#otp_password_field').hide();
+            $('#otp_key_field').show();
+            $('#otp_server_password').prop('required', false);
+            $('#otp_server_private_key').prop('required', true);
+        }
+    });
+    
     // Handle form submission
     $('#server-config-form').submit(function(e) {
         e.preventDefault();
         saveServerConfiguration();
+    });
+    
+    // Handle OTP form submission
+    $('#otp-ssh-config-form').submit(function(e) {
+        e.preventDefault();
+        saveOTPSSHConfiguration();
     });
     
     // Handle file upload
@@ -1776,6 +1906,106 @@ function uploadFileInChunks(file, chunkSize, totalChunks) {
     }
     
     uploadNextChunk();
+}
+
+// OTP SSH Configuration Functions
+function saveOTPSSHConfiguration() {
+    console.log('Saving OTP SSH configuration...');
+    
+    const config = {
+        host: $('#otp_server_host').val().trim(),
+        port: parseInt($('#otp_server_port').val()),
+        username: $('#otp_server_username').val().trim(),
+        auth_method: $('#otp_server_auth_method').val(),
+        password: $('#otp_server_password').val(),
+        private_key: $('#otp_server_private_key').val().trim()
+    };
+    
+    // Validate required fields
+    if (!config.host || !config.username) {
+        showStatus('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    if (config.auth_method === 'password' && !config.password) {
+        showStatus('Password is required when using password authentication', 'error');
+        return;
+    }
+    
+    if (config.auth_method === 'key' && !config.private_key) {
+        showStatus('Private key is required when using SSH key authentication', 'error');
+        return;
+    }
+    
+    showStatus('Saving OTP SSH configuration...', 'info');
+    
+    fetch('/api/save-otp-ssh-config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(config)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('✅ OTP SSH configuration saved successfully', 'success');
+            loadCurrentConfiguration();
+        } else {
+            showStatus('❌ Failed to save OTP configuration: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving OTP configuration:', error);
+        showStatus('❌ Network error: ' + error, 'error');
+    });
+}
+
+function testOTPServerConnection() {
+    console.log('Testing OTP server connection...');
+    
+    const config = {
+        host: $('#otp_server_host').val().trim(),
+        port: parseInt($('#otp_server_port').val()),
+        username: $('#otp_server_username').val().trim(),
+        auth_method: $('#otp_server_auth_method').val(),
+        password: $('#otp_server_password').val(),
+        private_key: $('#otp_server_private_key').val().trim()
+    };
+    
+    // Validate required fields
+    if (!config.host || !config.username) {
+        showStatus('Please fill in all required fields before testing', 'error');
+        return;
+    }
+    
+    if (config.auth_method === 'password' && !config.password) {
+        showStatus('Password is required when using password authentication', 'error');
+        return;
+    }
+    
+    if (config.auth_method === 'key' && !config.private_key) {
+        showStatus('Private key is required when using SSH key authentication', 'error');
+        return;
+    }
+    
+    showStatus('Testing OTP server connection...', 'info');
+    
+    fetch('/api/test-otp-server-connection', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(config)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('✅ ' + data.message, 'success');
+        } else {
+            showStatus('❌ OTP server connection failed: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error testing OTP connection:', error);
+        showStatus('❌ Network error: ' + error.message, 'error');
+    });
 }
 </script>
 {% endblock %}
