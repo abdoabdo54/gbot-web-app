@@ -9047,10 +9047,22 @@ def api_generate_otp():
             original_file = stdout.read().decode().strip()
             find_error = stderr.read().decode().strip()
             
+            app.logger.info(f"Found original file: '{original_file}'")
+            
             if find_error:
                 raise Exception(f"Server error finding file: {find_error}")
             if not original_file:
                 raise Exception(f"No .txt files found in {folder_path}")
+
+            # Step 2.5: Read the original file content BEFORE copying
+            cat_cmd = f'cat "{original_file}"'
+            stdin, stdout, stderr = ssh.exec_command(cat_cmd)
+            original_content = stdout.read().decode().strip()
+            cat_error = stderr.read().decode().strip()
+            
+            app.logger.info(f"Original file content: '{original_content}'")
+            if cat_error:
+                app.logger.warning(f"Cat command error: {cat_error}")
 
             # Step 3: Duplicate the file to aa.txt
             cp_cmd = f"cp \"{original_file}\" \"{target_key_file}\""
@@ -9059,6 +9071,8 @@ def api_generate_otp():
             cp_error = stderr.read().decode().strip()
             if cp_error:
                 raise Exception(f"Server error duplicating file: {cp_error}")
+            
+            app.logger.info(f"File copied successfully from {original_file} to {target_key_file}")
 
             # Step 4: Read, Parse, and Clean the Key
             sftp = None
@@ -9071,6 +9085,14 @@ def api_generate_otp():
                 # Debug logging - show original content
                 app.logger.info(f"Raw file content: '{content}'")
                 app.logger.info(f"Raw file content bytes: {content.encode('utf-8')}")
+                
+                # Compare with original content
+                if original_content != content:
+                    app.logger.error(f"CONTENT MISMATCH!")
+                    app.logger.error(f"Original content: '{original_content}'")
+                    app.logger.error(f"Copied content: '{content}'")
+                else:
+                    app.logger.info(f"Content matches original: '{content}'")
                 
                 # Handle different key formats
                 if ':' in content:
