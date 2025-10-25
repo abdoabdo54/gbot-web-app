@@ -8999,7 +8999,7 @@ def api_execute_automation_process():
 @app.route('/api/generate-otp', methods=['POST'])
 @login_required
 def api_generate_otp():
-    """Generate OTP for a specific account"""
+    """Generate OTP for a specific account - SIMPLIFIED VERSION"""
     try:
         data = request.get_json()
         account_name = data.get('account_name', '').strip()
@@ -9010,7 +9010,9 @@ def api_generate_otp():
         # Sanitize account name
         account_name = re.sub(r'[^a-zA-Z0-9._@-]', '', account_name)
         
-        # SSH Configuration (same as in the Python script)
+        app.logger.info(f"Generating OTP for account: {account_name}")
+        
+        # SSH Configuration
         SSH_CONFIG = {
             "host": "91.98.224.35",
             "port": 22,
@@ -9019,7 +9021,6 @@ def api_generate_otp():
         }
         
         folder_path = f"/home/brightmindscampus/{account_name}"
-        target_key_file = f"{folder_path}/aa.txt"
         
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -9033,62 +9034,45 @@ def api_generate_otp():
                 password=SSH_CONFIG["pass"]
             )
             
-            # Step 1: Find original .txt file
-            find_cmd = f'find "{folder_path}" -maxdepth 1 -name "*.txt" | head -n 1'
-            stdin, stdout, stderr = ssh.exec_command(find_cmd)
+            # Find and read the secret file in one command
+            find_and_read_cmd = f'find "{folder_path}" -maxdepth 1 -name "*.txt" -exec cat {{}} \\; | head -n 1'
+            stdin, stdout, stderr = ssh.exec_command(find_and_read_cmd)
             
-            original_file = stdout.read().decode().strip()
-            find_error = stderr.read().decode().strip()
-            
-            app.logger.info(f"Found original file: '{original_file}'")
-            
-            if find_error:
-                raise Exception(f"Server error finding file: {find_error}")
-            if not original_file:
-                raise Exception(f"No .txt files found in {folder_path}")
-
-            # Step 2: Read the original file content directly via SSH (no copying)
-            cat_cmd = f'cat "{original_file}"'
-            stdin, stdout, stderr = ssh.exec_command(cat_cmd)
             content = stdout.read().decode().strip()
-            cat_error = stderr.read().decode().strip()
+            error_output = stderr.read().decode().strip()
             
-            app.logger.info(f"Original file content via SSH: '{content}'")
-            if cat_error:
-                app.logger.warning(f"Cat command error: {cat_error}")
-
-            # Step 3: Process the key directly from SSH output
-            # Handle different key formats
+            app.logger.info(f"Raw content from server: '{content}'")
+            
+            if error_output:
+                app.logger.warning(f"Command stderr: {error_output}")
+            
+            if not content:
+                raise Exception(f"No content found in {folder_path}")
+            
+            # Extract key - handle both formats
             if ':' in content:
-                # Format: "email:key" - extract the key part
-                parts = content.split(':')
-                key_part = parts[-1].strip()
-                app.logger.info(f"Extracted key part from email:key format: '{key_part}'")
+                # Format: "email:key"
+                key_part = content.split(':')[-1].strip()
             else:
-                # Format: just the key (with or without spaces)
+                # Format: just the key
                 key_part = content.strip()
-                app.logger.info(f"Using direct key format: '{key_part}'")
             
-            # BYPASS ALL VALIDATION - Just remove spaces and use as-is
-            # This handles keys like "dh2o 666t x64r dknd xj7l w6vu nm2k dpt6"
+            app.logger.info(f"Extracted key part: '{key_part}'")
+            
+            # SIMPLE: Just remove spaces, nothing else
             secret_key = key_part.replace(' ', '')
             
-            # Debug logging
-            app.logger.info(f"Original key part: '{key_part}'")
-            app.logger.info(f"After removing spaces only: '{secret_key}'")
-            app.logger.info(f"Secret key length: {len(secret_key)}")
+            app.logger.info(f"Final secret key: '{secret_key}'")
+            app.logger.info(f"Key length: {len(secret_key)}")
             
-            # NO VALIDATION - Just use the key as-is
-            app.logger.warning(f"BYPASSING ALL VALIDATION - Using key as-is: '{secret_key}'")
-
             if not secret_key:
-                raise Exception("No valid key found in file after cleaning.")
+                raise Exception("No valid key found")
             
-            # Step 5: Generate OTP
+            # Generate OTP
             try:
-                app.logger.info(f"Attempting to create TOTP with key: '{secret_key}'")
                 totp = pyotp.TOTP(secret_key)
                 otp_code = totp.now()
+                
                 app.logger.info(f"OTP generated successfully: {otp_code}")
                 
                 return jsonify({
@@ -9096,14 +9080,18 @@ def api_generate_otp():
                     'otp_code': otp_code,
                     'account_name': account_name
                 })
+                
             except Exception as totp_error:
                 app.logger.error(f"TOTP generation failed: {totp_error}")
-                app.logger.error(f"Key used: '{secret_key}'")
-                app.logger.error(f"Key length: {len(secret_key)}")
-                raise Exception(f"TOTP generation failed: {totp_error}")
+                app.logger.error(f"Key that failed: '{secret_key}'")
+                return jsonify({
+                    'success': False, 
+                    'error': f'TOTP generation failed: {totp_error}. Key used: {secret_key}'
+                })
 
         except Exception as e:
-            raise e
+            app.logger.error(f"SSH/File error: {e}")
+            return jsonify({'success': False, 'error': str(e)})
             
         finally:
             ssh.close()
