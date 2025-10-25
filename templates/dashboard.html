@@ -487,6 +487,46 @@
                 <i class="fas fa-plus"></i> Add Domain Alias
             </button>
         </div>
+        
+        <!-- Bulk Subdomain Deletion -->
+        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #d0d7de;">
+            <h4 style="color: #24292f; margin-bottom: 16px; font-size: 16px;">
+                <i class="fas fa-trash-alt"></i> Bulk Subdomain Deletion
+            </h4>
+            
+            <div class="form-group-github">
+                <label for="bulk-subdomains-list" class="form-label-github">
+                    <i class="fas fa-list"></i> Subdomains to Delete (one per line)
+                </label>
+                <textarea id="bulk-subdomains-list" class="form-control-github" rows="6" 
+                          placeholder="Enter subdomains to delete (one per line):&#10;subdomain1.domain.com&#10;subdomain2.domain.com&#10;subdomain3.domain.com"></textarea>
+                <small style="color: #656d76; font-size: 12px; margin-top: 8px; display: block;">
+                    <i class="fas fa-info-circle"></i> 
+                    Enter one subdomain per line. The process will attempt to delete all listed subdomains and continue until completion.
+                </small>
+            </div>
+            
+            <div style="display: flex; gap: 12px; margin-top: 16px;">
+                <button onclick="executeBulkSubdomainDeletion()" class="btn-github btn-github-primary">
+                    <i class="fas fa-trash"></i> Delete All Subdomains
+                </button>
+                <button onclick="clearBulkSubdomainsList()" class="btn-github">
+                    <i class="fas fa-times"></i> Clear List
+                </button>
+            </div>
+            
+            <div id="bulk-subdomain-progress" class="progress-container" style="display: none; margin-top: 16px;">
+                <div class="progress-bar">
+                    <div id="bulk-subdomain-progress-bar" class="progress-fill"></div>
+                </div>
+                <div id="bulk-subdomain-progress-text" class="progress-text">Starting bulk subdomain deletion...</div>
+            </div>
+            
+            <div id="bulk-subdomain-results" class="data-display" style="margin-top: 16px; display: none;">
+                <h4>Bulk Deletion Results:</h4>
+                <div id="bulk-subdomain-results-content"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Create Users from CSV File -->
@@ -5117,6 +5157,124 @@ function deleteDomain(domainName) {
     .catch(error => {
         logResult(`❌ Network error: ${error}`);
     });
+}
+
+// Bulk Subdomain Deletion Functions
+function executeBulkSubdomainDeletion() {
+    const subdomainsText = document.getElementById('bulk-subdomains-list').value.trim();
+    
+    if (!subdomainsText) {
+        alert('Please enter subdomains to delete');
+        return;
+    }
+    
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    const subdomains = subdomainsText.split('\n').map(s => s.trim()).filter(s => s);
+    
+    if (subdomains.length === 0) {
+        alert('No valid subdomains found');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${subdomains.length} subdomains? This action cannot be undone.`)) {
+        return;
+    }
+    
+    logResult(`🗑️ Starting bulk deletion of ${subdomains.length} subdomains...`);
+    
+    // Show progress container
+    const progressContainer = document.getElementById('bulk-subdomain-progress');
+    const progressBar = document.getElementById('bulk-subdomain-progress-bar');
+    const progressText = document.getElementById('bulk-subdomain-progress-text');
+    const resultsContainer = document.getElementById('bulk-subdomain-results');
+    const resultsContent = document.getElementById('bulk-subdomain-results-content');
+    
+    progressContainer.style.display = 'block';
+    resultsContainer.style.display = 'block';
+    resultsContent.innerHTML = '';
+    
+    let completed = 0;
+    let successful = 0;
+    let failed = 0;
+    const results = [];
+    
+    // Process each subdomain
+    subdomains.forEach((subdomain, index) => {
+        setTimeout(() => {
+            logResult(`🔄 Processing subdomain ${index + 1}/${subdomains.length}: ${subdomain}`);
+            
+            fetch('/api/delete-domain', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ domain_name: subdomain })
+            })
+            .then(response => response.json())
+            .then(data => {
+                completed++;
+                
+                if (data.success) {
+                    successful++;
+                    results.push(`✅ ${subdomain} - Deleted successfully`);
+                    logResult(`✅ Subdomain ${subdomain} deleted successfully`);
+                } else {
+                    failed++;
+                    results.push(`❌ ${subdomain} - Failed: ${data.error}`);
+                    logResult(`❌ Failed to delete subdomain ${subdomain}: ${data.error}`);
+                }
+                
+                // Update progress
+                const progress = (completed / subdomains.length) * 100;
+                progressBar.style.width = `${progress}%`;
+                progressText.textContent = `Processing... ${completed}/${subdomains.length} (${successful} successful, ${failed} failed)`;
+                
+                // Update results display
+                resultsContent.innerHTML = results.join('<br>');
+                
+                // Check if all subdomains are processed
+                if (completed === subdomains.length) {
+                    progressText.textContent = `Completed! ${successful} successful, ${failed} failed`;
+                    logResult(`🏁 Bulk subdomain deletion completed: ${successful} successful, ${failed} failed`);
+                    
+                    // Refresh domain list
+                    getDomainInfo();
+                }
+            })
+            .catch(error => {
+                completed++;
+                failed++;
+                results.push(`❌ ${subdomain} - Network error: ${error.message}`);
+                logResult(`❌ Network error for subdomain ${subdomain}: ${error.message}`);
+                
+                // Update progress
+                const progress = (completed / subdomains.length) * 100;
+                progressBar.style.width = `${progress}%`;
+                progressText.textContent = `Processing... ${completed}/${subdomains.length} (${successful} successful, ${failed} failed)`;
+                
+                // Update results display
+                resultsContent.innerHTML = results.join('<br>');
+                
+                // Check if all subdomains are processed
+                if (completed === subdomains.length) {
+                    progressText.textContent = `Completed! ${successful} successful, ${failed} failed`;
+                    logResult(`🏁 Bulk subdomain deletion completed: ${successful} successful, ${failed} failed`);
+                    
+                    // Refresh domain list
+                    getDomainInfo();
+                }
+            });
+        }, index * 1000); // Stagger requests by 1 second to avoid overwhelming the API
+    });
+}
+
+function clearBulkSubdomainsList() {
+    document.getElementById('bulk-subdomains-list').value = '';
+    document.getElementById('bulk-subdomain-progress').style.display = 'none';
+    document.getElementById('bulk-subdomain-results').style.display = 'none';
+    logResult('🧹 Bulk subdomain deletion list cleared');
 }
 
 
