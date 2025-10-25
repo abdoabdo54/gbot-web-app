@@ -9068,16 +9068,26 @@ def api_generate_otp():
                 with sftp.open(target_key_file, 'r') as file:
                     content = file.read().decode()
                 
-                parts = content.split(':')
-                
-                if len(parts) < 2:
-                    key_part = content
+                # Handle different key formats
+                if ':' in content:
+                    # Format: "email:key" - extract the key part
+                    parts = content.split(':')
+                    key_part = parts[-1].strip()
                 else:
-                    key_part = parts[-1]
+                    # Format: just the key (with or without spaces)
+                    key_part = content.strip()
                 
-                # Clean the key: convert to uppercase and remove invalid characters
-                key_part_upper = key_part.upper()
-                secret_key = re.sub(r'[^A-Z2-7]', '', key_part_upper)
+                # Clean the key: remove spaces and convert to uppercase
+                # This handles keys like "dh2o 666t x64r dknd xj7l w6vu nm2k dpt6"
+                secret_key = key_part.replace(' ', '').upper()
+                
+                # Debug logging
+                app.logger.info(f"Original key part: '{key_part}'")
+                app.logger.info(f"Cleaned secret key: '{secret_key}'")
+                
+                # Additional validation - ensure it contains only valid Base32 characters
+                if not re.match(r'^[A-Z2-7]+$', secret_key):
+                    raise Exception(f"Invalid key format after cleaning: {secret_key}")
 
                 if not secret_key:
                     raise Exception("No valid key found in file after cleaning.")
