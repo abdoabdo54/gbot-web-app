@@ -9007,17 +9007,22 @@ def api_generate_otp():
         if not account_name:
             return jsonify({'success': False, 'error': 'Account name is required'})
         
-        # Get SSH Configuration from settings
-        otp_config = session.get('otp_ssh_config', {})
+        # Get SSH Configuration from JSON file
+        import json
+        import os
         
-        app.logger.info(f"OTP config from session: {otp_config}")
-        app.logger.info(f"Session keys: {list(session.keys())}")
+        config_file = 'otp_ssh_config.json'
         
-        if not otp_config:
+        if not os.path.exists(config_file):
             return jsonify({
                 'success': False, 
                 'error': 'OTP SSH configuration not found. Please configure it in Settings first.'
             })
+        
+        with open(config_file, 'r') as f:
+            otp_config = json.load(f)
+        
+        app.logger.info(f"OTP config from file: {otp_config}")
         
         # Use configured settings
         SSH_CONFIG = {
@@ -9121,8 +9126,11 @@ def api_save_otp_ssh_config():
         if data['auth_method'] == 'key' and not data.get('private_key'):
             return jsonify({'success': False, 'error': 'Private key is required for SSH key authentication'})
         
-        # Store configuration in session (you can also store in database)
-        session['otp_ssh_config'] = {
+        # Store configuration in JSON file
+        import json
+        import os
+        
+        config_data = {
             'host': data['host'],
             'port': int(data['port']),
             'username': data['username'],
@@ -9132,8 +9140,12 @@ def api_save_otp_ssh_config():
             'configured_at': datetime.now().isoformat()
         }
         
-        app.logger.info(f"OTP SSH configuration saved for host: {data['host']}")
-        app.logger.info(f"Session after saving: {dict(session)}")
+        # Save to JSON file
+        config_file = 'otp_ssh_config.json'
+        with open(config_file, 'w') as f:
+            json.dump(config_data, f, indent=2)
+        
+        app.logger.info(f"OTP SSH configuration saved to {config_file} for host: {data['host']}")
         
         return jsonify({
             'success': True,
@@ -9235,22 +9247,28 @@ def api_test_otp_server_connection():
 def api_get_otp_ssh_config():
     """Get current OTP SSH configuration"""
     try:
-        config = session.get('otp_ssh_config', {})
+        import json
+        import os
         
-        if not config:
+        config_file = 'otp_ssh_config.json'
+        
+        if not os.path.exists(config_file):
             return jsonify({
                 'success': True,
                 'config': None,
                 'message': 'No OTP SSH configuration found'
             })
         
+        with open(config_file, 'r') as f:
+            config_data = json.load(f)
+        
         # Don't return sensitive data
         safe_config = {
-            'host': config.get('host', ''),
-            'port': config.get('port', 22),
-            'username': config.get('username', ''),
-            'auth_method': config.get('auth_method', 'password'),
-            'configured_at': config.get('configured_at', '')
+            'host': config_data.get('host', ''),
+            'port': config_data.get('port', 22),
+            'username': config_data.get('username', ''),
+            'auth_method': config_data.get('auth_method', 'password'),
+            'configured_at': config_data.get('configured_at', '')
         }
         
         return jsonify({
