@@ -9083,30 +9083,17 @@ def api_generate_otp():
                     key_part = content.strip()
                     app.logger.info(f"Using direct key format: '{key_part}'")
                 
-                # FORCE: Only remove spaces and convert to uppercase - NO OTHER CHANGES
+                # BYPASS ALL VALIDATION - Just remove spaces and use as-is
                 # This handles keys like "dh2o 666t x64r dknd xj7l w6vu nm2k dpt6"
-                secret_key = key_part.replace(' ', '').upper()
+                secret_key = key_part.replace(' ', '')
                 
                 # Debug logging
                 app.logger.info(f"Original key part: '{key_part}'")
-                app.logger.info(f"After removing spaces and uppercase: '{secret_key}'")
+                app.logger.info(f"After removing spaces only: '{secret_key}'")
                 app.logger.info(f"Secret key length: {len(secret_key)}")
                 
-                # Check if the key looks like it was transformed incorrectly
-                if len(secret_key) != len(key_part.replace(' ', '')):
-                    app.logger.error(f"Key length mismatch! Original: {len(key_part.replace(' ', ''))}, Processed: {len(secret_key)}")
-                
-                # Additional validation - ensure it contains only valid Base32 characters
-                if not re.match(r'^[A-Z2-7]+$', secret_key):
-                    app.logger.error(f"Key validation failed. Key: '{secret_key}', Length: {len(secret_key)}")
-                    # Try to show what characters are invalid
-                    invalid_chars = [c for c in secret_key if not re.match(r'[A-Z2-7]', c)]
-                    app.logger.error(f"Invalid characters found: {invalid_chars}")
-                    
-                    # FALLBACK: Try to use the key as-is if it's close to valid
-                    app.logger.warning(f"Trying fallback approach with key: '{secret_key}'")
-                    # Don't raise exception, just log the warning and continue
-                    app.logger.warning(f"Proceeding with potentially invalid key: '{secret_key}'")
+                # NO VALIDATION - Just use the key as-is
+                app.logger.warning(f"BYPASSING ALL VALIDATION - Using key as-is: '{secret_key}'")
 
                 if not secret_key:
                     raise Exception("No valid key found in file after cleaning.")
@@ -9122,14 +9109,22 @@ def api_generate_otp():
                     sftp.close()
             
             # Step 5: Generate OTP
-            totp = pyotp.TOTP(secret_key)
-            otp_code = totp.now()
-            
-            return jsonify({
-                'success': True,
-                'otp_code': otp_code,
-                'account_name': account_name
-            })
+            try:
+                app.logger.info(f"Attempting to create TOTP with key: '{secret_key}'")
+                totp = pyotp.TOTP(secret_key)
+                otp_code = totp.now()
+                app.logger.info(f"OTP generated successfully: {otp_code}")
+                
+                return jsonify({
+                    'success': True,
+                    'otp_code': otp_code,
+                    'account_name': account_name
+                })
+            except Exception as totp_error:
+                app.logger.error(f"TOTP generation failed: {totp_error}")
+                app.logger.error(f"Key used: '{secret_key}'")
+                app.logger.error(f"Key length: {len(secret_key)}")
+                raise Exception(f"TOTP generation failed: {totp_error}")
 
         except Exception as e:
             raise e
