@@ -515,6 +515,9 @@ $(document).ready(function() {
     // Load current configuration
     loadCurrentConfiguration();
     
+    // Load OTP SSH configuration
+    loadOTPSSHConfiguration();
+    
     // Handle authentication method change
     $('#server_auth_method').change(function() {
         const method = $(this).val();
@@ -601,6 +604,35 @@ function loadCurrentConfiguration() {
     .catch(error => {
         console.error('Error loading configuration:', error);
         displayCurrentConfiguration(null);
+    });
+}
+
+function loadOTPSSHConfiguration() {
+    console.log('Loading OTP SSH configuration...');
+    
+    fetch('/api/get-otp-ssh-config', {
+        method: 'GET',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.config) {
+            // Populate OTP form fields
+            $('#otp_server_host').val(data.config.host || '');
+            $('#otp_server_port').val(data.config.port || 22);
+            $('#otp_server_username').val(data.config.username || '');
+            $('#otp_server_auth_method').val(data.config.auth_method || 'password');
+            
+            // Trigger auth method change to show/hide fields
+            $('#otp_server_auth_method').trigger('change');
+            
+            console.log('OTP SSH configuration loaded:', data.config);
+        } else {
+            console.log('No OTP SSH configuration found');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading OTP SSH configuration:', error);
     });
 }
 

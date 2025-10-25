@@ -9010,6 +9010,9 @@ def api_generate_otp():
         # Get SSH Configuration from settings
         otp_config = session.get('otp_ssh_config', {})
         
+        app.logger.info(f"OTP config from session: {otp_config}")
+        app.logger.info(f"Session keys: {list(session.keys())}")
+        
         if not otp_config:
             return jsonify({
                 'success': False, 
@@ -9130,6 +9133,7 @@ def api_save_otp_ssh_config():
         }
         
         app.logger.info(f"OTP SSH configuration saved for host: {data['host']}")
+        app.logger.info(f"Session after saving: {dict(session)}")
         
         return jsonify({
             'success': True,
