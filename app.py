@@ -8999,7 +8999,7 @@ def api_execute_automation_process():
 @app.route('/api/generate-otp', methods=['POST'])
 @login_required
 def api_generate_otp():
-    """Generate OTP for a specific account - SIMPLIFIED VERSION"""
+    """Generate OTP for a specific account - SIMPLIFIED VERSION v2.0"""
     try:
         data = request.get_json()
         account_name = data.get('account_name', '').strip()
@@ -9078,7 +9078,8 @@ def api_generate_otp():
                 return jsonify({
                     'success': True,
                     'otp_code': otp_code,
-                    'account_name': account_name
+                    'account_name': account_name,
+                    'version': 'v2.0-simplified'
                 })
                 
             except Exception as totp_error:
