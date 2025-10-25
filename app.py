@@ -9010,7 +9010,7 @@ def api_generate_otp():
         # Sanitize account name
         account_name = re.sub(r'[^a-zA-Z0-9._@-]', '', account_name)
         
-        app.logger.info(f"Generating OTP for account: {account_name}")
+        app.logger.info(f"=== NEW OTP FUNCTION v3.0 - Generating OTP for account: {account_name} ===")
         
         # SSH Configuration
         SSH_CONFIG = {
@@ -9041,7 +9041,10 @@ def api_generate_otp():
             content = stdout.read().decode().strip()
             error_output = stderr.read().decode().strip()
             
+            app.logger.info(f"=== DEBUGGING OTP KEY PROCESSING ===")
             app.logger.info(f"Raw content from server: '{content}'")
+            app.logger.info(f"Content length: {len(content)}")
+            app.logger.info(f"Content bytes: {content.encode('utf-8')}")
             
             if error_output:
                 app.logger.warning(f"Command stderr: {error_output}")
@@ -9053,17 +9056,22 @@ def api_generate_otp():
             if ':' in content:
                 # Format: "email:key"
                 key_part = content.split(':')[-1].strip()
+                app.logger.info(f"Email:key format detected, extracted: '{key_part}'")
             else:
                 # Format: just the key
                 key_part = content.strip()
+                app.logger.info(f"Direct key format detected: '{key_part}'")
             
-            app.logger.info(f"Extracted key part: '{key_part}'")
+            app.logger.info(f"Key part before processing: '{key_part}'")
+            app.logger.info(f"Key part length: {len(key_part)}")
             
             # SIMPLE: Just remove spaces, nothing else
             secret_key = key_part.replace(' ', '')
             
+            app.logger.info(f"After removing spaces: '{secret_key}'")
             app.logger.info(f"Final secret key: '{secret_key}'")
             app.logger.info(f"Key length: {len(secret_key)}")
+            app.logger.info(f"=== END DEBUGGING ===")
             
             if not secret_key:
                 raise Exception("No valid key found")
@@ -9079,7 +9087,7 @@ def api_generate_otp():
                     'success': True,
                     'otp_code': otp_code,
                     'account_name': account_name,
-                    'version': 'v2.0-simplified'
+                    'version': 'v3.0-debug'
                 })
                 
             except Exception as totp_error:
