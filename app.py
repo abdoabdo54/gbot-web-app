@@ -9007,12 +9007,23 @@ def api_generate_otp():
         if not account_name:
             return jsonify({'success': False, 'error': 'Account name is required'})
         
-        # SSH Configuration
+        # Get SSH Configuration from settings
+        otp_config = session.get('otp_ssh_config', {})
+        
+        if not otp_config:
+            return jsonify({
+                'success': False, 
+                'error': 'OTP SSH configuration not found. Please configure it in Settings first.'
+            })
+        
+        # Use configured settings
         SSH_CONFIG = {
-            "host": "91.98.224.35",
-            "port": 22,
-            "user": "root",
-            "pass": "JnsQ3G98JU027QP"
+            "host": otp_config.get('host'),
+            "port": otp_config.get('port', 22),
+            "user": otp_config.get('username'),
+            "pass": otp_config.get('password', ''),
+            "auth_method": otp_config.get('auth_method', 'password'),
+            "private_key": otp_config.get('private_key', '')
         }
         
         folder_path = f"/home/brightmindscampus/{account_name}"
@@ -9021,13 +9032,34 @@ def api_generate_otp():
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         
         try:
-            # Connect to SSH
-            ssh.connect(
-                SSH_CONFIG["host"],
-                port=SSH_CONFIG["port"],
-                username=SSH_CONFIG["user"],
-                password=SSH_CONFIG["pass"]
-            )
+            # Connect to SSH using configured authentication method
+            if SSH_CONFIG.get("auth_method") == "key" and SSH_CONFIG.get("private_key"):
+                # Use SSH key authentication
+                import tempfile
+                import os
+                
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.key') as key_file:
+                    key_file.write(SSH_CONFIG["private_key"])
+                    key_file_path = key_file.name
+                
+                try:
+                    ssh.connect(
+                        SSH_CONFIG["host"],
+                        port=SSH_CONFIG["port"],
+                        username=SSH_CONFIG["user"],
+                        key_filename=key_file_path
+                    )
+                finally:
+                    # Clean up temporary key file
+                    os.unlink(key_file_path)
+            else:
+                # Use password authentication
+                ssh.connect(
+                    SSH_CONFIG["host"],
+                    port=SSH_CONFIG["port"],
+                    username=SSH_CONFIG["user"],
+                    password=SSH_CONFIG["pass"]
+                )
             
             # Read the specific file: {account_name}_authenticator_secret_key.txt
             file_path = f"{folder_path}/{account_name}_authenticator_secret_key.txt"
@@ -9063,6 +9095,167 @@ def api_generate_otp():
             ssh.close()
             
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/save-otp-ssh-config', methods=['POST'])
+@login_required
+def api_save_otp_ssh_config():
+    """Save OTP SSH configuration"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['host', 'port', 'username', 'auth_method']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'})
+        
+        # Validate authentication method specific fields
+        if data['auth_method'] == 'password' and not data.get('password'):
+            return jsonify({'success': False, 'error': 'Password is required for password authentication'})
+        
+        if data['auth_method'] == 'key' and not data.get('private_key'):
+            return jsonify({'success': False, 'error': 'Private key is required for SSH key authentication'})
+        
+        # Store configuration in session (you can also store in database)
+        session['otp_ssh_config'] = {
+            'host': data['host'],
+            'port': int(data['port']),
+            'username': data['username'],
+            'auth_method': data['auth_method'],
+            'password': data.get('password', ''),
+            'private_key': data.get('private_key', ''),
+            'configured_at': datetime.now().isoformat()
+        }
+        
+        app.logger.info(f"OTP SSH configuration saved for host: {data['host']}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'OTP SSH configuration saved successfully'
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error saving OTP SSH config: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/test-otp-server-connection', methods=['POST'])
+@login_required
+def api_test_otp_server_connection():
+    """Test OTP server SSH connection"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['host', 'port', 'username', 'auth_method']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'})
+        
+        # Validate authentication method specific fields
+        if data['auth_method'] == 'password' and not data.get('password'):
+            return jsonify({'success': False, 'error': 'Password is required for password authentication'})
+        
+        if data['auth_method'] == 'key' and not data.get('private_key'):
+            return jsonify({'success': False, 'error': 'Private key is required for SSH key authentication'})
+        
+        # Test SSH connection
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
+        try:
+            # Connect to SSH
+            if data['auth_method'] == 'password':
+                ssh.connect(
+                    data['host'],
+                    port=int(data['port']),
+                    username=data['username'],
+                    password=data['password']
+                )
+            else:  # SSH key
+                # Create a temporary file for the private key
+                import tempfile
+                import os
+                
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.key') as key_file:
+                    key_file.write(data['private_key'])
+                    key_file_path = key_file.name
+                
+                try:
+                    ssh.connect(
+                        data['host'],
+                        port=int(data['port']),
+                        username=data['username'],
+                        key_filename=key_file_path
+                    )
+                finally:
+                    # Clean up temporary key file
+                    os.unlink(key_file_path)
+            
+            # Test if we can access the expected directory structure
+            test_cmd = 'ls /home/brightmindscampus 2>/dev/null || echo "Directory not found"'
+            stdin, stdout, stderr = ssh.exec_command(test_cmd)
+            result = stdout.read().decode().strip()
+            
+            if "Directory not found" in result:
+                return jsonify({
+                    'success': False,
+                    'error': 'Directory /home/brightmindscampus not found on server'
+                })
+            
+            app.logger.info(f"OTP server connection test successful for host: {data['host']}")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Successfully connected to {data["host"]}:{data["port"]} as {data["username"]}'
+            })
+            
+        except Exception as ssh_error:
+            app.logger.error(f"SSH connection failed: {ssh_error}")
+            return jsonify({
+                'success': False,
+                'error': f'SSH connection failed: {str(ssh_error)}'
+            })
+        finally:
+            ssh.close()
+            
+    except Exception as e:
+        app.logger.error(f"Error testing OTP server connection: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/get-otp-ssh-config', methods=['GET'])
+@login_required
+def api_get_otp_ssh_config():
+    """Get current OTP SSH configuration"""
+    try:
+        config = session.get('otp_ssh_config', {})
+        
+        if not config:
+            return jsonify({
+                'success': True,
+                'config': None,
+                'message': 'No OTP SSH configuration found'
+            })
+        
+        # Don't return sensitive data
+        safe_config = {
+            'host': config.get('host', ''),
+            'port': config.get('port', 22),
+            'username': config.get('username', ''),
+            'auth_method': config.get('auth_method', 'password'),
+            'configured_at': config.get('configured_at', '')
+        }
+        
+        return jsonify({
+            'success': True,
+            'config': safe_config
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error getting OTP SSH config: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 
