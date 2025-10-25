@@ -9029,8 +9029,9 @@ def api_generate_otp():
                 password=SSH_CONFIG["pass"]
             )
             
-            # Read the file content
-            cat_cmd = f'find "{folder_path}" -name "*.txt" -exec cat {{}} \\; | head -n 1'
+            # Read the specific file: authenticator_secret_key.txt
+            file_path = f"{folder_path}/authenticator_secret_key.txt"
+            cat_cmd = f'cat "{file_path}"'
             stdin, stdout, stderr = ssh.exec_command(cat_cmd)
             content = stdout.read().decode().strip()
             
