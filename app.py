@@ -6178,7 +6178,46 @@ def mega_upgrade():
                                     if next_domain in domain_records:
                                         domain_records[next_domain].user_count += successful_user_changes
                                     else:
-                                        db.session.add(UsedDomain(domain_name=next_domain, user_count=successful_user_changes, is_verified=True, ever_used=True))
+                                        try:
+                                            # Use PostgreSQL UPSERT for atomic operation
+                                            from sqlalchemy import text
+                                            
+                                            upsert_sql = text("""
+                                                INSERT INTO used_domain (domain_name, user_count, is_verified, ever_used, created_at, updated_at)
+                                                VALUES (:domain_name, :user_count, :is_verified, :ever_used, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                                                ON CONFLICT (domain_name) 
+                                                DO UPDATE SET 
+                                                    user_count = used_domain.user_count + :user_count,
+                                                    ever_used = TRUE,
+                                                    updated_at = CURRENT_TIMESTAMP
+                                            """)
+                                            
+                                            db.session.execute(upsert_sql, {
+                                                'domain_name': next_domain,
+                                                'user_count': successful_user_changes,
+                                                'is_verified': True,
+                                                'ever_used': True
+                                            })
+                                            
+                                        except Exception as e:
+                                            # Fallback to traditional method if UPSERT fails
+                                            app.logger.warning(f"UPSERT failed for {next_domain}, using fallback method: {e}")
+                                            try:
+                                                db.session.add(UsedDomain(domain_name=next_domain, user_count=successful_user_changes, is_verified=True, ever_used=True))
+                                            except Exception as e2:
+                                                # Handle duplicate key violation - another process might have created it
+                                                if 'duplicate key' in str(e2).lower() or 'unique constraint' in str(e2).lower():
+                                                    db.session.rollback()
+                                                    # Try to fetch the existing record
+                                                    existing_domain = UsedDomain.query.filter_by(domain_name=next_domain).first()
+                                                    if existing_domain:
+                                                        existing_domain.user_count += successful_user_changes
+                                                        existing_domain.ever_used = True
+                                                    else:
+                                                        app.logger.error(f"Failed to find or create domain record for {next_domain}")
+                                                        continue
+                                                else:
+                                                    raise e2
                                     db.session.commit()
                                     
                                     # If we have failures, we need to retry the entire account
@@ -9962,15 +10001,57 @@ def api_change_subdomain_status():
         domain_record = UsedDomain.query.filter_by(domain_name=subdomain).first()
         
         if not domain_record:
-            # Create new domain record
-            domain_record = UsedDomain(
-                domain_name=subdomain,
-                user_count=0,
-                is_verified=True,  # Assume verified since it's being managed
-                ever_used=False
-            )
-            db.session.add(domain_record)
-            db.session.flush()  # Get the ID without committing yet
+            try:
+                # Use PostgreSQL UPSERT (INSERT ... ON CONFLICT) for atomic operation
+                from sqlalchemy import text
+                
+                # First try to insert, if it fails due to duplicate, then fetch existing
+                insert_sql = text("""
+                    INSERT INTO used_domain (domain_name, user_count, is_verified, ever_used, created_at, updated_at)
+                    VALUES (:domain_name, :user_count, :is_verified, :ever_used, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ON CONFLICT (domain_name) DO NOTHING
+                    RETURNING id
+                """)
+                
+                result = db.session.execute(insert_sql, {
+                    'domain_name': subdomain,
+                    'user_count': 0,
+                    'is_verified': True,
+                    'ever_used': False
+                })
+                
+                # If no row was inserted (conflict), fetch the existing record
+                if result.rowcount == 0:
+                    domain_record = UsedDomain.query.filter_by(domain_name=subdomain).first()
+                else:
+                    # Get the newly created record
+                    domain_record = UsedDomain.query.filter_by(domain_name=subdomain).first()
+                
+                if not domain_record:
+                    return jsonify({'success': False, 'error': f'Failed to create or find domain record for {subdomain}'})
+                    
+            except Exception as e:
+                # Fallback to traditional method if UPSERT fails
+                app.logger.warning(f"UPSERT failed for {subdomain}, using fallback method: {e}")
+                try:
+                    domain_record = UsedDomain(
+                        domain_name=subdomain,
+                        user_count=0,
+                        is_verified=True,
+                        ever_used=False
+                    )
+                    db.session.add(domain_record)
+                    db.session.flush()
+                except Exception as e2:
+                    # Handle duplicate key violation - another process might have created it
+                    if 'duplicate key' in str(e2).lower() or 'unique constraint' in str(e2).lower():
+                        db.session.rollback()
+                        # Try to fetch the record again
+                        domain_record = UsedDomain.query.filter_by(domain_name=subdomain).first()
+                        if not domain_record:
+                            return jsonify({'success': False, 'error': f'Failed to create domain record for {subdomain}'})
+                    else:
+                        raise e2
         
         # Determine current status
         current_status = 'available'
