@@ -9281,5 +9281,56 @@ def api_get_otp_ssh_config():
         return jsonify({'success': False, 'error': str(e)})
 
 
+@app.route('/api/change-subdomain-status', methods=['POST'])
+@login_required
+def api_change_subdomain_status():
+    """Change the status of a subdomain"""
+    try:
+        data = request.get_json()
+        subdomain = data.get('subdomain', '').strip()
+        status = data.get('status', '').strip()
+        
+        if not subdomain:
+            return jsonify({'success': False, 'error': 'Subdomain is required'})
+        
+        if status not in ['available', 'in_use', 'used']:
+            return jsonify({'success': False, 'error': 'Invalid status. Must be: available, in_use, or used'})
+        
+        # Update subdomain status in database
+        conn = sqlite3.connect('instance/gbot.db')
+        cursor = conn.cursor()
+        
+        # Check if subdomain exists
+        cursor.execute("SELECT id, status FROM subdomains WHERE subdomain = ?", (subdomain,))
+        result = cursor.fetchone()
+        
+        if not result:
+            conn.close()
+            return jsonify({'success': False, 'error': f'Subdomain "{subdomain}" not found'})
+        
+        subdomain_id, current_status = result
+        
+        # Update the status
+        cursor.execute("UPDATE subdomains SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", 
+                      (status, subdomain_id))
+        
+        conn.commit()
+        conn.close()
+        
+        app.logger.info(f"Subdomain '{subdomain}' status changed from '{current_status}' to '{status}'")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Subdomain "{subdomain}" status changed from "{current_status}" to "{status}"',
+            'subdomain': subdomain,
+            'old_status': current_status,
+            'new_status': status
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error changing subdomain status: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
 if __name__ == '__main__':
     app.run(debug=True)

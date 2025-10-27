@@ -851,6 +851,61 @@
         </div>
     </div>
 
+    <!-- Subdomain Status Management -->
+    <div class="github-card">
+        <div class="github-card-header">
+            <h3 class="github-card-title">
+                <i class="fas fa-toggle-on"></i>
+                Subdomain Status Management
+            </h3>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <h4 style="font-size: 16px; font-weight: 600; color: var(--color-fg-default); margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-edit" style="color: var(--color-accent-fg);"></i>
+                Change Subdomain Status
+            </h4>
+            
+            <div class="form-group-github" style="margin-bottom: 16px;">
+                <label for="subdomain-status-input" class="form-label-github">
+                    <i class="fas fa-list"></i> Subdomains (one per line)
+                </label>
+                <textarea id="subdomain-status-input" class="form-control-github" rows="6" placeholder="Enter subdomains one per line, e.g.&#10;subdomain1&#10;subdomain2&#10;subdomain3"></textarea>
+            </div>
+            
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+                <button onclick="changeSubdomainStatus('available')" class="btn-github" style="background-color: var(--color-success-emphasis); border-color: var(--color-success-emphasis); color: #ffffff;">
+                    <i class="fas fa-check-circle"></i> Set as Available
+                </button>
+                <button onclick="changeSubdomainStatus('in_use')" class="btn-github" style="background-color: var(--color-warning-emphasis); border-color: var(--color-warning-emphasis); color: #ffffff;">
+                    <i class="fas fa-clock"></i> Set as In Use
+                </button>
+                <button onclick="changeSubdomainStatus('used')" class="btn-github" style="background-color: var(--color-danger-emphasis); border-color: var(--color-danger-emphasis); color: #ffffff;">
+                    <i class="fas fa-times-circle"></i> Set as Used
+                </button>
+                <button onclick="clearSubdomainStatusInput()" class="btn-github">
+                    <i class="fas fa-trash"></i> Clear List
+                </button>
+            </div>
+            
+            <div id="subdomain-status-progress" style="display: none; margin-bottom: 16px;">
+                <div class="progress-bar-github">
+                    <div id="subdomain-status-progress-bar" class="progress-fill-github" style="width: 0%;"></div>
+                </div>
+                <div id="subdomain-status-progress-text" style="text-align: center; margin-top: 8px; font-size: 14px; color: var(--color-fg-muted);">
+                    Processing...
+                </div>
+            </div>
+            
+            <div id="subdomain-status-results" class="data-display" style="display: none;">
+                <div class="status-info">
+                    <p><strong><i class="fas fa-info-circle"></i> Status Change Results</strong></p>
+                    <div id="subdomain-status-results-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Workflow 2: Change Domain for All Users (Non-CSV, Excludes Admin) -->
     <div class="github-card">
         <div class="github-card-header">
@@ -5861,6 +5916,144 @@ function debugDomainUsers() {
         logBulkDomain(`❌ Network error: ${error}`);
         alert('Network error: ' + error);
     });
+}
+
+// Subdomain Status Management Functions
+function changeSubdomainStatus(status) {
+    if (!isAuthenticated) {
+        alert('Please authenticate an account first');
+        return;
+    }
+    
+    const subdomainInput = document.getElementById('subdomain-status-input');
+    const subdomains = subdomainInput.value.trim();
+    
+    if (!subdomains) {
+        alert('Please enter subdomains in the text area');
+        return;
+    }
+    
+    const subdomainList = subdomains.split('\n').filter(sub => sub.trim());
+    if (subdomainList.length === 0) {
+        alert('Please enter at least one valid subdomain');
+        return;
+    }
+    
+    const statusLabels = {
+        'available': 'Available',
+        'in_use': 'In Use', 
+        'used': 'Used'
+    };
+    
+    if (!confirm(`Are you sure you want to set ${subdomainList.length} subdomains to "${statusLabels[status]}" status?`)) {
+        return;
+    }
+    
+    // Show progress
+    const progressDiv = document.getElementById('subdomain-status-progress');
+    const progressBar = document.getElementById('subdomain-status-progress-bar');
+    const progressText = document.getElementById('subdomain-status-progress-text');
+    const resultsDiv = document.getElementById('subdomain-status-results');
+    const resultsContent = document.getElementById('subdomain-status-results-content');
+    
+    progressDiv.style.display = 'block';
+    resultsDiv.style.display = 'none';
+    progressBar.style.width = '0%';
+    progressText.textContent = 'Processing...';
+    
+    let processedCount = 0;
+    let successCount = 0;
+    let errorCount = 0;
+    const errors = [];
+    
+    // Process each subdomain
+    const processNext = (index) => {
+        if (index >= subdomainList.length) {
+            // All done
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Complete!';
+            
+            // Show results
+            let resultHtml = `
+                <div style="margin-bottom: 16px;">
+                    <strong>Summary:</strong><br>
+                    ✅ Successfully updated: ${successCount}<br>
+                    ❌ Failed: ${errorCount}<br>
+                    📊 Total processed: ${processedCount}
+                </div>
+            `;
+            
+            if (errors.length > 0) {
+                resultHtml += `
+                    <div style="margin-top: 16px;">
+                        <strong>Errors:</strong><br>
+                        ${errors.map(error => `• ${error}`).join('<br>')}
+                    </div>
+                `;
+            }
+            
+            resultsContent.innerHTML = resultHtml;
+            resultsDiv.style.display = 'block';
+            
+            // Hide progress after 3 seconds
+            setTimeout(() => {
+                progressDiv.style.display = 'none';
+            }, 3000);
+            
+            return;
+        }
+        
+        const subdomain = subdomainList[index].trim();
+        if (!subdomain) {
+            processNext(index + 1);
+            return;
+        }
+        
+        // Update progress
+        const progress = ((index + 1) / subdomainList.length) * 100;
+        progressBar.style.width = progress + '%';
+        progressText.textContent = `Processing ${index + 1}/${subdomainList.length}: ${subdomain}`;
+        
+        // Make API call
+        fetch('/api/change-subdomain-status', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                subdomain: subdomain,
+                status: status
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            processedCount++;
+            if (data.success) {
+                successCount++;
+            } else {
+                errorCount++;
+                errors.push(`${subdomain}: ${data.error}`);
+            }
+            
+            // Process next
+            setTimeout(() => processNext(index + 1), 100);
+        })
+        .catch(error => {
+            processedCount++;
+            errorCount++;
+            errors.push(`${subdomain}: Network error - ${error}`);
+            
+            // Process next
+            setTimeout(() => processNext(index + 1), 100);
+        });
+    };
+    
+    // Start processing
+    processNext(0);
+}
+
+function clearSubdomainStatusInput() {
+    document.getElementById('subdomain-status-input').value = '';
+    document.getElementById('subdomain-status-progress').style.display = 'none';
+    document.getElementById('subdomain-status-results').style.display = 'none';
 }
 
 function displayDomainUsageStats(stats) {
