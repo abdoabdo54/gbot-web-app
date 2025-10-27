@@ -6200,10 +6200,22 @@ def mega_upgrade():
                                             })
                                             
                                         except Exception as e:
-                                            # Fallback to traditional method if UPSERT fails
+                                            # Rollback any failed transaction before trying fallback
+                                            db.session.rollback()
                                             app.logger.warning(f"UPSERT failed for {next_domain}, using fallback method: {e}")
+                                            
                                             try:
-                                                db.session.add(UsedDomain(domain_name=next_domain, user_count=successful_user_changes, is_verified=True, ever_used=True))
+                                                # Try to fetch existing record first
+                                                existing_domain = UsedDomain.query.filter_by(domain_name=next_domain).first()
+                                                
+                                                if existing_domain:
+                                                    # Update existing record
+                                                    existing_domain.user_count += successful_user_changes
+                                                    existing_domain.ever_used = True
+                                                else:
+                                                    # Create new record
+                                                    db.session.add(UsedDomain(domain_name=next_domain, user_count=successful_user_changes, is_verified=True, ever_used=True))
+                                                    
                                             except Exception as e2:
                                                 # Handle duplicate key violation - another process might have created it
                                                 if 'duplicate key' in str(e2).lower() or 'unique constraint' in str(e2).lower():
@@ -6217,6 +6229,7 @@ def mega_upgrade():
                                                         app.logger.error(f"Failed to find or create domain record for {next_domain}")
                                                         # Skip this domain and continue processing
                                                 else:
+                                                    db.session.rollback()
                                                     raise e2
                                     db.session.commit()
                                     
@@ -10031,17 +10044,25 @@ def api_change_subdomain_status():
                     return jsonify({'success': False, 'error': f'Failed to create or find domain record for {subdomain}'})
                     
             except Exception as e:
-                # Fallback to traditional method if UPSERT fails
+                # Rollback any failed transaction before trying fallback
+                db.session.rollback()
                 app.logger.warning(f"UPSERT failed for {subdomain}, using fallback method: {e}")
+                
                 try:
-                    domain_record = UsedDomain(
-                        domain_name=subdomain,
-                        user_count=0,
-                        is_verified=True,
-                        ever_used=False
-                    )
-                    db.session.add(domain_record)
-                    db.session.flush()
+                    # Try to fetch existing record first
+                    domain_record = UsedDomain.query.filter_by(domain_name=subdomain).first()
+                    
+                    if not domain_record:
+                        # Create new record if it doesn't exist
+                        domain_record = UsedDomain(
+                            domain_name=subdomain,
+                            user_count=0,
+                            is_verified=True,
+                            ever_used=False
+                        )
+                        db.session.add(domain_record)
+                        db.session.flush()
+                        
                 except Exception as e2:
                     # Handle duplicate key violation - another process might have created it
                     if 'duplicate key' in str(e2).lower() or 'unique constraint' in str(e2).lower():
@@ -10051,6 +10072,7 @@ def api_change_subdomain_status():
                         if not domain_record:
                             return jsonify({'success': False, 'error': f'Failed to create domain record for {subdomain}'})
                     else:
+                        db.session.rollback()
                         raise e2
         
         # Determine current status
