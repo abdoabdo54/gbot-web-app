@@ -6679,7 +6679,7 @@ function copyRetrievedSubdomains() {
     // Collect all subdomain names
     const subdomains = [];
     domainItems.forEach(item => {
-        const domainNameElement = item.querySelector('strong');
+        const domainNameElement = item.querySelector('span');
         if (domainNameElement) {
             subdomains.push(domainNameElement.textContent.trim());
         }
