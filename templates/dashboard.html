@@ -8118,6 +8118,10 @@ function executeAutomationProcess() {
     })
     .then(response => response.json())
     .then(data => {
+        console.log('Automation process response:', data);
+        console.log('Response success:', data.success);
+        console.log('Response data type:', typeof data);
+        
         if (data.success) {
             document.getElementById('automation-progress-bar').style.width = '100%';
             document.getElementById('automation-progress-text').textContent = 'Automation completed!';
@@ -8162,8 +8166,18 @@ function executeAutomationProcess() {
 
 // Show automation results
 function showAutomationResults(data) {
+    console.log('showAutomationResults called with data:', data);
+    console.log('Data keys:', Object.keys(data));
+    console.log('Users count:', data.users_retrieved);
+    console.log('All users length:', data.all_users ? data.all_users.length : 'undefined');
+    
     const resultsDiv = document.getElementById('automation-results');
     const contentDiv = document.getElementById('automation-results-content');
+    
+    if (!resultsDiv || !contentDiv) {
+        console.error('Results div elements not found!');
+        return;
+    }
     
     let html = `
         <div style="margin-bottom: 16px;">
@@ -8217,12 +8231,21 @@ function fetchAndDisplayAutomationUsers() {
 
 // Display users in the automation users list
 function displayAutomationUsers(users) {
+    console.log('displayAutomationUsers called with:', users);
+    console.log('Users type:', typeof users);
+    console.log('Users length:', users ? users.length : 'undefined');
+    
     const usersListDiv = document.getElementById('automation-users-list');
     const usersTextArea = document.getElementById('automation-users-text');
     const usersDisplayDiv = document.getElementById('automation-users-display');
     const usersTextDisplayDiv = document.getElementById('automation-users-text-display');
     
     console.log('Displaying users:', users);
+    
+    if (!usersListDiv || !usersTextArea || !usersDisplayDiv || !usersTextDisplayDiv) {
+        console.error('Required DOM elements not found!');
+        return;
+    }
     
     if (!users || users.length === 0) {
         usersListDiv.innerHTML = '<div class="no-users-message"><i class="fas fa-info-circle"></i><p>No users found</p></div>';
