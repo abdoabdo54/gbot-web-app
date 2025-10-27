@@ -9300,11 +9300,19 @@ def api_change_subdomain_status():
         # Use the existing UsedDomain table structure
         from database import UsedDomain
         
-        # Check if subdomain exists
+        # Check if subdomain exists, create if it doesn't
         domain_record = UsedDomain.query.filter_by(domain_name=subdomain).first()
         
         if not domain_record:
-            return jsonify({'success': False, 'error': f'Subdomain "{subdomain}" not found'})
+            # Create new domain record
+            domain_record = UsedDomain(
+                domain_name=subdomain,
+                user_count=0,
+                is_verified=True,  # Assume verified since it's being managed
+                ever_used=False
+            )
+            db.session.add(domain_record)
+            db.session.flush()  # Get the ID without committing yet
         
         # Determine current status
         current_status = 'available'
