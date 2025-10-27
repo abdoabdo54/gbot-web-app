@@ -10023,7 +10023,6 @@ def api_change_subdomain_status():
                     INSERT INTO used_domain (domain_name, user_count, is_verified, ever_used, created_at, updated_at)
                     VALUES (:domain_name, :user_count, :is_verified, :ever_used, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     ON CONFLICT (domain_name) DO NOTHING
-                    RETURNING id
                 """)
                 
                 result = db.session.execute(insert_sql, {
@@ -10048,32 +10047,42 @@ def api_change_subdomain_status():
                 db.session.rollback()
                 app.logger.warning(f"UPSERT failed for {subdomain}, using fallback method: {e}")
                 
-                try:
+                # Check if this is a domain name conflict or primary key conflict
+                if 'duplicate key' in str(e).lower() or 'unique constraint' in str(e).lower():
                     # Try to fetch existing record first
                     domain_record = UsedDomain.query.filter_by(domain_name=subdomain).first()
-                    
-                    if not domain_record:
-                        # Create new record if it doesn't exist
-                        domain_record = UsedDomain(
-                            domain_name=subdomain,
-                            user_count=0,
-                            is_verified=True,
-                            ever_used=False
-                        )
-                        db.session.add(domain_record)
-                        db.session.flush()
-                        
-                except Exception as e2:
-                    # Handle duplicate key violation - another process might have created it
-                    if 'duplicate key' in str(e2).lower() or 'unique constraint' in str(e2).lower():
-                        db.session.rollback()
-                        # Try to fetch the record again
-                        domain_record = UsedDomain.query.filter_by(domain_name=subdomain).first()
-                        if not domain_record:
-                            return jsonify({'success': False, 'error': f'Failed to create domain record for {subdomain}'})
+                    if domain_record:
+                        app.logger.info(f"Found existing domain record for {subdomain}")
                     else:
-                        db.session.rollback()
-                        raise e2
+                        app.logger.error(f"Domain conflict but no existing record found for {subdomain}")
+                        return jsonify({'success': False, 'error': f'Domain conflict detected for {subdomain}'})
+                else:
+                    # For other errors, try to create the record
+                    try:
+                        domain_record = UsedDomain.query.filter_by(domain_name=subdomain).first()
+                        
+                        if not domain_record:
+                            # Create new record if it doesn't exist
+                            domain_record = UsedDomain(
+                                domain_name=subdomain,
+                                user_count=0,
+                                is_verified=True,
+                                ever_used=False
+                            )
+                            db.session.add(domain_record)
+                            db.session.flush()
+                            
+                    except Exception as e2:
+                        # Handle duplicate key violation - another process might have created it
+                        if 'duplicate key' in str(e2).lower() or 'unique constraint' in str(e2).lower():
+                            db.session.rollback()
+                            # Try to fetch the record again
+                            domain_record = UsedDomain.query.filter_by(domain_name=subdomain).first()
+                            if not domain_record:
+                                return jsonify({'success': False, 'error': f'Failed to create domain record for {subdomain}'})
+                        else:
+                            db.session.rollback()
+                            raise e2
         
         # Determine current status
         current_status = 'available'
