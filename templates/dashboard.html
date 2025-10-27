@@ -8128,7 +8128,26 @@ function executeAutomationProcess() {
         // Add timeout handling
         signal: AbortSignal.timeout(25 * 60 * 1000) // 25 minutes timeout
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        console.log('Response ok:', response.ok);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.text().then(text => {
+            console.log('Raw response text:', text.substring(0, 200) + '...');
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('JSON parse error:', e);
+                console.error('Response was not JSON:', text);
+                throw new Error(`Response is not valid JSON: ${text.substring(0, 100)}...`);
+            }
+        });
+    })
     .then(data => {
         clearInterval(heartbeatInterval); // Clear the heartbeat
         console.log('Automation process response:', data);

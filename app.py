@@ -9086,14 +9086,22 @@ def api_execute_automation_process():
         
         app.logger.info(f"✅ Automation process completed: {authenticated_count}/{len(accounts)} authenticated, {users_retrieved} users retrieved")
         
-        return jsonify({
+        # Check session validity before returning response
+        if 'user_id' not in session:
+            app.logger.error("Session expired during automation process")
+            return jsonify({'success': False, 'error': 'Session expired. Please log in again.'})
+        
+        response_data = {
             'success': True,
             'processed_count': len(accounts),
             'authenticated_count': authenticated_count,
             'users_retrieved': users_retrieved,
             'all_users': all_users,  # Combined users from all accounts
             'results': results
-        })
+        }
+        
+        app.logger.info(f"📤 Sending response with {len(all_users)} users")
+        return jsonify(response_data)
         
     except TimeoutError as e:
         signal.alarm(0)  # Cancel timeout
