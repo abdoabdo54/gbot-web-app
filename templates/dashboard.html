@@ -8093,7 +8093,7 @@ function executeAutomationProcess() {
     // Show progress
     document.getElementById('automation-progress').style.display = 'block';
     document.getElementById('automation-progress-bar').style.width = '0%';
-    document.getElementById('automation-progress-text').textContent = 'Starting automation process...';
+    document.getElementById('automation-progress-text').textContent = `Starting automation process for ${accounts.length} accounts...`;
     
     // Show users display areas immediately
     document.getElementById('automation-users-display').style.display = 'block';
@@ -8129,8 +8129,28 @@ function executeAutomationProcess() {
                 document.getElementById('automation-progress').style.display = 'none';
             }, 3000);
         } else {
-            alert('Error in automation process: ' + data.error);
-            document.getElementById('automation-progress').style.display = 'none';
+            // Handle timeout and partial results
+            if (data.partial_results) {
+                document.getElementById('automation-progress-bar').style.width = '100%';
+                document.getElementById('automation-progress-text').textContent = 'Process timed out - showing partial results';
+                
+                // Show partial results
+                showAutomationResults({
+                    success: true,
+                    processed_count: data.partial_results.processed_count,
+                    authenticated_count: data.partial_results.authenticated_count,
+                    users_retrieved: data.partial_results.users_retrieved,
+                    all_users: data.partial_results.results.reduce((acc, r) => acc.concat(r.users || []), []),
+                    results: data.partial_results.results
+                });
+                
+                setTimeout(() => {
+                    document.getElementById('automation-progress').style.display = 'none';
+                }, 5000);
+            } else {
+                alert('Error in automation process: ' + data.error);
+                document.getElementById('automation-progress').style.display = 'none';
+            }
         }
     })
     .catch(error => {

@@ -8822,21 +8822,41 @@ def api_detect_user_types():
 @login_required
 def api_execute_automation_process():
     """Execute the complete automation process: authenticate + retrieve users from multiple accounts"""
+    # Add timeout protection for large batches
+    import signal
+    
+    def timeout_handler(signum, frame):
+        raise TimeoutError("Automation process timeout")
+    
+    # Set timeout to 20 minutes for large batches
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(1200)  # 20 minutes timeout
+    
     try:
         data = request.get_json()
         accounts = data.get('accounts', [])
         
         if not accounts:
+            signal.alarm(0)  # Cancel timeout
             return jsonify({'success': False, 'error': 'No accounts provided'})
+        
+        # Add account limit check with warning
+        if len(accounts) > 50:
+            signal.alarm(0)  # Cancel timeout
+            return jsonify({'success': False, 'error': f'Too many accounts ({len(accounts)}). Maximum 50 accounts allowed per batch for performance.'})
+        
+        app.logger.info(f"🚀 Starting automation process for {len(accounts)} accounts with 20-minute timeout")
         
         results = []
         authenticated_count = 0
         all_users = []  # Store all users from all accounts
         users_retrieved = 0
         
-        # Process each account
-        for account_email in accounts:
+        # Process each account with progress tracking
+        for index, account_email in enumerate(accounts, 1):
             try:
+                app.logger.info(f"📧 Processing account {index}/{len(accounts)}: {account_email}")
+                
                 result = {
                     'account': account_email,
                     'success': False,
@@ -9032,6 +9052,11 @@ def api_execute_automation_process():
                 
                 results.append(result)
                 
+                # Add small delay between accounts to avoid API rate limiting
+                if index < len(accounts):  # Don't delay after the last account
+                    import time
+                    time.sleep(1)  # 1 second delay between accounts
+                
             except Exception as e:
                 results.append({
                     'account': account_email,
@@ -9040,6 +9065,11 @@ def api_execute_automation_process():
                     'users_count': 0,
                     'users': []
                 })
+        
+        # Cancel timeout on successful completion
+        signal.alarm(0)
+        
+        app.logger.info(f"✅ Automation process completed: {authenticated_count}/{len(accounts)} authenticated, {users_retrieved} users retrieved")
         
         return jsonify({
             'success': True,
@@ -9050,7 +9080,22 @@ def api_execute_automation_process():
             'results': results
         })
         
+    except TimeoutError as e:
+        signal.alarm(0)  # Cancel timeout
+        app.logger.error(f"Automation process timeout after 20 minutes: {e}")
+        return jsonify({
+            'success': False, 
+            'error': f'Process timed out after 20 minutes. Partial results: {authenticated_count} authenticated, {users_retrieved} users retrieved',
+            'partial_results': {
+                'authenticated_count': authenticated_count,
+                'users_retrieved': users_retrieved,
+                'processed_count': len(results),
+                'results': results
+            }
+        })
+        
     except Exception as e:
+        signal.alarm(0)  # Cancel timeout
         app.logger.error(f"Error executing automation process: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
