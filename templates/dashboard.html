@@ -6661,7 +6661,10 @@ function refreshDomainStatus() {
 }
 
 function copyRetrievedSubdomains() {
+    console.log('copyRetrievedSubdomains called');
     const domainDisplay = document.getElementById('domain-info-display');
+    
+    console.log('domainDisplay element:', domainDisplay);
     
     if (!domainDisplay) {
         alert('❌ No domain information found. Please retrieve domains first.');
@@ -6670,6 +6673,7 @@ function copyRetrievedSubdomains() {
     
     // Extract subdomains from the domain display
     const domainItems = domainDisplay.querySelectorAll('.domain-item');
+    console.log('Found domain items:', domainItems.length);
     
     if (domainItems.length === 0) {
         alert('❌ No domains found to copy. Please retrieve domains first.');
@@ -6678,12 +6682,17 @@ function copyRetrievedSubdomains() {
     
     // Collect all subdomain names
     const subdomains = [];
-    domainItems.forEach(item => {
+    domainItems.forEach((item, index) => {
         const domainNameElement = item.querySelector('span');
+        console.log(`Domain item ${index}:`, item, 'span element:', domainNameElement);
         if (domainNameElement) {
-            subdomains.push(domainNameElement.textContent.trim());
+            const domainName = domainNameElement.textContent.trim();
+            console.log(`Found domain: ${domainName}`);
+            subdomains.push(domainName);
         }
     });
+    
+    console.log('Collected subdomains:', subdomains);
     
     if (subdomains.length === 0) {
         alert('❌ No subdomains found to copy.');
@@ -7043,6 +7052,8 @@ function updateMegaProgress(percentage, message, accountInfo = null) {
     const progressPercent = document.getElementById('megaProgressPercent');
     const progressText = document.getElementById('megaProgressText');
     
+    console.log('updateMegaProgress called:', { percentage, message, accountInfo });
+    
     if (progressBar && progressPercent && progressText) {
         progressBar.style.width = percentage + '%';
         progressPercent.textContent = percentage + '%';
@@ -7063,9 +7074,13 @@ function updateMegaProgress(percentage, message, accountInfo = null) {
                     ${message}
                 </div>
             `;
+            console.log('Updated progress with account info:', accountInfo);
         } else {
             progressText.textContent = message;
+            console.log('Updated progress with simple message:', message);
         }
+    } else {
+        console.error('Progress elements not found:', { progressBar, progressPercent, progressText });
     }
 }
 
@@ -9001,3 +9016,15 @@ function clearAutomationList() {
     transform: rotate(45deg);
 }
 </style>
+
+<script>
+// Cache buster and debugging
+console.log('Dashboard loaded - Version 20241027');
+console.log('updateMegaProgress function:', typeof updateMegaProgress);
+console.log('copyRetrievedSubdomains function:', typeof copyRetrievedSubdomains);
+
+// Force reload if needed
+if (typeof updateMegaProgress === 'undefined') {
+    console.error('updateMegaProgress function not found - possible caching issue');
+}
+</script>
