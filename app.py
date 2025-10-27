@@ -8870,214 +8870,216 @@ def api_start_automation_process():
 
 def execute_automation_background(task_id, accounts):
     """Execute automation process in background thread"""
-    try:
-        app.logger.info(f"🔄 Starting background automation task {task_id}")
-        
-        # Update task status in global dictionary
-        automation_tasks[task_id]['status'] = 'running'
-        
-        results = []
-        authenticated_count = 0
-        all_users = []
-        users_retrieved = 0
-        
-        # Process each account
-        for index, account_email in enumerate(accounts, 1):
-            try:
-                app.logger.info(f"📧 Processing account {index}/{len(accounts)}: {account_email}")
-                
-                # Update progress
-                progress = int((index - 1) / len(accounts) * 100)
-                automation_tasks[task_id]['progress'] = progress
-                
-                result = {
-                    'account': account_email,
-                    'success': False,
-                    'message': '',
-                    'users_count': 0,
-                    'users': []
-                }
-                
-                # Find the GoogleAccount by email/account name (case-insensitive)
-                google_account = GoogleAccount.query.filter(
-                    db.func.lower(GoogleAccount.account_name) == account_email.lower()
-                ).first()
-                
-                if not google_account:
-                    # Try exact match as fallback
-                    google_account = GoogleAccount.query.filter_by(account_name=account_email).first()
-                
-                # If still not found, try partial domain matching
-                if not google_account:
-                    app.logger.info(f"Trying partial domain matching for {account_email}")
-                    # Extract domain from account email
-                    if '@' in account_email:
-                        domain_part = account_email.split('@')[1].lower()
-                        # Try to find accounts with similar domains
-                        similar_accounts = GoogleAccount.query.filter(
-                            db.func.lower(GoogleAccount.account_name).like(f'%@{domain_part}')
-                        ).all()
-                        app.logger.info(f"Found {len(similar_accounts)} accounts with similar domain: {[acc.account_name for acc in similar_accounts]}")
-                        
-                        # Try to find the closest match
-                        for acc in similar_accounts:
-                            if acc.account_name.lower() == account_email.lower():
-                                google_account = acc
-                                break
-                        
-                        if not google_account and similar_accounts:
-                            google_account = similar_accounts[0]  # Use first match
-                
-                if not google_account:
-                    result['message'] = 'Account not found in database'
-                    results.append(result)
-                    continue
-                
-                app.logger.info(f"Found account in database: {google_account.account_name} (input was: {account_email})")
-                
-                # Try to authenticate the account using existing tokens
-                auth_success = False
+    # Create Flask application context for background thread
+    with app.app_context():
+        try:
+            app.logger.info(f"🔄 Starting background automation task {task_id}")
+            
+            # Update task status in global dictionary
+            automation_tasks[task_id]['status'] = 'running'
+            
+            results = []
+            authenticated_count = 0
+            all_users = []
+            users_retrieved = 0
+            
+            # Process each account
+            for index, account_email in enumerate(accounts, 1):
                 try:
-                    # Use the database account name for authentication
-                    db_account_name = google_account.account_name
-                    app.logger.info(f"Authenticating with database account name: {db_account_name}")
+                    app.logger.info(f"📧 Processing account {index}/{len(accounts)}: {account_email}")
                     
-                    if google_api.is_token_valid(db_account_name):
-                        auth_success = google_api.authenticate_with_tokens(db_account_name)
-                        if auth_success:
-                            # Note: Cannot set session in background thread, but authentication works
-                            app.logger.info(f"Successfully authenticated with {db_account_name}")
-                    else:
-                        app.logger.warning(f"No valid tokens found for {db_account_name}")
-                except Exception as e:
-                    app.logger.warning(f"Token authentication failed for {account_email}: {e}")
-                
-                if auth_success:
-                    authenticated_count += 1
-                    result['success'] = True
-                    result['message'] = 'Successfully authenticated'
+                    # Update progress
+                    progress = int((index - 1) / len(accounts) * 100)
+                    automation_tasks[task_id]['progress'] = progress
                     
-                    # Try to retrieve users for this account
-                    try:
-                        app.logger.info(f"🔍 Retrieving users for account: {db_account_name}")
-                        # Use the existing retrieve users functionality
-                        users_data = google_api.get_users()
-                        app.logger.info(f"📊 Users data received: {type(users_data)}")
-                        if users_data and 'users' in users_data:
-                            account_users = users_data['users']
-                            result['users_count'] = len(account_users)
-                            result['users'] = account_users
+                    result = {
+                        'account': account_email,
+                        'success': False,
+                        'message': '',
+                        'users_count': 0,
+                        'users': []
+                    }
+                    
+                    # Find the GoogleAccount by email/account name (case-insensitive)
+                    google_account = GoogleAccount.query.filter(
+                        db.func.lower(GoogleAccount.account_name) == account_email.lower()
+                    ).first()
+                    
+                    if not google_account:
+                        # Try exact match as fallback
+                        google_account = GoogleAccount.query.filter_by(account_name=account_email).first()
+                    
+                    # If still not found, try partial domain matching
+                    if not google_account:
+                        app.logger.info(f"Trying partial domain matching for {account_email}")
+                        # Extract domain from account email
+                        if '@' in account_email:
+                            domain_part = account_email.split('@')[1].lower()
+                            # Try to find accounts with similar domains
+                            similar_accounts = GoogleAccount.query.filter(
+                                db.func.lower(GoogleAccount.account_name).like(f'%@{domain_part}')
+                            ).all()
+                            app.logger.info(f"Found {len(similar_accounts)} accounts with similar domain: {[acc.account_name for acc in similar_accounts]}")
                             
-                            # Add account info and app password to each user
-                            for user in account_users:
-                                user['source_account'] = account_email
+                            # Try to find the closest match
+                            for acc in similar_accounts:
+                                if acc.account_name.lower() == account_email.lower():
+                                    google_account = acc
+                                    break
+                            
+                            if not google_account and similar_accounts:
+                                google_account = similar_accounts[0]  # Use first match
+                    
+                    if not google_account:
+                        result['message'] = 'Account not found in database'
+                        results.append(result)
+                        continue
+                    
+                    app.logger.info(f"Found account in database: {google_account.account_name} (input was: {account_email})")
+                    
+                    # Try to authenticate the account using existing tokens
+                    auth_success = False
+                    try:
+                        # Use the database account name for authentication
+                        db_account_name = google_account.account_name
+                        app.logger.info(f"Authenticating with database account name: {db_account_name}")
+                        
+                        if google_api.is_token_valid(db_account_name):
+                            auth_success = google_api.authenticate_with_tokens(db_account_name)
+                            if auth_success:
+                                # Note: Cannot set session in background thread, but authentication works
+                                app.logger.info(f"Successfully authenticated with {db_account_name}")
+                        else:
+                            app.logger.warning(f"No valid tokens found for {db_account_name}")
+                    except Exception as e:
+                        app.logger.warning(f"Token authentication failed for {account_email}: {e}")
+                    
+                    if auth_success:
+                        authenticated_count += 1
+                        result['success'] = True
+                        result['message'] = 'Successfully authenticated'
+                        
+                        # Try to retrieve users for this account
+                        try:
+                            app.logger.info(f"🔍 Retrieving users for account: {db_account_name}")
+                            # Use the existing retrieve users functionality
+                            users_data = google_api.get_users()
+                            app.logger.info(f"📊 Users data received: {type(users_data)}")
+                            if users_data and 'users' in users_data:
+                                account_users = users_data['users']
+                                result['users_count'] = len(account_users)
+                                result['users'] = account_users
                                 
-                                # Try to find matching app password
-                                user_email = user.get('email', '') or user.get('primaryEmail', '')
-                                
-                                # Skip admin/authentication accounts - only process actual users
-                                if user_email and '@' in user_email and user_email.lower() != account_email.lower():
-                                    try:
-                                        username, domain = user_email.split('@', 1)
-                                        
-                                        # Normalize username & domain for matching
-                                        username = (username or '').strip().lower()
-                                        domain = (domain or '').strip().lower()
-                                        user_email_lower = user_email.lower()
+                                # Add account info and app password to each user
+                                for user in account_users:
+                                    user['source_account'] = account_email
+                                    
+                                    # Try to find matching app password
+                                    user_email = user.get('email', '') or user.get('primaryEmail', '')
+                                    
+                                    # Skip admin/authentication accounts - only process actual users
+                                    if user_email and '@' in user_email and user_email.lower() != account_email.lower():
+                                        try:
+                                            username, domain = user_email.split('@', 1)
+                                            
+                                            # Normalize username & domain for matching
+                                            username = (username or '').strip().lower()
+                                            domain = (domain or '').strip().lower()
+                                            user_email_lower = user_email.lower()
 
-                                        app.logger.info(f"Searching app password for: {user_email} (username: {username}, domain: {domain})")
+                                            app.logger.info(f"Searching app password for: {user_email} (username: {username}, domain: {domain})")
 
-                                        # Strategy 1: Exact match (username + domain)
-                                        app_password_record = UserAppPassword.query.filter_by(
-                                            username=username, 
-                                            domain=domain
-                                        ).first()
-                                        
-                                        if app_password_record:
-                                            app.logger.info(f"Found exact match for {user_email}")
-                                        else:
-                                            # Strategy 2: Case-insensitive exact match
-                                            app_password_record = UserAppPassword.query.filter(
-                                                db.func.lower(UserAppPassword.username) == username,
-                                                db.func.lower(UserAppPassword.domain) == domain
+                                            # Strategy 1: Exact match (username + domain)
+                                            app_password_record = UserAppPassword.query.filter_by(
+                                                username=username, 
+                                                domain=domain
                                             ).first()
                                             
                                             if app_password_record:
-                                                app.logger.info(f"Found case-insensitive match for {user_email}")
+                                                app.logger.info(f"Found exact match for {user_email}")
                                             else:
-                                                # Strategy 3: Username-only match (any domain)
+                                                # Strategy 2: Case-insensitive exact match
                                                 app_password_record = UserAppPassword.query.filter(
-                                                    db.func.lower(UserAppPassword.username) == username
+                                                    db.func.lower(UserAppPassword.username) == username,
+                                                    db.func.lower(UserAppPassword.domain) == domain
                                                 ).first()
                                                 
                                                 if app_password_record:
-                                                    app.logger.info(f"Found username-only match for {user_email}")
-                                        
-                                        if app_password_record:
-                                            user['app_password'] = app_password_record.app_password
-                                            user['app_password_domain'] = app_password_record.domain
-                                            app.logger.info(f"✅ Found app password for {user_email} -> {app_password_record.username}@{app_password_record.domain}")
-                                        else:
-                                            app.logger.info(f"❌ No app password found for {user_email} after trying all strategies")
+                                                    app.logger.info(f"Found case-insensitive match for {user_email}")
+                                                else:
+                                                    # Strategy 3: Username-only match (any domain)
+                                                    app_password_record = UserAppPassword.query.filter(
+                                                        db.func.lower(UserAppPassword.username) == username
+                                                    ).first()
+                                                    
+                                                    if app_password_record:
+                                                        app.logger.info(f"Found username-only match for {user_email}")
+                                            
+                                            if app_password_record:
+                                                user['app_password'] = app_password_record.app_password
+                                                user['app_password_domain'] = app_password_record.domain
+                                                app.logger.info(f"✅ Found app password for {user_email} -> {app_password_record.username}@{app_password_record.domain}")
+                                            else:
+                                                app.logger.info(f"❌ No app password found for {user_email} after trying all strategies")
+                                                user['app_password'] = None
+                                        except Exception as e:
+                                            app.logger.warning(f"Error processing app password for {user_email}: {e}")
                                             user['app_password'] = None
-                                    except Exception as e:
-                                        app.logger.warning(f"Error processing app password for {user_email}: {e}")
+                                    else:
+                                        # Skip admin/authentication accounts - no app password needed
                                         user['app_password'] = None
-                                else:
-                                    # Skip admin/authentication accounts - no app password needed
-                                    user['app_password'] = None
-                                    if user_email and user_email.lower() == account_email.lower():
-                                        app.logger.info(f"Skipped admin account {user_email} - no app password needed")
-                            
-                            all_users.extend(account_users)
-                            users_retrieved += result['users_count']
-                            result['message'] += f' and retrieved {result["users_count"]} users'
-                        else:
-                            result['message'] += ' but no users found'
-                    except Exception as e:
-                        result['message'] += f' but failed to retrieve users: {str(e)}'
-                else:
-                    result['message'] = 'Failed to authenticate - may need OAuth authorization'
-                
-                results.append(result)
-                
-                # Add small delay between accounts to avoid API rate limiting
-                if index < len(accounts):  # Don't delay after the last account
-                    import time
-                    time.sleep(1)  # 1 second delay between accounts
-                
-            except Exception as e:
-                app.logger.error(f"❌ Error processing account {account_email}: {e}")
-                import traceback
-                error_details = traceback.format_exc()
-                app.logger.error(f"Account processing traceback: {error_details}")
-                results.append({
-                    'account': account_email,
-                    'success': False,
-                    'message': f'Error processing account: {str(e)}',
-                    'users_count': 0,
-                    'users': []
-                })
-        
-        # Mark task as completed
-        automation_tasks[task_id]['status'] = 'completed'
-        automation_tasks[task_id]['progress'] = 100
-        automation_tasks[task_id]['results'] = results
-        automation_tasks[task_id]['authenticated_count'] = authenticated_count
-        automation_tasks[task_id]['users_retrieved'] = users_retrieved
-        automation_tasks[task_id]['all_users'] = all_users
-        
-        app.logger.info(f"✅ Background automation task {task_id} completed: {authenticated_count}/{len(accounts)} authenticated, {users_retrieved} users retrieved")
-        
-    except Exception as e:
-        app.logger.error(f"❌ Background automation task {task_id} failed: {e}")
-        import traceback
-        error_details = traceback.format_exc()
-        app.logger.error(f"Background task traceback: {error_details}")
-        
-        # Mark task as failed
-        automation_tasks[task_id]['status'] = 'failed'
-        automation_tasks[task_id]['error'] = str(e)
+                                        if user_email and user_email.lower() == account_email.lower():
+                                            app.logger.info(f"Skipped admin account {user_email} - no app password needed")
+                                
+                                all_users.extend(account_users)
+                                users_retrieved += result['users_count']
+                                result['message'] += f' and retrieved {result["users_count"]} users'
+                            else:
+                                result['message'] += ' but no users found'
+                        except Exception as e:
+                            result['message'] += f' but failed to retrieve users: {str(e)}'
+                    else:
+                        result['message'] = 'Failed to authenticate - may need OAuth authorization'
+                    
+                    results.append(result)
+                    
+                    # Add small delay between accounts to avoid API rate limiting
+                    if index < len(accounts):  # Don't delay after the last account
+                        import time
+                        time.sleep(1)  # 1 second delay between accounts
+                    
+                except Exception as e:
+                    app.logger.error(f"❌ Error processing account {account_email}: {e}")
+                    import traceback
+                    error_details = traceback.format_exc()
+                    app.logger.error(f"Account processing traceback: {error_details}")
+                    results.append({
+                        'account': account_email,
+                        'success': False,
+                        'message': f'Error processing account: {str(e)}',
+                        'users_count': 0,
+                        'users': []
+                    })
+            
+            # Mark task as completed
+            automation_tasks[task_id]['status'] = 'completed'
+            automation_tasks[task_id]['progress'] = 100
+            automation_tasks[task_id]['results'] = results
+            automation_tasks[task_id]['authenticated_count'] = authenticated_count
+            automation_tasks[task_id]['users_retrieved'] = users_retrieved
+            automation_tasks[task_id]['all_users'] = all_users
+            
+            app.logger.info(f"✅ Background automation task {task_id} completed: {authenticated_count}/{len(accounts)} authenticated, {users_retrieved} users retrieved")
+            
+        except Exception as e:
+            app.logger.error(f"❌ Background automation task {task_id} failed: {e}")
+            import traceback
+            error_details = traceback.format_exc()
+            app.logger.error(f"Background task traceback: {error_details}")
+            
+            # Mark task as failed
+            automation_tasks[task_id]['status'] = 'failed'
+            automation_tasks[task_id]['error'] = str(e)
 
 @app.route('/api/check-automation-status', methods=['POST'])
 @login_required
