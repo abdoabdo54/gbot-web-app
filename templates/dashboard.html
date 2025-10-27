@@ -8095,16 +8095,6 @@ function executeAutomationProcess() {
     document.getElementById('automation-progress-bar').style.width = '0%';
     document.getElementById('automation-progress-text').textContent = `Starting automation process for ${accounts.length} accounts...`;
     
-    // Add a heartbeat to show the request is still active
-    let heartbeatInterval = setInterval(() => {
-        const progressText = document.getElementById('automation-progress-text');
-        if (progressText.textContent.includes('...')) {
-            progressText.textContent = progressText.textContent.replace('...', '');
-        } else {
-            progressText.textContent += '.';
-        }
-    }, 2000);
-    
     // Show users display areas immediately
     document.getElementById('automation-users-display').style.display = 'block';
     document.getElementById('automation-users-text-display').style.display = 'block';
@@ -8116,94 +8106,83 @@ function executeAutomationProcess() {
     // Load app passwords status
     loadAppPasswordsStatus();
     
-    // Execute automation process
-    fetch('/api/execute-automation-process', {
+    // Start automation process in background
+    fetch('/api/start-automation-process', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
             accounts: accounts
-        }),
-        // Add timeout handling
-        signal: AbortSignal.timeout(25 * 60 * 1000) // 25 minutes timeout
+        })
     })
-    .then(response => {
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
-        console.log('Response ok:', response.ok);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        return response.text().then(text => {
-            console.log('Raw response text:', text.substring(0, 200) + '...');
-            try {
-                return JSON.parse(text);
-            } catch (e) {
-                console.error('JSON parse error:', e);
-                console.error('Response was not JSON:', text);
-                throw new Error(`Response is not valid JSON: ${text.substring(0, 100)}...`);
-            }
-        });
-    })
+    .then(response => response.json())
     .then(data => {
-        clearInterval(heartbeatInterval); // Clear the heartbeat
-        console.log('Automation process response:', data);
-        console.log('Response success:', data.success);
-        console.log('Response data type:', typeof data);
-        
         if (data.success) {
-            document.getElementById('automation-progress-bar').style.width = '100%';
-            document.getElementById('automation-progress-text').textContent = 'Automation completed!';
-            
-            // Show results
-            showAutomationResults(data);
-            
-            setTimeout(() => {
-                document.getElementById('automation-progress').style.display = 'none';
-            }, 3000);
+            console.log('Automation process started with task ID:', data.task_id);
+            // Start polling for status
+            pollAutomationStatus(data.task_id);
         } else {
-            // Handle timeout and partial results
-            if (data.partial_results) {
-                document.getElementById('automation-progress-bar').style.width = '100%';
-                document.getElementById('automation-progress-text').textContent = 'Process timed out - showing partial results';
-                
-                // Show partial results
-                showAutomationResults({
-                    success: true,
-                    processed_count: data.partial_results.processed_count,
-                    authenticated_count: data.partial_results.authenticated_count,
-                    users_retrieved: data.partial_results.users_retrieved,
-                    all_users: data.partial_results.results.reduce((acc, r) => acc.concat(r.users || []), []),
-                    results: data.partial_results.results
-                });
-                
-                setTimeout(() => {
-                    document.getElementById('automation-progress').style.display = 'none';
-                }, 5000);
-            } else {
-                alert('Error in automation process: ' + data.error);
-                document.getElementById('automation-progress').style.display = 'none';
-            }
+            alert('Error starting automation process: ' + data.error);
+            document.getElementById('automation-progress').style.display = 'none';
         }
     })
     .catch(error => {
-        clearInterval(heartbeatInterval); // Clear the heartbeat
-        console.error('Error executing automation process:', error);
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        
-        if (error.name === 'TimeoutError') {
-            alert('Automation process timed out after 25 minutes. The process may still be running on the server.');
-        } else if (error.name === 'AbortError') {
-            alert('Automation process was aborted. Please try again.');
-        } else {
-            alert('Error executing automation process: ' + error.message);
-        }
+        console.error('Error starting automation process:', error);
+        alert('Error starting automation process: ' + error.message);
         document.getElementById('automation-progress').style.display = 'none';
     });
+}
+
+// Poll automation status
+function pollAutomationStatus(taskId) {
+    const pollInterval = setInterval(() => {
+        fetch('/api/check-automation-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                task_id: taskId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.status === 'completed') {
+                    clearInterval(pollInterval);
+                    document.getElementById('automation-progress-bar').style.width = '100%';
+                    document.getElementById('automation-progress-text').textContent = 'Automation completed!';
+                    
+                    // Show results
+                    showAutomationResults(data);
+                    
+                    setTimeout(() => {
+                        document.getElementById('automation-progress').style.display = 'none';
+                    }, 3000);
+                } else if (data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    alert('Automation process failed: ' + data.error);
+                    document.getElementById('automation-progress').style.display = 'none';
+                } else {
+                    // Update progress
+                    const progress = data.progress || 0;
+                    document.getElementById('automation-progress-bar').style.width = progress + '%';
+                    document.getElementById('automation-progress-text').textContent = `Processing... ${progress}%`;
+                }
+            } else {
+                clearInterval(pollInterval);
+                alert('Error checking automation status: ' + data.error);
+                document.getElementById('automation-progress').style.display = 'none';
+            }
+        })
+        .catch(error => {
+            clearInterval(pollInterval);
+            console.error('Error polling automation status:', error);
+            alert('Error checking automation status: ' + error.message);
+            document.getElementById('automation-progress').style.display = 'none';
+        });
+    }, 2000); // Poll every 2 seconds
 }
 
 // Show automation results
