@@ -7205,7 +7205,8 @@ function runMegaUpgradeWorkflow(accounts, features) {
     });
     
     logBulkDomain('⏳ Starting automated processing...');
-    logBulkDomain('⏰ Note: Processing multiple accounts may take 10-30 minutes depending on user count');
+    logBulkDomain('⏰ Note: Processing multiple accounts may take 30-120 minutes depending on user count');
+    logBulkDomain('🕐 Timeout set to 2 HOURS to allow for long subdomain change processes');
     
     // Start progress polling immediately
     let progressPolling = null;
@@ -7226,7 +7227,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
             currentAccountIndex++;
         } else {
             // If we've gone through all accounts but request is still pending, show waiting message
-            updateMegaProgress(90, `Waiting for server response... (${accounts.length}/${accounts.length} accounts processed)`, {
+            updateMegaProgress(90, `Waiting for server response... (${accounts.length}/${accounts.length} accounts processed) - Timeout: 2 hours`, {
                 current: accounts.length,
                 total: accounts.length,
                 account: 'Waiting for server...',
@@ -7238,9 +7239,18 @@ function runMegaUpgradeWorkflow(accounts, features) {
     // Start progress simulation every 3 seconds
     progressSimulation = setInterval(simulateProgress, 3000);
     
-    // Start the mega upgrade process with extended timeout for subdomain changes
+    // Add a special message after 10 minutes to reassure user
+    setTimeout(() => {
+        logBulkDomain('─'.repeat(50));
+        logBulkDomain('⏰ Process is taking longer than expected - this is NORMAL for subdomain changes');
+        logBulkDomain('🔄 The backend is still working - please be patient');
+        logBulkDomain('🕐 Timeout is set to 2 HOURS to allow for completion');
+        logBulkDomain('─'.repeat(50));
+    }, 10 * 60 * 1000); // After 10 minutes
+    
+    // Start the mega upgrade process with MUCH longer timeout for subdomain changes
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45 * 60 * 1000); // 45 minutes timeout for subdomain changes
+    const timeoutId = setTimeout(() => controller.abort(), 120 * 60 * 1000); // 2 HOURS timeout for subdomain changes
     
     fetch('/api/mega-upgrade', {
         method: 'POST',
@@ -7401,7 +7411,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
         document.getElementById('megaStopBtn').style.display = 'none';
         
         if (error.name === 'AbortError') {
-            logBulkDomain(`⏰ Request timeout after 45 minutes - process may still be running on server`);
+            logBulkDomain(`⏰ Request timeout after 2 HOURS - process may still be running on server`);
             logBulkDomain('─'.repeat(50));
             logBulkDomain('🔍 Check server logs to see if processing completed');
             logBulkDomain('💡 Try refreshing the page and checking domain status');
