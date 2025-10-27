@@ -9297,26 +9297,36 @@ def api_change_subdomain_status():
         if status not in ['available', 'in_use', 'used']:
             return jsonify({'success': False, 'error': 'Invalid status. Must be: available, in_use, or used'})
         
-        # Update subdomain status in database
-        conn = sqlite3.connect('instance/gbot.db')
-        cursor = conn.cursor()
+        # Use the existing UsedDomain table structure
+        from database import UsedDomain
         
         # Check if subdomain exists
-        cursor.execute("SELECT id, status FROM subdomains WHERE subdomain = ?", (subdomain,))
-        result = cursor.fetchone()
+        domain_record = UsedDomain.query.filter_by(domain_name=subdomain).first()
         
-        if not result:
-            conn.close()
+        if not domain_record:
             return jsonify({'success': False, 'error': f'Subdomain "{subdomain}" not found'})
         
-        subdomain_id, current_status = result
+        # Determine current status
+        current_status = 'available'
+        if domain_record.user_count > 0:
+            current_status = 'in_use'
+        elif domain_record.ever_used:
+            current_status = 'used'
         
-        # Update the status
-        cursor.execute("UPDATE subdomains SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", 
-                      (status, subdomain_id))
+        # Update the status based on the requested status
+        if status == 'available':
+            domain_record.user_count = 0
+            domain_record.ever_used = False
+        elif status == 'in_use':
+            domain_record.user_count = 1  # Set to 1 to indicate in use
+            domain_record.ever_used = True
+        elif status == 'used':
+            domain_record.user_count = 0
+            domain_record.ever_used = True
         
-        conn.commit()
-        conn.close()
+        domain_record.updated_at = db.func.current_timestamp()
+        
+        db.session.commit()
         
         app.logger.info(f"Subdomain '{subdomain}' status changed from '{current_status}' to '{status}'")
         
@@ -9330,6 +9340,7 @@ def api_change_subdomain_status():
         
     except Exception as e:
         app.logger.error(f"Error changing subdomain status: {e}")
+        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)})
 
 
