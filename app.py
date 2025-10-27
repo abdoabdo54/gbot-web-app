@@ -8818,6 +8818,9 @@ def api_detect_user_types():
 
 # ===== SIMPLIFIED AUTOMATION AUTHENTICATION API =====
 
+# Global dictionary to store automation tasks (in production, use Redis or database)
+automation_tasks = {}
+
 @app.route('/api/start-automation-process', methods=['POST'])
 @login_required
 def api_start_automation_process():
@@ -8837,13 +8840,14 @@ def api_start_automation_process():
         import uuid
         task_id = str(uuid.uuid4())
         
-        # Store task info in session (will be lost on session expiry, but that's OK)
-        session[f'automation_task_{task_id}'] = {
+        # Store task info in global dictionary (not session)
+        automation_tasks[task_id] = {
             'status': 'starting',
             'accounts': accounts,
             'started_at': time.time(),
             'progress': 0,
-            'results': []
+            'results': [],
+            'user_id': session.get('user_id')  # Store user ID for security
         }
         
         # Start background task
@@ -8869,8 +8873,8 @@ def execute_automation_background(task_id, accounts):
     try:
         app.logger.info(f"🔄 Starting background automation task {task_id}")
         
-        # Update task status
-        session[f'automation_task_{task_id}']['status'] = 'running'
+        # Update task status in global dictionary
+        automation_tasks[task_id]['status'] = 'running'
         
         results = []
         authenticated_count = 0
@@ -8884,7 +8888,7 @@ def execute_automation_background(task_id, accounts):
                 
                 # Update progress
                 progress = int((index - 1) / len(accounts) * 100)
-                session[f'automation_task_{task_id}']['progress'] = progress
+                automation_tasks[task_id]['progress'] = progress
                 
                 result = {
                     'account': account_email,
@@ -8941,8 +8945,7 @@ def execute_automation_background(task_id, accounts):
                     if google_api.is_token_valid(db_account_name):
                         auth_success = google_api.authenticate_with_tokens(db_account_name)
                         if auth_success:
-                            # Set the current account in session
-                            session['current_account_name'] = db_account_name
+                            # Note: Cannot set session in background thread, but authentication works
                             app.logger.info(f"Successfully authenticated with {db_account_name}")
                     else:
                         app.logger.warning(f"No valid tokens found for {db_account_name}")
@@ -9057,12 +9060,12 @@ def execute_automation_background(task_id, accounts):
                 })
         
         # Mark task as completed
-        session[f'automation_task_{task_id}']['status'] = 'completed'
-        session[f'automation_task_{task_id}']['progress'] = 100
-        session[f'automation_task_{task_id}']['results'] = results
-        session[f'automation_task_{task_id}']['authenticated_count'] = authenticated_count
-        session[f'automation_task_{task_id}']['users_retrieved'] = users_retrieved
-        session[f'automation_task_{task_id}']['all_users'] = all_users
+        automation_tasks[task_id]['status'] = 'completed'
+        automation_tasks[task_id]['progress'] = 100
+        automation_tasks[task_id]['results'] = results
+        automation_tasks[task_id]['authenticated_count'] = authenticated_count
+        automation_tasks[task_id]['users_retrieved'] = users_retrieved
+        automation_tasks[task_id]['all_users'] = all_users
         
         app.logger.info(f"✅ Background automation task {task_id} completed: {authenticated_count}/{len(accounts)} authenticated, {users_retrieved} users retrieved")
         
@@ -9073,8 +9076,8 @@ def execute_automation_background(task_id, accounts):
         app.logger.error(f"Background task traceback: {error_details}")
         
         # Mark task as failed
-        session[f'automation_task_{task_id}']['status'] = 'failed'
-        session[f'automation_task_{task_id}']['error'] = str(e)
+        automation_tasks[task_id]['status'] = 'failed'
+        automation_tasks[task_id]['error'] = str(e)
 
 @app.route('/api/check-automation-status', methods=['POST'])
 @login_required
@@ -9087,11 +9090,10 @@ def api_check_automation_status():
         if not task_id:
             return jsonify({'success': False, 'error': 'No task ID provided'})
         
-        task_key = f'automation_task_{task_id}'
-        if task_key not in session:
+        if task_id not in automation_tasks:
             return jsonify({'success': False, 'error': 'Task not found or expired'})
         
-        task_data = session[task_key]
+        task_data = automation_tasks[task_id]
         
         if task_data['status'] == 'completed':
             return jsonify({
@@ -9226,8 +9228,7 @@ def api_execute_automation_process():
                     if google_api.is_token_valid(db_account_name):
                         auth_success = google_api.authenticate_with_tokens(db_account_name)
                         if auth_success:
-                            # Set the current account in session
-                            session['current_account_name'] = db_account_name
+                            # Note: Cannot set session in background thread, but authentication works
                             app.logger.info(f"Successfully authenticated with {db_account_name}")
                     else:
                         app.logger.warning(f"No valid tokens found for {db_account_name}")
