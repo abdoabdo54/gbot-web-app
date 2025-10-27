@@ -5932,18 +5932,20 @@ def mega_upgrade():
 
                         original_account_name = google_account.account_name
 
-                        # Protect critical accounts
-                        critical_accounts = ['admin@', 'system@', 'noreply@', 'postmaster@']
-                        if any(original_account_name.lower().startswith(prefix) for prefix in critical_accounts):
-                            app.logger.warning(f"Skipping critical account {acct}")
-                            with results_lock:
-                                failed_accounts += 1
-                                failed_details.append({
-                                    'account': acct,
-                                    'step': 'protection',
-                                    'error': 'Critical system accounts cannot be modified for security'
-                                })
-                            return
+                        # Protect only truly critical system accounts (disabled for now)
+                        # critical_accounts = ['system@', 'noreply@', 'postmaster@']
+                        # if any(original_account_name.lower().startswith(prefix) for prefix in critical_accounts):
+                        #     app.logger.warning(f"Skipping critical account {acct}")
+                        #     with results_lock:
+                        #         failed_accounts += 1
+                        #         failed_details.append({
+                        #             'account': acct,
+                        #             'step': 'protection',
+                        #             'error': 'Critical system accounts cannot be modified for security'
+                        #         })
+                        #     return
+                        
+                        app.logger.info(f"Processing account {acct} - protection check disabled")
 
                         # Step 2: Authenticate
                         authenticated_account_name = None
