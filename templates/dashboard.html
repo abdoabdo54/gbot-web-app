@@ -7038,7 +7038,7 @@ function clearMegaUpgradeResults() {
     logBulkDomain('🧹 Mega upgrade results cleared');
 }
 
-function updateMegaProgress(percentage, message) {
+function updateMegaProgress(percentage, message, accountInfo = null) {
     const progressBar = document.getElementById('megaProgressBar');
     const progressPercent = document.getElementById('megaProgressPercent');
     const progressText = document.getElementById('megaProgressText');
@@ -7046,8 +7046,34 @@ function updateMegaProgress(percentage, message) {
     if (progressBar && progressPercent && progressText) {
         progressBar.style.width = percentage + '%';
         progressPercent.textContent = percentage + '%';
-        progressText.textContent = message;
+        
+        // Enhanced progress message with account counting
+        if (accountInfo) {
+            const { current, total, account, status } = accountInfo;
+            let statusIcon = '';
+            if (status === 'success') statusIcon = '✅';
+            else if (status === 'failed') statusIcon = '❌';
+            else if (status === 'processing') statusIcon = '🔄';
+            
+            progressText.innerHTML = `
+                <div style="font-weight: bold; color: #0366d6;">
+                    ${statusIcon} Processing account ${current}/${total}: ${account}
+                </div>
+                <div style="font-size: 12px; color: #666; margin-top: 2px;">
+                    ${message}
+                </div>
+            `;
+        } else {
+            progressText.textContent = message;
+        }
     }
+}
+
+// Progress polling function for real-time updates
+function pollMegaUpgradeProgress() {
+    // This would poll a progress endpoint if we implement one
+    // For now, we'll rely on the existing progress updates
+    console.log('Polling mega upgrade progress...');
 }
 
 
@@ -7127,8 +7153,13 @@ function runMegaUpgradeWorkflow(accounts, features) {
     });
     logBulkDomain('─'.repeat(50));
     
-    // Update progress indicator
-    updateMegaProgress(0, 'Initializing...');
+    // Update progress indicator with account counting
+    updateMegaProgress(0, 'Initializing...', {
+        current: 0,
+        total: accounts.length,
+        account: 'Starting...',
+        status: 'processing'
+    });
     
     // Show processing message with more detail
     logBulkDomain('⏳ Starting automated processing...');
@@ -7146,6 +7177,10 @@ function runMegaUpgradeWorkflow(accounts, features) {
     logBulkDomain('⏰ Note: Processing multiple accounts may take 10-30 minutes depending on user count');
     
     updateMegaProgress(50, 'Sending request to server...');
+    
+    // Start progress polling for real-time updates
+    let progressInterval = null;
+    let currentTaskId = null;
     
     // Start the mega upgrade process with extended timeout
     const controller = new AbortController();

@@ -5838,7 +5838,7 @@ def mega_upgrade():
         app.logger.info(f"📋 Accounts to process: {accounts}")
         app.logger.info(f"🔧 Features enabled: {features}")
         
-        # Initialize progress tracking
+        # Initialize progress tracking with detailed account counting
         import time
         progress_data = {
             'status': 'running',
@@ -5847,8 +5847,10 @@ def mega_upgrade():
             'successful_accounts': 0,
             'failed_accounts': 0,
             'current_account': None,
+            'current_account_index': 0,
             'started_at': time.time(),
-            'account_details': []
+            'account_details': [],
+            'progress_message': f'Processing account 0/{len(accounts)}: Initializing...'
         }
         
         if not accounts:
@@ -5876,6 +5878,11 @@ def mega_upgrade():
         def process_account(account_email: str, index: int):
             nonlocal successful_accounts, failed_accounts
             
+            # Update progress with account counting
+            progress_data['current_account'] = account_email
+            progress_data['current_account_index'] = index + 1
+            progress_data['progress_message'] = f'Processing account {index + 1}/{len(accounts)}: {account_email}'
+            
             # TEMPORARILY DISABLED: Database-based locking for multi-machine synchronization
             # This was causing accounts to be skipped in single-machine usage
             lock_acquired = True  # Always allow processing for now
@@ -5884,6 +5891,7 @@ def mega_upgrade():
             
             try:
                 app.logger.info(f"🚀 Worker {index+1} starting for account: {account_email}")
+                app.logger.info(f"📊 Progress: Processing account {index + 1}/{len(accounts)}: {account_email}")
                 
                 # Create a new app context for this thread
                 with app.app_context():
@@ -6327,6 +6335,7 @@ def mega_upgrade():
                             # Update progress tracking
                             progress_data['successful_accounts'] = successful_accounts
                             progress_data['completed_accounts'] = successful_accounts + failed_accounts
+                            progress_data['progress_message'] = f'Completed account {index + 1}/{len(accounts)}: {acct} (Success)'
                             progress_data['account_details'].append(account_result)
                             
                             app.logger.info(f"✅ Worker {index+1} completed successfully for {acct} - {successful_user_changes}/{len(domain_users) if domain_users else 0} users changed ({success_rate:.1f}%)")
@@ -6347,6 +6356,7 @@ def mega_upgrade():
                     # Update progress tracking
                     progress_data['failed_accounts'] = failed_accounts
                     progress_data['completed_accounts'] = successful_accounts + failed_accounts
+                    progress_data['progress_message'] = f'Failed account {index + 1}/{len(accounts)}: {account_email} (Error)'
                     progress_data['account_details'].append({
                         'account': account_email,
                         'status': 'failed',
