@@ -6215,7 +6215,7 @@ def mega_upgrade():
                                                         existing_domain.ever_used = True
                                                     else:
                                                         app.logger.error(f"Failed to find or create domain record for {next_domain}")
-                                                        continue
+                                                        # Skip this domain and continue processing
                                                 else:
                                                     raise e2
                                     db.session.commit()
