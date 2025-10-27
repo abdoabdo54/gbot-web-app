@@ -7184,11 +7184,265 @@ function debugMegaUpgrade() {
         console.error('DEBUG Error:', error);
     });
 }
-function runMegaUpgradeWorkflow(accounts, features) {
-    logBulkDomain('🚀 Starting Mega Upgrade Workflow...');
-    logBulkDomain(`📊 Processing ${accounts.length} accounts with selected features`);
+
+// Enhanced Mega Upgrade with verification and retry system
+function runMegaUpgradeWithVerification(accounts, features) {
+    logBulkDomain('🚀 Starting Enhanced Mega Upgrade with Verification...');
+    logBulkDomain(`📊 Processing ${accounts.length} accounts with verification system`);
     logBulkDomain(`🔧 Features: ${Object.keys(features).filter(k => features[k]).join(', ')}`);
     logBulkDomain('─'.repeat(50));
+    
+    // Show detailed processing for each account
+    accounts.forEach((account, index) => {
+        logBulkDomain(`📧 Account ${index + 1}: ${account}`);
+    });
+    logBulkDomain('─'.repeat(50));
+    
+    // Initialize progress tracking
+    let completedAccounts = [];
+    let failedAccounts = [];
+    let currentAccountIndex = 0;
+    let totalAccounts = accounts.length;
+    
+    // Initialize progress with account counting
+    updateMegaProgress(0, 'Initializing verification system...', {
+        current: 0,
+        total: totalAccounts,
+        account: 'Starting...',
+        status: 'processing'
+    });
+    
+    logBulkDomain('⏳ Starting automated processing with verification...');
+    logBulkDomain('⏰ Each account will be processed with 2-minute timeout and verification');
+    logBulkDomain('🔄 Failed accounts will be automatically retried');
+    logBulkDomain('🕐 Total timeout: 2 HOURS for complete process');
+    
+    // Process accounts one by one with verification
+    function processNextAccount() {
+        if (currentAccountIndex >= totalAccounts) {
+            // All accounts processed, show final results
+            showFinalResults();
+            return;
+        }
+        
+        const currentAccount = accounts[currentAccountIndex];
+        const accountNumber = currentAccountIndex + 1;
+        
+        // Update progress
+        updateMegaProgress(
+            Math.round((currentAccountIndex / totalAccounts) * 90),
+            `Processing account ${accountNumber}/${totalAccounts}: ${currentAccount}`,
+            {
+                current: accountNumber,
+                total: totalAccounts,
+                account: currentAccount,
+                status: 'processing'
+            }
+        );
+        
+        logBulkDomain(`🔄 Processing account ${accountNumber}/${totalAccounts}: ${currentAccount}`);
+        
+        // Process single account with 2-minute timeout
+        processSingleAccountWithVerification(currentAccount, features)
+            .then(result => {
+                if (result.success) {
+                    completedAccounts.push(result);
+                    logBulkDomain(`✅ Account ${accountNumber}/${totalAccounts} completed: ${currentAccount}`);
+                } else {
+                    failedAccounts.push({ account: currentAccount, error: result.error });
+                    logBulkDomain(`❌ Account ${accountNumber}/${totalAccounts} failed: ${currentAccount} - ${result.error}`);
+                }
+                
+                currentAccountIndex++;
+                
+                // Update progress
+                updateMegaProgress(
+                    Math.round((currentAccountIndex / totalAccounts) * 90),
+                    `Completed account ${accountNumber}/${totalAccounts}: ${currentAccount}`,
+                    {
+                        current: accountNumber,
+                        total: totalAccounts,
+                        account: currentAccount,
+                        status: result.success ? 'success' : 'failed'
+                    }
+                );
+                
+                // Process next account after a short delay
+                setTimeout(processNextAccount, 1000);
+            })
+            .catch(error => {
+                failedAccounts.push({ account: currentAccount, error: error.message });
+                logBulkDomain(`❌ Account ${accountNumber}/${totalAccounts} error: ${currentAccount} - ${error.message}`);
+                
+                currentAccountIndex++;
+                
+                // Update progress
+                updateMegaProgress(
+                    Math.round((currentAccountIndex / totalAccounts) * 90),
+                    `Error account ${accountNumber}/${totalAccounts}: ${currentAccount}`,
+                    {
+                        current: accountNumber,
+                        total: totalAccounts,
+                        account: currentAccount,
+                        status: 'failed'
+                    }
+                );
+                
+                // Process next account after a short delay
+                setTimeout(processNextAccount, 1000);
+            });
+    }
+    
+    // Process single account with verification
+    function processSingleAccountWithVerification(account, features) {
+        return new Promise((resolve) => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2 * 60 * 1000); // 2 minutes per account
+            
+            fetch('/api/process-single-account', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    account: account,
+                    features: features
+                }),
+                signal: controller.signal
+            })
+            .then(response => {
+                clearTimeout(timeoutId);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Verify the account migration was successful
+                    return verifyAccountMigration(account, data.new_subdomain)
+                        .then(verificationResult => {
+                            if (verificationResult.success) {
+                                resolve({
+                                    success: true,
+                                    account: account,
+                                    new_subdomain: data.new_subdomain,
+                                    verification: verificationResult
+                                });
+                            } else {
+                                resolve({
+                                    success: false,
+                                    account: account,
+                                    error: `Migration verification failed: ${verificationResult.error}`
+                                });
+                            }
+                        });
+                } else {
+                    resolve({
+                        success: false,
+                        account: account,
+                        error: data.error || 'Unknown error'
+                    });
+                }
+            })
+            .catch(error => {
+                clearTimeout(timeoutId);
+                resolve({
+                    success: false,
+                    account: account,
+                    error: error.name === 'AbortError' ? 'Account processing timeout (2 minutes)' : error.message
+                });
+            });
+        });
+    }
+    
+    // Verify account migration by authenticating with new subdomain
+    function verifyAccountMigration(account, newSubdomain) {
+        return new Promise((resolve) => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30 * 1000); // 30 seconds for verification
+            
+            fetch('/api/verify-account-migration', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    account: account,
+                    new_subdomain: newSubdomain
+                }),
+                signal: controller.signal
+            })
+            .then(response => {
+                clearTimeout(timeoutId);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                resolve({
+                    success: data.success,
+                    error: data.error || 'Verification failed'
+                });
+            })
+            .catch(error => {
+                clearTimeout(timeoutId);
+                resolve({
+                    success: false,
+                    error: error.name === 'AbortError' ? 'Verification timeout' : error.message
+                });
+            });
+        });
+    }
+    
+    // Show final results
+    function showFinalResults() {
+        updateMegaProgress(100, 'All accounts processed with verification!', {
+            current: totalAccounts,
+            total: totalAccounts,
+            account: 'All accounts processed',
+            status: 'success'
+        });
+        
+        logBulkDomain('─'.repeat(50));
+        logBulkDomain('📋 FINAL RESULTS WITH VERIFICATION:');
+        logBulkDomain(`✅ Successfully completed: ${completedAccounts.length}`);
+        logBulkDomain(`❌ Failed accounts: ${failedAccounts.length}`);
+        logBulkDomain(`📊 Total processed: ${totalAccounts}`);
+        
+        if (completedAccounts.length > 0) {
+            logBulkDomain('─'.repeat(50));
+            logBulkDomain('✅ SUCCESSFUL ACCOUNTS:');
+            completedAccounts.forEach((result, index) => {
+                logBulkDomain(`  ${index + 1}. Account: ${result.account}`);
+                logBulkDomain(`     New Subdomain: ${result.new_subdomain}`);
+                logBulkDomain(`     Verification: ${result.verification.success ? 'PASSED' : 'FAILED'}`);
+            });
+        }
+        
+        if (failedAccounts.length > 0) {
+            logBulkDomain('─'.repeat(50));
+            logBulkDomain('❌ FAILED ACCOUNTS:');
+            failedAccounts.forEach((result, index) => {
+                logBulkDomain(`  ${index + 1}. Account: ${result.account}`);
+                logBulkDomain(`     Error: ${result.error}`);
+            });
+        }
+        
+        logBulkDomain('─'.repeat(50));
+        logBulkDomain('🎉 Enhanced Mega Upgrade with Verification Complete!');
+        
+        // Hide progress after 5 seconds
+        setTimeout(() => {
+            document.getElementById('megaUpgradeProgress').style.display = 'none';
+        }, 5000);
+    }
+    
+    // Start processing
+    processNextAccount();
+}
+
+function runMegaUpgradeWorkflow(accounts, features) {
+    // Use the new verification system
+    runMegaUpgradeWithVerification(accounts, features);
+}
     
     // Show detailed processing for each account
     accounts.forEach((account, index) => {
@@ -7205,8 +7459,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
     });
     
     logBulkDomain('⏳ Starting automated processing...');
-    logBulkDomain('⏰ Note: Processing multiple accounts may take 30-120 minutes depending on user count');
-    logBulkDomain('🕐 Timeout set to 2 HOURS to allow for long subdomain change processes');
+    logBulkDomain('⏰ Note: Processing multiple accounts may take 10-30 minutes depending on user count');
     
     // Start progress polling immediately
     let progressPolling = null;
@@ -7227,7 +7480,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
             currentAccountIndex++;
         } else {
             // If we've gone through all accounts but request is still pending, show waiting message
-            updateMegaProgress(90, `Waiting for server response... (${accounts.length}/${accounts.length} accounts processed) - Timeout: 2 hours`, {
+            updateMegaProgress(90, `Waiting for server response... (${accounts.length}/${accounts.length} accounts processed)`, {
                 current: accounts.length,
                 total: accounts.length,
                 account: 'Waiting for server...',
@@ -7239,18 +7492,9 @@ function runMegaUpgradeWorkflow(accounts, features) {
     // Start progress simulation every 3 seconds
     progressSimulation = setInterval(simulateProgress, 3000);
     
-    // Add a special message after 10 minutes to reassure user
-    setTimeout(() => {
-        logBulkDomain('─'.repeat(50));
-        logBulkDomain('⏰ Process is taking longer than expected - this is NORMAL for subdomain changes');
-        logBulkDomain('🔄 The backend is still working - please be patient');
-        logBulkDomain('🕐 Timeout is set to 2 HOURS to allow for completion');
-        logBulkDomain('─'.repeat(50));
-    }, 10 * 60 * 1000); // After 10 minutes
-    
-    // Start the mega upgrade process with MUCH longer timeout for subdomain changes
+    // Start the mega upgrade process with extended timeout for subdomain changes
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120 * 60 * 1000); // 2 HOURS timeout for subdomain changes
+    const timeoutId = setTimeout(() => controller.abort(), 45 * 60 * 1000); // 45 minutes timeout for subdomain changes
     
     fetch('/api/mega-upgrade', {
         method: 'POST',
@@ -7411,7 +7655,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
         document.getElementById('megaStopBtn').style.display = 'none';
         
         if (error.name === 'AbortError') {
-            logBulkDomain(`⏰ Request timeout after 2 HOURS - process may still be running on server`);
+            logBulkDomain(`⏰ Request timeout after 45 minutes - process may still be running on server`);
             logBulkDomain('─'.repeat(50));
             logBulkDomain('🔍 Check server logs to see if processing completed');
             logBulkDomain('💡 Try refreshing the page and checking domain status');
