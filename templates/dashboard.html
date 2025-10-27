@@ -7085,10 +7085,38 @@ function updateMegaProgress(percentage, message, accountInfo = null) {
 }
 
 // Progress polling function for real-time updates
-function pollMegaUpgradeProgress() {
-    // This would poll a progress endpoint if we implement one
-    // For now, we'll rely on the existing progress updates
-    console.log('Polling mega upgrade progress...');
+function pollMegaUpgradeProgress(taskId, totalAccounts) {
+    if (!taskId) return;
+    
+    const pollInterval = setInterval(() => {
+        fetch(`/api/mega-upgrade-progress/${taskId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.progress) {
+                    const progress = data.progress;
+                    const percentage = Math.round((progress.completed_accounts / totalAccounts) * 100);
+                    
+                    // Update progress with account counting
+                    updateMegaProgress(percentage, progress.progress_message, {
+                        current: progress.current_account_index || progress.completed_accounts,
+                        total: totalAccounts,
+                        account: progress.current_account || 'Processing...',
+                        status: progress.status === 'running' ? 'processing' : 'success'
+                    });
+                    
+                    // Stop polling if completed
+                    if (progress.status === 'completed' || progress.status === 'error') {
+                        clearInterval(pollInterval);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Progress polling error:', error);
+                clearInterval(pollInterval);
+            });
+    }, 2000); // Poll every 2 seconds
+    
+    return pollInterval;
 }
 
 
@@ -7168,7 +7196,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
     });
     logBulkDomain('─'.repeat(50));
     
-    // Update progress indicator with account counting
+    // Initialize progress with account counting
     updateMegaProgress(0, 'Initializing...', {
         current: 0,
         total: accounts.length,
@@ -7176,26 +7204,33 @@ function runMegaUpgradeWorkflow(accounts, features) {
         status: 'processing'
     });
     
-    // Show processing message with more detail
     logBulkDomain('⏳ Starting automated processing...');
-    updateMegaProgress(10, 'Looking up accounts in database...');
-    logBulkDomain('🔍 Step 1: Looking up accounts in database...');
-    
-    updateMegaProgress(20, 'Authenticating accounts...');
-    logBulkDomain('🔐 Step 2: Authenticating accounts...');
-    
-    updateMegaProgress(30, 'Changing subdomains...');
-    logBulkDomain('🔄 Step 3: Changing subdomains...');
-    
-    updateMegaProgress(40, 'Preparing for server request...');
-    logBulkDomain('🔑 Step 4: Preparing app password generation...');
     logBulkDomain('⏰ Note: Processing multiple accounts may take 10-30 minutes depending on user count');
     
-    updateMegaProgress(50, 'Sending request to server...');
+    // Start progress polling immediately
+    let progressPolling = null;
     
-    // Start progress polling for real-time updates
-    let progressInterval = null;
-    let currentTaskId = null;
+    // Simulate progress updates during processing
+    let progressSimulation = null;
+    let currentAccountIndex = 0;
+    
+    const simulateProgress = () => {
+        if (currentAccountIndex < accounts.length) {
+            const percentage = Math.round(((currentAccountIndex + 1) / accounts.length) * 90); // Leave 10% for completion
+            updateMegaProgress(percentage, `Processing account ${currentAccountIndex + 1}/${accounts.length}: ${accounts[currentAccountIndex]}`, {
+                current: currentAccountIndex + 1,
+                total: accounts.length,
+                account: accounts[currentAccountIndex],
+                status: 'processing'
+            });
+            currentAccountIndex++;
+        } else {
+            clearInterval(progressSimulation);
+        }
+    };
+    
+    // Start progress simulation every 3 seconds
+    progressSimulation = setInterval(simulateProgress, 3000);
     
     // Start the mega upgrade process with extended timeout
     const controller = new AbortController();
@@ -7212,8 +7247,14 @@ function runMegaUpgradeWorkflow(accounts, features) {
     })
     .then(response => {
         clearTimeout(timeoutId); // Clear the timeout since we got a response
-        updateMegaProgress(70, 'Processing server response...');
+        clearInterval(progressSimulation); // Stop progress simulation
+        
         logBulkDomain(`📡 Response received: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         return response.json();
     })
     .then(data => {
@@ -7222,10 +7263,17 @@ function runMegaUpgradeWorkflow(accounts, features) {
         logBulkDomain('📋 PROCESSING RESULTS:');
         
         if (data.success) {
-            updateMegaProgress(90, 'Finalizing results...');
             logBulkDomain(`✅ Mega upgrade completed successfully!`);
             logBulkDomain(`📊 Results: ${data.successful_accounts} successful, ${data.failed_accounts} failed`);
             logBulkDomain(`📋 Total accounts processed: ${data.total_accounts}`);
+            
+            // Show completion with account counting
+            updateMegaProgress(100, 'Completed successfully!', {
+                current: accounts.length,
+                total: accounts.length,
+                account: 'All accounts processed',
+                status: 'success'
+            });
             
             // Display detailed results for each account
             if (data.final_results && data.final_results.length > 0) {
@@ -7284,12 +7332,19 @@ function runMegaUpgradeWorkflow(accounts, features) {
             logBulkDomain('─'.repeat(50));
             logBulkDomain('🎉 Mega Upgrade Workflow Finished!');
             
-            // Hide progress after 2 seconds
+            // Hide progress after 3 seconds
             setTimeout(() => {
                 document.getElementById('megaUpgradeProgress').style.display = 'none';
-            }, 2000);
+            }, 3000);
         } else {
-            updateMegaProgress(100, 'Failed');
+            // Show failure with account counting
+            updateMegaProgress(100, 'Process failed', {
+                current: 0,
+                total: accounts.length,
+                account: 'Process failed',
+                status: 'failed'
+            });
+            
             document.getElementById('megaStartBtn').style.display = 'inline-block';
             document.getElementById('megaStopBtn').style.display = 'none';
             logBulkDomain(`❌ Mega upgrade failed: ${data.error}`);
@@ -7324,7 +7379,18 @@ function runMegaUpgradeWorkflow(accounts, features) {
     })
     .catch(error => {
         clearTimeout(timeoutId); // Clear timeout on error
-        updateMegaProgress(100, 'Network Error');
+        clearInterval(progressSimulation); // Stop progress simulation
+        
+        console.error('Mega Upgrade Error:', error);
+        
+        // Show error with account counting
+        updateMegaProgress(100, 'Network Error', {
+            current: 0,
+            total: accounts.length,
+            account: 'Network Error',
+            status: 'failed'
+        });
+        
         document.getElementById('megaStartBtn').style.display = 'inline-block';
         document.getElementById('megaStopBtn').style.display = 'none';
         
@@ -7334,11 +7400,10 @@ function runMegaUpgradeWorkflow(accounts, features) {
             logBulkDomain('🔍 Check server logs to see if processing completed');
             logBulkDomain('💡 Try refreshing the page and checking domain status');
         } else {
-        logBulkDomain(`❌ Network Error: ${error.message}`);
-        logBulkDomain('─'.repeat(50));
-        logBulkDomain('🔍 Check server connection and logs');
+            logBulkDomain(`❌ Network Error: ${error.message}`);
+            logBulkDomain('─'.repeat(50));
+            logBulkDomain('🔍 Check server connection and logs');
         }
-        console.error('Mega Upgrade Error:', error);
         
     // Even if server times out, find the ACTUAL changed subdomain
     logBulkDomain('─'.repeat(50));
