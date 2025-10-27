@@ -5939,38 +5939,39 @@ def mega_upgrade():
                 if not lock_acquired:
                     app.logger.warning(f"⚠️ Could not acquire lock for account {account_email} - skipping")
                     return
-            try:
-                app.logger.info(f"🚀 Worker {index+1} starting for account: {account_email}")
                 
-                # Create a new app context for this thread
-                with app.app_context():
-                    # Push a new request context to avoid "Working outside of request context" error
-                    with app.test_request_context():
-                        acct = (account_email or '').strip()
-                        if not acct:
-                            app.logger.warning(f"Worker {index+1}: Empty account email")
-                            return
+                try:
+                    app.logger.info(f"🚀 Worker {index+1} starting for account: {account_email}")
+                    
+                    # Create a new app context for this thread
+                    with app.app_context():
+                        # Push a new request context to avoid "Working outside of request context" error
+                        with app.test_request_context():
+                            acct = (account_email or '').strip()
+                            if not acct:
+                                app.logger.warning(f"Worker {index+1}: Empty account email")
+                                return
 
-                        app.logger.info(f"🔧 Worker {index+1} processing account: {acct}")
+                            app.logger.info(f"🔧 Worker {index+1} processing account: {acct}")
 
-                        # Step 1: Find account in database (use exact match like manual authentication)
-                        google_account = GoogleAccount.query.filter_by(account_name=acct).first()
-                        
-                        # If exact match fails, try case-insensitive match as fallback
-                        if not google_account:
-                            app.logger.info(f"Exact match failed for {acct}, trying case-insensitive match")
-                        google_account = GoogleAccount.query.filter(
-                            func.lower(GoogleAccount.account_name) == acct.lower()
-                        ).first()
-                        if not google_account:
-                            app.logger.warning(f"Account {acct} not found in database")
-                            all_accounts = GoogleAccount.query.all()
-                            with results_lock:
-                                failed_accounts += 1
-                                failed_details.append({
-                                    'account': acct,
-                                    'step': 'database_lookup',
-                                    'error': f"Account not found in database. Available accounts: {[acc.account_name for acc in all_accounts]}"
+                            # Step 1: Find account in database (use exact match like manual authentication)
+                            google_account = GoogleAccount.query.filter_by(account_name=acct).first()
+                            
+                            # If exact match fails, try case-insensitive match as fallback
+                            if not google_account:
+                                app.logger.info(f"Exact match failed for {acct}, trying case-insensitive match")
+                                google_account = GoogleAccount.query.filter(
+                                    func.lower(GoogleAccount.account_name) == acct.lower()
+                                ).first()
+                            if not google_account:
+                                app.logger.warning(f"Account {acct} not found in database")
+                                all_accounts = GoogleAccount.query.all()
+                                with results_lock:
+                                    failed_accounts += 1
+                                    failed_details.append({
+                                        'account': acct,
+                                        'step': 'database_lookup',
+                                        'error': f"Account not found in database. Available accounts: {[acc.account_name for acc in all_accounts]}"
                                 })
                             return
                         
@@ -6333,29 +6334,29 @@ def mega_upgrade():
                             progress_data['account_details'].append(account_result)
                             
                             app.logger.info(f"✅ Worker {index+1} completed successfully for {acct} - {successful_user_changes}/{len(domain_users) if domain_users else 0} users changed ({success_rate:.1f}%)")
-            except Exception as e:
-                app.logger.error(f"❌ Worker {index+1} failed for account {account_email}: {e}")
-                import traceback
-                app.logger.error(f"Worker {index+1} traceback: {traceback.format_exc()}")
-                with results_lock:
-                    failed_accounts += 1
-                    failed_detail = {
-                        'account': account_email,
-                        'step': 'processing',
-                        'error': str(e),
-                        'completed_at': time.time()
-                    }
-                    failed_details.append(failed_detail)
-                    
-                    # Update progress tracking
-                    progress_data['failed_accounts'] = failed_accounts
-                    progress_data['completed_accounts'] = successful_accounts + failed_accounts
-                    progress_data['account_details'].append({
-                        'account': account_email,
-                        'status': 'failed',
-                        'error': str(e),
-                        'completed_at': time.time()
-                    })
+                except Exception as e:
+                    app.logger.error(f"❌ Worker {index+1} failed for account {account_email}: {e}")
+                    import traceback
+                    app.logger.error(f"Worker {index+1} traceback: {traceback.format_exc()}")
+                    with results_lock:
+                        failed_accounts += 1
+                        failed_detail = {
+                            'account': account_email,
+                            'step': 'processing',
+                            'error': str(e),
+                            'completed_at': time.time()
+                        }
+                        failed_details.append(failed_detail)
+                        
+                        # Update progress tracking
+                        progress_data['failed_accounts'] = failed_accounts
+                        progress_data['completed_accounts'] = successful_accounts + failed_accounts
+                        progress_data['account_details'].append({
+                            'account': account_email,
+                            'status': 'failed',
+                            'error': str(e),
+                            'completed_at': time.time()
+                        })
             finally:
                 # Always release the lock
                 if lock_acquired and lock_conn:
