@@ -5876,86 +5876,28 @@ def mega_upgrade():
         def process_account(account_email: str, index: int):
             nonlocal successful_accounts, failed_accounts
             
-            # Add database-based locking for multi-machine synchronization
-            import sqlite3
-            lock_acquired = False
+            # TEMPORARILY DISABLED: Database-based locking for multi-machine synchronization
+            # This was causing accounts to be skipped in single-machine usage
+            lock_acquired = True  # Always allow processing for now
             lock_conn = None
+            app.logger.info(f"🔓 Lock mechanism disabled - processing account {account_email}")
             
             try:
-                # Try to acquire a lock for this account
-                lock_conn = sqlite3.connect('instance/gbot.db')
-                lock_cursor = lock_conn.cursor()
+                app.logger.info(f"🚀 Worker {index+1} starting for account: {account_email}")
                 
-                # Create locks table if it doesn't exist
-                lock_cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS mega_upgrade_locks (
-                        account_email TEXT PRIMARY KEY,
-                        machine_id TEXT NOT NULL,
-                        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        status TEXT DEFAULT 'processing'
-                    )
-                ''')
-                
-                # Try to acquire lock (insert or ignore)
-                machine_id = f"{os.getenv('HOSTNAME', 'unknown')}-{os.getpid()}"
-                try:
-                    lock_cursor.execute('''
-                        INSERT INTO mega_upgrade_locks (account_email, machine_id, status)
-                        VALUES (?, ?, 'processing')
-                    ''', (account_email, machine_id))
-                    lock_conn.commit()
-                    lock_acquired = True
-                    app.logger.info(f"🔒 Lock acquired for account {account_email} on machine {machine_id}")
-                except sqlite3.IntegrityError:
-                    # Lock already exists - check if it's stale (older than 30 minutes)
-                    lock_cursor.execute('''
-                        SELECT machine_id, started_at FROM mega_upgrade_locks 
-                        WHERE account_email = ?
-                    ''', (account_email,))
-                    result = lock_cursor.fetchone()
-                    if result:
-                        existing_machine, started_at = result
-                        # Check if lock is stale (older than 30 minutes)
-                        import datetime
-                        if isinstance(started_at, str):
-                            started_dt = datetime.datetime.fromisoformat(started_at.replace('Z', '+00:00'))
-                        else:
-                            started_dt = datetime.datetime.fromtimestamp(started_at)
-                        
-                        if datetime.datetime.now() - started_dt > datetime.timedelta(minutes=30):
-                            # Lock is stale - remove it and acquire new one
-                            lock_cursor.execute('DELETE FROM mega_upgrade_locks WHERE account_email = ?', (account_email,))
-                            lock_cursor.execute('''
-                                INSERT INTO mega_upgrade_locks (account_email, machine_id, status)
-                                VALUES (?, ?, 'processing')
-                            ''', (account_email, machine_id))
-                            lock_conn.commit()
-                            lock_acquired = True
-                            app.logger.info(f"🔒 Stale lock removed and new lock acquired for account {account_email}")
-                        else:
-                            app.logger.warning(f"⚠️ Account {account_email} is already being processed by {existing_machine}")
-                            return  # Skip this account
-                
-                if not lock_acquired:
-                    app.logger.warning(f"⚠️ Could not acquire lock for account {account_email} - skipping")
-                    return
-                
-                try:
-                    app.logger.info(f"🚀 Worker {index+1} starting for account: {account_email}")
-                    
-                    # Create a new app context for this thread
-                    with app.app_context():
-                        # Push a new request context to avoid "Working outside of request context" error
-                        with app.test_request_context():
-                            acct = (account_email or '').strip()
-                            if not acct:
-                                app.logger.warning(f"Worker {index+1}: Empty account email")
-                                return
+                # Create a new app context for this thread
+                with app.app_context():
+                    # Push a new request context to avoid "Working outside of request context" error
+                    with app.test_request_context():
+                        acct = (account_email or '').strip()
+                        if not acct:
+                            app.logger.warning(f"Worker {index+1}: Empty account email")
+                            return
 
-                            app.logger.info(f"🔧 Worker {index+1} processing account: {acct}")
+                        app.logger.info(f"🔧 Worker {index+1} processing account: {acct}")
 
-                            # Step 1: Find account in database (use exact match like manual authentication)
-                            google_account = GoogleAccount.query.filter_by(account_name=acct).first()
+                        # Step 1: Find account in database (use exact match like manual authentication)
+                        google_account = GoogleAccount.query.filter_by(account_name=acct).first()
                             
                             # If exact match fails, try case-insensitive match as fallback
                             if not google_account:
