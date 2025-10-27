@@ -8109,6 +8109,10 @@ function executeAutomationProcess() {
     console.log('Starting DIRECT automation process for', accounts.length, 'accounts');
     
     // Send request and wait for direct response - NO POLLING
+    // Set a longer timeout for batch processing
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout
+    
     fetch('/api/start-automation-process', {
         method: 'POST',
         headers: {
@@ -8116,9 +8120,11 @@ function executeAutomationProcess() {
         },
         body: JSON.stringify({
             accounts: accountsList  // Send as text, not array
-        })
+        }),
+        signal: controller.signal
     })
     .then(response => {
+        clearTimeout(timeoutId); // Clear timeout on successful response
         console.log('Response status:', response.status);
         console.log('Response headers:', response.headers);
         
@@ -8160,8 +8166,14 @@ function executeAutomationProcess() {
         }
     })
     .catch(error => {
+        clearTimeout(timeoutId); // Clear timeout on error
         console.error('Error in automation process:', error);
-        alert('Error executing automation process: ' + error.message);
+        
+        if (error.name === 'AbortError') {
+            alert('Automation process timed out after 5 minutes. The process may still be running on the server.');
+        } else {
+            alert('Error executing automation process: ' + error.message);
+        }
         document.getElementById('automation-progress').style.display = 'none';
     });
 }
