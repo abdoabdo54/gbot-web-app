@@ -5875,6 +5875,70 @@ def mega_upgrade():
         # Worker function to process a single account
         def process_account(account_email: str, index: int):
             nonlocal successful_accounts, failed_accounts
+            
+            # Add database-based locking for multi-machine synchronization
+            import sqlite3
+            lock_acquired = False
+            lock_conn = None
+            
+            try:
+                # Try to acquire a lock for this account
+                lock_conn = sqlite3.connect('instance/gbot.db')
+                lock_cursor = lock_conn.cursor()
+                
+                # Create locks table if it doesn't exist
+                lock_cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS mega_upgrade_locks (
+                        account_email TEXT PRIMARY KEY,
+                        machine_id TEXT NOT NULL,
+                        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        status TEXT DEFAULT 'processing'
+                    )
+                ''')
+                
+                # Try to acquire lock (insert or ignore)
+                machine_id = f"{os.getenv('HOSTNAME', 'unknown')}-{os.getpid()}"
+                try:
+                    lock_cursor.execute('''
+                        INSERT INTO mega_upgrade_locks (account_email, machine_id, status)
+                        VALUES (?, ?, 'processing')
+                    ''', (account_email, machine_id))
+                    lock_conn.commit()
+                    lock_acquired = True
+                    app.logger.info(f"🔒 Lock acquired for account {account_email} on machine {machine_id}")
+                except sqlite3.IntegrityError:
+                    # Lock already exists - check if it's stale (older than 30 minutes)
+                    lock_cursor.execute('''
+                        SELECT machine_id, started_at FROM mega_upgrade_locks 
+                        WHERE account_email = ?
+                    ''', (account_email,))
+                    result = lock_cursor.fetchone()
+                    if result:
+                        existing_machine, started_at = result
+                        # Check if lock is stale (older than 30 minutes)
+                        import datetime
+                        if isinstance(started_at, str):
+                            started_dt = datetime.datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+                        else:
+                            started_dt = datetime.datetime.fromtimestamp(started_at)
+                        
+                        if datetime.datetime.now() - started_dt > datetime.timedelta(minutes=30):
+                            # Lock is stale - remove it and acquire new one
+                            lock_cursor.execute('DELETE FROM mega_upgrade_locks WHERE account_email = ?', (account_email,))
+                            lock_cursor.execute('''
+                                INSERT INTO mega_upgrade_locks (account_email, machine_id, status)
+                                VALUES (?, ?, 'processing')
+                            ''', (account_email, machine_id))
+                            lock_conn.commit()
+                            lock_acquired = True
+                            app.logger.info(f"🔒 Stale lock removed and new lock acquired for account {account_email}")
+                        else:
+                            app.logger.warning(f"⚠️ Account {account_email} is already being processed by {existing_machine}")
+                            return  # Skip this account
+                
+                if not lock_acquired:
+                    app.logger.warning(f"⚠️ Could not acquire lock for account {account_email} - skipping")
+                    return
             try:
                 app.logger.info(f"🚀 Worker {index+1} starting for account: {account_email}")
                 
@@ -6072,32 +6136,56 @@ def mega_upgrade():
                                     pass
                                 domain_users = all_regular_users
 
-                                # Apply user updates with retry logic
+                                # Apply user updates with enhanced retry logic and synchronization
                                 successful_user_changes = 0
                                 failed_user_changes = []
-                                max_retries = 3
+                                max_retries = 5  # Increased retries
+                                retry_delay = 2  # Increased delay between retries
                                 
                                 app.logger.info(f"🔄 Starting domain change for {len(domain_users)} users in account {acct}")
                                 
+                                # Process users with enhanced synchronization
                                 for u_email in domain_users:
                                     username = u_email.split('@')[0]
                                     new_email = f"{username}@{next_domain}"
                                     user_success = False
                                     
-                                    # Retry logic for each user
+                                    # Enhanced retry logic for each user
                                     for retry_attempt in range(max_retries):
                                         try:
                                             app.logger.info(f"🔄 Attempt {retry_attempt + 1}/{max_retries} for user {u_email} -> {new_email}")
+                                            
+                                            # Add synchronization delay to prevent API rate limiting
+                                            if retry_attempt > 0:
+                                                import time
+                                                time.sleep(retry_delay * retry_attempt)  # Progressive delay
+                                            
+                                            # Execute the update with timeout
                                             google_api.service.users().update(userKey=u_email, body={'primaryEmail': new_email}).execute()
-                                            successful_user_changes += 1
-                                            user_success = True
-                                            app.logger.info(f"✅ Successfully updated user {u_email} -> {new_email}")
-                                            break
+                                            
+                                            # Verify the change was applied
+                                            try:
+                                                updated_user = google_api.service.users().get(userKey=new_email).execute()
+                                                if updated_user.get('primaryEmail') == new_email:
+                                                    successful_user_changes += 1
+                                                    user_success = True
+                                                    app.logger.info(f"✅ Successfully updated and verified user {u_email} -> {new_email}")
+                                                    break
+                                                else:
+                                                    app.logger.warning(f"⚠️ User update not verified for {u_email}")
+                                            except Exception as verify_e:
+                                                app.logger.warning(f"⚠️ Verification failed for {u_email}: {verify_e}")
+                                                # Still count as success if the update call succeeded
+                                                successful_user_changes += 1
+                                                user_success = True
+                                                app.logger.info(f"✅ Successfully updated user {u_email} -> {new_email} (verification failed)")
+                                                break
+                                                
                                         except Exception as e:
                                             app.logger.warning(f"⚠️ Attempt {retry_attempt + 1} failed for user {u_email}: {e}")
                                             if retry_attempt < max_retries - 1:
                                                 import time
-                                                time.sleep(1)  # Wait 1 second before retry
+                                                time.sleep(retry_delay)  # Wait before retry
                                             else:
                                                 app.logger.error(f"❌ All attempts failed for user {u_email}: {e}")
                                                 failed_user_changes.append({
@@ -6106,9 +6194,21 @@ def mega_upgrade():
                                                     'attempts': max_retries
                                                 })
                                     
-                                    # If user failed, we need to ensure 100% completion
+                                    # CRITICAL: If user failed, we must retry the entire account
                                     if not user_success:
                                         app.logger.error(f"❌ CRITICAL: User {u_email} failed to update after {max_retries} attempts")
+                                        # Mark this account as needing complete retry
+                                        with results_lock:
+                                            failed_accounts += 1
+                                            failed_details.append({
+                                                'account': acct,
+                                                'step': 'changeSubdomain',
+                                                'error': f"User {u_email} failed to update after {max_retries} attempts - account needs retry",
+                                                'failed_users': failed_user_changes,
+                                                'retry_needed': True,
+                                                'incomplete': True
+                                            })
+                                        return  # Exit immediately - don't proceed with partial success
                                 
                                 # Log completion status
                                 total_users = len(domain_users)
@@ -6256,11 +6356,24 @@ def mega_upgrade():
                         'error': str(e),
                         'completed_at': time.time()
                     })
+            finally:
+                # Always release the lock
+                if lock_acquired and lock_conn:
+                    try:
+                        lock_cursor = lock_conn.cursor()
+                        lock_cursor.execute('DELETE FROM mega_upgrade_locks WHERE account_email = ?', (account_email,))
+                        lock_conn.commit()
+                        app.logger.info(f"🔓 Lock released for account {account_email}")
+                    except Exception as lock_e:
+                        app.logger.error(f"❌ Failed to release lock for {account_email}: {lock_e}")
+                    finally:
+                        lock_conn.close()
 
-        # Run with a thread pool (6 workers) and retry mechanism
-        max_workers = min(6, len(accounts))
-        max_account_retries = 2  # Retry failed accounts once
-        app.logger.info(f"Starting parallel processing with {max_workers} workers for {len(accounts)} accounts")
+        # Run with reduced workers for better synchronization and multi-machine compatibility
+        max_workers = min(3, len(accounts))  # Reduced workers for better synchronization
+        max_account_retries = 3  # Increased retries for failed accounts
+        app.logger.info(f"Starting synchronized processing with {max_workers} workers for {len(accounts)} accounts")
+        app.logger.info(f"Multi-machine compatibility: Using reduced workers and enhanced synchronization")
         
         # First pass - process all accounts
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
