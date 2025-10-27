@@ -8890,48 +8890,180 @@ def get_users_with_service(service):
 @app.route('/api/start-automation-process', methods=['POST'])
 @login_required
 def api_start_automation_process():
-    """Start the automation process in background and return task ID"""
+    """Execute automation process directly and return results immediately - NO POLLING"""
     try:
         data = request.get_json()
-        accounts = data.get('accounts', [])
+        accounts_text = data.get('accounts', '')
         
-        if not accounts:
+        if not accounts_text.strip():
             return jsonify({'success': False, 'error': 'No accounts provided'})
         
-        # Add account limit check with warning
+        # Parse accounts from text
+        accounts = [line.strip() for line in accounts_text.split('\n') if line.strip()]
+        
         if len(accounts) > 50:
             return jsonify({'success': False, 'error': f'Too many accounts ({len(accounts)}). Maximum 50 accounts allowed per batch for performance.'})
         
-        # Generate unique task ID
-        import uuid
-        task_id = str(uuid.uuid4())
+        app.logger.info(f"🚀 Starting DIRECT automation process for {len(accounts)} accounts")
         
-        # Store task info in global dictionary (not session)
-        automation_tasks[task_id] = {
-            'status': 'starting',
-            'accounts': accounts,
-            'started_at': time.time(),
-            'progress': 0,
-            'results': [],
-            'user_id': session.get('user_id')  # Store user ID for security
-        }
+        # Execute automation directly (no background task, no polling)
+        results = []
+        all_users = []
+        authenticated_count = 0
+        users_retrieved = 0
         
-        # Start background task
-        import threading
-        thread = threading.Thread(target=execute_automation_background, args=(task_id, accounts))
-        thread.daemon = True
-        thread.start()
+        for i, account_email in enumerate(accounts):
+            app.logger.info(f"📧 Processing account {i+1}/{len(accounts)}: {account_email}")
+            
+            result = {
+                'account': account_email,
+                'success': False,
+                'message': '',
+                'users_count': 0,
+                'users': []
+            }
+            
+            try:
+                # Find account in database
+                google_account = GoogleAccount.query.filter(
+                    db.func.lower(GoogleAccount.account_name) == account_email.lower()
+                ).first()
+                
+                if not google_account:
+                    result['message'] = 'Account not found in database'
+                    results.append(result)
+                    continue
+                
+                app.logger.info(f"Found account in database: {google_account.account_name} (input was: {account_email})")
+                
+                # Try to authenticate the account using existing tokens
+                auth_success = False
+                try:
+                    db_account_name = google_account.account_name
+                    app.logger.info(f"Authenticating with database account name: {db_account_name}")
+                    
+                    if google_api.is_token_valid(db_account_name):
+                        auth_success = authenticate_without_session(db_account_name)
+                        if auth_success:
+                            app.logger.info(f"Successfully authenticated with {db_account_name}")
+                    else:
+                        app.logger.warning(f"No valid tokens found for {db_account_name}")
+                except Exception as e:
+                    app.logger.warning(f"Token authentication failed for {account_email}: {e}")
+                
+                if auth_success:
+                    authenticated_count += 1
+                    result['success'] = True
+                    result['message'] = 'Successfully authenticated'
+                    
+                    # Try to retrieve users for this account
+                    try:
+                        app.logger.info(f"🔍 Retrieving users for account: {db_account_name}")
+                        service = get_service_without_session(db_account_name)
+                        if service:
+                            users_data = get_users_with_service(service)
+                            app.logger.info(f"📊 Users data received: {type(users_data)}")
+                            if users_data and 'users' in users_data:
+                                account_users = users_data['users']
+                                result['users_count'] = len(account_users)
+                                result['users'] = account_users
+                                
+                                # Add account info and app password to each user
+                                for user in account_users:
+                                    user['source_account'] = account_email
+                                    
+                                    # Try to find matching app password
+                                    user_email = user.get('email', '') or user.get('primaryEmail', '')
+                                    
+                                    # Skip admin/authentication accounts - only process actual users
+                                    if user_email and '@' in user_email and user_email.lower() != account_email.lower():
+                                        try:
+                                            username, domain = user_email.split('@', 1)
+                                            
+                                            # Normalize username & domain for matching
+                                            username = (username or '').strip().lower()
+                                            domain = (domain or '').strip().lower()
+
+                                            app.logger.info(f"Searching app password for: {user_email} (username: {username}, domain: {domain})")
+
+                                            # Strategy 1: Exact match (username + domain)
+                                            app_password_record = UserAppPassword.query.filter_by(
+                                                username=username, 
+                                                domain=domain
+                                            ).first()
+                                            
+                                            if app_password_record:
+                                                app.logger.info(f"Found exact match for {user_email}")
+                                            else:
+                                                # Strategy 2: Case-insensitive exact match
+                                                app_password_record = UserAppPassword.query.filter(
+                                                    db.func.lower(UserAppPassword.username) == username,
+                                                    db.func.lower(UserAppPassword.domain) == domain
+                                                ).first()
+                                                
+                                                if app_password_record:
+                                                    app.logger.info(f"Found case-insensitive match for {user_email}")
+                                                else:
+                                                    # Strategy 3: Username-only match (any domain)
+                                                    app_password_record = UserAppPassword.query.filter(
+                                                        db.func.lower(UserAppPassword.username) == username
+                                                    ).first()
+                                                    
+                                                    if app_password_record:
+                                                        app.logger.info(f"Found username-only match for {user_email}")
+                                            
+                                            if app_password_record:
+                                                user['app_password'] = app_password_record.app_password
+                                                user['app_password_domain'] = app_password_record.domain
+                                                app.logger.info(f"✅ Found app password for {user_email} -> {app_password_record.username}@{app_password_record.domain}")
+                                            else:
+                                                app.logger.info(f"❌ No app password found for {user_email} after trying all strategies")
+                                                user['app_password'] = None
+                                        except Exception as e:
+                                            app.logger.warning(f"Error processing app password for {user_email}: {e}")
+                                            user['app_password'] = None
+                                    else:
+                                        # Skip admin/authentication accounts - no app password needed
+                                        user['app_password'] = None
+                                        if user_email and user_email.lower() == account_email.lower():
+                                            app.logger.info(f"Skipped admin account {user_email} - no app password needed")
+                                
+                                all_users.extend(account_users)
+                                users_retrieved += result['users_count']
+                                result['message'] += f' and retrieved {result["users_count"]} users'
+                            else:
+                                app.logger.warning(f"No users data received for {db_account_name}")
+                                result['message'] += ' but no users found'
+                        else:
+                            app.logger.warning(f"No service available for {db_account_name}")
+                            result['message'] += ' but failed to get service'
+                    except Exception as e:
+                        result['message'] += f' but failed to retrieve users: {str(e)}'
+                else:
+                    result['message'] = 'Failed to authenticate - may need OAuth authorization'
+                
+            except Exception as e:
+                app.logger.error(f"Error processing account {account_email}: {e}")
+                result['message'] = f'Error processing account: {str(e)}'
+            
+            results.append(result)
+            
+            # Add small delay between accounts to prevent rate limiting
+            time.sleep(1)
         
-        app.logger.info(f"🚀 Started automation process {task_id} for {len(accounts)} accounts")
+        app.logger.info(f"✅ DIRECT automation process completed: {authenticated_count}/{len(accounts)} authenticated, {users_retrieved} users retrieved")
         
         return jsonify({
             'success': True,
-            'task_id': task_id,
-            'message': f'Automation process started for {len(accounts)} accounts'
+            'processed_count': len(accounts),
+            'authenticated_count': authenticated_count,
+            'users_retrieved': users_retrieved,
+            'all_users': all_users,
+            'results': results
         })
         
     except Exception as e:
-        app.logger.error(f"Error starting automation process: {e}")
+        app.logger.error(f"Error in DIRECT automation process: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 def execute_automation_background(task_id, accounts):

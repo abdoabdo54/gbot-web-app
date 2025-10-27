@@ -8106,30 +8106,45 @@ function executeAutomationProcess() {
     // Load app passwords status
     loadAppPasswordsStatus();
     
-    // Start automation process in background
+    console.log('Starting DIRECT automation process for', accounts.length, 'accounts');
+    
+    // Send request and wait for direct response - NO POLLING
     fetch('/api/start-automation-process', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            accounts: accounts
+            accounts: accountsList  // Send as text, not array
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
     .then(data => {
+        console.log('Direct response received:', data);
+        
         if (data.success) {
-            console.log('Automation process started with task ID:', data.task_id);
-            // Start polling for status
-            pollAutomationStatus(data.task_id);
+            // Update progress to 100%
+            document.getElementById('automation-progress-bar').style.width = '100%';
+            document.getElementById('automation-progress-text').textContent = 'Automation completed!';
+            
+            // Show results immediately
+            showAutomationResults(data);
+            
+            // Hide progress after 3 seconds
+            setTimeout(() => {
+                document.getElementById('automation-progress').style.display = 'none';
+            }, 3000);
         } else {
-            alert('Error starting automation process: ' + data.error);
+            alert('Automation process failed: ' + data.error);
             document.getElementById('automation-progress').style.display = 'none';
         }
     })
     .catch(error => {
-        console.error('Error starting automation process:', error);
-        alert('Error starting automation process: ' + error.message);
+        console.error('Error in automation process:', error);
+        alert('Error executing automation process: ' + error.message);
         document.getElementById('automation-progress').style.display = 'none';
     });
 }
