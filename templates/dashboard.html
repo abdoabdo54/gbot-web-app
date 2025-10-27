@@ -8106,76 +8106,129 @@ function executeAutomationProcess() {
     // Load app passwords status
     loadAppPasswordsStatus();
     
-    console.log('Starting DIRECT automation process for', accounts.length, 'accounts');
+    console.log('Starting SEQUENTIAL automation process for', accounts.length, 'accounts');
     
-    // Send request and wait for direct response - NO POLLING
-    // Set a longer timeout for batch processing
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout
+    // Start sequential processing
+    processAccountsSequentially(accounts);
+}
+
+async function processAccountsSequentially(accounts) {
+    const results = [];
+    const allUsers = [];
+    let authenticatedCount = 0;
+    let usersRetrieved = 0;
     
-    fetch('/api/start-automation-process', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            accounts: accountsList  // Send as text, not array
-        }),
-        signal: controller.signal
-    })
-    .then(response => {
-        clearTimeout(timeoutId); // Clear timeout on successful response
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
+    try {
+        // First, get the account list from the server
+        const initResponse = await fetch('/api/start-automation-process', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                accounts: accounts.join('\n')
+            })
+        });
         
-        // Check if response is OK
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (!initResponse.ok) {
+            throw new Error(`HTTP ${initResponse.status}: ${initResponse.statusText}`);
         }
         
-        // Check if response is JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            // If not JSON, read as text to see what we got
-            return response.text().then(text => {
-                console.error('Received non-JSON response:', text.substring(0, 200));
-                throw new Error(`Server returned HTML instead of JSON. Response: ${text.substring(0, 100)}...`);
-            });
+        const initData = await initResponse.json();
+        if (!initData.success) {
+            throw new Error(initData.error);
         }
         
-        return response.json();
-    })
-    .then(data => {
-        console.log('Direct response received:', data);
+        console.log('Initialization successful, processing accounts sequentially...');
         
-        if (data.success) {
-            // Update progress to 100%
-            document.getElementById('automation-progress-bar').style.width = '100%';
-            document.getElementById('automation-progress-text').textContent = 'Automation completed!';
+        // Process each account individually
+        for (let i = 0; i < accounts.length; i++) {
+            const account = accounts[i];
+            const progressPercent = Math.round(((i + 1) / accounts.length) * 100);
             
-            // Show results immediately
-            showAutomationResults(data);
+            // Update progress
+            document.getElementById('automation-progress-bar').style.width = `${progressPercent}%`;
+            document.getElementById('automation-progress-text').textContent = `Processing account ${i + 1}/${accounts.length}: ${account}`;
             
-            // Hide progress after 3 seconds
-            setTimeout(() => {
-                document.getElementById('automation-progress').style.display = 'none';
-            }, 3000);
-        } else {
-            alert('Automation process failed: ' + data.error);
+            console.log(`Processing account ${i + 1}/${accounts.length}: ${account}`);
+            
+            try {
+                // Process single account
+                const response = await fetch('/api/process-single-account', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        account: account
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error(data.error);
+                }
+                
+                const result = data.result;
+                results.push(result);
+                
+                if (result.success) {
+                    authenticatedCount++;
+                    if (result.users && result.users.length > 0) {
+                        allUsers.push(...result.users);
+                        usersRetrieved += result.users_count;
+                    }
+                }
+                
+                console.log(`Account ${i + 1} completed: ${result.message}`);
+                
+                // Add small delay between accounts to prevent rate limiting
+                if (i < accounts.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+                
+            } catch (error) {
+                console.error(`Error processing account ${account}:`, error);
+                results.push({
+                    account: account,
+                    success: false,
+                    message: `Error processing account: ${error.message}`,
+                    users_count: 0,
+                    users: []
+                });
+            }
+        }
+        
+        // Update progress to 100%
+        document.getElementById('automation-progress-bar').style.width = '100%';
+        document.getElementById('automation-progress-text').textContent = 'Automation completed!';
+        
+        // Show results
+        const finalData = {
+            success: true,
+            processed_count: accounts.length,
+            authenticated_count: authenticatedCount,
+            users_retrieved: usersRetrieved,
+            all_users: allUsers,
+            results: results
+        };
+        
+        showAutomationResults(finalData);
+        
+        // Hide progress after 3 seconds
+        setTimeout(() => {
             document.getElementById('automation-progress').style.display = 'none';
-        }
-    })
-    .catch(error => {
-        clearTimeout(timeoutId); // Clear timeout on error
-        console.error('Error in automation process:', error);
+        }, 3000);
         
-        if (error.name === 'AbortError') {
-            alert('Automation process timed out after 5 minutes. The process may still be running on the server.');
-        } else {
-            alert('Error executing automation process: ' + error.message);
-        }
+    } catch (error) {
+        console.error('Error in sequential automation process:', error);
+        alert('Error executing automation process: ' + error.message);
         document.getElementById('automation-progress').style.display = 'none';
-    });
+    }
 }
 
 // Poll automation status
