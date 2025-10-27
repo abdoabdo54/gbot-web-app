@@ -7216,7 +7216,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
     
     const simulateProgress = () => {
         if (currentAccountIndex < accounts.length) {
-            const percentage = Math.round(((currentAccountIndex + 1) / accounts.length) * 90); // Leave 10% for completion
+            const percentage = Math.round(((currentAccountIndex + 1) / accounts.length) * 85); // Leave 15% for completion
             updateMegaProgress(percentage, `Processing account ${currentAccountIndex + 1}/${accounts.length}: ${accounts[currentAccountIndex]}`, {
                 current: currentAccountIndex + 1,
                 total: accounts.length,
@@ -7225,16 +7225,22 @@ function runMegaUpgradeWorkflow(accounts, features) {
             });
             currentAccountIndex++;
         } else {
-            clearInterval(progressSimulation);
+            // If we've gone through all accounts but request is still pending, show waiting message
+            updateMegaProgress(90, `Waiting for server response... (${accounts.length}/${accounts.length} accounts processed)`, {
+                current: accounts.length,
+                total: accounts.length,
+                account: 'Waiting for server...',
+                status: 'processing'
+            });
         }
     };
     
     // Start progress simulation every 3 seconds
     progressSimulation = setInterval(simulateProgress, 3000);
     
-    // Start the mega upgrade process with extended timeout
+    // Start the mega upgrade process with extended timeout for subdomain changes
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25 * 60 * 1000); // 25 minutes timeout
+    const timeoutId = setTimeout(() => controller.abort(), 45 * 60 * 1000); // 45 minutes timeout for subdomain changes
     
     fetch('/api/mega-upgrade', {
         method: 'POST',
@@ -7268,7 +7274,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
             logBulkDomain(`📋 Total accounts processed: ${data.total_accounts}`);
             
             // Show completion with account counting
-            updateMegaProgress(100, 'Completed successfully!', {
+            updateMegaProgress(100, 'Subdomain change completed successfully!', {
                 current: accounts.length,
                 total: accounts.length,
                 account: 'All accounts processed',
@@ -7384,10 +7390,10 @@ function runMegaUpgradeWorkflow(accounts, features) {
         console.error('Mega Upgrade Error:', error);
         
         // Show error with account counting
-        updateMegaProgress(100, 'Network Error', {
+        updateMegaProgress(100, 'Request timeout - subdomain may have changed successfully', {
             current: 0,
             total: accounts.length,
-            account: 'Network Error',
+            account: 'Timeout occurred',
             status: 'failed'
         });
         
@@ -7395,10 +7401,11 @@ function runMegaUpgradeWorkflow(accounts, features) {
         document.getElementById('megaStopBtn').style.display = 'none';
         
         if (error.name === 'AbortError') {
-            logBulkDomain(`⏰ Request timeout after 25 minutes - process may still be running on server`);
+            logBulkDomain(`⏰ Request timeout after 45 minutes - process may still be running on server`);
             logBulkDomain('─'.repeat(50));
             logBulkDomain('🔍 Check server logs to see if processing completed');
             logBulkDomain('💡 Try refreshing the page and checking domain status');
+            logBulkDomain('✅ If subdomain was changed successfully, the process worked despite the timeout');
         } else {
             logBulkDomain(`❌ Network Error: ${error.message}`);
             logBulkDomain('─'.repeat(50));
