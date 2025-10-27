@@ -11,6 +11,7 @@ import io
 import smtplib
 import tempfile
 import time
+import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging.handlers
 import threading
