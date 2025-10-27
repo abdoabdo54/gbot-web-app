@@ -502,6 +502,9 @@
             <button onclick="refreshDomainStatus()" class="btn-github" style="margin-left: 8px;">
                 <i class="fas fa-sync-alt"></i> Refresh Status
             </button>
+            <button onclick="copyRetrievedSubdomains()" class="btn-github" style="margin-left: 8px;">
+                <i class="fas fa-copy"></i> Copy Subdomains
+            </button>
             <!-- Auto Change Subdomain button moved to Tab 3 Workflow 2 -->
         </div>
         <div id="domain-info-display" class="data-display">
@@ -6654,6 +6657,49 @@ function refreshDomainStatus() {
     .finally(() => {
         button.innerHTML = originalText;
         button.disabled = false;
+    });
+}
+
+function copyRetrievedSubdomains() {
+    const domainDisplay = document.getElementById('domain-info-display');
+    
+    if (!domainDisplay) {
+        alert('❌ No domain information found. Please retrieve domains first.');
+        return;
+    }
+    
+    // Extract subdomains from the domain display
+    const domainItems = domainDisplay.querySelectorAll('.domain-item');
+    
+    if (domainItems.length === 0) {
+        alert('❌ No domains found to copy. Please retrieve domains first.');
+        return;
+    }
+    
+    // Collect all subdomain names
+    const subdomains = [];
+    domainItems.forEach(item => {
+        const domainNameElement = item.querySelector('strong');
+        if (domainNameElement) {
+            subdomains.push(domainNameElement.textContent.trim());
+        }
+    });
+    
+    if (subdomains.length === 0) {
+        alert('❌ No subdomains found to copy.');
+        return;
+    }
+    
+    // Join subdomains with newlines
+    const subdomainsText = subdomains.join('\n');
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(subdomainsText).then(() => {
+        alert(`✅ Copied ${subdomains.length} subdomains to clipboard!\n\nFirst few subdomains:\n${subdomains.slice(0, 3).join('\n')}${subdomains.length > 3 ? '\n...' : ''}`);
+    }).catch(err => {
+        console.error('Failed to copy to clipboard:', err);
+        // Fallback: show the text in a prompt for manual copying
+        prompt('Copy these subdomains manually:', subdomainsText);
     });
 }
 
