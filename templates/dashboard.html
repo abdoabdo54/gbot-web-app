@@ -8095,6 +8095,16 @@ function executeAutomationProcess() {
     document.getElementById('automation-progress-bar').style.width = '0%';
     document.getElementById('automation-progress-text').textContent = `Starting automation process for ${accounts.length} accounts...`;
     
+    // Add a heartbeat to show the request is still active
+    let heartbeatInterval = setInterval(() => {
+        const progressText = document.getElementById('automation-progress-text');
+        if (progressText.textContent.includes('...')) {
+            progressText.textContent = progressText.textContent.replace('...', '');
+        } else {
+            progressText.textContent += '.';
+        }
+    }, 2000);
+    
     // Show users display areas immediately
     document.getElementById('automation-users-display').style.display = 'block';
     document.getElementById('automation-users-text-display').style.display = 'block';
@@ -8114,10 +8124,13 @@ function executeAutomationProcess() {
         },
         body: JSON.stringify({
             accounts: accounts
-        })
+        }),
+        // Add timeout handling
+        signal: AbortSignal.timeout(25 * 60 * 1000) // 25 minutes timeout
     })
     .then(response => response.json())
     .then(data => {
+        clearInterval(heartbeatInterval); // Clear the heartbeat
         console.log('Automation process response:', data);
         console.log('Response success:', data.success);
         console.log('Response data type:', typeof data);
@@ -8158,8 +8171,18 @@ function executeAutomationProcess() {
         }
     })
     .catch(error => {
+        clearInterval(heartbeatInterval); // Clear the heartbeat
         console.error('Error executing automation process:', error);
-        alert('Error executing automation process');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        
+        if (error.name === 'TimeoutError') {
+            alert('Automation process timed out after 25 minutes. The process may still be running on the server.');
+        } else if (error.name === 'AbortError') {
+            alert('Automation process was aborted. Please try again.');
+        } else {
+            alert('Error executing automation process: ' + error.message);
+        }
         document.getElementById('automation-progress').style.display = 'none';
     });
 }
