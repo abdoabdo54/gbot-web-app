@@ -8120,6 +8120,23 @@ function executeAutomationProcess() {
     })
     .then(response => {
         console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        
+        // Check if response is OK
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            // If not JSON, read as text to see what we got
+            return response.text().then(text => {
+                console.error('Received non-JSON response:', text.substring(0, 200));
+                throw new Error(`Server returned HTML instead of JSON. Response: ${text.substring(0, 100)}...`);
+            });
+        }
+        
         return response.json();
     })
     .then(data => {

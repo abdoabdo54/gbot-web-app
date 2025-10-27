@@ -8893,6 +8893,9 @@ def api_start_automation_process():
     """Execute automation process directly and return results immediately - NO POLLING"""
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No JSON data received'})
+            
         accounts_text = data.get('accounts', '')
         
         if not accounts_text.strip():
@@ -8913,17 +8916,17 @@ def api_start_automation_process():
         users_retrieved = 0
         
         for i, account_email in enumerate(accounts):
-            app.logger.info(f"📧 Processing account {i+1}/{len(accounts)}: {account_email}")
-            
-            result = {
-                'account': account_email,
-                'success': False,
-                'message': '',
-                'users_count': 0,
-                'users': []
-            }
-            
             try:
+                app.logger.info(f"📧 Processing account {i+1}/{len(accounts)}: {account_email}")
+                
+                result = {
+                    'account': account_email,
+                    'success': False,
+                    'message': '',
+                    'users_count': 0,
+                    'users': []
+                }
+                
                 # Find account in database
                 google_account = GoogleAccount.query.filter(
                     db.func.lower(GoogleAccount.account_name) == account_email.lower()
@@ -9042,14 +9045,20 @@ def api_start_automation_process():
                 else:
                     result['message'] = 'Failed to authenticate - may need OAuth authorization'
                 
+                results.append(result)
+                
+                # Add small delay between accounts to prevent rate limiting
+                time.sleep(1)
+                
             except Exception as e:
                 app.logger.error(f"Error processing account {account_email}: {e}")
-                result['message'] = f'Error processing account: {str(e)}'
-            
-            results.append(result)
-            
-            # Add small delay between accounts to prevent rate limiting
-            time.sleep(1)
+                results.append({
+                    'account': account_email,
+                    'success': False,
+                    'message': f'Error processing account: {str(e)}',
+                    'users_count': 0,
+                    'users': []
+                })
         
         app.logger.info(f"✅ DIRECT automation process completed: {authenticated_count}/{len(accounts)} authenticated, {users_retrieved} users retrieved")
         
@@ -9064,6 +9073,8 @@ def api_start_automation_process():
         
     except Exception as e:
         app.logger.error(f"Error in DIRECT automation process: {e}")
+        import traceback
+        app.logger.error(f"Full traceback: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)})
 
 def execute_automation_background(task_id, accounts):
