@@ -8846,6 +8846,15 @@ def api_execute_automation_process():
             return jsonify({'success': False, 'error': f'Too many accounts ({len(accounts)}). Maximum 50 accounts allowed per batch for performance.'})
         
         app.logger.info(f"🚀 Starting automation process for {len(accounts)} accounts with 20-minute timeout")
+        app.logger.info(f"📋 Accounts to process: {accounts}")
+        
+        # Check if Google API is properly initialized
+        if not google_api:
+            signal.alarm(0)  # Cancel timeout
+            app.logger.error("Google API not initialized")
+            return jsonify({'success': False, 'error': 'Google API not initialized. Please restart the application.'})
+        
+        app.logger.info(f"✅ Google API initialized: {type(google_api)}")
         
         results = []
         authenticated_count = 0
@@ -8929,8 +8938,10 @@ def api_execute_automation_process():
                     
                     # Try to retrieve users for this account
                     try:
+                        app.logger.info(f"🔍 Retrieving users for account: {db_account_name}")
                         # Use the existing retrieve users functionality
                         users_data = google_api.get_users()
+                        app.logger.info(f"📊 Users data received: {type(users_data)}")
                         if users_data and 'users' in users_data:
                             account_users = users_data['users']
                             result['users_count'] = len(account_users)
@@ -9058,6 +9069,10 @@ def api_execute_automation_process():
                     time.sleep(1)  # 1 second delay between accounts
                 
             except Exception as e:
+                app.logger.error(f"❌ Error processing account {account_email}: {e}")
+                import traceback
+                error_details = traceback.format_exc()
+                app.logger.error(f"Account processing traceback: {error_details}")
                 results.append({
                     'account': account_email,
                     'success': False,
@@ -9096,8 +9111,11 @@ def api_execute_automation_process():
         
     except Exception as e:
         signal.alarm(0)  # Cancel timeout
+        import traceback
+        error_details = traceback.format_exc()
         app.logger.error(f"Error executing automation process: {e}")
-        return jsonify({'success': False, 'error': str(e)})
+        app.logger.error(f"Full traceback: {error_details}")
+        return jsonify({'success': False, 'error': f'Error executing automation process: {str(e)}'})
 
 
 @app.route('/api/generate-otp', methods=['POST'])
