@@ -6091,7 +6091,13 @@ function displayDomainUsageStats(stats) {
         html += '<p class="placeholder-text">No domains found in database</p>';
     } else {
         html += '<h4 style="margin: 20px 0 10px 0; color: #333;">Domain Details:</h4>';
-        html += stats.domains.map(domain => {
+        
+        // Sort domains alphabetically by domain name
+        const sortedDomains = [...stats.domains].sort((a, b) => {
+            return a.domain_name.localeCompare(b.domain_name);
+        });
+        
+        html += sortedDomains.map(domain => {
             // New three-state system
             let statusColor, statusText, domainClass, domainNameColor;
             
@@ -6174,7 +6180,12 @@ function displayAvailableDomains(domains) {
         <h4 style="margin: 15px 0 10px 0; color: #333;">Domain Details:</h4>
     `;
     
-    html += domains.map(domain => {
+    // Sort domains alphabetically by domain name
+    const sortedDomains = [...domains].sort((a, b) => {
+        return a.domain_name.localeCompare(b.domain_name);
+    });
+    
+    html += sortedDomains.map(domain => {
         // New three-state system
         let statusColor, statusText, domainClass, clickHandler, domainNameColor;
         
