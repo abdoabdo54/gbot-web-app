@@ -8136,7 +8136,14 @@ function executeAutomationProcess() {
 
 // Poll automation status
 function pollAutomationStatus(taskId) {
+    console.log('Starting polling for task:', taskId);
+    let pollCount = 0;
+    const maxPolls = 1500; // 50 minutes (1500 * 2 seconds)
+    
     const pollInterval = setInterval(() => {
+        pollCount++;
+        console.log(`Polling attempt ${pollCount} for task:`, taskId);
+        
         fetch('/api/check-automation-status', {
             method: 'POST',
             headers: {
@@ -8146,11 +8153,17 @@ function pollAutomationStatus(taskId) {
                 task_id: taskId
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Poll response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('Poll response data:', data);
+            
             if (data.success) {
                 if (data.status === 'completed') {
                     clearInterval(pollInterval);
+                    console.log('Task completed successfully!');
                     document.getElementById('automation-progress-bar').style.width = '100%';
                     document.getElementById('automation-progress-text').textContent = 'Automation completed!';
                     
@@ -8162,6 +8175,7 @@ function pollAutomationStatus(taskId) {
                     }, 3000);
                 } else if (data.status === 'failed') {
                     clearInterval(pollInterval);
+                    console.error('Task failed:', data.error);
                     alert('Automation process failed: ' + data.error);
                     document.getElementById('automation-progress').style.display = 'none';
                 } else {
@@ -8171,17 +8185,32 @@ function pollAutomationStatus(taskId) {
                     document.getElementById('automation-progress-text').textContent = `Processing... ${progress}%`;
                 }
             } else {
-                clearInterval(pollInterval);
-                alert('Error checking automation status: ' + data.error);
-                document.getElementById('automation-progress').style.display = 'none';
+                console.error('Poll error:', data.error);
+                if (data.error.includes('Task not found') || data.error.includes('expired')) {
+                    clearInterval(pollInterval);
+                    alert('Task not found or expired. The process may have completed but results are no longer available.');
+                    document.getElementById('automation-progress').style.display = 'none';
+                } else {
+                    // Continue polling for other errors
+                    console.log('Continuing to poll despite error:', data.error);
+                }
             }
         })
         .catch(error => {
-            clearInterval(pollInterval);
-            console.error('Error polling automation status:', error);
-            alert('Error checking automation status: ' + error.message);
-            document.getElementById('automation-progress').style.display = 'none';
+            console.error('Poll fetch error:', error);
+            if (pollCount >= maxPolls) {
+                clearInterval(pollInterval);
+                alert('Polling timeout reached. The process may still be running on the server.');
+                document.getElementById('automation-progress').style.display = 'none';
+            }
+            // Continue polling for network errors
         });
+        
+        // Stop polling after max attempts
+        if (pollCount >= maxPolls) {
+            clearInterval(pollInterval);
+            console.log('Max polling attempts reached');
+        }
     }, 2000); // Poll every 2 seconds
 }
 

@@ -9140,6 +9140,7 @@ def execute_automation_background(task_id, accounts):
             automation_tasks[task_id]['authenticated_count'] = authenticated_count
             automation_tasks[task_id]['users_retrieved'] = users_retrieved
             automation_tasks[task_id]['all_users'] = all_users
+            automation_tasks[task_id]['completed_at'] = time.time()
             
             app.logger.info(f"✅ Background automation task {task_id} completed: {authenticated_count}/{len(accounts)} authenticated, {users_retrieved} users retrieved")
             
@@ -9165,9 +9166,19 @@ def api_check_automation_status():
             return jsonify({'success': False, 'error': 'No task ID provided'})
         
         if task_id not in automation_tasks:
+            app.logger.warning(f"Task {task_id} not found in automation_tasks. Available tasks: {list(automation_tasks.keys())}")
             return jsonify({'success': False, 'error': 'Task not found or expired'})
         
         task_data = automation_tasks[task_id]
+        
+        # Add task cleanup after successful completion (keep for 5 minutes)
+        if task_data['status'] == 'completed':
+            import time
+            completed_time = task_data.get('completed_at', time.time())
+            if time.time() - completed_time > 300:  # 5 minutes
+                app.logger.info(f"Cleaning up old completed task {task_id}")
+                del automation_tasks[task_id]
+                return jsonify({'success': False, 'error': 'Task expired after completion'})
         
         if task_data['status'] == 'completed':
             return jsonify({
