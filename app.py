@@ -6097,6 +6097,12 @@ def mega_upgrade():
                                 
                                 app.logger.info(f"🔄 Starting domain change for {len(domain_users)} users in account {acct}")
                                 
+                                # Get the current domain being used (before change)
+                                current_domain = None
+                                if domain_users:
+                                    current_domain = domain_users[0].split('@')[1]
+                                    app.logger.info(f"📋 Current domain: {current_domain}, Target domain: {next_domain}")
+                                
                                 # Process users with enhanced synchronization
                                 for u_email in domain_users:
                                     username = u_email.split('@')[0]
@@ -6294,6 +6300,31 @@ def mega_upgrade():
                                             app.logger.warning(f"⚠️ Verification mismatch for {acct}: expected {successful_user_changes}, found {users_on_new_domain}")
                                         else:
                                             app.logger.info(f"✅ Verification successful for {acct}: all {users_on_new_domain} users confirmed on {next_domain}")
+                                            
+                                            # Mark the OLD domain as used since users moved away from it
+                                            if current_domain and current_domain != next_domain:
+                                                try:
+                                                    app.logger.info(f"🔄 Marking old domain {current_domain} as used...")
+                                                    # Use UPSERT to handle the old domain
+                                                    db.session.execute(text("""
+                                                        INSERT INTO used_domain (domain_name, user_count, is_verified, ever_used, created_at, updated_at)
+                                                        VALUES (:domain_name, :user_count, :is_verified, :ever_used, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                                                        ON CONFLICT (domain_name) 
+                                                        DO UPDATE SET 
+                                                            user_count = used_domain.user_count + :user_count,
+                                                            ever_used = TRUE,
+                                                            updated_at = CURRENT_TIMESTAMP
+                                                    """), {
+                                                        'domain_name': current_domain,
+                                                        'user_count': successful_user_changes,
+                                                        'is_verified': True,
+                                                        'ever_used': True
+                                                    })
+                                                    db.session.commit()
+                                                    app.logger.info(f"✅ Successfully marked old domain {current_domain} as used")
+                                                except Exception as e:
+                                                    db.session.rollback()
+                                                    app.logger.warning(f"⚠️ Failed to mark old domain {current_domain} as used: {e}")
                                             
                                     except Exception as e:
                                         app.logger.error(f"❌ Verification failed for {acct}: {e}")
