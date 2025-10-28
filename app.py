@@ -6120,10 +6120,10 @@ def mega_upgrade():
                                             try:
                                                 updated_user = google_api.service.users().get(userKey=new_email).execute()
                                                 if updated_user.get('primaryEmail') == new_email:
-                                            successful_user_changes += 1
-                                            user_success = True
+                                                    successful_user_changes += 1
+                                                    user_success = True
                                                     app.logger.info(f"✅ Successfully updated and verified user {u_email} -> {new_email}")
-                                            break
+                                                    break
                                                 else:
                                                     app.logger.warning(f"⚠️ User update not verified for {u_email}")
                                             except Exception as verify_e:
