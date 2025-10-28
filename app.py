@@ -9819,7 +9819,7 @@ def api_generate_otp():
             })
             
         except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+            return jsonify({'success': False, 'error': str(e)})
         finally:
             ssh.close()
             
