@@ -6222,7 +6222,7 @@ def mega_upgrade():
                                                     existing_domain.ever_used = True
                                                 else:
                                                     # Create new record
-                                        db.session.add(UsedDomain(domain_name=next_domain, user_count=successful_user_changes, is_verified=True, ever_used=True))
+                                                    db.session.add(UsedDomain(domain_name=next_domain, user_count=successful_user_changes, is_verified=True, ever_used=True))
                                                     
                                             except Exception as e2:
                                                 # Handle duplicate key violation - another process might have created it
