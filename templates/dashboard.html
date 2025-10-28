@@ -7076,7 +7076,7 @@ function updateMegaProgress(percentage, message, accountInfo = null) {
             `;
             console.log('Updated progress with account info:', accountInfo);
         } else {
-            progressText.textContent = message;
+        progressText.textContent = message;
             console.log('Updated progress with simple message:', message);
         }
     } else {
@@ -7184,240 +7184,6 @@ function debugMegaUpgrade() {
         console.error('DEBUG Error:', error);
     });
 }
-
-// Check account status and retry unfinished accounts after timeout
-function checkAccountStatusAndRetry(accounts, features) {
-    logBulkDomain('🔄 Starting account status check and retry process...');
-    
-    let completedAccounts = [];
-    let failedAccounts = [];
-    let currentAccountIndex = 0;
-    let totalAccounts = accounts.length;
-    
-    // Update progress to show retry process
-    updateMegaProgress(0, 'Checking account status and retrying...', {
-        current: 0,
-        total: totalAccounts,
-        account: 'Checking accounts...',
-        status: 'processing'
-    });
-    
-    // Process accounts one by one to check their status
-    function checkNextAccount() {
-        if (currentAccountIndex >= totalAccounts) {
-            // All accounts checked, show final results
-            showRetryResults();
-            return;
-        }
-        
-        const currentAccount = accounts[currentAccountIndex];
-        const accountNumber = currentAccountIndex + 1;
-        
-        // Update progress
-        updateMegaProgress(
-            Math.round((currentAccountIndex / totalAccounts) * 90),
-            `Checking account ${accountNumber}/${totalAccounts}: ${currentAccount}`,
-            {
-                current: accountNumber,
-                total: totalAccounts,
-                account: currentAccount,
-                status: 'processing'
-            }
-        );
-        
-        logBulkDomain(`🔍 Checking account ${accountNumber}/${totalAccounts}: ${currentAccount}`);
-        
-        // Check if account was processed by trying to authenticate
-        checkAccountStatus(currentAccount)
-            .then(result => {
-                if (result.success) {
-                    completedAccounts.push(result);
-                    logBulkDomain(`✅ Account ${accountNumber}/${totalAccounts} was completed: ${currentAccount}`);
-                } else {
-                    // Account wasn't processed, retry it
-                    logBulkDomain(`🔄 Account ${accountNumber}/${totalAccounts} needs retry: ${currentAccount}`);
-                    return retryAccount(currentAccount, features);
-                }
-            })
-            .then(retryResult => {
-                if (retryResult) {
-                    if (retryResult.success) {
-                        completedAccounts.push(retryResult);
-                        logBulkDomain(`✅ Account ${accountNumber}/${totalAccounts} retry successful: ${currentAccount}`);
-                    } else {
-                        failedAccounts.push({ account: currentAccount, error: retryResult.error });
-                        logBulkDomain(`❌ Account ${accountNumber}/${totalAccounts} retry failed: ${currentAccount} - ${retryResult.error}`);
-                    }
-                }
-                
-                currentAccountIndex++;
-                
-                // Update progress
-                updateMegaProgress(
-                    Math.round((currentAccountIndex / totalAccounts) * 90),
-                    `Checked account ${accountNumber}/${totalAccounts}: ${currentAccount}`,
-                    {
-                        current: accountNumber,
-                        total: totalAccounts,
-                        account: currentAccount,
-                        status: 'success'
-                    }
-                );
-                
-                // Check next account after a short delay
-                setTimeout(checkNextAccount, 2000);
-            })
-            .catch(error => {
-                failedAccounts.push({ account: currentAccount, error: error.message });
-                logBulkDomain(`❌ Account ${accountNumber}/${totalAccounts} check error: ${currentAccount} - ${error.message}`);
-                
-                currentAccountIndex++;
-                
-                // Update progress
-                updateMegaProgress(
-                    Math.round((currentAccountIndex / totalAccounts) * 90),
-                    `Error account ${accountNumber}/${totalAccounts}: ${currentAccount}`,
-                    {
-                        current: accountNumber,
-                        total: totalAccounts,
-                        account: currentAccount,
-                        status: 'failed'
-                    }
-                );
-                
-                // Check next account after a short delay
-                setTimeout(checkNextAccount, 2000);
-            });
-    }
-    
-    // Check if account was already processed
-    function checkAccountStatus(account) {
-        return new Promise((resolve) => {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30 * 1000); // 30 seconds
-            
-            fetch('/api/check-account-status', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    account: account
-                }),
-                signal: controller.signal
-            })
-            .then(response => {
-                clearTimeout(timeoutId);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                resolve({
-                    success: data.success,
-                    account: account,
-                    status: data.status || 'unknown'
-                });
-            })
-            .catch(error => {
-                clearTimeout(timeoutId);
-                resolve({
-                    success: false,
-                    account: account,
-                    error: error.name === 'AbortError' ? 'Status check timeout' : error.message
-                });
-            });
-        });
-    }
-    
-    // Retry processing an account
-    function retryAccount(account, features) {
-        return new Promise((resolve) => {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2 * 60 * 1000); // 2 minutes per account
-            
-            fetch('/api/process-single-account', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    account: account,
-                    features: features
-                }),
-                signal: controller.signal
-            })
-            .then(response => {
-                clearTimeout(timeoutId);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                resolve({
-                    success: data.success,
-                    account: account,
-                    new_subdomain: data.new_subdomain || 'Unknown',
-                    error: data.error || 'Unknown error'
-                });
-            })
-            .catch(error => {
-                clearTimeout(timeoutId);
-                resolve({
-                    success: false,
-                    account: account,
-                    error: error.name === 'AbortError' ? 'Retry timeout (2 minutes)' : error.message
-                });
-            });
-        });
-    }
-    
-    // Show final retry results
-    function showRetryResults() {
-        updateMegaProgress(100, 'Account check and retry complete!', {
-            current: totalAccounts,
-            total: totalAccounts,
-            account: 'All accounts processed',
-            status: 'success'
-        });
-        
-        logBulkDomain('─'.repeat(50));
-        logBulkDomain('📋 RETRY RESULTS:');
-        logBulkDomain(`✅ Successfully completed: ${completedAccounts.length}`);
-        logBulkDomain(`❌ Failed accounts: ${failedAccounts.length}`);
-        logBulkDomain(`📊 Total processed: ${totalAccounts}`);
-        
-        if (completedAccounts.length > 0) {
-            logBulkDomain('─'.repeat(50));
-            logBulkDomain('✅ SUCCESSFUL ACCOUNTS:');
-            completedAccounts.forEach((result, index) => {
-                logBulkDomain(`  ${index + 1}. Account: ${result.account}`);
-                if (result.new_subdomain) {
-                    logBulkDomain(`     New Subdomain: ${result.new_subdomain}`);
-                }
-            });
-        }
-        
-        if (failedAccounts.length > 0) {
-            logBulkDomain('─'.repeat(50));
-            logBulkDomain('❌ FAILED ACCOUNTS:');
-            failedAccounts.forEach((result, index) => {
-                logBulkDomain(`  ${index + 1}. Account: ${result.account}`);
-                logBulkDomain(`     Error: ${result.error}`);
-            });
-        }
-        
-        logBulkDomain('─'.repeat(50));
-        logBulkDomain('🎉 Account Check and Retry Process Complete!');
-        
-        // Hide progress after 5 seconds
-        setTimeout(() => {
-            document.getElementById('megaUpgradeProgress').style.display = 'none';
-        }, 5000);
-    }
-    
-    // Start checking accounts
-    checkNextAccount();
-}
-
 function runMegaUpgradeWorkflow(accounts, features) {
     logBulkDomain('🚀 Starting Mega Upgrade Workflow...');
     logBulkDomain(`📊 Processing ${accounts.length} accounts with selected features`);
@@ -7439,7 +7205,8 @@ function runMegaUpgradeWorkflow(accounts, features) {
     });
     
     logBulkDomain('⏳ Starting automated processing...');
-    logBulkDomain('⏰ Note: Processing multiple accounts may take 10-30 minutes depending on user count');
+    logBulkDomain('⏰ Note: Processing multiple accounts may take 30-120 minutes depending on user count');
+    logBulkDomain('🕐 Timeout set to 2 HOURS to allow for long subdomain change processes');
     
     // Start progress polling immediately
     let progressPolling = null;
@@ -7460,7 +7227,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
             currentAccountIndex++;
         } else {
             // If we've gone through all accounts but request is still pending, show waiting message
-            updateMegaProgress(90, `Waiting for server response... (${accounts.length}/${accounts.length} accounts processed)`, {
+            updateMegaProgress(90, `Waiting for server response... (${accounts.length}/${accounts.length} accounts processed) - Timeout: 2 hours`, {
                 current: accounts.length,
                 total: accounts.length,
                 account: 'Waiting for server...',
@@ -7472,9 +7239,18 @@ function runMegaUpgradeWorkflow(accounts, features) {
     // Start progress simulation every 3 seconds
     progressSimulation = setInterval(simulateProgress, 3000);
     
-    // Start the mega upgrade process with extended timeout for subdomain changes
+    // Add a special message after 10 minutes to reassure user
+    setTimeout(() => {
+        logBulkDomain('─'.repeat(50));
+        logBulkDomain('⏰ Process is taking longer than expected - this is NORMAL for subdomain changes');
+        logBulkDomain('🔄 The backend is still working - please be patient');
+        logBulkDomain('🕐 Timeout is set to 2 HOURS to allow for completion');
+        logBulkDomain('─'.repeat(50));
+    }, 10 * 60 * 1000); // After 10 minutes
+    
+    // Start the mega upgrade process with MUCH longer timeout for subdomain changes
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45 * 60 * 1000); // 45 minutes timeout for subdomain changes
+    const timeoutId = setTimeout(() => controller.abort(), 120 * 60 * 1000); // 2 HOURS timeout for subdomain changes
     
     fetch('/api/mega-upgrade', {
         method: 'POST',
@@ -7624,7 +7400,7 @@ function runMegaUpgradeWorkflow(accounts, features) {
         console.error('Mega Upgrade Error:', error);
         
         // Show error with account counting
-        updateMegaProgress(100, 'Request timeout - checking for unfinished accounts...', {
+        updateMegaProgress(100, 'Request timeout - subdomain may have changed successfully', {
             current: 0,
             total: accounts.length,
             account: 'Timeout occurred',
@@ -7635,16 +7411,15 @@ function runMegaUpgradeWorkflow(accounts, features) {
         document.getElementById('megaStopBtn').style.display = 'none';
         
         if (error.name === 'AbortError') {
-            logBulkDomain(`⏰ Request timeout after 45 minutes - checking for unfinished accounts`);
+            logBulkDomain(`⏰ Request timeout after 2 HOURS - process may still be running on server`);
             logBulkDomain('─'.repeat(50));
-            logBulkDomain('🔍 Checking which accounts were actually processed...');
-            
-            // Check account status and retry unfinished accounts
-            checkAccountStatusAndRetry(accounts, features);
+            logBulkDomain('🔍 Check server logs to see if processing completed');
+            logBulkDomain('💡 Try refreshing the page and checking domain status');
+            logBulkDomain('✅ If subdomain was changed successfully, the process worked despite the timeout');
         } else {
-            logBulkDomain(`❌ Network Error: ${error.message}`);
-            logBulkDomain('─'.repeat(50));
-            logBulkDomain('🔍 Check server connection and logs');
+        logBulkDomain(`❌ Network Error: ${error.message}`);
+        logBulkDomain('─'.repeat(50));
+        logBulkDomain('🔍 Check server connection and logs');
         }
         
     // Even if server times out, find the ACTUAL changed subdomain
@@ -8478,11 +8253,11 @@ async function processAccountsSequentially(accounts) {
     try {
         // First, get the account list from the server
         const initResponse = await fetch('/api/start-automation-process', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
                 accounts: accounts.join('\n')
             })
         });
@@ -8611,28 +8386,28 @@ function pollAutomationStatus(taskId) {
             console.log('Poll response status:', response.status);
             return response.json();
         })
-        .then(data => {
+    .then(data => {
             console.log('Poll response data:', data);
             
-            if (data.success) {
+        if (data.success) {
                 if (data.status === 'completed') {
                     clearInterval(pollInterval);
                     console.log('Task completed successfully!');
-                    document.getElementById('automation-progress-bar').style.width = '100%';
-                    document.getElementById('automation-progress-text').textContent = 'Automation completed!';
-                    
-                    // Show results
-                    showAutomationResults(data);
-                    
-                    setTimeout(() => {
-                        document.getElementById('automation-progress').style.display = 'none';
-                    }, 3000);
+            document.getElementById('automation-progress-bar').style.width = '100%';
+            document.getElementById('automation-progress-text').textContent = 'Automation completed!';
+            
+            // Show results
+            showAutomationResults(data);
+            
+            setTimeout(() => {
+                document.getElementById('automation-progress').style.display = 'none';
+            }, 3000);
                 } else if (data.status === 'failed') {
                     clearInterval(pollInterval);
                     console.error('Task failed:', data.error);
                     alert('Automation process failed: ' + data.error);
                     document.getElementById('automation-progress').style.display = 'none';
-                } else {
+        } else {
                     // Update progress
                     const progress = data.progress || 0;
                     document.getElementById('automation-progress-bar').style.width = progress + '%';
@@ -8643,19 +8418,19 @@ function pollAutomationStatus(taskId) {
                 if (data.error.includes('Task not found') || data.error.includes('expired')) {
                     clearInterval(pollInterval);
                     alert('Task not found or expired. The process may have completed but results are no longer available.');
-                    document.getElementById('automation-progress').style.display = 'none';
+            document.getElementById('automation-progress').style.display = 'none';
                 } else {
                     // Continue polling for other errors
                     console.log('Continuing to poll despite error:', data.error);
                 }
-            }
-        })
-        .catch(error => {
+        }
+    })
+    .catch(error => {
             console.error('Poll fetch error:', error);
             if (pollCount >= maxPolls) {
                 clearInterval(pollInterval);
                 alert('Polling timeout reached. The process may still be running on the server.');
-                document.getElementById('automation-progress').style.display = 'none';
+        document.getElementById('automation-progress').style.display = 'none';
             }
             // Continue polling for network errors
         });

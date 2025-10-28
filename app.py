@@ -5910,9 +5910,9 @@ def mega_upgrade():
                         # If exact match fails, try case-insensitive match as fallback
                         if not google_account:
                             app.logger.info(f"Exact match failed for {acct}, trying case-insensitive match")
-                            google_account = GoogleAccount.query.filter(
-                                func.lower(GoogleAccount.account_name) == acct.lower()
-                            ).first()
+                        google_account = GoogleAccount.query.filter(
+                            func.lower(GoogleAccount.account_name) == acct.lower()
+                        ).first()
                         if not google_account:
                             app.logger.warning(f"Account {acct} not found in database")
                             all_accounts = GoogleAccount.query.all()
@@ -6120,10 +6120,10 @@ def mega_upgrade():
                                             try:
                                                 updated_user = google_api.service.users().get(userKey=new_email).execute()
                                                 if updated_user.get('primaryEmail') == new_email:
-                                                    successful_user_changes += 1
-                                                    user_success = True
+                                            successful_user_changes += 1
+                                            user_success = True
                                                     app.logger.info(f"✅ Successfully updated and verified user {u_email} -> {new_email}")
-                                                    break
+                                            break
                                                 else:
                                                     app.logger.warning(f"⚠️ User update not verified for {u_email}")
                                             except Exception as verify_e:
@@ -6222,7 +6222,7 @@ def mega_upgrade():
                                                     existing_domain.ever_used = True
                                                 else:
                                                     # Create new record
-                                                    db.session.add(UsedDomain(domain_name=next_domain, user_count=successful_user_changes, is_verified=True, ever_used=True))
+                                        db.session.add(UsedDomain(domain_name=next_domain, user_count=successful_user_changes, is_verified=True, ever_used=True))
                                                     
                                             except Exception as e2:
                                                 # Handle duplicate key violation - another process might have created it
@@ -9819,7 +9819,7 @@ def api_generate_otp():
             })
             
         except Exception as e:
-            return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'success': False, 'error': str(e)})
         finally:
             ssh.close()
             
