@@ -10166,7 +10166,17 @@ def api_change_subdomain_status():
                 db.session.rollback()
                 app.logger.warning(f"UPSERT failed for {subdomain}, using fallback method: {e}")
                 
-                # Check if this is a domain name conflict or primary key conflict
+                # Check if this is a sequence issue (primary key conflict)
+                if 'duplicate key value violates unique constraint "used_domain_pkey"' in str(e):
+                    app.logger.error(f"❌ Sequence issue detected for {subdomain}. The used_domain_id_seq is out of sync.")
+                    app.logger.error(f"Please run: python fix_used_domain_sequence.py --all")
+                    return jsonify({
+                        'success': False, 
+                        'error': f'Database sequence error for {subdomain}. Please contact support or run the sequence fix script.',
+                        'sequence_error': True
+                    })
+                
+                # Check if this is a domain name conflict
                 if 'duplicate key' in str(e).lower() or 'unique constraint' in str(e).lower():
                     # Try to fetch existing record first
                     domain_record = UsedDomain.query.filter_by(domain_name=subdomain).first()
