@@ -505,6 +505,9 @@
             <button onclick="copyRetrievedSubdomains()" class="btn-github" style="margin-left: 8px;">
                 <i class="fas fa-copy"></i> Copy Subdomains
             </button>
+            <button onclick="markUsedDomains()" class="btn-github" style="margin-left: 8px; background-color: #28a745; border-color: #28a745; color: white;">
+                <i class="fas fa-check-circle"></i> Mark Used Domains
+            </button>
             <!-- Auto Change Subdomain button moved to Tab 3 Workflow 2 -->
         </div>
         <div id="domain-info-display" class="data-display">
@@ -6655,6 +6658,44 @@ function refreshDomainStatus() {
         alert('❌ Network error: ' + error.message);
     })
     .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function markUsedDomains() {
+    console.log('markUsedDomains called');
+    
+    if (!confirm('This will mark all domains currently in use as "used" in the database. Continue?')) {
+        return;
+    }
+    
+    // Show loading state
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Marking...';
+    button.disabled = true;
+    
+    fetch('/api/mark-used-domains', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ ${data.message}\n\n📊 Statistics:\n- Updated: ${data.stats.updated}\n- Created: ${data.stats.created}\n- Total Used: ${data.stats.total_used}\n- Total Available: ${data.stats.total_available}`);
+            // Refresh the domain status display
+            refreshDomainStatus();
+        } else {
+            alert(`❌ Error: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error marking used domains:', error);
+        alert(`❌ Network Error: ${error.message}`);
+    })
+    .finally(() => {
+        // Restore button state
         button.innerHTML = originalText;
         button.disabled = false;
     });
