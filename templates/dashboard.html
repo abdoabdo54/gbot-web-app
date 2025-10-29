@@ -8966,6 +8966,7 @@ function readyToTest() {
     
     const lines = textArea.value.trim().split('\n');
     const accountUsers = new Map(); // Map to store one user per account
+    const allDomains = new Set(); // Track all domains seen
     let totalUsers = 0;
     let accountsFound = 0;
     
@@ -8981,32 +8982,34 @@ function readyToTest() {
                 const smtpServer = parts[2].trim();
                 const smtpPort = parts[3].trim();
                 
-                // Skip administrator accounts and users without app passwords
-                if (email.toLowerCase().includes('administrator') || 
-                    appPassword.toLowerCase().includes('no app password') ||
-                    appPassword === '' ||
-                    appPassword === 'No app password') {
-                    console.log(`Skipping ${email} - administrator or no app password`);
-                    return; // Skip this user
-                }
-                
                 // Extract domain from email (everything after @)
                 const domainMatch = email.match(/@(.+)$/);
                 if (domainMatch) {
                     const domain = domainMatch[1];
+                    allDomains.add(domain); // Track all domains
                     totalUsers++;
                     
-                    // Only store the first valid user for each domain (account)
-                    if (!accountUsers.has(domain)) {
-                        accountUsers.set(domain, {
-                            email: email,
-                            appPassword: appPassword,
-                            smtpServer: smtpServer,
-                            smtpPort: smtpPort,
-                            line: line
-                        });
-                        accountsFound++;
-                        console.log(`Account ${accountsFound}: ${domain} -> ${email}`);
+                    // Check if this is a valid user (not admin, has app password)
+                    const isValidUser = !email.toLowerCase().includes('administrator') && 
+                                      !appPassword.toLowerCase().includes('no app password') &&
+                                      appPassword !== '' &&
+                                      appPassword !== 'No app password';
+                    
+                    if (isValidUser) {
+                        // Only store the first valid user for each domain (account)
+                        if (!accountUsers.has(domain)) {
+                            accountUsers.set(domain, {
+                                email: email,
+                                appPassword: appPassword,
+                                smtpServer: smtpServer,
+                                smtpPort: smtpPort,
+                                line: line
+                            });
+                            accountsFound++;
+                            console.log(`✅ Account ${accountsFound}: ${domain} -> ${email}`);
+                        }
+                    } else {
+                        console.log(`❌ Skipping ${email} - administrator or no app password`);
                     }
                 }
             }
@@ -9024,8 +9027,10 @@ function readyToTest() {
         `${user.email}:${user.appPassword}`
     ).join('\n');
     
-    console.log(`Ready to Test: ${accountsFound} accounts, ${totalUsers} total users`);
+    console.log(`Ready to Test: ${accountsFound} valid accounts found from ${allDomains.size} total domains (${totalUsers} total users)`);
     console.log('Selected users:', testUsers.map(u => u.email));
+    console.log('All domains seen:', Array.from(allDomains));
+    console.log('Domains with valid users:', Array.from(accountUsers.keys()));
     
     // Copy to clipboard with fallback
     console.log('Attempting to copy to clipboard...');
