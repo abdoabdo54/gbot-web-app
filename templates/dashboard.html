@@ -1333,7 +1333,7 @@
                         " onmouseover="this.style.background='#1e7e34'" onmouseout="this.style.background='#28a745'">
                             <i class="fas fa-download"></i> Export CSV
                         </button>
-                        <button onclick="console.log('Button clicked!'); readyToTest();" class="btn-github" style="
+                        <button onclick="readyToTest();" class="btn-github" style="
                             padding: 8px 16px; 
                             font-size: 13px; 
                             font-weight: 500;
@@ -7702,7 +7702,7 @@ function uploadAppPasswords() {
                 const fixCommand = data.fix_command || 'python fix_used_domain_sequence.py --all';
                 alert(`❌ Database Sequence Error!\n\n${errorMsg}\n\n🔧 To fix this issue, run this command on your server:\n\n${fixCommand}\n\nThis will reset the database sequences and allow uploads to work again.`);
             } else {
-                alert(`❌ Upload failed: ${errorMsg}`);
+            alert(`❌ Upload failed: ${errorMsg}`);
             }
         }
     })
@@ -8948,7 +8948,6 @@ function exportAutomationUsers() {
 // Ready to Test - Copy one user from each account
 function readyToTest() {
     console.log('🚀 Ready to Test button clicked!');
-    alert('🚀 Ready to Test button clicked! Check console for details.');
     console.log('Starting Ready to Test - selecting one user per account...');
     
     const textArea = document.getElementById('automation-users-text');
@@ -9019,26 +9018,48 @@ function readyToTest() {
     console.log(`Ready to Test: ${accountsFound} accounts, ${totalUsers} total users`);
     console.log('Selected users:', testUsers.map(u => u.email));
     
-    // Copy to clipboard
-    navigator.clipboard.writeText(testList).then(() => {
-        console.log('✅ Test users copied to clipboard');
-        alert(`✅ Ready to Test!\n\n📊 Selected ${accountsFound} users (one per account)\n📋 Copied to clipboard\n\nFormat: email,app_password,smtp.gmail.com,587`);
-        
-        // Show the selected users in a temporary display
-        const displayText = `Ready to Test - ${accountsFound} users (one per account):\n\n${testList}`;
+    // Copy to clipboard with fallback
+    if (navigator.clipboard && window.isSecureContext) {
+        // Modern clipboard API
+        navigator.clipboard.writeText(testList).then(() => {
+            console.log('✅ Test users copied to clipboard');
+            alert(`✅ Ready to Test!\n\n📊 Selected ${accountsFound} users (one per account)\n📋 Copied to clipboard\n\nFormat: email,app_password,smtp.gmail.com,587`);
+        }).catch(err => {
+            console.error('Clipboard API failed:', err);
+            fallbackCopy(testList, accountsFound);
+        });
+    } else {
+        // Fallback for older browsers or non-secure contexts
+        console.log('Using fallback copy method');
+        fallbackCopy(testList, accountsFound);
+    }
+    
+    function fallbackCopy(text, count) {
+        // Create temporary textarea
         const tempTextArea = document.createElement('textarea');
-        tempTextArea.value = displayText;
+        tempTextArea.value = text;
         tempTextArea.style.position = 'fixed';
         tempTextArea.style.left = '-9999px';
+        tempTextArea.style.top = '-9999px';
         document.body.appendChild(tempTextArea);
+        tempTextArea.focus();
         tempTextArea.select();
-        document.body.removeChild(tempTextArea);
         
-    }).catch(err => {
-        console.error('Failed to copy to clipboard:', err);
-        // Fallback: show the text in a prompt for manual copying
-        prompt('Copy these test users manually:', testList);
-    });
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                console.log('✅ Test users copied to clipboard (fallback)');
+                alert(`✅ Ready to Test!\n\n📊 Selected ${count} users (one per account)\n📋 Copied to clipboard\n\nFormat: email,app_password,smtp.gmail.com,587`);
+            } else {
+                throw new Error('execCommand failed');
+            }
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            alert(`✅ Ready to Test!\n\n📊 Selected ${count} users (one per account)\n\n📋 Copy this text manually:\n\n${text}`);
+        } finally {
+            document.body.removeChild(tempTextArea);
+        }
+    }
 }
 
 // Clear automation list
