@@ -93,11 +93,37 @@ def check_all_sequences():
                 ('user_id_seq', 'user')
             ]
             
+            def get_primary_key_column(table: str) -> str | None:
+                """Return the primary key column name for a table, or None if not found."""
+                # Quote table for regclass lookup (handles reserved names like user)
+                query = text(
+                    """
+                    SELECT a.attname
+                    FROM pg_index i
+                    JOIN pg_attribute a
+                      ON a.attrelid = i.indrelid
+                     AND a.attnum = ANY(i.indkey)
+                    WHERE i.indisprimary
+                      AND i.indrelid = (:tbl)::regclass
+                    LIMIT 1
+                    """
+                )
+                # Use schema-qualified name if not provided
+                tbl_regclass = f'public."{table}"' if not table.startswith('public.') else table
+                row = db.session.execute(query, { 'tbl': tbl_regclass }).fetchone()
+                return row[0] if row and len(row) > 0 else None
+
             for seq_name, table_name in sequences_to_check:
                 try:
-                    # Get max ID from table
-                    result = db.session.execute(text(f"SELECT MAX(id) FROM {table_name}")).fetchone()
-                    max_id = result[0] if result[0] is not None else 0
+                    # Determine the primary key column dynamically (fallback to id)
+                    pk_col = get_primary_key_column(table_name) or 'id'
+
+                    # Build a safe, quoted table identifier (handles reserved names like user)
+                    quoted_table = f'"{table_name}"' if '.' not in table_name else table_name
+
+                    # Get max PK value from table
+                    result = db.session.execute(text(f"SELECT MAX({pk_col}) FROM {quoted_table}")).fetchone()
+                    max_id = result[0] if result and result[0] is not None else 0
                     
                     # Get current sequence value
                     result = db.session.execute(text(f"SELECT last_value FROM {seq_name}")).fetchone()
