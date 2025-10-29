@@ -1333,6 +1333,21 @@
                         " onmouseover="this.style.background='#1e7e34'" onmouseout="this.style.background='#28a745'">
                             <i class="fas fa-download"></i> Export CSV
                         </button>
+                        <button onclick="readyToTest()" class="btn-github" style="
+                            padding: 8px 16px; 
+                            font-size: 13px; 
+                            font-weight: 500;
+                            background: #ff6b35;
+                            color: white;
+                            border: 1px solid #ff6b35;
+                            border-radius: 6px;
+                            transition: all 0.2s ease;
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                        " onmouseover="this.style.background='#e55a2b'" onmouseout="this.style.background='#ff6b35'">
+                            <i class="fas fa-vial"></i> Ready to Test
+                        </button>
                     </div>
                     <div style="position: relative;">
                         <textarea id="automation-users-text" class="form-control-github" rows="15" 
@@ -8928,6 +8943,92 @@ function exportAutomationUsers() {
         console.error('❌ CSV export failed:', error);
         alert('❌ CSV export failed: ' + error.message);
     }
+}
+
+// Ready to Test - Copy one user from each account
+function readyToTest() {
+    console.log('Starting Ready to Test - selecting one user per account...');
+    
+    const textArea = document.getElementById('automation-users-text');
+    if (!textArea || !textArea.value.trim()) {
+        alert('❌ No users found. Please run automation process first.');
+        return;
+    }
+    
+    const lines = textArea.value.trim().split('\n');
+    const accountUsers = new Map(); // Map to store one user per account
+    let totalUsers = 0;
+    let accountsFound = 0;
+    
+    console.log(`Processing ${lines.length} user lines...`);
+    
+    // Process each line to group users by account (domain)
+    lines.forEach((line, index) => {
+        if (line.trim()) {
+            const parts = line.split(',');
+            if (parts.length >= 4) {
+                const email = parts[0].trim();
+                const appPassword = parts[1].trim();
+                const smtpServer = parts[2].trim();
+                const smtpPort = parts[3].trim();
+                
+                // Extract domain from email (everything after @)
+                const domainMatch = email.match(/@(.+)$/);
+                if (domainMatch) {
+                    const domain = domainMatch[1];
+                    totalUsers++;
+                    
+                    // Only store the first user for each domain (account)
+                    if (!accountUsers.has(domain)) {
+                        accountUsers.set(domain, {
+                            email: email,
+                            appPassword: appPassword,
+                            smtpServer: smtpServer,
+                            smtpPort: smtpPort,
+                            line: line
+                        });
+                        accountsFound++;
+                        console.log(`Account ${accountsFound}: ${domain} -> ${email}`);
+                    }
+                }
+            }
+        }
+    });
+    
+    if (accountsFound === 0) {
+        alert('❌ No valid users found. Please check the format.');
+        return;
+    }
+    
+    // Create the test-ready list (one user per account)
+    const testUsers = Array.from(accountUsers.values());
+    const testList = testUsers.map(user => 
+        `${user.email},${user.appPassword},${user.smtpServer},${user.smtpPort}`
+    ).join('\n');
+    
+    console.log(`Ready to Test: ${accountsFound} accounts, ${totalUsers} total users`);
+    console.log('Selected users:', testUsers.map(u => u.email));
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(testList).then(() => {
+        console.log('✅ Test users copied to clipboard');
+        alert(`✅ Ready to Test!\n\n📊 Selected ${accountsFound} users (one per account)\n📋 Copied to clipboard\n\nFormat: email,app_password,smtp.gmail.com,587`);
+        
+        // Show the selected users in a temporary display
+        const displayText = `Ready to Test - ${accountsFound} users (one per account):\n\n${testList}`;
+        const tempTextArea = document.createElement('textarea');
+        tempTextArea.value = displayText;
+        tempTextArea.style.position = 'fixed';
+        tempTextArea.style.left = '-9999px';
+        document.body.appendChild(tempTextArea);
+        tempTextArea.select();
+        document.body.removeChild(tempTextArea);
+        
+    }).catch(err => {
+        console.error('Failed to copy to clipboard:', err);
+        // Fallback: show the text in a prompt for manual copying
+        prompt('Copy these test users manually:', testList);
+    });
 }
 
 // Clear automation list
