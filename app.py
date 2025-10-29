@@ -114,16 +114,35 @@ if app.config.get('SECRET_KEY'):
 else:
     app.secret_key = 'fallback-secret-key-for-development'
 
-# Rate limiting configuration
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-
-limiter = Limiter(
-    app,
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://"
-)
+# Rate limiting configuration (optional - graceful degradation if not installed)
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    
+    limiter = Limiter(
+        app,
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://"
+    )
+    
+    # Decorator for routes that need rate limiting
+    def rate_limit(limit_str):
+        """Rate limit decorator - only applies if flask_limiter is available"""
+        return limiter.limit(limit_str)
+    
+    RATE_LIMITING_ENABLED = True
+except ImportError:
+    # Flask-Limiter not installed - create a no-op decorator
+    logging.warning("flask_limiter not installed - rate limiting disabled")
+    
+    def rate_limit(limit_str):
+        """No-op decorator when rate limiting is not available"""
+        def decorator(f):
+            return f
+        return decorator
+    
+    RATE_LIMITING_ENABLED = False
 
 # Configure session settings
 app.config['SESSION_COOKIE_SECURE'] = False  # Allow HTTP
@@ -5820,7 +5839,7 @@ def debug_mega_upgrade():
 
 @app.route('/api/mega-upgrade', methods=['POST'])
 @login_required
-@limiter.limit("2 per hour")  # Limit to 2 mega upgrades per hour per IP
+@rate_limit("2 per hour")  # Limit to 2 mega upgrades per hour per IP
 def mega_upgrade():
     """Mega upgrade using EXISTING authentication and subdomain change functions"""
     # Import required models at the top
@@ -8404,7 +8423,7 @@ def api_debug_app_password_matching():
 
 @app.route('/api/upload-app-passwords', methods=['POST'])
 @login_required
-@limiter.limit("10 per hour")  # Limit to 10 uploads per hour per IP
+@rate_limit("10 per hour")  # Limit to 10 uploads per hour per IP
 def api_upload_app_passwords():
     """Upload and store app passwords from file - SIMPLE VERSION"""
     print("=== UPLOAD STARTED ===")
@@ -9020,7 +9039,7 @@ def get_users_with_service(service):
 
 @app.route('/api/start-automation-process', methods=['POST'])
 @login_required
-@limiter.limit("5 per minute")  # Limit to 5 automation processes per minute per IP
+@rate_limit("5 per minute")  # Limit to 5 automation processes per minute per IP
 def api_start_automation_process():
     """Start automation process - return account list for sequential processing"""
     try:
