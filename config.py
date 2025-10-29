@@ -26,15 +26,15 @@ else:
         SQLALCHEMY_DATABASE_URI = f'sqlite:///{db_path}'
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-# Database Connection Pool Settings - Optimized for 16GB RAM
+# Database Connection Pool Settings - MAXIMUM for 16GB RAM
 SQLALCHEMY_ENGINE_OPTIONS = {
-    'pool_size': 50,  # Increased for high load (was 20)
+    'pool_size': 100,  # Maximum for high load (was 50)
     'pool_recycle': 3600,  # Recycle connections after 1 hour
     'pool_pre_ping': True,  # Validate connections before use
-    'max_overflow': 100,  # Much higher overflow for burst traffic (was 30)
-    'pool_timeout': 60,  # Longer timeout for high load (was 30)
+    'max_overflow': 200,  # Maximum overflow for burst traffic (was 100)
+    'pool_timeout': 120,  # Longer timeout for high load (was 60)
     'connect_args': {
-        'connect_timeout': 30,  # Longer connection timeout (was 10)
+        'connect_timeout': 60,  # Longer connection timeout (was 30)
         'application_name': 'gbot_web_app'
     }
 }

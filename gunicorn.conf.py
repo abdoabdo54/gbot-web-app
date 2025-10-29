@@ -2,16 +2,16 @@
 import multiprocessing
 import os
 
-# Server socket
+# Server socket - MAXIMUM for high load
 bind = "127.0.0.1:5000"
-backlog = 2048
+backlog = 4096  # Increased backlog for high concurrency
 
-# Worker processes - Optimized for 4 vCPU, 16GB RAM
-workers = 8  # 2x CPU cores for high performance
+# Worker processes - MAXIMUM for 4 vCPU, 16GB RAM
+workers = 12  # 3x CPU cores for maximum performance
 worker_class = "sync"
-worker_connections = 2000  # Increased for high load
-max_requests = 5000  # Higher before restart
-max_requests_jitter = 100
+worker_connections = 3000  # Maximum connections per worker
+max_requests = 10000  # Higher before restart
+max_requests_jitter = 200
 
 # Timeouts - Optimized for high load
 timeout = 600  # 10 minutes for long operations
