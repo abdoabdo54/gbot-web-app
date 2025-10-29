@@ -6,17 +6,17 @@ import os
 bind = "127.0.0.1:5000"
 backlog = 2048
 
-# Worker processes
-workers = min(multiprocessing.cpu_count() * 2 + 1, 8)  # Cap at 8 workers
+# Worker processes - Optimized for 4 vCPU, 16GB RAM
+workers = 8  # 2x CPU cores for high performance
 worker_class = "sync"
-worker_connections = 1000
-max_requests = 1000
-max_requests_jitter = 50
+worker_connections = 2000  # Increased for high load
+max_requests = 5000  # Higher before restart
+max_requests_jitter = 100
 
-# Timeouts
-timeout = 300  # 5 minutes for long operations
-keepalive = 2
-graceful_timeout = 30
+# Timeouts - Optimized for high load
+timeout = 600  # 10 minutes for long operations
+keepalive = 5  # Keep connections alive longer
+graceful_timeout = 60  # More time for graceful shutdown
 
 # Memory management
 preload_app = True
