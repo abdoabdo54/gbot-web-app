@@ -1333,7 +1333,7 @@
                         " onmouseover="this.style.background='#1e7e34'" onmouseout="this.style.background='#28a745'">
                             <i class="fas fa-download"></i> Export CSV
                         </button>
-                        <button onclick="readyToTest()" class="btn-github" style="
+                        <button onclick="console.log('Button clicked!'); readyToTest();" class="btn-github" style="
                             padding: 8px 16px; 
                             font-size: 13px; 
                             font-weight: 500;
@@ -8947,10 +8947,20 @@ function exportAutomationUsers() {
 
 // Ready to Test - Copy one user from each account
 function readyToTest() {
+    console.log('🚀 Ready to Test button clicked!');
+    alert('🚀 Ready to Test button clicked! Check console for details.');
     console.log('Starting Ready to Test - selecting one user per account...');
     
     const textArea = document.getElementById('automation-users-text');
-    if (!textArea || !textArea.value.trim()) {
+    console.log('Text area found:', textArea);
+    console.log('Text area value length:', textArea ? textArea.value.length : 'N/A');
+    
+    if (!textArea) {
+        alert('❌ Text area not found. Please refresh the page and try again.');
+        return;
+    }
+    
+    if (!textArea.value.trim()) {
         alert('❌ No users found. Please run automation process first.');
         return;
     }
