@@ -35,8 +35,7 @@ SQLALCHEMY_ENGINE_OPTIONS = {
     'pool_timeout': 60,  # Longer timeout for high load (was 30)
     'connect_args': {
         'connect_timeout': 30,  # Longer connection timeout (was 10)
-        'application_name': 'gbot_web_app',
-        'options': '-c default_transaction_isolation=read_committed'
+        'application_name': 'gbot_web_app'
     }
 }
 
