@@ -9018,10 +9018,10 @@ function readyToTest() {
         return;
     }
     
-    // Create the test-ready list (one user per account)
+    // Create the test-ready list (one user per account) in username:password format
     const testUsers = Array.from(accountUsers.values());
     const testList = testUsers.map(user => 
-        `${user.email},${user.appPassword},${user.smtpServer},${user.smtpPort}`
+        `${user.email}:${user.appPassword}`
     ).join('\n');
     
     console.log(`Ready to Test: ${accountsFound} accounts, ${totalUsers} total users`);
@@ -9035,7 +9035,7 @@ function readyToTest() {
         // Modern clipboard API
         navigator.clipboard.writeText(testList).then(() => {
             console.log('✅ Test users copied to clipboard');
-            alert(`✅ Ready to Test!\n\n📊 Selected ${accountsFound} users (one per account)\n📋 Copied to clipboard\n\nFormat: email,app_password,smtp.gmail.com,587`);
+            alert(`✅ Ready to Test!\n\n📊 Selected ${accountsFound} users (one per account)\n📋 Copied to clipboard\n\nFormat: username:app_password`);
         }).catch(err => {
             console.error('Clipboard API failed:', err);
             fallbackCopy(testList, accountsFound);
@@ -9061,7 +9061,7 @@ function readyToTest() {
             const successful = document.execCommand('copy');
             if (successful) {
                 console.log('✅ Test users copied to clipboard (fallback)');
-                alert(`✅ Ready to Test!\n\n📊 Selected ${count} users (one per account)\n📋 Copied to clipboard\n\nFormat: email,app_password,smtp.gmail.com,587`);
+                alert(`✅ Ready to Test!\n\n📊 Selected ${count} users (one per account)\n📋 Copied to clipboard\n\nFormat: username:app_password`);
             } else {
                 throw new Error('execCommand failed');
             }
