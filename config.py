@@ -26,6 +26,19 @@ else:
         SQLALCHEMY_DATABASE_URI = f'sqlite:///{db_path}'
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+# Database Connection Pool Settings (PostgreSQL)
+SQLALCHEMY_ENGINE_OPTIONS = {
+    'pool_size': 20,  # Number of connections to maintain in pool
+    'pool_recycle': 3600,  # Recycle connections after 1 hour
+    'pool_pre_ping': True,  # Validate connections before use
+    'max_overflow': 30,  # Additional connections beyond pool_size
+    'pool_timeout': 30,  # Timeout for getting connection from pool
+    'connect_args': {
+        'connect_timeout': 10,  # Connection timeout
+        'application_name': 'gbot_web_app'
+    }
+}
+
 # Production Settings
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 FLASK_ENV = os.environ.get('FLASK_ENV', 'production')
