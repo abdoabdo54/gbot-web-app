@@ -114,35 +114,16 @@ if app.config.get('SECRET_KEY'):
 else:
     app.secret_key = 'fallback-secret-key-for-development'
 
-# Rate limiting configuration (optional - graceful degradation if not installed)
-try:
-    from flask_limiter import Limiter
-    from flask_limiter.util import get_remote_address
-    
-    limiter = Limiter(
-        app,
-        key_func=get_remote_address,
-        default_limits=["200 per day", "50 per hour"],
-        storage_uri="memory://"
-    )
-    
-    # Decorator for routes that need rate limiting
-    def rate_limit(limit_str):
-        """Rate limit decorator - only applies if flask_limiter is available"""
-        return limiter.limit(limit_str)
-    
-    RATE_LIMITING_ENABLED = True
-except ImportError:
-    # Flask-Limiter not installed - create a no-op decorator
-    logging.warning("flask_limiter not installed - rate limiting disabled")
-    
-    def rate_limit(limit_str):
-        """No-op decorator when rate limiting is not available"""
-        def decorator(f):
-            return f
-        return decorator
-    
-    RATE_LIMITING_ENABLED = False
+# Rate limiting configuration (temporarily disabled to fix startup issue)
+# TODO: Re-enable after fixing flask_limiter installation
+
+def rate_limit(limit_str):
+    """No-op decorator - rate limiting temporarily disabled"""
+    def decorator(f):
+        return f
+    return decorator
+
+RATE_LIMITING_ENABLED = False
 
 # Configure session settings
 app.config['SESSION_COOKIE_SECURE'] = False  # Allow HTTP
