@@ -8981,13 +8981,22 @@ function readyToTest() {
                 const smtpServer = parts[2].trim();
                 const smtpPort = parts[3].trim();
                 
+                // Skip administrator accounts and users without app passwords
+                if (email.toLowerCase().includes('administrator') || 
+                    appPassword.toLowerCase().includes('no app password') ||
+                    appPassword === '' ||
+                    appPassword === 'No app password') {
+                    console.log(`Skipping ${email} - administrator or no app password`);
+                    return; // Skip this user
+                }
+                
                 // Extract domain from email (everything after @)
                 const domainMatch = email.match(/@(.+)$/);
                 if (domainMatch) {
                     const domain = domainMatch[1];
                     totalUsers++;
                     
-                    // Only store the first user for each domain (account)
+                    // Only store the first valid user for each domain (account)
                     if (!accountUsers.has(domain)) {
                         accountUsers.set(domain, {
                             email: email,
@@ -9019,6 +9028,9 @@ function readyToTest() {
     console.log('Selected users:', testUsers.map(u => u.email));
     
     // Copy to clipboard with fallback
+    console.log('Attempting to copy to clipboard...');
+    console.log('Test list:', testList);
+    
     if (navigator.clipboard && window.isSecureContext) {
         // Modern clipboard API
         navigator.clipboard.writeText(testList).then(() => {
