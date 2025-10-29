@@ -19,11 +19,8 @@ PrivateTmp=true
 Restart=always
 RestartSec=10
 
-# Resource limits - Optimized for 16GB RAM
-LimitNOFILE=131072  # 128k file descriptors
-LimitNPROC=8192     # 8k processes
-LimitMEMLOCK=infinity  # Allow memory locking
-LimitAS=infinity    # No memory limit
+LimitNOFILE=131072
+LimitNPROC=8192
 
 # Security settings
 NoNewPrivileges=true
