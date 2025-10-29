@@ -8529,6 +8529,20 @@ def api_upload_app_passwords():
                         except Exception as e:
                             error_count += 1
                             print(f"Error processing {username}@{domain}: {e}")
+                            
+                            # Check if this is a sequence issue (primary key conflict)
+                            if 'duplicate key value violates unique constraint "user_app_password_pkey"' in str(e):
+                                print(f"❌ Sequence issue detected for {username}@{domain}. The user_app_password_id_seq is out of sync.")
+                                print(f"Please run: python fix_used_domain_sequence.py --all")
+                                # Return early with sequence error
+                                db.session.rollback()
+                                return jsonify({
+                                    'success': False, 
+                                    'error': f'Database sequence error for {username}@{domain}. Please run the sequence fix script.',
+                                    'sequence_error': True,
+                                    'fix_command': 'python fix_used_domain_sequence.py --all'
+                                })
+                            
                             db.session.rollback()
                             # Try to continue with other records
                             continue
@@ -8552,6 +8566,17 @@ def api_upload_app_passwords():
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
         db.session.rollback()
+        
+        # Check if this is a sequence issue
+        if 'duplicate key value violates unique constraint "user_app_password_pkey"' in str(e):
+            app.logger.error(f"❌ Sequence issue detected during app password upload. The user_app_password_id_seq is out of sync.")
+            return jsonify({
+                'success': False, 
+                'error': 'Database sequence error. Please run the sequence fix script.',
+                'sequence_error': True,
+                'fix_command': 'python fix_used_domain_sequence.py --all'
+            })
+        
         return jsonify({'success': False, 'error': str(e), 'error_type': str(type(e))})
 
 @app.route('/api/test-upload-endpoint', methods=['POST'])

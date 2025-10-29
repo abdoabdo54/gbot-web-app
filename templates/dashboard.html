@@ -7681,7 +7681,14 @@ function uploadAppPasswords() {
             loadAppPasswordsStatus();
         } else {
             const errorMsg = data.error || 'Unknown error occurred';
-            alert(`❌ Upload failed: ${errorMsg}`);
+            
+            // Check if this is a sequence error
+            if (data.sequence_error) {
+                const fixCommand = data.fix_command || 'python fix_used_domain_sequence.py --all';
+                alert(`❌ Database Sequence Error!\n\n${errorMsg}\n\n🔧 To fix this issue, run this command on your server:\n\n${fixCommand}\n\nThis will reset the database sequences and allow uploads to work again.`);
+            } else {
+                alert(`❌ Upload failed: ${errorMsg}`);
+            }
         }
     })
     .catch(error => {
