@@ -118,6 +118,10 @@
                 <input type="text" id="otp-account-input" class="form-control-github" 
                        placeholder="Enter account name (e.g., email address)" 
                        autocapitalize="none" autocorrect="off" spellcheck="false">
+                <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:13px; color:#57606a;">
+                    <input type="checkbox" id="otp-lowercase-toggle">
+                    Force lowercase before generating OTP
+                </label>
             </div>
             
             <button onclick="generateOTP()" class="btn-github btn-github-primary">
@@ -5392,7 +5396,11 @@ function clearBulkSubdomainsList() {
 let currentOTPCode = null;
 
 function generateOTP() {
-    const accountName = document.getElementById('otp-account-input').value.trim();
+    let accountName = document.getElementById('otp-account-input').value.trim();
+    const forceLower = document.getElementById('otp-lowercase-toggle')?.checked;
+    if (forceLower && accountName) {
+        accountName = accountName.toLowerCase();
+    }
     
     if (!accountName) {
         alert('Please enter an account name');
