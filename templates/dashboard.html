@@ -112,16 +112,16 @@
         
         <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: end;">
             <div class="form-group-github">
+                <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px; color:#57606a;">
+                    <input type="checkbox" id="otp-lowercase-toggle">
+                    Force lowercase before generating OTP
+                </label>
                 <label for="otp-account-input" class="form-label-github">
                     <i class="fas fa-user"></i> Account Name
                 </label>
                 <input type="text" id="otp-account-input" class="form-control-github" 
                        placeholder="Enter account name (e.g., email address)" 
                        autocapitalize="none" autocorrect="off" spellcheck="false">
-                <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:13px; color:#57606a;">
-                    <input type="checkbox" id="otp-lowercase-toggle">
-                    Force lowercase before generating OTP
-                </label>
             </div>
             
             <button onclick="generateOTP()" class="btn-github btn-github-primary">
