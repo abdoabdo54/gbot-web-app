@@ -139,6 +139,28 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB
 
 db.init_app(app)
 
+# Global concurrency limiter to prevent overload under multi-machine usage
+MAX_CONCURRENT_JOBS = int(os.environ.get('MAX_CONCURRENT_JOBS', '2'))
+job_semaphore = threading.Semaphore(MAX_CONCURRENT_JOBS)
+
+# Lightweight OTP secret cache to avoid repeated SSH calls
+OTP_SECRET_CACHE = {}
+OTP_SECRET_TTL_SECONDS = int(os.environ.get('OTP_SECRET_TTL_SECONDS', '600'))  # 10 minutes default
+
+def get_cached_otp_secret(account_name: str):
+    entry = OTP_SECRET_CACHE.get(account_name)
+    if not entry:
+        return None
+    secret, ts = entry
+    if (time.time() - ts) <= OTP_SECRET_TTL_SECONDS:
+        return secret
+    # expired
+    OTP_SECRET_CACHE.pop(account_name, None)
+    return None
+
+def set_cached_otp_secret(account_name: str, secret: str):
+    OTP_SECRET_CACHE[account_name] = (secret, time.time())
+
 # Production logging configuration
 if not app.debug:
     # Create logs directory if it doesn't exist
@@ -5832,6 +5854,10 @@ def mega_upgrade():
     if user_role not in ['admin', 'mailer', 'support']:
         return jsonify({'success': False, 'error': 'Access denied. Valid user role required.'})
     
+    # Concurrency guard to avoid overload when many machines run workflows
+    if not job_semaphore.acquire(blocking=False):
+        return jsonify({'success': False, 'error': 'Server is busy. Please retry in a moment.', 'reason': 'concurrency_limit'}), 429
+
     try:
         # Set longer timeout for this endpoint (5 minutes)
         import signal
@@ -9786,17 +9812,35 @@ def api_execute_automation_process():
         app.logger.error(f"Full traceback: {error_details}")
         return jsonify({'success': False, 'error': f'Error executing automation process: {str(e)}'})
 
+    finally:
+        # Always release the concurrency slot
+        try:
+            job_semaphore.release()
+        except Exception:
+            pass
 
 @app.route('/api/generate-otp', methods=['POST'])
 @login_required
 def api_generate_otp():
-    """Generate OTP - FINAL VERSION - ONLY REMOVE SPACES"""
+    """Generate OTP with caching to reduce SSH latency. Only remove spaces from secret."""
     try:
         data = request.get_json()
         account_name = data.get('account_name', '').strip()
         
         if not account_name:
             return jsonify({'success': False, 'error': 'Account name is required'})
+
+        # Fast path: serve from cache if available and fresh
+        cached_secret = get_cached_otp_secret(account_name)
+        if cached_secret:
+            totp = pyotp.TOTP(cached_secret)
+            otp_code = totp.now()
+            return jsonify({
+                'success': True,
+                'otp_code': otp_code,
+                'account_name': account_name,
+                'cached': True
+            })
         
         # Get SSH Configuration from JSON file
         import json
@@ -9846,7 +9890,10 @@ def api_generate_otp():
                         SSH_CONFIG["host"],
                         port=SSH_CONFIG["port"],
                         username=SSH_CONFIG["user"],
-                        key_filename=key_file_path
+                        key_filename=key_file_path,
+                        timeout=10,
+                        banner_timeout=10,
+                        auth_timeout=10
                     )
                 finally:
                     # Clean up temporary key file
@@ -9857,7 +9904,10 @@ def api_generate_otp():
                     SSH_CONFIG["host"],
                     port=SSH_CONFIG["port"],
                     username=SSH_CONFIG["user"],
-                    password=SSH_CONFIG["pass"]
+                    password=SSH_CONFIG["pass"],
+                    timeout=10,
+                    banner_timeout=10,
+                    auth_timeout=10
                 )
             
             # Read the specific file: {account_name}_authenticator_secret_key.txt
@@ -9877,6 +9927,9 @@ def api_generate_otp():
             
             # ONLY REMOVE SPACES - NOTHING ELSE
             secret_key = key.replace(' ', '')
+
+            # Cache secret for subsequent requests
+            set_cached_otp_secret(account_name, secret_key)
             
             # Generate OTP
             totp = pyotp.TOTP(secret_key)
@@ -9885,7 +9938,8 @@ def api_generate_otp():
             return jsonify({
                 'success': True,
                 'otp_code': otp_code,
-                'account_name': account_name
+                'account_name': account_name,
+                'cached': False
             })
             
         except Exception as e:
