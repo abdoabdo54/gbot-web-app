@@ -139,9 +139,10 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB
 
 db.init_app(app)
 
-# Global concurrency limiter to prevent overload under multi-machine usage
-MAX_CONCURRENT_JOBS = int(os.environ.get('MAX_CONCURRENT_JOBS', '2'))
-job_semaphore = threading.Semaphore(MAX_CONCURRENT_JOBS)
+# Global concurrency limiter - REMOVED for unlimited concurrent machines
+# No artificial limits - let the server handle as many requests as possible
+MAX_CONCURRENT_JOBS = 999999  # Effectively unlimited
+job_semaphore = None  # Disabled - no semaphore blocking
 
 # Lightweight OTP secret cache to avoid repeated SSH calls
 OTP_SECRET_CACHE = {}
@@ -5842,7 +5843,7 @@ def debug_mega_upgrade():
 
 @app.route('/api/mega-upgrade', methods=['POST'])
 @login_required
-@rate_limit("2 per hour")  # Limit to 2 mega upgrades per hour per IP
+# Rate limit removed - allow unlimited concurrent requests
 def mega_upgrade():
     """Mega upgrade using EXISTING authentication and subdomain change functions"""
     # Import required models at the top
@@ -5854,10 +5855,7 @@ def mega_upgrade():
     if user_role not in ['admin', 'mailer', 'support']:
         return jsonify({'success': False, 'error': 'Access denied. Valid user role required.'})
     
-    # Concurrency guard to avoid overload when many machines run workflows
-    if not job_semaphore.acquire(blocking=False):
-        return jsonify({'success': False, 'error': 'Server is busy. Please retry in a moment.', 'reason': 'concurrency_limit'}), 429
-
+    # Concurrency guard REMOVED - allow unlimited concurrent machines
     try:
         # Set longer timeout for this endpoint (5 minutes)
         import signal
@@ -5894,9 +5892,9 @@ def mega_upgrade():
         if not accounts:
             return jsonify({'success': False, 'error': 'No accounts provided'})
         
-        # Limit accounts for performance
-        if len(accounts) > 500:
-            return jsonify({'success': False, 'error': 'Maximum 500 accounts allowed per batch for performance'})
+        # No limit on accounts - support unlimited concurrent machines
+        # if len(accounts) > 500:
+        #     return jsonify({'success': False, 'error': 'Maximum 500 accounts allowed per batch for performance'})
         
         app.logger.info(f"Starting MEGA UPGRADE using EXISTING functions for {len(accounts)} accounts with features: {features}")
         
@@ -9062,8 +9060,9 @@ def api_start_automation_process():
         # Parse accounts from text
         accounts = [line.strip() for line in accounts_text.split('\n') if line.strip()]
         
-        if len(accounts) > 50:
-            return jsonify({'success': False, 'error': f'Too many accounts ({len(accounts)}). Maximum 50 accounts allowed per batch for performance.'})
+        # No limit - support unlimited concurrent machines
+        # if len(accounts) > 50:
+        #     return jsonify({'success': False, 'error': f'Too many accounts ({len(accounts)}). Maximum 50 accounts allowed per batch for performance.'})
         
         app.logger.info(f"🚀 Starting SEQUENTIAL automation process for {len(accounts)} accounts")
         
@@ -9813,11 +9812,8 @@ def api_execute_automation_process():
         return jsonify({'success': False, 'error': f'Error executing automation process: {str(e)}'})
 
     finally:
-        # Always release the concurrency slot
-        try:
-            job_semaphore.release()
-        except Exception:
-            pass
+        # Semaphore removed - no cleanup needed
+        pass
 
 @app.route('/api/generate-otp', methods=['POST'])
 @login_required

@@ -2,25 +2,24 @@
 import multiprocessing
 import os
 
-# Server socket - MAXIMUM for high load
+# Server socket - UNLIMITED for unlimited machines
 bind = "127.0.0.1:5000"
-backlog = 4096  # Increased backlog for high concurrency
+backlog = 32768  # Maximum backlog for unlimited concurrent machines
 
-# Worker processes - MAXIMUM for 4 vCPU, 16GB RAM
-workers = 12  # 3x CPU cores for maximum performance
+# Worker processes - UNLIMITED for unlimited concurrent machines
+workers = 32  # 8x CPU cores - aggressive for unlimited machines
 worker_class = "sync"
-worker_connections = 3000  # Maximum connections per worker
-max_requests = 10000  # Higher before restart
-max_requests_jitter = 200
+worker_connections = 10000  # Maximum connections per worker
+max_requests = 50000  # Very high before restart
+max_requests_jitter = 1000
 
-# Timeouts - Optimized for high load
-timeout = 600  # 10 minutes for long operations
-keepalive = 5  # Keep connections alive longer
-graceful_timeout = 60  # More time for graceful shutdown
+# Timeouts - Extended for unlimited concurrent machines
+timeout = 3600  # 1 hour for very long operations
+keepalive = 30  # Keep connections alive much longer
+graceful_timeout = 300  # More time for graceful shutdown
 
 # Memory management
 preload_app = True
-max_requests_jitter = 50
 
 # Logging
 accesslog = "logs/gunicorn_access.log"
