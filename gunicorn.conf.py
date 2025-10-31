@@ -2,14 +2,14 @@
 import multiprocessing
 import os
 
-# Server socket - UNLIMITED for unlimited machines
+# Server socket - High capacity for unlimited machines
 bind = "127.0.0.1:5000"
-backlog = 32768  # Maximum backlog for unlimited concurrent machines
+backlog = 16384  # High backlog for unlimited concurrent machines
 
-# Worker processes - UNLIMITED for unlimited concurrent machines
-workers = 32  # 8x CPU cores - aggressive for unlimited machines
+# Worker processes - Optimized for unlimited concurrent machines without crashing
+workers = 16  # 4x CPU cores - safe for unlimited machines without resource exhaustion
 worker_class = "sync"
-worker_connections = 10000  # Maximum connections per worker
+worker_connections = 5000  # High connections per worker
 max_requests = 50000  # Very high before restart
 max_requests_jitter = 1000
 
