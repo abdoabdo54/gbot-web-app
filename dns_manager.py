@@ -102,6 +102,25 @@ class NamecheapAPI:
             logger.error(f"XML parsing failed: {str(e)}")
             raise Exception(f"Invalid XML response from Namecheap API: {str(e)}")
     
+    def get_domains(self) -> List[str]:
+        """
+        Get all domains in the Namecheap account
+        
+        Returns:
+            List of domain names as strings
+        """
+        try:
+            root = self._make_request('namecheap.domains.getList')
+            domains = []
+            for d in root.findall('.//Domain'):
+                name = d.get('Name') or d.get('name')
+                if name:
+                    domains.append(name)
+            return domains
+        except Exception as e:
+            logger.error(f"Failed to fetch domains: {str(e)}")
+            raise
+
     def get_hosts(self, sld: str, tld: str) -> List[Dict]:
         """
         Get all DNS records for a domain
@@ -620,4 +639,21 @@ class DNSManager:
             return {
                 'success': False,
                 'error': f'Failed to get records: {str(e)}'
+            }
+
+    def get_domains(self) -> Dict:
+        """Fetch domains list from Namecheap account"""
+        try:
+            params = {}
+            # Use Namecheap API directly via a helper that we will add
+            domains = self.namecheap.get_domains()
+            return {
+                'success': True,
+                'domains': domains
+            }
+        except Exception as e:
+            logger.error(f"Failed to get domains list: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
             }

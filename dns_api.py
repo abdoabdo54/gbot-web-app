@@ -561,6 +561,54 @@ def get_dns_history():
         }), 500
 
 
+@dns_bp.route('/namecheap/domains', methods=['GET'])
+@login_required
+def get_namecheap_domains():
+    """Fetch domains list from saved Namecheap account"""
+    try:
+        dns_manager = get_dns_manager()
+        if not dns_manager:
+            return jsonify({'success': False, 'error': 'DNS manager not configured'}), 500
+        result = dns_manager.get_domains()
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Failed to fetch Namecheap domains: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@dns_bp.route('/test-connection', methods=['POST'])
+@login_required
+def test_namecheap_connection():
+    """Test Namecheap connection with provided or saved credentials"""
+    try:
+        data = request.get_json() or {}
+        # Prefer request payload, fallback to saved config
+        if all(k in data for k in ['api_user', 'api_key', 'username', 'client_ip']):
+            cfg = {
+                'api_user': data['api_user'],
+                'api_key': data['api_key'],
+                'username': data['username'],
+                'client_ip': data['client_ip'],
+                'sandbox': data.get('is_sandbox', True)
+            }
+        else:
+            namecheap_config = NamecheapConfig.query.filter_by(is_active=True).first()
+            if not namecheap_config:
+                return jsonify({'success': False, 'error': 'No saved Namecheap configuration found'}), 400
+            cfg = {
+                'api_user': namecheap_config.api_user,
+                'api_key': namecheap_config.api_key,
+                'username': namecheap_config.username,
+                'client_ip': namecheap_config.client_ip,
+                'sandbox': namecheap_config.is_sandbox
+            }
+        
+        # Attempt to fetch domains as a connectivity test
+        api = NamecheapAPI(**cfg)
+        domains = api.get_domains()
+        return jsonify({'success': True, 'domains': domains, 'count': len(domains)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @dns_bp.route('/google/verified-domains', methods=['GET'])
 @login_required
 def get_verified_domains():

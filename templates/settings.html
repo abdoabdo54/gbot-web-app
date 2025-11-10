@@ -414,6 +414,125 @@
         </div>
     </div>
 
+    <!-- Namecheap API Configuration Section -->
+    <div class="github-card" style="margin-bottom: 24px;">
+        <div class="github-card-header">
+            <h3 class="github-card-title" style="font-size: 18px;">
+                <i class="fas fa-globe"></i>
+                Namecheap API Configuration
+            </h3>
+        </div>
+        <p style="color: #656d76; margin-bottom: 24px; font-size: 14px;">
+            Configure Namecheap API settings for DNS management functionality.
+            <span style="color: #d1242f; font-weight: 500;">⚠️ API keys are stored in plain text - encrypt before production!</span>
+        </p>
+        
+        <!-- Configuration Status -->
+        <div id="namecheap-status" class="alert" style="display: none; margin-bottom: 16px;"></div>
+        
+        <form id="namecheap-config-form">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div class="form-group-github">
+                    <label for="namecheap_api_user" class="form-label-github">
+                        <i class="fas fa-user"></i> API User
+                    </label>
+                    <input type="text" class="form-control-github" id="namecheap_api_user" 
+                           placeholder="your_api_user" required>
+                    <small style="color: #656d76; font-size: 12px;">
+                        Your Namecheap API user (usually same as username)
+                    </small>
+                </div>
+                <div class="form-group-github">
+                    <label for="namecheap_username" class="form-label-github">
+                        <i class="fas fa-id-card"></i> Username
+                    </label>
+                    <input type="text" class="form-control-github" id="namecheap_username" 
+                           placeholder="your_username" required>
+                    <small style="color: #656d76; font-size: 12px;">
+                        Your Namecheap account username
+                    </small>
+                </div>
+            </div>
+            
+            <div class="form-group-github" style="margin-bottom: 16px;">
+                <label for="namecheap_api_key" class="form-label-github">
+                    <i class="fas fa-key"></i> API Key
+                </label>
+                <div style="position: relative;">
+                    <input type="password" class="form-control-github" id="namecheap_api_key" 
+                           placeholder="your_api_key_here" required style="padding-right: 40px;">
+                    <button type="button" onclick="toggleNamecheapPassword()" 
+                            style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #656d76; cursor: pointer;">
+                        <i class="fas fa-eye" id="namecheap-eye-icon"></i>
+                    </button>
+                </div>
+                <small style="color: #d1242f; font-size: 12px; font-weight: 500;">
+                    ⚠️ Stored in plain text - implement encryption before production use!
+                </small>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; margin-bottom: 16px;">
+                <div class="form-group-github">
+                    <label for="namecheap_client_ip" class="form-label-github">
+                        <i class="fas fa-network-wired"></i> Client IP
+                    </label>
+                    <input type="text" class="form-control-github" id="namecheap_client_ip" 
+                           placeholder="your.server.ip.address" required>
+                    <small style="color: #656d76; font-size: 12px;">
+                        IP address whitelisted in your Namecheap account
+                    </small>
+                </div>
+                <div class="form-group-github">
+                    <label class="form-label-github" style="margin-bottom: 8px;">
+                        <i class="fas fa-flask"></i> Environment
+                    </label>
+                    <div class="form-check" style="margin-top: 8px;">
+                        <input class="form-check-input" type="checkbox" id="namecheap_sandbox">
+                        <label class="form-check-label" for="namecheap_sandbox" style="font-size: 14px; color: #24292f;">
+                            Use Sandbox Environment
+                        </label>
+                    </div>
+                    <small style="color: #656d76; font-size: 12px;">
+                        Enable for testing purposes
+                    </small>
+                </div>
+            </div>
+            
+            <!-- Existing Domains Display -->
+            <div class="form-group-github" style="margin-bottom: 16px;">
+                <label class="form-label-github">
+                    <i class="fas fa-list"></i> Existing Domains
+                </label>
+                <div id="namecheap-domains-container" style="min-height: 40px; padding: 12px; border: 1px solid #d0d7de; border-radius: 6px; background-color: #f6f8fa;">
+                    <div id="namecheap-domains-loading" style="display: none; text-align: center; color: #656d76;">
+                        <i class="fas fa-spinner fa-spin"></i> Loading domains...
+                    </div>
+                    <div id="namecheap-domains-list">
+                        <span style="color: #656d76; font-style: italic;">Configure and save API settings to view domains</span>
+                    </div>
+                </div>
+                <small style="color: #656d76; font-size: 12px;">
+                    Domains available in your Namecheap account
+                </small>
+            </div>
+            
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <button type="submit" class="btn btn-primary" style="background-color: #238636; border-color: #238636;">
+                    <i class="fas fa-save"></i>
+                    Save Configuration
+                </button>
+                <button type="button" onclick="testNamecheapConnection()" class="btn btn-outline-primary">
+                    <i class="fas fa-plug"></i>
+                    Test Connection
+                </button>
+                <button type="button" onclick="loadNamecheapDomains()" class="btn btn-outline-secondary" id="load-domains-btn" disabled>
+                    <i class="fas fa-sync-alt"></i>
+                    Refresh Domains
+                </button>
+            </div>
+        </form>
+    </div>
+
     <!-- Bulk Account Upload Section -->
     <div class="github-card" style="margin-bottom: 24px;">
         <div class="github-card-header">
@@ -1939,6 +2058,213 @@ function uploadFileInChunks(file, chunkSize, totalChunks) {
     
     uploadNextChunk();
 }
+
+// Namecheap API Configuration Functions
+function toggleNamecheapPassword() {
+    const field = document.getElementById('namecheap_api_key');
+    const icon = document.getElementById('namecheap-eye-icon');
+    
+    if (field.type === 'password') {
+        field.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        field.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
+}
+
+async function loadNamecheapConfig() {
+    try {
+        const response = await fetch('/api/dns/namecheap/config');
+        const result = await response.json();
+        
+        if (result.configured) {
+            // Populate form fields
+            document.getElementById('namecheap_api_user').value = result.config.api_user || '';
+            document.getElementById('namecheap_username').value = result.config.username || '';
+            document.getElementById('namecheap_client_ip').value = result.config.client_ip || '';
+            document.getElementById('namecheap_sandbox').checked = result.config.is_sandbox || false;
+            
+            showNamecheapStatus('Namecheap API configured successfully', 'success');
+            document.getElementById('load-domains-btn').disabled = false;
+            
+            // Auto-load domains if configured
+            loadNamecheapDomains();
+        } else {
+            showNamecheapStatus('Namecheap API not configured', 'warning');
+        }
+    } catch (error) {
+        showNamecheapStatus('Failed to load configuration: ' + error.message, 'error');
+    }
+}
+
+document.getElementById('namecheap-config-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const config = {
+        api_user: document.getElementById('namecheap_api_user').value.trim(),
+        api_key: document.getElementById('namecheap_api_key').value.trim(),
+        username: document.getElementById('namecheap_username').value.trim(),
+        client_ip: document.getElementById('namecheap_client_ip').value.trim(),
+        is_sandbox: document.getElementById('namecheap_sandbox').checked
+    };
+    
+    // Validate required fields
+    if (!config.api_user || !config.api_key || !config.username || !config.client_ip) {
+        showNamecheapStatus('All fields are required', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/dns/namecheap/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(config)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNamecheapStatus('Configuration saved successfully! ' + (result.warning || ''), 'success');
+            document.getElementById('load-domains-btn').disabled = false;
+            
+            // Auto-load domains after successful configuration
+            setTimeout(loadNamecheapDomains, 1000);
+        } else {
+            showNamecheapStatus('Failed to save configuration: ' + result.error, 'error');
+        }
+    } catch (error) {
+        showNamecheapStatus('Network error: ' + error.message, 'error');
+    }
+});
+
+async function testNamecheapConnection() {
+    const config = {
+        api_user: document.getElementById('namecheap_api_user').value.trim(),
+        api_key: document.getElementById('namecheap_api_key').value.trim(),
+        username: document.getElementById('namecheap_username').value.trim(),
+        client_ip: document.getElementById('namecheap_client_ip').value.trim(),
+        is_sandbox: document.getElementById('namecheap_sandbox').checked
+    };
+    
+    if (!config.api_user || !config.api_key || !config.username || !config.client_ip) {
+        showNamecheapStatus('Please fill in all fields before testing', 'warning');
+        return;
+    }
+    
+    try {
+        showNamecheapStatus('Testing connection...', 'info');
+        
+        const response = await fetch('/api/dns/test-connection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(config)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNamecheapStatus('Connection test successful!', 'success');
+        } else {
+            showNamecheapStatus('Connection test failed: ' + result.error, 'error');
+        }
+    } catch (error) {
+        showNamecheapStatus('Connection test failed: ' + error.message, 'error');
+    }
+}
+
+async function loadNamecheapDomains() {
+    const loadingDiv = document.getElementById('namecheap-domains-loading');
+    const listDiv = document.getElementById('namecheap-domains-list');
+    const refreshBtn = document.getElementById('load-domains-btn');
+    
+    try {
+        // Show loading state
+        loadingDiv.style.display = 'block';
+        listDiv.style.display = 'none';
+        refreshBtn.disabled = true;
+        
+        const response = await fetch('/api/dns/namecheap/domains');
+        const result = await response.json();
+        
+        if (result.success && result.domains) {
+            displayNamecheapDomains(result.domains);
+        } else {
+            listDiv.innerHTML = '<span style="color: #d1242f;">Failed to load domains: ' + (result.error || 'Unknown error') + '</span>';
+        }
+    } catch (error) {
+        listDiv.innerHTML = '<span style="color: #d1242f;">Network error: ' + error.message + '</span>';
+    } finally {
+        loadingDiv.style.display = 'none';
+        listDiv.style.display = 'block';
+        refreshBtn.disabled = false;
+    }
+}
+
+function displayNamecheapDomains(domains) {
+    const listDiv = document.getElementById('namecheap-domains-list');
+    
+    if (!domains || domains.length === 0) {
+        listDiv.innerHTML = '<span style="color: #656d76; font-style: italic;">No domains found in your Namecheap account</span>';
+        return;
+    }
+    
+    let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
+    
+    domains.forEach((domain, index) => {
+        html += `
+            <div style="display: inline-flex; align-items: center; background-color: #ddf4ff; color: #0969da; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
+                <i class="fas fa-globe" style="margin-right: 4px; font-size: 10px;"></i>
+                ${domain}
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    html += `<small style="color: #656d76; font-size: 11px; margin-top: 8px; display: block;">${domains.length} domain(s) available</small>`;
+    
+    listDiv.innerHTML = html;
+}
+
+function showNamecheapStatus(message, type) {
+    const statusDiv = document.getElementById('namecheap-status');
+    
+    // Map types to styles
+    const typeStyles = {
+        success: { bg: '#ddf4ff', border: '#0969da', color: '#0969da', icon: 'check-circle' },
+        error: { bg: '#ffebe9', border: '#d1242f', color: '#d1242f', icon: 'times-circle' },
+        warning: { bg: '#fff8c5', border: '#bf8700', color: '#7d4e00', icon: 'exclamation-triangle' },
+        info: { bg: '#ddf4ff', border: '#0969da', color: '#0969da', icon: 'info-circle' }
+    };
+    
+    const style = typeStyles[type] || typeStyles.info;
+    
+    statusDiv.style.backgroundColor = style.bg;
+    statusDiv.style.borderColor = style.border;
+    statusDiv.style.color = style.color;
+    statusDiv.style.border = '1px solid ' + style.border;
+    statusDiv.style.borderRadius = '6px';
+    statusDiv.style.padding = '12px';
+    
+    statusDiv.innerHTML = `<i class="fas fa-${style.icon}" style="margin-right: 8px;"></i>${message}`;
+    statusDiv.style.display = 'block';
+    
+    // Auto-hide success messages after 5 seconds
+    if (type === 'success') {
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    }
+}
+
+// Load Namecheap configuration on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadNamecheapConfig();
+});
 
 // OTP SSH Configuration Functions
 function saveOTPSSHConfiguration() {
