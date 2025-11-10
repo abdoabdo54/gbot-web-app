@@ -577,6 +577,49 @@ def get_namecheap_domains():
         logger.error(f"Failed to fetch Namecheap domains: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@dns_bp.route('/test-raw', methods=['POST'])
+@login_required
+def test_namecheap_raw():
+    """Raw direct test of Namecheap API for debugging"""
+    try:
+        data = request.get_json() or {}
+        
+        api_user = data.get('api_user', '').strip()
+        api_key = data.get('api_key', '').strip()
+        username = data.get('username', '').strip()
+        client_ip = data.get('client_ip', '').strip()
+        
+        if not all([api_user, api_key, username, client_ip]):
+            return jsonify({'success': False, 'error': 'All fields required for raw test'}), 400
+        
+        # Make direct API call to Namecheap
+        url = "https://api.namecheap.com/xml.response"
+        params = {
+            'ApiUser': api_user,
+            'ApiKey': api_key,
+            'UserName': username,
+            'ClientIp': client_ip,
+            'Command': 'namecheap.domains.check',
+            'DomainList': 'test.com'
+        }
+        
+        logger = logging.getLogger('dns_module')
+        logger.info(f"Raw API test with params: {list(params.keys())}")
+        
+        response = requests.get(url, params=params, timeout=30)
+        logger.info(f"Raw response status: {response.status_code}, length: {len(response.content)}")
+        
+        # Return raw response for debugging
+        return jsonify({
+            'success': True,
+            'http_status': response.status_code,
+            'raw_response': response.text,
+            'response_length': len(response.content)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @dns_bp.route('/test-connection', methods=['POST'])
 @login_required
 def test_namecheap_connection():
@@ -622,21 +665,23 @@ def test_namecheap_connection():
         logger = logging.getLogger('dns_module')
         logger.info(f"Testing Namecheap connection with config: api_user={cfg.get('api_user')}, username={cfg.get('username')}, client_ip={cfg.get('client_ip')}, sandbox={cfg.get('sandbox')}")
         
-        # Attempt light-weight authenticated call to validate credentials
+        # Use simpler connection test instead of balance check
         api = NamecheapAPI(**cfg)
         try:
-            balances = api.get_balance()
+            test_result = api.test_connection()
             primary_ok = True
             used_username = cfg.get('username')
+            balances = {'test_method': test_result.get('test_method', 'unknown')}
         except Exception as primary_err:
             # Fallback: some accounts require ApiUser == UserName
             if cfg.get('api_user') and cfg.get('username') and cfg.get('api_user') != cfg.get('username'):
                 alt_api = api.with_username(cfg.get('api_user'))
                 try:
-                    balances = alt_api.get_balance()
+                    test_result = alt_api.test_connection()
                     api = alt_api
                     primary_ok = False
                     used_username = cfg.get('api_user')
+                    balances = {'test_method': test_result.get('test_method', 'unknown')}
                 except Exception as alt_err:
                     raise Exception(f"Auth failed with username '{cfg.get('username')}' and also with ApiUser-as-username fallback. Primary error: {primary_err}; Fallback error: {alt_err}")
             else:

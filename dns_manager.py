@@ -83,7 +83,7 @@ class NamecheapAPI:
             'ClientIp': self.client_ip or '127.0.0.1'  # Fallback IP if none provided
         }
     
-    def _make_request(self, command: str, params: Dict = None) -> ET.Element:
+    def _make_request(self, command: str, params: Dict = None, use_simple_test: bool = False) -> ET.Element:
         """
         Make API request to Namecheap
         
@@ -164,6 +164,32 @@ class NamecheapAPI:
             logger.error(f"Unexpected error in API request: {str(e)}")
             raise Exception(f"Unexpected error: {str(e)}")
     
+    def test_connection(self) -> Dict:
+        """Test basic API connectivity with domain check instead of balance"""
+        try:
+            # Use domain check as it's simpler and more reliable than balance check
+            root = self._make_request('namecheap.domains.check', {'DomainList': 'google.com'}, use_simple_test=True)
+            
+            # Check for domain check results
+            results = root.findall('.//DomainCheckResult')
+            if results:
+                logger.info(f"Connection test successful - domain check returned {len(results)} results")
+                return {
+                    'success': True,
+                    'test_method': 'domain_check',
+                    'results_count': len(results)
+                }
+            else:
+                logger.warning("Domain check succeeded but no results found")
+                return {
+                    'success': True,
+                    'test_method': 'domain_check',
+                    'results_count': 0
+                }
+        except Exception as e:
+            logger.error(f"Connection test failed: {str(e)}")
+            raise
+
     def get_balance(self) -> Dict:
         """Check API authentication by calling users.getBalances"""
         try:
