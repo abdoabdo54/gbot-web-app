@@ -488,6 +488,14 @@
                     </label>
                     <div class="form-check" style="margin-top: 8px;">
                         <input class="form-check-input" type="checkbox" id="namecheap_sandbox">
+                    <div class="form-group-github" style="margin-top: 12px;">
+                        <label class="form-label-github">ApiURL</label>
+                        <select id="namecheap_api_url" class="form-control-github">
+                            <option value="https://api.namecheap.com/xml.response">Production</option>
+                            <option value="https://api.sandbox.namecheap.com/xml.response">Sandbox</option>
+                        </select>
+                        <small style="color: #656d76;">Select the correct Namecheap endpoint</small>
+                    </div>
                         <label class="form-check-label" for="namecheap_sandbox" style="font-size: 14px; color: #24292f;">
                             Use Sandbox Environment
                         </label>
@@ -2118,6 +2126,9 @@ async function loadNamecheapConfig() {
             document.getElementById('namecheap_username').value = result.config.username || '';
             document.getElementById('namecheap_client_ip').value = result.config.client_ip || '';
             document.getElementById('namecheap_sandbox').checked = result.config.is_sandbox || false;
+            if (result.config.api_url) {
+                document.getElementById('namecheap_api_url').value = result.config.api_url;
+            }
             // Do not force re-entry of API key; leave blank and not required
             const keyInput = document.getElementById('namecheap_api_key');
             keyInput.placeholder = result.config.has_api_key ? '•••••••••• (saved)' : 'your_api_key_here';
@@ -2145,7 +2156,8 @@ document.getElementById('namecheap-config-form').addEventListener('submit', asyn
         api_user: document.getElementById('namecheap_api_user').value.trim(),
         username: document.getElementById('namecheap_username').value.trim(),
         client_ip: document.getElementById('namecheap_client_ip').value.trim(),
-        is_sandbox: document.getElementById('namecheap_sandbox').checked
+        is_sandbox: document.getElementById('namecheap_sandbox').checked,
+        api_url: document.getElementById('namecheap_api_url').value
     };
     const keyVal = keyField.value.trim();
     if (keyVal) { config.api_key = keyVal; }
@@ -2190,7 +2202,8 @@ async function testNamecheapConnection() {
         api_key: document.getElementById('namecheap_api_key').value.trim(),
         username: document.getElementById('namecheap_username').value.trim(),
         client_ip: document.getElementById('namecheap_client_ip').value.trim(),
-        is_sandbox: document.getElementById('namecheap_sandbox').checked
+        is_sandbox: document.getElementById('namecheap_sandbox').checked,
+        api_url: document.getElementById('namecheap_api_url').value
     };
     
     if (!config.api_user || !config.api_key || !config.username || !config.client_ip) {

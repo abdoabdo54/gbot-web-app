@@ -254,6 +254,9 @@ def before_request():
         
         if not whitelisted_ip:
             app.logger.warning(f"IP {client_ip} not whitelisted, access denied to {request.endpoint}")
+            # Return JSON for API endpoints to avoid JSON.parse errors in frontend
+            if request.path.startswith('/api/'):
+                return jsonify({"success": False, "error": f"Access denied. IP {client_ip} is not whitelisted."}), 403
             return f"Access denied. IP {client_ip} is not whitelisted. Please contact administrator or use emergency access.", 403
         else:
             app.logger.info(f"IP {client_ip} is whitelisted, allowing access")

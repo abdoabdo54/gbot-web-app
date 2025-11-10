@@ -29,6 +29,15 @@
             <input type="text" class="form-control" id="cfg_client_ip" required>
           </div>
         </div>
+        <div class="row" style="margin-top:8px;">
+          <div class="col">
+            <label>ApiURL</label>
+            <select id="cfg_api_url" class="form-control">
+              <option value="https://api.namecheap.com/xml.response">Production</option>
+              <option value="https://api.sandbox.namecheap.com/xml.response">Sandbox</option>
+            </select>
+          </div>
+        </div>
         <div style="margin-top:12px;">
           <button type="submit" class="btn btn-primary">Save Configuration</button>
           <button type="button" id="btn-fetch-domains" class="btn btn-secondary">Fetch Domains</button>
@@ -128,6 +137,19 @@
 </div>
 
 <script>
+async function safeFetchJson(url, opts) {
+  try {
+    const res = await fetch(url, opts);
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      return await res.json();
+    }
+    const text = await res.text();
+    return { success: false, error: `HTTP ${res.status}: ${text.slice(0,300)}` };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
 function showMsg(el, msg, type) {
   el.className = 'alert alert-' + (type || 'info');
   el.textContent = msg;
@@ -136,8 +158,7 @@ function showMsg(el, msg, type) {
 
 async function loadConfig() {
   const keyInput = document.getElementById('cfg_api_key');
-  const res = await fetch('/api/dns/namecheap/config');
-  const data = await res.json();
+  const data = await safeFetchJson('/api/dns/namecheap/config');
   if (data.config) {
     document.getElementById('cfg_api_user').value = data.config.api_user || '';
     document.getElementById('cfg_username').value = data.config.username || '';
@@ -167,8 +188,7 @@ document.getElementById('cfg-form').addEventListener('submit', async (e) => {
   };
   const keyVal = keyInput.value.trim();
   if (keyVal) body.api_key = keyVal;
-  const res = await fetch('/api/dns/namecheap/config', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
-  const data = await res.json();
+  const data = await safeFetchJson('/api/dns/namecheap/config', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
   if (data.success) {
     showMsg(document.getElementById('cfg-status'), 'Configuration saved', 'success');
   } else {
@@ -180,8 +200,7 @@ async function fetchDomains() {
   const btn = document.getElementById('btn-fetch-domains');
   btn.disabled = true;
   try {
-    const res = await fetch('/api/dns/namecheap/domains');
-    const data = await res.json();
+    const data = await safeFetchJson('/api/dns/namecheap/domains');
     const ul = document.getElementById('domains-list');
     ul.innerHTML = '';
     if (data.debug && data.debug.hint) {
@@ -217,8 +236,7 @@ function selectDomain(name, isOur) {
 }
 
 async function loadHosts(domain) {
-  const res = await fetch('/api/dns/namecheap/hosts?domain=' + encodeURIComponent(domain));
-  const data = await res.json();
+  const data = await safeFetchJson('/api/dns/namecheap/hosts?domain=' + encodeURIComponent(domain));
   const tbody = document.querySelector('#hosts-table tbody');
   tbody.innerHTML = '';
   if (data.success && Array.isArray(data.hosts)) {
@@ -237,8 +255,7 @@ document.getElementById('btn-upsert-record').addEventListener('click', async () 
   const value = document.getElementById('rec_value').value.trim();
   const ttl = parseInt(document.getElementById('rec_ttl').value || '1800', 10);
   if (!domain || !value) return;
-  const res = await fetch('/api/dns/namecheap/record', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({domain, host, type, value, ttl})});
-  const data = await res.json();
+  const data = await safeFetchJson('/api/dns/namecheap/record', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({domain, host, type, value, ttl})});
   if (data.success) {
     await loadHosts(domain);
   }
@@ -248,8 +265,7 @@ document.getElementById('btn-apply-token').addEventListener('click', async () =>
   const domain = document.getElementById('ver_domain').value.trim();
   const host = document.getElementById('ver_host').value.trim() || '@';
   if (!domain) return;
-  const res = await fetch('/api/dns/namecheap/verify-domain', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({domain, host, auto_verify: false})});
-  const data = await res.json();
+  const data = await safeFetchJson('/api/dns/namecheap/verify-domain', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({domain, host, auto_verify: false})});
   if (data.success) {
     showMsg(document.getElementById('ver-status'), 'TXT token applied', 'success');
     await loadHosts(domain);
@@ -262,8 +278,7 @@ document.getElementById('btn-verify').addEventListener('click', async () => {
   const domain = document.getElementById('ver_domain').value.trim();
   const host = document.getElementById('ver_host').value.trim() || '@';
   if (!domain) return;
-  const res = await fetch('/api/dns/namecheap/verify-domain', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({domain, host, auto_verify: true})});
-  const data = await res.json();
+  const data = await safeFetchJson('/api/dns/namecheap/verify-domain', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({domain, host, auto_verify: true})});
   if (data.success) {
     showMsg(document.getElementById('ver-status'), 'Verification attempted. Check Google Search Console.', 'success');
   } else {
@@ -272,8 +287,7 @@ document.getElementById('btn-verify').addEventListener('click', async () => {
 });
 
 async function refreshLogs() {
-  const res = await fetch('/api/dns/namecheap/logs?limit=100');
-  const data = await res.json();
+  const data = await safeFetchJson('/api/dns/namecheap/logs?limit=100');
   const ul = document.getElementById('logs');
   ul.innerHTML = '';
   if (data.success && Array.isArray(data.logs)) {
