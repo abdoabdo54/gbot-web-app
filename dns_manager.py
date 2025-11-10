@@ -51,7 +51,6 @@ class NamecheapClient:
                     elem.tag = elem.tag.split('}', 1)[1]
         except Exception:
             pass
-        self.api_user = api_user
         self.api_key = api_key
         self.username = username
         self.client_ip = client_ip
