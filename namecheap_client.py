@@ -115,6 +115,7 @@ class NamecheapClient:
             "last_errors": self.last_errors,
             "last_params": self.last_params_sanitized,
             "last_response_snippet": (self.last_response_text[:400] if self.last_response_text else None),
+            "api_url": self.api_url,
         }
 
     def get_domains(self) -> List[Dict[str, str]]:

@@ -32,6 +32,7 @@
         <div style="margin-top:12px;">
           <button type="submit" class="btn btn-primary">Save Configuration</button>
           <button type="button" id="btn-fetch-domains" class="btn btn-secondary">Fetch Domains</button>
+          <button type=\"button\" id=\"btn-view-diagnostics\" class=\"btn btn-outline-warning\">View Diagnostics</button>
         </div>
       </form>
     </div>
@@ -134,6 +135,7 @@ function showMsg(el, msg, type) {
 }
 
 async function loadConfig() {
+  const keyInput = document.getElementById('cfg_api_key');
   const res = await fetch('/api/dns/namecheap/config');
   const data = await res.json();
   if (data.config) {
@@ -143,18 +145,28 @@ async function loadConfig() {
     if (data.config.api_url) {
       document.getElementById('cfg_api_url').value = data.config.api_url;
     }
+    if (typeof data.config.has_api_key !== 'undefined') {
+      keyInput.placeholder = data.config.has_api_key ? '•••••••••• (saved)' : '';
+      if (data.config.has_api_key) keyInput.removeAttribute('required');
+    }
+    }
   }
 }
 
 document.getElementById('cfg-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const keyInput = document.getElementById('cfg_api_key');
+  const hasSavedKey = (keyInput.placeholder || '').includes('saved');
   const body = {
     api_user: document.getElementById('cfg_api_user').value.trim(),
-    api_key: document.getElementById('cfg_api_key').value.trim(),
+    // api_key included only if entered again
+    // api_key: document.getElementById('cfg_api_key').value.trim(),
     username: document.getElementById('cfg_username').value.trim(),
     client_ip: document.getElementById('cfg_client_ip').value.trim(),
     api_url: document.getElementById('cfg_api_url').value,
   };
+  const keyVal = keyInput.value.trim();
+  if (keyVal) body.api_key = keyVal;
   const res = await fetch('/api/dns/namecheap/config', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
   const data = await res.json();
   if (data.success) {
@@ -194,6 +206,7 @@ async function fetchDomains() {
 }
 
 document.getElementById('btn-fetch-domains').addEventListener('click', fetchDomains);
+document.getElementById('btn-view-diagnostics').addEventListener('click', viewDiagnostics);
 
 let selectedDomain = '';
 function selectDomain(name, isOur) {
@@ -274,6 +287,34 @@ async function refreshLogs() {
 }
 
 setInterval(refreshLogs, 5000);
+
+async function viewDiagnostics() {
+  const el = document.getElementById('dmgr-diagnostics');
+  try {
+    const res = await fetch('/api/dns/namecheap/diagnostics');
+    const data = await res.json();
+    let html = '';
+    if (data.success) {
+      const d = data.debug || {};
+      html += '<div style="font-family: \'Courier New\', monospace; font-size: 12px;">';
+      html += '<div><b>Last Command:</b> ' + (d.last_command || '-') + '</div>';
+      html += '<div><b>Status:</b> ' + (d.last_status || '-') + '</div>';
+      html += '<div><b>Errors:</b> ' + (d.last_errors || '-') + '</div>';
+      html += '<div><b>Api URL:</b> ' + (d.api_url || '-') + '</div>';
+      html += '<div><b>Params (sanitized):</b><pre style="white-space: pre-wrap;">' + (d.last_params ? JSON.stringify(d.last_params, null, 2) : '-') + '</pre></div>';
+      html += '<div><b>Response snippet:</b><pre style="white-space: pre-wrap;">' + (d.last_response_snippet || '-') + '</pre></div>';
+      html += '</div>';
+    } else {
+      html = '<span style="color: #d1242f;">' + (data.error || 'Diagnostics failed') + '</span>';
+    }
+    el.innerHTML = html;
+    el.style.display = 'block';
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (e) {
+    el.innerHTML = '<span style="color: #d1242f;">Diagnostics error: ' + e.message + '</span>';
+    el.style.display = 'block';
+  }
+}
 
 window.addEventListener('DOMContentLoaded', async () => {
   await loadConfig();

@@ -2139,16 +2139,19 @@ async function loadNamecheapConfig() {
 document.getElementById('namecheap-config-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     
+    const keyField = document.getElementById('namecheap_api_key');
+    const hasSavedKey = (keyField.placeholder || '').includes('saved');
     const config = {
         api_user: document.getElementById('namecheap_api_user').value.trim(),
-        api_key: document.getElementById('namecheap_api_key').value.trim(),
         username: document.getElementById('namecheap_username').value.trim(),
         client_ip: document.getElementById('namecheap_client_ip').value.trim(),
         is_sandbox: document.getElementById('namecheap_sandbox').checked
     };
+    const keyVal = keyField.value.trim();
+    if (keyVal) { config.api_key = keyVal; }
     
-    // Validate required fields
-    if (!config.api_user || !config.api_key || !config.username || !config.client_ip) {
+    // Validate required fields (api_key required only if not saved previously)
+    if (!config.api_user || (!hasSavedKey && !keyVal) || !config.username || !config.client_ip) {
         showNamecheapStatus('All fields are required', 'error');
         return;
     }

@@ -123,6 +123,7 @@ def namecheap_config_handler():
                     "client_ip": app_config.NAMECHEAP_CLIENT_IP,
                     "is_sandbox": app_config.NAMECHEAP_SANDBOX,
                     "api_url": getattr(app_config, "NAMECHEAP_API_URL", "https://api.namecheap.com/xml.response"),
+                    "has_api_key": bool(app_config.NAMECHEAP_API_KEY),
                 },
             }
         )
