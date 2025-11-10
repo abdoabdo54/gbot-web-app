@@ -42,6 +42,21 @@ class NamecheapClient:
         self.client_ip = client_ip
         self.base_url = 'https://api.sandbox.namecheap.com/xml.response' if sandbox else 'https://api.namecheap.com/xml.response'
 
+    @staticmethod
+    def _strip_namespaces(root: ET.Element) -> None:
+        """Remove XML namespaces in-place to simplify XPath queries."""
+        try:
+            for elem in root.iter():
+                if isinstance(elem.tag, str) and '}' in elem.tag:
+                    elem.tag = elem.tag.split('}', 1)[1]
+        except Exception:
+            pass
+        self.api_user = api_user
+        self.api_key = api_key
+        self.username = username
+        self.client_ip = client_ip
+        self.base_url = 'https://api.sandbox.namecheap.com/xml.response' if sandbox else 'https://api.namecheap.com/xml.response'
+
     def _request(self, command: str, params: Dict) -> ET.Element:
         all_params = {
             'ApiUser': self.api_user,
@@ -60,6 +75,8 @@ class NamecheapClient:
             if command == 'namecheap.domains.getList':
                 logger.info(f"getList response preview: {resp.text[:800]}")
             root = ET.fromstring(resp.content)
+            # Strip namespaces to simplify queries
+            self._strip_namespaces(root)
         except Exception as e:
             preview = ''
             try:
