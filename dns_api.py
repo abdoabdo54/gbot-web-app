@@ -604,12 +604,32 @@ def test_namecheap_connection():
                 'sandbox': namecheap_config.is_sandbox
             }
         
-        # Attempt to fetch domains as a connectivity test
+        # Attempt light-weight authenticated call to validate credentials
         api = NamecheapAPI(**cfg)
-        domains = api.get_domains()
-        return jsonify({'success': True, 'domains': domains, 'count': len(domains)})
+        balances = api.get_balance()
+        # Fetch domains to confirm account mapping (optional)
+        domains = []
+        try:
+            domains = api.get_domains()
+        except Exception:
+            pass
+        diag = {
+            'api_user': cfg.get('api_user'),
+            'username': cfg.get('username'),
+            'client_ip': cfg.get('client_ip'),
+            'sandbox': cfg.get('sandbox'),
+            'base_url': api.base_url
+        }
+        return jsonify({'success': True, 'balances': balances, 'domains': domains, 'count': len(domains), 'diagnostics': diag})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        # Provide diagnostics to help the user fix configuration issues
+        diag = {
+            'api_user': cfg.get('api_user') if 'cfg' in locals() else None,
+            'username': cfg.get('username') if 'cfg' in locals() else None,
+            'client_ip': cfg.get('client_ip') if 'cfg' in locals() else None,
+            'sandbox': cfg.get('sandbox') if 'cfg' in locals() else None
+        }
+        return jsonify({'success': False, 'error': str(e), 'diagnostics': diag}), 500
 
 @dns_bp.route('/google/verified-domains', methods=['GET'])
 @login_required

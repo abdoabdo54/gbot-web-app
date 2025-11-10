@@ -102,6 +102,23 @@ class NamecheapAPI:
             logger.error(f"XML parsing failed: {str(e)}")
             raise Exception(f"Invalid XML response from Namecheap API: {str(e)}")
     
+    def get_balance(self) -> Dict:
+        """Check API authentication by calling users.getBalances"""
+        try:
+            root = self._make_request('namecheap.users.getBalances')
+            result = root.find('.//UserGetBalancesResult')
+            if result is None:
+                raise Exception('Unexpected response from Namecheap: missing balances result')
+            return {
+                'success': True,
+                'available_balance': result.get('AvailableBalance'),
+                'account_balance': result.get('AccountBalance'),
+                'earned_amount': result.get('EarnedAmount')
+            }
+        except Exception as e:
+            logger.error(f"Balance check failed: {str(e)}")
+            raise
+
     def get_domains(self) -> List[str]:
         """
         Get all domains in the Namecheap account
