@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h4 class="mb-0"><i class="fas fa-globe"></i> DNS Manager</h4>
+          <small class="text-muted">Manage Namecheap DNS and Google Verification</small>
+        </div>
+        <div class="card-body">
+          <!-- A. Namecheap API Configuration -->
+          <h5 class="mb-3">A) Namecheap API Configuration</h5>
+          <div class="alert alert-warning">API keys stored in DB as plain text — <strong>REPLACE BEFORE PROD</strong></div>
+          <form id="nc-config-form" class="mb-4">
+            <div class="form-row">
+              <div class="form-group col-md-3"><label>ApiUser</label><input id="nc_api_user" class="form-control" required></div>
+              <div class="form-group col-md-3"><label>ApiKey</label><input id="nc_api_key" type="password" class="form-control" required></div>
+              <div class="form-group col-md-3"><label>UserName</label><input id="nc_username" class="form-control" required></div>
+              <div class="form-group col-md-2"><label>ClientIp</label><input id="nc_client_ip" class="form-control" required></div>
+              <div class="form-group col-md-1"><label>Sandbox</label><input id="nc_sandbox" type="checkbox" class="form-control"></div>
+            </div>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </form>
+
+          <!-- B. Domains List -->
+          <h5 class="mb-3">B) Domains List</h5>
+          <button class="btn btn-outline-primary mb-2" onclick="fetchDomains()">Fetch Domains</button>
+          <div id="domains-warning" class="alert alert-info" style="display:none;"></div>
+          <div class="table-responsive">
+            <table class="table table-sm" id="domains-table">
+              <thead><tr><th>Domain</th><th>Expires</th><th>IsOurDNS</th><th>Select</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <!-- C. DNS & Subdomain Management -->
+          <h5 class="mb-3">C) DNS & Subdomain Management</h5>
+          <div class="form-inline mb-2">
+            <label class="mr-2">Selected Domain</label>
+            <input id="selected-domain" class="form-control mr-2" readonly style="width:260px;">
+            <button class="btn btn-outline-secondary" onclick="loadHosts()">Load Records</button>
+          </div>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm" id="hosts-table">
+              <thead><tr><th>Host</th><th>Type</th><th>Value</th><th>TTL</th><th>MXPref</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <form id="upsert-form" class="form-inline mb-4">
+            <input class="form-control mr-2" id="rec-host" placeholder="host (e.g. @, www, _dmarc)" required>
+            <select class="form-control mr-2" id="rec-type">
+              <option>A</option><option>CNAME</option><option>TXT</option><option>MX</option>
+            </select>
+            <input class="form-control mr-2" id="rec-value" placeholder="value" required>
+            <input class="form-control mr-2" id="rec-ttl" type="number" value="1800" style="width:120px;">
+            <input class="form-control mr-2" id="rec-mx" type="number" placeholder="MX Pref (optional)" style="width:160px;">
+            <button class="btn btn-success" type="submit">Save Record</button>
+          </form>
+
+          <!-- D. Google Verification -->
+          <h5 class="mb-3">D) Google Site Verification</h5>
+          <div class="form-inline mb-2">
+            <input id="verify-domain" class="form-control mr-2" placeholder="domain to verify (must be selected above)">
+            <input id="verify-host" class="form-control mr-2" value="@" style="width:120px;">
+            <button class="btn btn-warning mr-2" onclick="generateAndApplyTXT()">Generate TXT & Apply</button>
+            <button class="btn btn-info" onclick="verifyNow()">Verify Now</button>
+          </div>
+
+          <!-- E. Live Debug Log Panel -->
+          <h5 class="mb-3">E) Live Debug Log</h5>
+          <pre id="dns-log" style="background:#111;color:#ddd;padding:12px;height:220px;overflow:auto;">No logs yet.</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+async function loadConfig(){const r=await fetch('/api/dns/namecheap/config');const j=await r.json();if(j.success&&j.configured){document.getElementById('nc_api_user').value=j.config.api_user||'';document.getElementById('nc_username').value=j.config.username||'';document.getElementById('nc_client_ip').value=j.config.client_ip||'';document.getElementById('nc_sandbox').checked=!!j.config.sandbox}}
+
+document.getElementById('nc-config-form').addEventListener('submit',async(e)=>{e.preventDefault();const p={api_user:document.getElementById('nc_api_user').value.trim(),api_key:document.getElementById('nc_api_key').value.trim(),username:document.getElementById('nc_username').value.trim(),client_ip:document.getElementById('nc_client_ip').value.trim(),sandbox:document.getElementById('nc_sandbox').checked};const r=await fetch('/api/dns/namecheap/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});const j=await r.json();appendLog('config.save',JSON.stringify(j));alert(j.success?'Saved':'Failed: '+(j.error||'error'))})
+
+async function fetchDomains(){const r=await fetch('/api/dns/namecheap/domains');const j=await r.json();appendLog('domains.get',JSON.stringify(j));if(!j.success){alert('Failed: '+j.error);return}const tb=document.querySelector('#domains-table tbody');tb.innerHTML='';j.domains.forEach(d=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${d.Name}</td><td>${d.Expires||''}</td><td>${d.IsOurDNS}</td><td><button class='btn btn-sm btn-outline-primary' onclick=selectDomain('${d.Name}','${d.IsOurDNS}')>Select</button></td>`;tb.appendChild(tr)})}
+
+function selectDomain(name,isOur){document.getElementById('selected-domain').value=name;document.getElementById('verify-domain').value=name;const warn=document.getElementById('domains-warning');if(String(isOur).toLowerCase()!=='true'){warn.style.display='block';warn.textContent='Warning: This domain is not using Namecheap DNS. Updates may be rejected.'}else{warn.style.display='none'}}
+
+async function loadHosts(){const dom=document.getElementById('selected-domain').value;if(!dom){return alert('Select a domain first');}const r=await fetch('/api/dns/namecheap/hosts?domain='+encodeURIComponent(dom));const j=await r.json();appendLog('hosts.get',JSON.stringify(j));if(!j.success){alert('Failed: '+j.error);return}const tb=document.querySelector('#hosts-table tbody');tb.innerHTML='';(j.hosts||[]).forEach(h=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${h.Name}</td><td>${h.Type}</td><td><code>${h.Address}</code></td><td>${h.TTL||''}</td><td>${h.MXPref||''}</td>`;tb.appendChild(tr)})}
+
+document.getElementById('upsert-form').addEventListener('submit',async(e)=>{e.preventDefault();const dom=document.getElementById('selected-domain').value;if(!dom){return alert('Select a domain first');}const payload={domain:dom,host:document.getElementById('rec-host').value.trim(),type:document.getElementById('rec-type').value.trim(),value:document.getElementById('rec-value').value.trim(),ttl:parseInt(document.getElementById('rec-ttl').value)||1800,mx_pref:parseInt(document.getElementById('rec-mx').value)||null};const r=await fetch('/api/dns/namecheap/record',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const j=await r.json();appendLog('record.upsert',JSON.stringify(j));if(j.success){loadHosts()}else{alert('Failed: '+j.error)}})
+
+async function generateAndApplyTXT(){const dom=document.getElementById('verify-domain').value.trim();const host=document.getElementById('verify-host').value.trim()||'@';if(!dom){return alert('Enter domain');}const r=await fetch('/api/dns/namecheap/verify-domain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain:dom,host:host,auto_verify:false})});const j=await r.json();appendLog('verify.token.apply',JSON.stringify(j));if(!j.success){alert('Failed: '+j.error)}}
+
+async function verifyNow(){const dom=document.getElementById('verify-domain').value.trim();if(!dom){return alert('Enter domain');}const r=await fetch('/api/dns/namecheap/verify-domain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain:dom,auto_verify:true})});const j=await r.json();appendLog('verify.insert',JSON.stringify(j));if(!j.success){alert('Failed: '+j.error)}}
+
+async function loadLogs(){const r=await fetch('/api/dns/logs');const j=await r.json();if(j.success){document.getElementById('dns-log').textContent=(j.lines||[]).join('\n')}}
+function appendLog(op,msg){const p=document.getElementById('dns-log');p.textContent += `\n[${new Date().toISOString()}] ${op}: ${msg}`;p.scrollTop=p.scrollHeight}
+
+document.addEventListener('DOMContentLoaded',()=>{loadConfig();loadLogs();})
+</script>
+{% endblock %}

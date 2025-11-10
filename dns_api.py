@@ -1,653 +1,187 @@
 """
-DNS API Blueprint for GBot Web App
-RESTful endpoints for DNS management and Google Site Verification
+DNS API routes
 """
-
-import os
-import json
 import logging
-from typing import Dict, List
+import os
+from typing import Dict
 from flask import Blueprint, request, jsonify, session
 from functools import wraps
 
 from database import db, NamecheapConfig, DNSRecord, GoogleVerification
-from dns_manager import DNSManager, NamecheapError
+from dns_manager import DNSManager
 import config
 
-# Configure logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('dns_module')
 
-# Create Blueprint
 dns_bp = Blueprint('dns_api', __name__, url_prefix='/api/dns')
 
 
 def login_required(f):
-    """Decorator to require login for DNS API endpoints"""
     @wraps(f)
-    def decorated_function(*args, **kwargs):
+    def inner(*args, **kwargs):
         if not (session.get('user') or session.get('emergency_access')):
-            return jsonify({
-                'success': False,
-                'error': 'Authentication required'
-            }), 401
+            return jsonify({'success': False, 'error': 'Authentication required'}), 401
         return f(*args, **kwargs)
-    return decorated_function
+    return inner
 
 
-def get_dns_manager() -> DNSManager:
-    """
-    Initialize DNS Manager with current configuration
-    
-    Returns:
-        Configured DNSManager instance or None if not configured
-    """
-    try:
-        # Get Namecheap configuration from database
-        namecheap_config = NamecheapConfig.query.filter_by(is_active=True).first()
-        
-        if not namecheap_config:
-            # Fallback to environment variables
-            if not all([
-                config.NAMECHEAP_API_USER, 
-                config.NAMECHEAP_API_KEY,
-                config.NAMECHEAP_USERNAME, 
-                config.NAMECHEAP_CLIENT_IP
-            ]):
-                return None
-                
-            nc_config = {
-                'api_user': config.NAMECHEAP_API_USER,
-                'api_key': config.NAMECHEAP_API_KEY,
-                'username': config.NAMECHEAP_USERNAME,
-                'client_ip': config.NAMECHEAP_CLIENT_IP,
-                'sandbox': config.NAMECHEAP_SANDBOX
-            }
-        else:
-            nc_config = {
-                'api_user': namecheap_config.api_user,
-                'api_key': namecheap_config.api_key,
-                'username': namecheap_config.username,
-                'client_ip': namecheap_config.client_ip,
-                'sandbox': namecheap_config.is_sandbox
-            }
-        
-        # Google configuration (optional)
-        google_config = None
-        if hasattr(config, 'GOOGLE_SERVICE_ACCOUNT_PATH') and config.GOOGLE_SERVICE_ACCOUNT_PATH:
-            google_config = {'service_account_path': config.GOOGLE_SERVICE_ACCOUNT_PATH}
-        elif hasattr(config, 'GOOGLE_SERVICE_ACCOUNT_INFO') and config.GOOGLE_SERVICE_ACCOUNT_INFO:
-            google_config = {'service_account_info': config.GOOGLE_SERVICE_ACCOUNT_INFO}
-        
-        return DNSManager(nc_config, google_config)
-        
-    except Exception as e:
-        logger.error(f"Failed to initialize DNS manager: {str(e)}")
-        return None
+def _nc_conf() -> Dict:
+    c = NamecheapConfig.query.filter_by(is_active=True).first()
+    if c:
+        return {
+            'api_user': c.api_user,
+            'api_key': c.api_key,  # !!! PLAIN STORAGE — REPLACE BEFORE PROD
+            'username': c.username,
+            'client_ip': c.client_ip,
+            'sandbox': c.is_sandbox,
+        }
+    # fallback to env
+    if all([config.NAMECHEAP_API_USER, config.NAMECHEAP_API_KEY, config.NAMECHEAP_USERNAME, config.NAMECHEAP_CLIENT_IP]):
+        return {
+            'api_user': config.NAMECHEAP_API_USER,
+            'api_key': config.NAMECHEAP_API_KEY,
+            'username': config.NAMECHEAP_USERNAME,
+            'client_ip': config.NAMECHEAP_CLIENT_IP,
+            'sandbox': config.NAMECHEAP_SANDBOX,
+        }
+    return {}
 
 
-# Configuration endpoints
-@dns_bp.route('/config', methods=['GET'])
+def _manager() -> DNSManager:
+    nc = _nc_conf()
+    if not nc:
+        raise RuntimeError('Namecheap not configured')
+    google_path = getattr(config, 'GOOGLE_SERVICE_ACCOUNT_PATH', None)
+    return DNSManager(nc, google_path)
+
+
+# Config endpoints
+@dns_bp.route('/namecheap/config', methods=['POST'])
 @login_required
-def get_dns_config():
-    """Get current DNS configuration status"""
-    try:
-        config_obj = NamecheapConfig.query.filter_by(is_active=True).first()
-        
-        if not config_obj:
-            return jsonify({
-                'success': False,
-                'configured': False,
-                'message': 'DNS not configured'
-            })
-        
-        return jsonify({
-            'success': True,
-            'configured': True,
-            'config': {
-                'api_user': config_obj.api_user,
-                'username': config_obj.username,
-                'client_ip': config_obj.client_ip,
-                'sandbox': config_obj.is_sandbox,
-                'created_at': config_obj.created_at.isoformat()
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"Failed to get DNS config: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Configuration error: {str(e)}'
-        }), 500
+def save_nc_config():
+    data = request.get_json() or {}
+    req = ['api_user', 'api_key', 'username', 'client_ip']
+    miss = [k for k in req if not data.get(k)]
+    if miss:
+        return jsonify({'success': False, 'error': f'Missing: {", ".join(miss)}'}), 400
+    NamecheapConfig.query.update({'is_active': False})
+    rec = NamecheapConfig(
+        api_user=data['api_user'].strip(),
+        api_key=data['api_key'].strip(),  # !!! PLAIN STORAGE — REPLACE BEFORE PROD
+        username=data['username'].strip(),
+        client_ip=data['client_ip'].strip(),
+        is_sandbox=bool(data.get('sandbox', False)),
+        is_active=True
+    )
+    db.session.add(rec)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Saved', 'warning': 'Credentials stored in plain text — replace before prod'})
 
-
-@dns_bp.route('/config', methods=['POST'])
+@dns_bp.route('/namecheap/config', methods=['GET'])
 @login_required
-def set_dns_config():
-    """Set DNS configuration"""
+def get_nc_config():
+    c = NamecheapConfig.query.filter_by(is_active=True).first()
+    if not c:
+        return jsonify({'success': False, 'configured': False})
+    return jsonify({'success': True, 'configured': True, 'config': {
+        'api_user': c.api_user,
+        'username': c.username,
+        'client_ip': c.client_ip,
+        'sandbox': c.is_sandbox,
+        'created_at': c.created_at.isoformat() if c.created_at else None
+    }})
+
+
+# Domains
+@dns_bp.route('/namecheap/domains', methods=['GET'])
+@login_required
+def list_domains():
     try:
-        data = request.get_json()
-        
-        # Validate required fields
-        required_fields = ['api_user', 'api_key', 'username', 'client_ip']
-        missing_fields = [f for f in required_fields if not data.get(f)]
-        if missing_fields:
-            return jsonify({
-                'success': False,
-                'error': f'Missing required fields: {", ".join(missing_fields)}'
-            }), 400
-        
-        # Deactivate existing configurations
-        NamecheapConfig.query.update({'is_active': False})
-        
-        # Create new configuration
-        config_obj = NamecheapConfig(
-            api_user=data['api_user'].strip(),
-            api_key=data['api_key'].strip(),  # !!! PLAIN STORAGE — REPLACE BEFORE PROD
-            username=data['username'].strip(),
-            client_ip=data['client_ip'].strip(),
-            is_sandbox=data.get('sandbox', False),
-            is_active=True
-        )
-        
-        db.session.add(config_obj)
+        mgr = _manager()
+        domains = mgr.list_domains()
+        return jsonify({'success': True, 'domains': domains, 'count': len(domains)})
+    except Exception as e:
+        logger.error(f"list_domains: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# Hosts
+@dns_bp.route('/namecheap/hosts', methods=['GET'])
+@login_required
+def list_hosts():
+    domain = request.args.get('domain', '').strip().lower()
+    if not domain:
+        return jsonify({'success': False, 'error': 'domain is required'}), 400
+    try:
+        mgr = _manager()
+        hosts = mgr.list_hosts(domain)
+        return jsonify({'success': True, 'domain': domain, 'hosts': hosts})
+    except Exception as e:
+        logger.error(f"list_hosts: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# Upsert record
+@dns_bp.route('/namecheap/record', methods=['POST'])
+@login_required
+def upsert_record():
+    data = request.get_json() or {}
+    req = ['domain', 'host', 'type', 'value']
+    miss = [k for k in req if not data.get(k)]
+    if miss:
+        return jsonify({'success': False, 'error': f'Missing: {", ".join(miss)}'}), 400
+    ttl = int(data.get('ttl', config.DNS_DEFAULT_TTL))
+    try:
+        mgr = _manager()
+        mgr.upsert_record(data['domain'].strip().lower(), data['host'].strip(), data['type'].strip().upper(), data['value'].strip(), ttl, data.get('mx_pref'))
+        # log history
+        db.session.add(DNSRecord(domain=data['domain'].strip().lower(), record_name=data['host'].strip(), record_type=data['type'].strip().upper(), record_value=data['value'].strip(), ttl=ttl, mx_preference=data.get('mx_pref'), created_by=session.get('user'), is_active=True))
         db.session.commit()
-        
-        logger.info(f"DNS configuration saved for user: {data['username']}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'DNS configuration saved successfully',
-            'warning': '⚠️ API credentials stored in plain text - encrypt before production!'
-        })
-        
+        return jsonify({'success': True, 'message': 'Record saved'})
     except Exception as e:
-        db.session.rollback()
-        logger.error(f"Failed to save DNS config: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Failed to save configuration: {str(e)}'
-        }), 500
+        logger.error(f"upsert_record: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
-# Connection and domain endpoints
-@dns_bp.route('/test-connection', methods=['POST'])
-@login_required
-def test_connection():
-    """Test DNS service connection"""
-    try:
-        dns_manager = get_dns_manager()
-        
-        if not dns_manager:
-            return jsonify({
-                'success': False,
-                'error': 'DNS not configured'
-            }), 400
-        
-        # Test Namecheap connection
-        namecheap_result = dns_manager.test_namecheap_connection()
-        
-        return jsonify({
-            'success': namecheap_result.get('success', False),
-            'namecheap': namecheap_result,
-            'message': 'Connection test completed'
-        })
-        
-    except Exception as e:
-        logger.error(f"Connection test failed: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Connection test failed: {str(e)}'
-        }), 500
-
-
-@dns_bp.route('/domains', methods=['GET'])
-@login_required
-def get_domains():
-    """Get list of domains from Namecheap account"""
-    try:
-        dns_manager = get_dns_manager()
-        
-        if not dns_manager:
-            return jsonify({
-                'success': False,
-                'error': 'DNS not configured'
-            }), 400
-        
-        domains = dns_manager.get_domain_list()
-        
-        return jsonify({
-            'success': True,
-            'domains': domains,
-            'count': len(domains)
-        })
-        
-    except Exception as e:
-        logger.error(f"Failed to get domains: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Failed to retrieve domains: {str(e)}'
-        }), 500
-
-
-@dns_bp.route('/records/<domain>', methods=['GET'])
-@login_required
-def get_dns_records(domain):
-    """Get DNS records for a specific domain"""
-    try:
-        dns_manager = get_dns_manager()
-        
-        if not dns_manager:
-            return jsonify({
-                'success': False,
-                'error': 'DNS not configured'
-            }), 400
-        
-        records = dns_manager.get_dns_records(domain)
-        
-        return jsonify({
-            'success': True,
-            'domain': domain,
-            'records': records,
-            'count': len(records)
-        })
-        
-    except Exception as e:
-        logger.error(f"Failed to get DNS records for {domain}: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Failed to retrieve DNS records: {str(e)}'
-        }), 500
-
-
-# DNS record management endpoints
-@dns_bp.route('/namecheap/subdomain', methods=['POST'])
-@login_required
-def create_subdomain():
-    """Create or update a subdomain record"""
-    try:
-        data = request.get_json()
-        
-        # Validate required fields
-        required_fields = ['domain', 'subdomain', 'target']
-        missing_fields = [f for f in required_fields if not data.get(f)]
-        if missing_fields:
-            return jsonify({
-                'success': False,
-                'error': f'Missing required fields: {", ".join(missing_fields)}'
-            }), 400
-        
-        domain = data['domain'].strip().lower()
-        subdomain = data['subdomain'].strip().lower()
-        target = data['target'].strip()
-        record_type = data.get('record_type', 'A').upper()
-        ttl = data.get('ttl', config.DNS_DEFAULT_TTL)
-        
-        # Validate record type
-        valid_types = ['A', 'CNAME', 'TXT', 'MX']
-        if record_type not in valid_types:
-            return jsonify({
-                'success': False,
-                'error': f'Invalid record type. Must be one of: {", ".join(valid_types)}'
-            }), 400
-        
-        dns_manager = get_dns_manager()
-        if not dns_manager:
-            return jsonify({
-                'success': False,
-                'error': 'DNS not configured'
-            }), 400
-        
-        # Create subdomain
-        result = dns_manager.create_subdomain_record(domain, subdomain, target, record_type, ttl)
-        
-        # Log to database if successful
-        if result.get('success'):
-            try:
-                dns_record = DNSRecord(
-                    domain=domain,
-                    record_name=subdomain,
-                    record_type=record_type,
-                    record_value=target,
-                    ttl=ttl,
-                    created_by=session.get('user'),
-                    is_active=True
-                )
-                db.session.add(dns_record)
-                db.session.commit()
-            except Exception as e:
-                logger.warning(f"Failed to log DNS record to database: {str(e)}")
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        logger.error(f"Failed to create subdomain: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Failed to create subdomain: {str(e)}'
-        }), 500
-
-
-@dns_bp.route('/records', methods=['POST'])
-@login_required
-def add_dns_record():
-    """Add or update a DNS record"""
-    try:
-        data = request.get_json()
-        
-        # Validate required fields
-        required_fields = ['domain', 'name', 'type', 'value']
-        missing_fields = [f for f in required_fields if not data.get(f)]
-        if missing_fields:
-            return jsonify({
-                'success': False,
-                'error': f'Missing required fields: {", ".join(missing_fields)}'
-            }), 400
-        
-        domain = data['domain'].strip().lower()
-        name = data['name'].strip()
-        record_type = data['type'].strip().upper()
-        value = data['value'].strip()
-        ttl = data.get('ttl', config.DNS_DEFAULT_TTL)
-        mx_pref = data.get('mx_pref')
-        
-        # Validate record type
-        valid_types = ['A', 'CNAME', 'TXT', 'MX']
-        if record_type not in valid_types:
-            return jsonify({
-                'success': False,
-                'error': f'Invalid record type. Must be one of: {", ".join(valid_types)}'
-            }), 400
-        
-        dns_manager = get_dns_manager()
-        if not dns_manager:
-            return jsonify({
-                'success': False,
-                'error': 'DNS not configured'
-            }), 400
-        
-        # Add DNS record
-        result = dns_manager.add_dns_record(domain, name, record_type, value, ttl, mx_pref)
-        
-        # Log to database if successful
-        if result.get('success'):
-            try:
-                dns_record = DNSRecord(
-                    domain=domain,
-                    record_name=name,
-                    record_type=record_type,
-                    record_value=value,
-                    ttl=ttl,
-                    mx_preference=mx_pref,
-                    created_by=session.get('user'),
-                    is_active=True
-                )
-                db.session.add(dns_record)
-                db.session.commit()
-            except Exception as e:
-                logger.warning(f"Failed to log DNS record to database: {str(e)}")
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        logger.error(f"Failed to add DNS record: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Failed to add DNS record: {str(e)}'
-        }), 500
-
-
-@dns_bp.route('/records', methods=['DELETE'])
-@login_required
-def delete_dns_record():
-    """Delete a DNS record"""
-    try:
-        data = request.get_json()
-        
-        # Validate required fields
-        if not data.get('domain') or not data.get('name'):
-            return jsonify({
-                'success': False,
-                'error': 'Domain and record name are required'
-            }), 400
-        
-        domain = data['domain'].strip().lower()
-        name = data['name'].strip()
-        record_type = data.get('type', '').strip().upper() or None
-        
-        dns_manager = get_dns_manager()
-        if not dns_manager:
-            return jsonify({
-                'success': False,
-                'error': 'DNS not configured'
-            }), 400
-        
-        # Delete DNS record
-        result = dns_manager.delete_dns_record(domain, name, record_type)
-        
-        # Update database records if successful
-        if result.get('success'):
-            try:
-                query = DNSRecord.query.filter_by(domain=domain, record_name=name, is_active=True)
-                if record_type:
-                    query = query.filter_by(record_type=record_type)
-                
-                deleted_records = query.all()
-                for record in deleted_records:
-                    record.is_active = False
-                
-                db.session.commit()
-            except Exception as e:
-                logger.warning(f"Failed to update DNS record status: {str(e)}")
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        logger.error(f"Failed to delete DNS record: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Failed to delete DNS record: {str(e)}'
-        }), 500
-
-
-# Google Site Verification endpoints
+# Verification
 @dns_bp.route('/namecheap/verify-domain', methods=['POST'])
 @login_required
 def verify_domain():
-    """Complete Google Site Verification workflow"""
+    data = request.get_json() or {}
+    domain = data.get('domain', '').strip().lower()
+    host = data.get('host', '@')
+    auto = bool(data.get('auto_verify', True))
+    if not domain:
+        return jsonify({'success': False, 'error': 'domain is required'}), 400
     try:
-        data = request.get_json()
-        
-        if not data.get('domain'):
-            return jsonify({
-                'success': False,
-                'error': 'Domain is required'
-            }), 400
-        
-        domain = data['domain'].strip().lower()
-        
-        dns_manager = get_dns_manager()
-        if not dns_manager:
-            return jsonify({
-                'success': False,
-                'error': 'DNS not configured'
-            }), 400
-        
-        # Perform Google verification workflow
-        result = dns_manager.verify_domain_with_google(domain)
-        
-        # Log verification attempt
-        if result.get('success'):
-            try:
-                verification = GoogleVerification.query.filter_by(domain=domain).first()
-                if not verification:
-                    verification = GoogleVerification(domain=domain)
-                
-                verification.verification_token = result.get('token')
-                verification.verification_method = 'DNS_TXT'
-                verification.is_verified = True
-                verification.verified_at = db.func.current_timestamp()
-                
-                db.session.add(verification)
+        mgr = _manager()
+        tok = mgr.generate_txt_and_apply(domain, host)
+        result = {'token': tok['token']}
+        if auto:
+            ver = mgr.verify_domain(domain)
+            result['verify'] = ver
+            # persist verification
+            if ver.get('success'):
+                db.session.add(GoogleVerification(domain=domain, verification_token=tok['token'], verification_method='DNS_TXT', is_verified=True, verified_at=db.func.current_timestamp()))
                 db.session.commit()
-            except Exception as e:
-                logger.warning(f"Failed to log verification to database: {str(e)}")
-        
-        return jsonify(result)
-        
+        return jsonify({'success': True, 'data': result})
     except Exception as e:
-        logger.error(f"Failed to verify domain: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Failed to verify domain: {str(e)}'
-        }), 500
+        logger.error(f"verify_domain: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@dns_bp.route('/google/verification-token', methods=['POST'])
+# Logs
+@dns_bp.route('/logs', methods=['GET'])
 @login_required
-def get_verification_token():
-    """Get Google verification token (without verification)"""
+def tail_logs():
     try:
-        data = request.get_json()
-        
-        if not data.get('domain'):
-            return jsonify({
-                'success': False,
-                'error': 'Domain is required'
-            }), 400
-        
-        domain = data['domain'].strip().lower()
-        
-        dns_manager = get_dns_manager()
-        if not dns_manager or not dns_manager.google_verification:
-            return jsonify({
-                'success': False,
-                'error': 'Google Site Verification not configured'
-            }), 400
-        
-        # Get verification token only
-        token = dns_manager.google_verification.get_verification_token(domain)
-        
-        return jsonify({
-            'success': True,
-            'domain': domain,
-            'token': token,
-            'message': 'Verification token generated successfully'
-        })
-        
+        lines = []
+        path = os.path.join('logs', 'dns_module.log') if 'os' in globals() else 'logs/dns_module.log'
+        import os as _os
+        path = _os.path.join(_os.getcwd(), 'logs', 'dns_module.log')
+        if _os.path.exists(path):
+            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                lines = f.readlines()[-200:]
+        return jsonify({'success': True, 'lines': [l.rstrip('\n') for l in lines]})
     except Exception as e:
-        logger.error(f"Failed to get verification token: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Failed to get verification token: {str(e)}'
-        }), 500
-
-
-# History and monitoring endpoints
-@dns_bp.route('/records/history', methods=['GET'])
-@login_required
-def get_dns_history():
-    """Get DNS records history"""
-    try:
-        domain = request.args.get('domain', '')
-        limit = int(request.args.get('limit', 100))
-        
-        query = DNSRecord.query.order_by(DNSRecord.created_at.desc())
-        
-        if domain:
-            query = query.filter_by(domain=domain)
-        
-        records = query.limit(limit).all()
-        
-        history = []
-        for record in records:
-            history.append({
-                'id': record.id,
-                'domain': record.domain,
-                'record_name': record.record_name,
-                'record_type': record.record_type,
-                'record_value': record.record_value,
-                'ttl': record.ttl,
-                'mx_preference': record.mx_preference,
-                'is_active': record.is_active,
-                'created_by': record.created_by,
-                'created_at': record.created_at.isoformat() if record.created_at else None,
-                'updated_at': record.updated_at.isoformat() if record.updated_at else None
-            })
-        
-        return jsonify({
-            'success': True,
-            'records': history,
-            'total': len(history),
-            'domain_filter': domain
-        })
-        
-    except Exception as e:
-        logger.error(f"Failed to get DNS history: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Failed to get DNS history: {str(e)}'
-        }), 500
-
-
-@dns_bp.route('/google/verified-sites', methods=['GET'])
-@login_required
-def get_verified_sites():
-    """Get list of Google-verified sites"""
-    try:
-        dns_manager = get_dns_manager()
-        if not dns_manager or not dns_manager.google_verification:
-            return jsonify({
-                'success': False,
-                'error': 'Google Site Verification not configured'
-            }), 400
-        
-        # Get verified sites from Google
-        sites = dns_manager.google_verification.list_verified_sites()
-        
-        # Get verification history from database
-        db_verifications = GoogleVerification.query.filter_by(is_verified=True).all()
-        
-        db_sites = []
-        for verification in db_verifications:
-            db_sites.append({
-                'domain': verification.domain,
-                'verified_at': verification.verified_at.isoformat() if verification.verified_at else None,
-                'verification_method': verification.verification_method
-            })
-        
-        return jsonify({
-            'success': True,
-            'google_sites': sites,
-            'database_sites': db_sites
-        })
-        
-    except Exception as e:
-        logger.error(f"Failed to get verified sites: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Failed to get verified sites: {str(e)}'
-        }), 500
-
-
-# Health check endpoint
-@dns_bp.route('/health', methods=['GET'])
-def health_check():
-    """DNS module health check"""
-    try:
-        dns_manager = get_dns_manager()
-        
-        return jsonify({
-            'success': True,
-            'dns_configured': dns_manager is not None,
-            'google_verification_configured': (
-                dns_manager.google_verification is not None 
-                if dns_manager else False
-            ),
-            'timestamp': db.func.current_timestamp().op('||')('')
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(e)}), 500

@@ -143,6 +143,7 @@ db.init_app(app)
 # Register DNS API blueprint
 app.register_blueprint(dns_bp)
 
+
 # Global concurrency limiter - REMOVED for unlimited concurrent machines
 # No artificial limits - let the server handle as many requests as possible
 MAX_CONCURRENT_JOBS = 999999  # Effectively unlimited
@@ -311,11 +312,6 @@ def logout():
     return redirect(url_for('login'))
 
 
-@app.route('/dns-settings')
-@login_required
-def dns_settings():
-    """DNS settings and IP whitelist helper"""
-    return render_template('dns_settings.html')
 
 @app.route('/test-admin')
 def test_admin():
@@ -368,6 +364,11 @@ def health_check():
     })
 
 @app.route('/')
+@app.route('/dns-manager')
+@login_required
+def dns_manager():
+    return render_template('dns_manager.html')
+
 @app.route('/dashboard')
 @login_required
 def dashboard():

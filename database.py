@@ -100,23 +100,27 @@ class RetrievedUser(db.Model):
     __table_args__ = (db.UniqueConstraint('automation_account_id', 'email', name='unique_automation_user'),)
 
 class NamecheapConfig(db.Model):
-    """Namecheap API configuration storage"""
+    """Namecheap API configuration storage
+    # !!! PLAIN STORAGE — REPLACE BEFORE PROD
+    """
+    __tablename__ = 'namecheap_config'
     id = db.Column(db.Integer, primary_key=True)
     api_user = db.Column(db.String(255), nullable=False)
     api_key = db.Column(db.Text, nullable=False)  # !!! PLAIN STORAGE — REPLACE BEFORE PROD
     username = db.Column(db.String(255), nullable=False)
     client_ip = db.Column(db.String(45), nullable=False)
-    is_sandbox = db.Column(db.Boolean, default=True)
+    is_sandbox = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
 class DNSRecord(db.Model):
     """DNS records management and history"""
+    __tablename__ = 'dns_record'
     id = db.Column(db.Integer, primary_key=True)
-    domain = db.Column(db.String(255), nullable=False)
+    domain = db.Column(db.String(255), nullable=False, index=True)
     record_name = db.Column(db.String(255), nullable=False)
-    record_type = db.Column(db.String(10), nullable=False)  # A, CNAME, TXT, MX
+    record_type = db.Column(db.String(10), nullable=False)
     record_value = db.Column(db.Text, nullable=False)
     ttl = db.Column(db.Integer, default=1800)
     mx_preference = db.Column(db.Integer)
@@ -124,9 +128,10 @@ class DNSRecord(db.Model):
     created_by = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
-    
+
 class GoogleVerification(db.Model):
     """Google Site Verification tracking"""
+    __tablename__ = 'google_verification'
     id = db.Column(db.Integer, primary_key=True)
     domain = db.Column(db.String(255), unique=True, nullable=False)
     verification_token = db.Column(db.Text)
@@ -135,3 +140,5 @@ class GoogleVerification(db.Model):
     verified_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+
