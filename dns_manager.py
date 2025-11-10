@@ -17,6 +17,9 @@ from google.oauth2 import service_account
 logger = logging.getLogger('dns_module')
 if not logger.handlers:
     logger.setLevel(logging.INFO)
+    sh = logging.StreamHandler()
+    sh.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+    logger.addHandler(sh)
     try:
         os.makedirs('logs', exist_ok=True)
         fh = logging.FileHandler('logs/dns_module.log')
@@ -48,19 +51,31 @@ class NamecheapClient:
             'Command': command,
             **params
         }
-        logger.info(f"NC call {command} for {params.get('SLD','')} {params.get('TLD','')} {params.get('DomainList','')}")
+        logger.info(f"NC call {command} for SLD={params.get('SLD','')} TLD={params.get('TLD','')} DomainList={params.get('DomainList','')}")
         try:
             resp = requests.get(self.base_url, params=all_params, timeout=30)
+            logger.info(f"NC endpoint: {self.base_url} | user={self.username} ip={self.client_ip} cmd={command}")
+            logger.info(f"NC params keys: {list(all_params.keys())}")
             resp.raise_for_status()
             root = ET.fromstring(resp.content)
         except Exception as e:
-            logger.error(f"HTTP/XML error for {command}: {e}")
+            preview = ''
+            try:
+                preview = resp.text[:500] if 'resp' in locals() else ''
+            except Exception:
+                pass
+            logger.error(f"HTTP/XML error for {command}: {e} | preview={preview}")
             raise NamecheapAPIError(f"Request failed: {e}")
         status = root.get('Status')
         if status != 'OK':
-            errors = [err.text for err in root.findall('.//Error')]
-            msg = '; '.join(errors) if errors else f"Status {status}"
+            errs = []
+            for err in root.findall('.//Error'):
+                num = err.get('Number', 'Unknown')
+                txt = (err.text or '').strip()
+                errs.append(f"#{num} {txt}")
+            msg = '; '.join(errs) if errs else f"Status {status}"
             logger.error(f"Namecheap error {command}: {msg}")
+            logger.error(f"Raw response preview: {resp.text[:800]}")
             raise NamecheapAPIError(msg)
         return root
 
@@ -71,6 +86,19 @@ class NamecheapClient:
             raise ValueError('Invalid domain')
         # handle common multi-part TLDs simply by taking last part as TLD
         return '.'.join(parts[:-1]), parts[-1]
+
+    def detect_public_ip(self) -> Optional[str]:
+        try:
+            for url in ['https://api.ipify.org', 'https://ifconfig.me/ip', 'https://ipinfo.io/ip']:
+                try:
+                    r = requests.get(url, timeout=5)
+                    if r.ok:
+                        return r.text.strip()
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return None
 
     def get_domains(self) -> List[Dict]:
         root = self._request('namecheap.domains.getList', {'Page': 1, 'PageSize': 100, 'ListType': 'ALL', 'SortBy': 'NAME'})
@@ -134,6 +162,44 @@ class NamecheapClient:
 
     def add_or_update_txt(self, domain: str, host: str, value: str, ttl: int = 300) -> bool:
         return self.add_or_update_record(domain, host, 'TXT', value, ttl)
+
+    def debug_get_domains_attempts(self, try_username_as_apiuser: bool = True, try_detect_ip: bool = True) -> List[Dict]:
+        attempts = []
+        # Attempt 1: current config
+        try:
+            domains = self.get_domains()
+            attempts.append({'attempt': 'current', 'success': True, 'count': len(domains)})
+            return attempts
+        except Exception as e:
+            attempts.append({'attempt': 'current', 'success': False, 'error': str(e)})
+        # Attempt 2: username = api_user
+        if try_username_as_apiuser and self.username != self.api_user:
+            try:
+                saved_username = self.username
+                self.username = self.api_user
+                domains = self.get_domains()
+                attempts.append({'attempt': 'username=api_user', 'success': True, 'count': len(domains)})
+                # restore
+                self.username = saved_username
+                return attempts
+            except Exception as e:
+                attempts.append({'attempt': 'username=api_user', 'success': False, 'error': str(e)})
+                self.username = saved_username
+        # Attempt 3: override client IP with detected public IP
+        if try_detect_ip:
+            ip = self.detect_public_ip()
+            if ip and ip != self.client_ip:
+                try:
+                    saved_ip = self.client_ip
+                    self.client_ip = ip
+                    domains = self.get_domains()
+                    attempts.append({'attempt': f'client_ip={ip}', 'success': True, 'count': len(domains)})
+                    self.client_ip = saved_ip
+                    return attempts
+                except Exception as e:
+                    attempts.append({'attempt': f'client_ip={ip}', 'success': False, 'error': str(e)})
+                    self.client_ip = saved_ip
+        return attempts
 
 
 class GoogleVerificationClient:

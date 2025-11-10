@@ -105,6 +105,25 @@ def list_domains():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@dns_bp.route('/namecheap/domains/debug', methods=['GET'])
+@login_required
+def debug_domains():
+    try:
+        mgr = _manager()
+        attempts = mgr.nc.debug_get_domains_attempts()
+        # Add diagnostics
+        diag = {
+            'api_user': mgr.nc.api_user,
+            'username': mgr.nc.username,
+            'client_ip': mgr.nc.client_ip,
+            'sandbox': 'sandbox.namecheap' in mgr.nc.base_url,
+            'endpoint': mgr.nc.base_url
+        }
+        return jsonify({'success': True, 'attempts': attempts, 'diagnostics': diag})
+    except Exception as e:
+        logger.error(f"debug_domains: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # Hosts
 @dns_bp.route('/namecheap/hosts', methods=['GET'])
 @login_required
@@ -169,6 +188,99 @@ def verify_domain():
         logger.error(f"verify_domain: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@dns_bp.route('/server-ip', methods=['GET'])
+@login_required
+def server_ip():
+    try:
+        import requests as rq
+        for u in ['https://api.ipify.org','https://ifconfig.me/ip','https://ipinfo.io/ip']:
+            try:
+                r = rq.get(u, timeout=5)
+                if r.ok:
+                    return jsonify({'success': True, 'ip': r.text.strip(), 'source': u})
+            except Exception:
+                continue
+        return jsonify({'success': False, 'error': 'Unable to detect public IP'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@dns_bp.route('/namecheap/auto-fix', methods=['POST'])
+@login_required
+def namecheap_auto_fix():
+    """Attempt automatic fixes for common Namecheap ERRORs and persist working config.
+    Strategy:
+      1) Try username=api_user
+      2) Try detected public IP as client_ip
+      3) Try toggling sandbox flag
+    The first successful attempt is applied to DB and returned to caller.
+    """
+    actions = []
+    try:
+        # Load current config (DB preferred)
+        cfg_row = NamecheapConfig.query.filter_by(is_active=True).first()
+        if not cfg_row:
+            return jsonify({'success': False, 'error': 'No active Namecheap configuration found'}), 400
+        base = {
+            'api_user': cfg_row.api_user,
+            'api_key': cfg_row.api_key,
+            'username': cfg_row.username,
+            'client_ip': cfg_row.client_ip,
+            'sandbox': cfg_row.is_sandbox,
+        }
+        def try_conf(conf):
+            try:
+                mgr = DNSManager(conf, getattr(config, 'GOOGLE_SERVICE_ACCOUNT_PATH', None))
+                _ = mgr.list_domains()
+                return True, None
+            except Exception as e:
+                return False, str(e)
+        # 1) username = api_user
+        if base['username'] != base['api_user']:
+            test = dict(base)
+            test['username'] = base['api_user']
+            ok, err = try_conf(test)
+            actions.append({'attempt': 'username=api_user', 'ok': ok, 'error': err})
+            if ok:
+                cfg_row.username = base['api_user']
+                db.session.commit()
+                return jsonify({'success': True, 'applied': 'username=api_user', 'actions': actions})
+        # 2) detected public ip
+        try:
+            import requests as rq
+            detected_ip = None
+            for u in ['https://api.ipify.org','https://ifconfig.me/ip','https://ipinfo.io/ip']:
+                try:
+                    r = rq.get(u, timeout=5)
+                    if r.ok:
+                        detected_ip = r.text.strip()
+                        break
+                except Exception:
+                    continue
+        except Exception:
+            detected_ip = None
+        if detected_ip and detected_ip != base['client_ip']:
+            test = dict(base)
+            test['client_ip'] = detected_ip
+            ok, err = try_conf(test)
+            actions.append({'attempt': f'client_ip={detected_ip}', 'ok': ok, 'error': err})
+            if ok:
+                cfg_row.client_ip = detected_ip
+                db.session.commit()
+                return jsonify({'success': True, 'applied': f'client_ip={detected_ip}', 'actions': actions})
+        # 3) toggle sandbox
+        test = dict(base)
+        test['sandbox'] = not base['sandbox']
+        ok, err = try_conf(test)
+        actions.append({'attempt': f"sandbox={'on' if test['sandbox'] else 'off'}", 'ok': ok, 'error': err})
+        if ok:
+            cfg_row.is_sandbox = test['sandbox']
+            db.session.commit()
+            return jsonify({'success': True, 'applied': f"sandbox={'on' if test['sandbox'] else 'off'}", 'actions': actions})
+        return jsonify({'success': False, 'error': 'Auto-fix could not find a working combination', 'actions': actions}), 422
+    except Exception as e:
+        logger.error(f"auto_fix: {e}")
+        return jsonify({'success': False, 'error': str(e), 'actions': actions}), 500
 
 # Logs
 @dns_bp.route('/logs', methods=['GET'])

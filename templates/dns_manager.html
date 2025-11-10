@@ -17,7 +17,14 @@
               <div class="form-group col-md-3"><label>ApiUser</label><input id="nc_api_user" class="form-control" required></div>
               <div class="form-group col-md-3"><label>ApiKey</label><input id="nc_api_key" type="password" class="form-control" required></div>
               <div class="form-group col-md-3"><label>UserName</label><input id="nc_username" class="form-control" required></div>
-              <div class="form-group col-md-2"><label>ClientIp</label><input id="nc_client_ip" class="form-control" required></div>
+              <div class="form-group col-md-3"><label>ClientIp</label>
+                <div class="input-group">
+                  <input id="nc_client_ip" class="form-control" required>
+                  <div class="input-group-append">
+                    <button class="btn btn-outline-secondary" type="button" onclick="detectIP()">Detect IP</button>
+                  </div>
+                </div>
+              </div>
               <div class="form-group col-md-1"><label>Sandbox</label><input id="nc_sandbox" type="checkbox" class="form-control"></div>
             </div>
             <button type="submit" class="btn btn-primary">Save</button>
@@ -26,7 +33,9 @@
           <!-- B. Domains List -->
           <h5 class="mb-3">B) Domains List</h5>
           <button class="btn btn-outline-primary mb-2" onclick="fetchDomains()">Fetch Domains</button>
+          <button class="btn btn-outline-warning mb-2 ml-2" onclick="runDiagnostics()">Run Diagnostics</button>
           <div id="domains-warning" class="alert alert-info" style="display:none;"></div>
+          <button class="btn btn-outline-danger mb-2 ml-2" onclick="runAutoFix()">One-click Auto-Fix</button>
           <div class="table-responsive">
             <table class="table table-sm" id="domains-table">
               <thead><tr><th>Domain</th><th>Expires</th><th>IsOurDNS</th><th>Select</th></tr></thead>
@@ -82,6 +91,12 @@ document.getElementById('nc-config-form').addEventListener('submit',async(e)=>{e
 
 async function fetchDomains(){const r=await fetch('/api/dns/namecheap/domains');const j=await r.json();appendLog('domains.get',JSON.stringify(j));if(!j.success){alert('Failed: '+j.error);return}const tb=document.querySelector('#domains-table tbody');tb.innerHTML='';j.domains.forEach(d=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${d.Name}</td><td>${d.Expires||''}</td><td>${d.IsOurDNS}</td><td><button class='btn btn-sm btn-outline-primary' onclick=selectDomain('${d.Name}','${d.IsOurDNS}')>Select</button></td>`;tb.appendChild(tr)})}
 
+async function detectIP(){try{const r=await fetch('/api/dns/server-ip');const j=await r.json();appendLog('server.ip',JSON.stringify(j));if(j.success){document.getElementById('nc_client_ip').value=j.ip}else{alert('IP detect failed: '+j.error)}}catch(e){alert('IP detect error: '+e.message)}}
+
+async function runDiagnostics(){try{const r=await fetch('/api/dns/namecheap/domains/debug');const j=await r.json();appendLog('domains.debug',JSON.stringify(j));if(!j.success){alert('Diagnostics failed: '+j.error)}else{alert('Diagnostics complete. Check log panel for details.')}}catch(e){alert('Diagnostics error: '+e.message)} }
+
+async function runAutoFix(){try{const r=await fetch('/api/dns/namecheap/auto-fix',{method:'POST'});const j=await r.json();appendLog('domains.autofix',JSON.stringify(j));if(j.success){alert('Applied: '+j.applied+' — re-fetching domains');fetchDomains()}else{alert('Auto-fix failed: '+(j.error||'Unknown'))}}catch(e){alert('Auto-fix error: '+e.message)}}
+
 function selectDomain(name,isOur){document.getElementById('selected-domain').value=name;document.getElementById('verify-domain').value=name;const warn=document.getElementById('domains-warning');if(String(isOur).toLowerCase()!=='true'){warn.style.display='block';warn.textContent='Warning: This domain is not using Namecheap DNS. Updates may be rejected.'}else{warn.style.display='none'}}
 
 async function loadHosts(){const dom=document.getElementById('selected-domain').value;if(!dom){return alert('Select a domain first');}const r=await fetch('/api/dns/namecheap/hosts?domain='+encodeURIComponent(dom));const j=await r.json();appendLog('hosts.get',JSON.stringify(j));if(!j.success){alert('Failed: '+j.error);return}const tb=document.querySelector('#hosts-table tbody');tb.innerHTML='';(j.hosts||[]).forEach(h=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${h.Name}</td><td>${h.Type}</td><td><code>${h.Address}</code></td><td>${h.TTL||''}</td><td>${h.MXPref||''}</td>`;tb.appendChild(tr)})}
@@ -92,7 +107,7 @@ async function generateAndApplyTXT(){const dom=document.getElementById('verify-d
 
 async function verifyNow(){const dom=document.getElementById('verify-domain').value.trim();if(!dom){return alert('Enter domain');}const r=await fetch('/api/dns/namecheap/verify-domain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain:dom,auto_verify:true})});const j=await r.json();appendLog('verify.insert',JSON.stringify(j));if(!j.success){alert('Failed: '+j.error)}}
 
-async function loadLogs(){const r=await fetch('/api/dns/logs');const j=await r.json();if(j.success){document.getElementById('dns-log').textContent=(j.lines||[]).join('\n')}}
+async function loadLogs(){const r=await fetch('/api/dns/logs');const j=await r.json();if(j.success){const el=document.getElementById('dns-log');el.textContent=(j.lines||[]).join('\n');el.scrollTop=el.scrollHeight}}
 function appendLog(op,msg){const p=document.getElementById('dns-log');p.textContent += `\n[${new Date().toISOString()}] ${op}: ${msg}`;p.scrollTop=p.scrollHeight}
 
 document.addEventListener('DOMContentLoaded',()=>{loadConfig();loadLogs();})
