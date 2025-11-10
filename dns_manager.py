@@ -80,7 +80,7 @@ class NamecheapAPI:
             'ApiUser': self.api_user,
             'ApiKey': self.api_key,
             'UserName': self.username,
-            'ClientIp': self.client_ip
+            'ClientIp': self.client_ip or '127.0.0.1'  # Fallback IP if none provided
         }
     
     def _make_request(self, command: str, params: Dict = None) -> ET.Element:
@@ -103,21 +103,54 @@ class NamecheapAPI:
         # Combine common params with command-specific params
         all_params = {**self.common_params, 'Command': command, **params}
         
+        # Build URL manually to avoid URL encoding issues
+        param_string = '&'.join([f'{k}={v}' for k, v in all_params.items()])
+        url = f"{self.base_url}?{param_string}"
+        
+        logger.info(f"Making Namecheap API request: {command}")
+        logger.info(f"URL: {self.base_url}")
+        logger.info(f"Params: {list(all_params.keys())}")
+        
         try:
-            response = requests.get(self.base_url, params=all_params, timeout=30)
+            # Use POST instead of GET for better compatibility
+            response = requests.post(self.base_url, data=all_params, timeout=30)
+            
+            logger.info(f"Response status: {response.status_code}")
+            logger.info(f"Response length: {len(response.content)} bytes")
+            
             response.raise_for_status()
             
+            # Log raw response for debugging
+            response_text = response.text[:500] + ('...' if len(response.text) > 500 else '')
+            logger.info(f"Response preview: {response_text}")
+            
             # Parse XML response
-            root = ET.fromstring(response.content)
+            try:
+                root = ET.fromstring(response.content)
+            except ET.ParseError as parse_err:
+                logger.error(f"XML parsing failed. Raw response: {response.text}")
+                raise Exception(f"Invalid XML response from Namecheap API: {str(parse_err)}")
             
             # Check for API errors
             status = root.get('Status')
+            logger.info(f"API Status: {status}")
+            
             if status != 'OK':
+                # Log all error details
                 errors = root.findall('.//Error')
                 if errors:
-                    error_messages = [error.text for error in errors]
-                    raise Exception(f"Namecheap API Error: {'; '.join(error_messages)}")
+                    error_details = []
+                    for error in errors:
+                        error_num = error.get('Number', 'Unknown')
+                        error_text = error.text or 'No error message'
+                        error_details.append(f"#{error_num}: {error_text}")
+                        logger.error(f"Namecheap Error #{error_num}: {error_text}")
+                    
+                    raise Exception(f"Namecheap API Errors: {'; '.join(error_details)}")
                 else:
+                    logger.error(f"API returned status {status} but no error details found")
+                    # Log full response for debugging
+                    logger.error(f"Full response: {response.text}")
                     raise Exception(f"Namecheap API returned status: {status}")
             
             return root
@@ -125,9 +158,11 @@ class NamecheapAPI:
         except requests.exceptions.RequestException as e:
             logger.error(f"HTTP request failed: {str(e)}")
             raise Exception(f"Failed to connect to Namecheap API: {str(e)}")
-        except ET.ParseError as e:
-            logger.error(f"XML parsing failed: {str(e)}")
-            raise Exception(f"Invalid XML response from Namecheap API: {str(e)}")
+        except Exception as e:
+            if "Namecheap API" in str(e):
+                raise  # Re-raise Namecheap-specific errors
+            logger.error(f"Unexpected error in API request: {str(e)}")
+            raise Exception(f"Unexpected error: {str(e)}")
     
     def get_balance(self) -> Dict:
         """Check API authentication by calling users.getBalances"""

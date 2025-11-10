@@ -618,6 +618,10 @@ def test_namecheap_connection():
                         continue
             except Exception:
                 pass
+        # Log configuration being used for debugging
+        logger = logging.getLogger('dns_module')
+        logger.info(f"Testing Namecheap connection with config: api_user={cfg.get('api_user')}, username={cfg.get('username')}, client_ip={cfg.get('client_ip')}, sandbox={cfg.get('sandbox')}")
+        
         # Attempt light-weight authenticated call to validate credentials
         api = NamecheapAPI(**cfg)
         try:

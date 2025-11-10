@@ -56,20 +56,22 @@
               <button class="btn btn-outline-secondary" type="button" onclick="loadNamecheapDomains()" id="load-domains-btn" disabled><i class="fas fa-sync-alt"></i> Refresh Domains</button>
             </div>
             <div class="form-group">
-              <label><i class="fas fa-list"></i> Existing Domains</label>
-              <div id="namecheap-domains-container" class="p-3 border rounded bg-light mb-3">
-                <div id="namecheap-domains-loading" style="display:none;" class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading domains...</div>
-                <div id="namecheap-domains-list"><em class="text-muted">Save and test your API config to list domains.</em></div>
-              </div>
-              <label><i class="fas fa-stream"></i> DNS Module Logs</label>
-              <div id="dns-logs-container" class="p-3 border rounded bg-light">
-                <div class="d-flex mb-2 justify-content-between">
-                  <small class="text-muted">Tail of dns_module.log (last 200 lines)</small>
-                  <div>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" onclick="loadDnsLogs()"><i class="fas fa-sync-alt"></i> Refresh</button>
+              <label><i class="fas fa-list"></i> Existing Domains & Logs</label>
+              <div class="row">
+                <div class="col-md-6">
+                  <h6><i class="fas fa-globe"></i> Domains</h6>
+                  <div id="namecheap-domains-container" class="p-3 border rounded bg-light">
+                    <div id="namecheap-domains-loading" style="display:none;" class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading domains...</div>
+                    <div id="namecheap-domains-list"><em class="text-muted">Save and test your API config to list domains.</em></div>
                   </div>
                 </div>
-                <pre id="dns-logs" style="white-space: pre-wrap; max-height: 240px; overflow:auto; background:#0f172a; color:#e2e8f0; padding:12px; border-radius:6px;">No logs yet.</pre>
+                <div class="col-md-6">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6><i class="fas fa-stream"></i> DNS Logs</h6>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" onclick="loadDnsLogs()"><i class="fas fa-sync-alt"></i> Refresh</button>
+                  </div>
+                  <pre id="dns-logs" style="white-space: pre-wrap; max-height: 300px; overflow:auto; background:#0f172a; color:#e2e8f0; padding:12px; border-radius:6px; font-size:11px;">No logs yet.</pre>
+                </div>
               </div>
             </div>
           </form>
