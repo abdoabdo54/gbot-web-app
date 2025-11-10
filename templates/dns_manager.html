@@ -43,6 +43,7 @@
       <div class="github-card-body">
           <button class="btn btn-outline-primary mb-2" onclick="fetchDomains()">Fetch Domains</button>
           <button class="btn btn-outline-warning mb-2 ml-2" onclick="runDiagnostics()">Run Diagnostics</button>
+          <button class="btn btn-outline-secondary mb-2 ml-2" onclick="fetchRaw()">Show Raw XML</button>
           <div id="domains-warning" class="alert alert-info" style="display:none;"></div>
           <button class="btn btn-outline-danger mb-2 ml-2" onclick="runAutoFix()">One-click Auto-Fix</button>
           <div class="table-responsive">
@@ -122,6 +123,8 @@ async function fetchDomains(){const r=await fetch('/api/dns/namecheap/domains');
 async function detectIP(){try{const r=await fetch('/api/dns/server-ip');const j=await r.json();appendLog('server.ip',JSON.stringify(j));if(j.success){document.getElementById('nc_client_ip').value=j.ip}else{alert('IP detect failed: '+j.error)}}catch(e){alert('IP detect error: '+e.message)}}
 
 async function runDiagnostics(){try{const r=await fetch('/api/dns/namecheap/domains/debug');const j=await r.json();appendLog('domains.debug',JSON.stringify(j));if(!j.success){alert('Diagnostics failed: '+j.error)}else{alert('Diagnostics complete. Check log panel for details.')}}catch(e){alert('Diagnostics error: '+e.message)} }
+
+async function fetchRaw(){try{const r=await fetch('/api/dns/namecheap/domains/raw');const j=await r.json();appendLog('domains.raw', j.success ? (j.raw||'') : (j.error||'error'));if(!j.success){alert('Raw fetch failed: '+(j.error||'Unknown'))}}catch(e){alert('Raw fetch error: '+e.message)}}
 
 async function runAutoFix(){try{const r=await fetch('/api/dns/namecheap/auto-fix',{method:'POST'});const j=await r.json();appendLog('domains.autofix',JSON.stringify(j));if(j.success){alert('Applied: '+j.applied+' — re-fetching domains');fetchDomains()}else{alert('Auto-fix failed: '+(j.error||'Unknown'))}}catch(e){alert('Auto-fix error: '+e.message)}}
 

@@ -99,11 +99,25 @@ def list_domains():
     try:
         mgr = _manager()
         info = mgr.nc.get_domains_info()
+        if (info.get('total') or 0) == 0 and len(info.get('domains', [])) == 0:
+            # fetch raw for debugging
+            raw = mgr.nc.get_domains_raw()
+            logger.info(f"getList RAW (success path, zero items): {raw[:800]}")
         return jsonify({'success': True, 'domains': info['domains'], 'count': len(info['domains']), 'total': info.get('total', len(info['domains']))})
     except Exception as e:
         logger.error(f"list_domains: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@dns_bp.route('/namecheap/domains/raw', methods=['GET'])
+@login_required
+def raw_domains():
+    try:
+        mgr = _manager()
+        raw = mgr.nc.get_domains_raw()
+        return jsonify({'success': True, 'raw': raw})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @dns_bp.route('/namecheap/domains/debug', methods=['GET'])
 @login_required

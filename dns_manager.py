@@ -57,6 +57,8 @@ class NamecheapClient:
             logger.info(f"NC endpoint: {self.base_url} | user={self.username} ip={self.client_ip} cmd={command}")
             logger.info(f"NC params keys: {list(all_params.keys())}")
             resp.raise_for_status()
+            if command == 'namecheap.domains.getList':
+                logger.info(f"getList response preview: {resp.text[:800]}")
             root = ET.fromstring(resp.content)
         except Exception as e:
             preview = ''
@@ -103,6 +105,20 @@ class NamecheapClient:
     def get_domains(self) -> List[Dict]:
         info = self.get_domains_info()
         return info['domains']
+
+    def get_domains_raw(self) -> str:
+        params = {'Page': 1, 'PageSize': 100, 'ListType': 'ALL', 'SortBy': 'NAME'}
+        all_params = {
+            'ApiUser': self.api_user,
+            'ApiKey': self.api_key,
+            'UserName': self.username,
+            'ClientIp': self.client_ip,
+            'Command': 'namecheap.domains.getList',
+            **params
+        }
+        resp = requests.get(self.base_url, params=all_params, timeout=30)
+        logger.info(f"get_domains_raw status={resp.status_code} len={len(resp.content)}")
+        return resp.text
 
     def get_domains_info(self) -> Dict:
         out: List[Dict] = []
