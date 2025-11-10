@@ -140,6 +140,9 @@ async function loadConfig() {
     document.getElementById('cfg_api_user').value = data.config.api_user || '';
     document.getElementById('cfg_username').value = data.config.username || '';
     document.getElementById('cfg_client_ip').value = data.config.client_ip || '';
+    if (data.config.api_url) {
+      document.getElementById('cfg_api_url').value = data.config.api_url;
+    }
   }
 }
 
@@ -150,6 +153,7 @@ document.getElementById('cfg-form').addEventListener('submit', async (e) => {
     api_key: document.getElementById('cfg_api_key').value.trim(),
     username: document.getElementById('cfg_username').value.trim(),
     client_ip: document.getElementById('cfg_client_ip').value.trim(),
+    api_url: document.getElementById('cfg_api_url').value,
   };
   const res = await fetch('/api/dns/namecheap/config', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
   const data = await res.json();

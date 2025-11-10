@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from flask import Blueprint, current_app, jsonify, request, session
 
@@ -15,15 +15,13 @@ from google_site_verification import get_dns_txt_token, verify_domain_with_dns
 dns_bp = Blueprint("dns_api", __name__)
 
 
-# ---- Auth guard for all DNS endpoints ----
 @dns_bp.before_request
 def require_login():
-    # Minimal auth integration: rely on session values set by existing auth
     if not session.get('user'):
         return jsonify({"success": False, "error": "Authentication required"}), 401
 
 
-# ---- Helpers ----
+# ----------------- Helpers -----------------
 
 def _active_config_dict() -> Dict[str, Any]:
     cfg = (
@@ -32,10 +30,7 @@ def _active_config_dict() -> Dict[str, Any]:
         .first()
     )
     if cfg:
-        api_url = os.environ.get(
-            "NAMECHEAP_API_URL",
-            "https://api.sandbox.namecheap.com/xml.response" if cfg.is_sandbox else "https://api.namecheap.com/xml.response",
-        )
+        api_url = "https://api.sandbox.namecheap.com/xml.response" if cfg.is_sandbox else "https://api.namecheap.com/xml.response"
         return {
             "api_user": cfg.api_user,
             "api_key": cfg.api_key,
@@ -44,17 +39,15 @@ def _active_config_dict() -> Dict[str, Any]:
             "api_url": api_url,
         }
     # Env fallback
-    api_url = os.environ.get("NAMECHEAP_API_URL", app_config.NAMECHEAP_API_URL)
+    api_url = os.environ.get("NAMECHEAP_API_URL", getattr(app_config, "NAMECHEAP_API_URL", "https://api.namecheap.com/xml.response"))
     if app_config.NAMECHEAP_SANDBOX:
         api_url = "https://api.sandbox.namecheap.com/xml.response"
-    if all(
-        [
-            app_config.NAMECHEAP_API_USER,
-            app_config.NAMECHEAP_API_KEY,
-            app_config.NAMECHEAP_USERNAME,
-            app_config.NAMECHEAP_CLIENT_IP,
-        ]
-    ):
+    if all([
+        app_config.NAMECHEAP_API_USER,
+        app_config.NAMECHEAP_API_KEY,
+        app_config.NAMECHEAP_USERNAME,
+        app_config.NAMECHEAP_CLIENT_IP,
+    ]):
         return {
             "api_user": app_config.NAMECHEAP_API_USER,
             "api_key": app_config.NAMECHEAP_API_KEY,
@@ -90,7 +83,7 @@ def _is_our_dns(domain: str, client: Optional[NamecheapClient] = None) -> bool:
     return False
 
 
-# ---- Routes ----
+# ----------------- Routes -----------------
 
 @dns_bp.route("/api/dns/namecheap/config", methods=["GET", "POST"])
 def namecheap_config_handler():
@@ -101,6 +94,7 @@ def namecheap_config_handler():
             .first()
         )
         if cfg:
+            api_url = "https://api.sandbox.namecheap.com/xml.response" if cfg.is_sandbox else "https://api.namecheap.com/xml.response"
             return jsonify(
                 {
                     "configured": True,
@@ -109,17 +103,16 @@ def namecheap_config_handler():
                         "username": cfg.username,
                         "client_ip": cfg.client_ip,
                         "is_sandbox": cfg.is_sandbox,
+                        "api_url": api_url,
                     },
                 }
             )
-        # Env fallback
-        env_present = all(
-            [
-                app_config.NAMECHEAP_API_USER,
-                app_config.NAMECHEAP_USERNAME,
-                app_config.NAMECHEAP_CLIENT_IP,
-            ]
-        )
+        # Env fallback information
+        env_present = all([
+            app_config.NAMECHEAP_API_USER,
+            app_config.NAMECHEAP_USERNAME,
+            app_config.NAMECHEAP_CLIENT_IP,
+        ])
         return jsonify(
             {
                 "configured": env_present,
@@ -128,6 +121,7 @@ def namecheap_config_handler():
                     "username": app_config.NAMECHEAP_USERNAME,
                     "client_ip": app_config.NAMECHEAP_CLIENT_IP,
                     "is_sandbox": app_config.NAMECHEAP_SANDBOX,
+                    "api_url": getattr(app_config, "NAMECHEAP_API_URL", "https://api.namecheap.com/xml.response"),
                 },
             }
         )
@@ -140,13 +134,17 @@ def namecheap_config_handler():
         return jsonify({"success": False, "error": f"Missing fields: {', '.join(missing)}"}), 400
 
     try:
+        # determine sandbox by api_url
+        api_url = str(data.get("api_url", ""))
+        is_sandbox = "sandbox" in api_url.lower() or bool(data.get("is_sandbox", False))
+
         NamecheapConfig.query.update({NamecheapConfig.is_active: False})
         cfg = NamecheapConfig(
             api_user=data["api_user"],
             api_key=data["api_key"],  # !!! PLAIN STORAGE — REPLACE BEFORE PROD
             username=data["username"],
             client_ip=data["client_ip"],
-            is_sandbox=bool(data.get("is_sandbox", False)),
+            is_sandbox=is_sandbox,
             is_active=True,
         )
         db.session.add(cfg)
@@ -163,16 +161,15 @@ def namecheap_config_handler():
 def test_connection():
     data = request.get_json(force=True)
     try:
+        api_url = data.get("api_url") or (
+            "https://api.sandbox.namecheap.com/xml.response" if data.get("is_sandbox") else os.environ.get("NAMECHEAP_API_URL", "https://api.namecheap.com/xml.response")
+        )
         client = NamecheapClient(
             api_user=data.get("api_user"),
             api_key=data.get("api_key"),
             username=data.get("username"),
             client_ip=data.get("client_ip"),
-            api_url=(
-                "https://api.sandbox.namecheap.com/xml.response"
-                if data.get("is_sandbox")
-                else os.environ.get("NAMECHEAP_API_URL", "https://api.namecheap.com/xml.response")
-            ),
+            api_url=api_url,
         )
         _ = client.get_domains()
         add_log_entry("test_connection", status="success", message="Namecheap connection OK")

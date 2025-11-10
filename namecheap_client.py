@@ -73,7 +73,7 @@ class NamecheapClient:
             {k: v for k, v in data.items() if k != "ApiKey"},
         )
         try:
-            resp = requests.post(self.api_url, data=data, timeout=self.timeout)
+            resp = requests.get(self.api_url, params=data, timeout=self.timeout)
         except Exception as e:
             raise NamecheapAPIError(f"Network error calling Namecheap: {e}")
 
@@ -99,7 +99,7 @@ class NamecheapClient:
 
         Returns a list of dicts: {Domain, Expires, IsOurDNS}
         """
-        root = self._request("namecheap.domains.getList")
+        root = self._request("namecheap.domains.getList", {"PageSize": "100", "ListType": "ALL", "SortBy": "NAME"})
         result: List[Dict[str, str]] = []
         for d in root.findall(".//DomainGetListResult/Domain"):
             result.append(
