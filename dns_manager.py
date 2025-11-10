@@ -101,15 +101,39 @@ class NamecheapClient:
         return None
 
     def get_domains(self) -> List[Dict]:
-        root = self._request('namecheap.domains.getList', {'Page': 1, 'PageSize': 100, 'ListType': 'ALL', 'SortBy': 'NAME'})
-        out = []
-        for d in root.findall('.//Domain'):
-            out.append({
-                'Name': d.get('Name'),
-                'IsOurDNS': d.get('IsOurDNS'),
-                'Expires': d.get('Expires')
-            })
-        return out
+        info = self.get_domains_info()
+        return info['domains']
+
+    def get_domains_info(self) -> Dict:
+        out: List[Dict] = []
+        total = None
+        page_size = 100
+        page = 1
+        while True:
+            root = self._request('namecheap.domains.getList', {'Page': page, 'PageSize': page_size, 'ListType': 'ALL', 'SortBy': 'NAME'})
+            batch = []
+            for d in root.findall('.//Domain'):
+                batch.append({
+                    'Name': d.get('Name'),
+                    'IsOurDNS': d.get('IsOurDNS'),
+                    'Expires': d.get('Expires')
+                })
+            out.extend(batch)
+            # paging info
+            if total is None:
+                try:
+                    pg = root.find('.//Paging')
+                    if pg is not None:
+                        total = int((pg.findtext('TotalItems') or '0').strip() or '0')
+                        page_size = int((pg.findtext('PageSize') or '100').strip() or '100')
+                except Exception:
+                    total = len(out)
+            logger.info(f"getList page {page} fetched {len(batch)} items; cumulative {len(out)} / total {total}")
+            # break when collected all or no more
+            if total is None or len(out) >= total or len(batch) == 0:
+                break
+            page += 1
+        return {'domains': out, 'total': total or len(out), 'page': page, 'page_size': page_size}
 
     def get_hosts(self, domain: str) -> List[Dict]:
         sld, tld = self._split_domain(domain)

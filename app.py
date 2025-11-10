@@ -367,7 +367,8 @@ def health_check():
 @app.route('/dns-manager')
 @login_required
 def dns_manager():
-    return render_template('dns_manager.html')
+    # Ensure header shows by passing user/role
+    return render_template('dns_manager.html', user=session.get('user'), role=session.get('role'))
 
 @app.route('/dashboard')
 @login_required

@@ -1,16 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container-fluid">
+  <div class="github-card" style="margin-bottom:16px;">
+    <div class="github-card-header">
+      <h3 class="github-card-title"><i class="fas fa-globe"></i> DNS Manager</h3>
+      <p class="text-muted" style="margin:0;">Manage Namecheap DNS and Google Verification</p>
+    </div>
+  </div>
   <div class="row">
     <div class="col-12">
-      <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h4 class="mb-0"><i class="fas fa-globe"></i> DNS Manager</h4>
-          <small class="text-muted">Manage Namecheap DNS and Google Verification</small>
+      <div class="github-card">
+        <div class="github-card-header">
+          <h3 class="github-card-title"><i class="fas fa-cog"></i> A) Namecheap API Configuration</h3>
         </div>
-        <div class="card-body">
-          <!-- A. Namecheap API Configuration -->
-          <h5 class="mb-3">A) Namecheap API Configuration</h5>
+        <div class="github-card-body">
           <div class="alert alert-warning">API keys stored in DB as plain text — <strong>REPLACE BEFORE PROD</strong></div>
           <form id="nc-config-form" class="mb-4">
             <div class="form-row">
@@ -30,8 +33,14 @@
             <button type="submit" class="btn btn-primary">Save</button>
           </form>
 
-          <!-- B. Domains List -->
-          <h5 class="mb-3">B) Domains List</h5>
+      </div>
+    </div>
+
+    <div class="github-card">
+      <div class="github-card-header">
+        <h3 class="github-card-title">B) Domains List</h3>
+      </div>
+      <div class="github-card-body">
           <button class="btn btn-outline-primary mb-2" onclick="fetchDomains()">Fetch Domains</button>
           <button class="btn btn-outline-warning mb-2 ml-2" onclick="runDiagnostics()">Run Diagnostics</button>
           <div id="domains-warning" class="alert alert-info" style="display:none;"></div>
@@ -43,8 +52,14 @@
             </table>
           </div>
 
-          <!-- C. DNS & Subdomain Management -->
-          <h5 class="mb-3">C) DNS & Subdomain Management</h5>
+      </div>
+    </div>
+
+    <div class="github-card">
+      <div class="github-card-header">
+        <h3 class="github-card-title">C) DNS & Subdomain Management</h3>
+      </div>
+      <div class="github-card-body">
           <div class="form-inline mb-2">
             <label class="mr-2">Selected Domain</label>
             <input id="selected-domain" class="form-control mr-2" readonly style="width:260px;">
@@ -67,8 +82,14 @@
             <button class="btn btn-success" type="submit">Save Record</button>
           </form>
 
-          <!-- D. Google Verification -->
-          <h5 class="mb-3">D) Google Site Verification</h5>
+      </div>
+    </div>
+
+    <div class="github-card">
+      <div class="github-card-header">
+        <h3 class="github-card-title">D) Google Site Verification</h3>
+      </div>
+      <div class="github-card-body">
           <div class="form-inline mb-2">
             <input id="verify-domain" class="form-control mr-2" placeholder="domain to verify (must be selected above)">
             <input id="verify-host" class="form-control mr-2" value="@" style="width:120px;">
@@ -76,9 +97,16 @@
             <button class="btn btn-info" onclick="verifyNow()">Verify Now</button>
           </div>
 
-          <!-- E. Live Debug Log Panel -->
-          <h5 class="mb-3">E) Live Debug Log</h5>
-          <pre id="dns-log" style="background:#111;color:#ddd;padding:12px;height:220px;overflow:auto;">No logs yet.</pre>
+      </div>
+    </div>
+
+    <div class="github-card">
+      <div class="github-card-header">
+        <h3 class="github-card-title">E) Live Debug Log</h3>
+      </div>
+      <div class="github-card-body">
+        <pre id="dns-log" style="background:#0f172a;color:#e2e8f0;padding:12px;height:240px;overflow:auto;border-radius:6px;">No logs yet.</pre>
+      </div>
         </div>
       </div>
     </div>

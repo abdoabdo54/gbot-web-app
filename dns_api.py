@@ -98,8 +98,8 @@ def get_nc_config():
 def list_domains():
     try:
         mgr = _manager()
-        domains = mgr.list_domains()
-        return jsonify({'success': True, 'domains': domains, 'count': len(domains)})
+        info = mgr.nc.get_domains_info()
+        return jsonify({'success': True, 'domains': info['domains'], 'count': len(info['domains']), 'total': info.get('total', len(info['domains']))})
     except Exception as e:
         logger.error(f"list_domains: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
