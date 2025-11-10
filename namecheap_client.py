@@ -95,16 +95,25 @@ class NamecheapClient:
         try:
             root = ET.fromstring(resp.text)
         except ET.ParseError as pe:
-            raise NamecheapAPIError(f"Invalid XML from Namecheap: {pe}\nBody: {resp.text[:300]}")
+            raise NamecheapAPIError(f"Failed to parse XML: {pe}")
 
-        status = root.attrib.get("Status", "ERROR")
+        # Namecheap uses a default namespace
+        ns = {"nc": "http://api.namecheap.com/xml.response"}
+
+        status = root.attrib.get("Status")
         self.last_status = status
         if status != "OK":
-            errors = root.findall(".//Errors/Error")
-            msg = "; ".join(e.text or "" for e in errors) or "Unknown Namecheap error"
+            # extract proper error messages with namespace
+            errors = root.findall(".//nc:Errors/nc:Error", ns)
+            messages = [e.text.strip() for e in errors if e is not None and e.text]
+            msg = " | ".join(messages) if messages else "Unknown Namecheap error"
             self.last_errors = msg
+            # Store raw for diagnostics
+            self._last_response_text = resp.text
             raise NamecheapAPIError(msg)
 
+        # store raw for diagnostics on success, too
+        self._last_response_text = resp.text
         return root
 
     def get_debug_snapshot(self) -> Dict[str, Optional[str]]:
