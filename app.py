@@ -310,11 +310,6 @@ def logout():
     flash('Logged out successfully', 'success')
     return redirect(url_for('login'))
 
-@app.route('/dns-manager')
-@login_required
-def dns_manager():
-    """DNS management interface (records, verification)"""
-    return render_template('dns_manager.html')
 
 @app.route('/dns-settings')
 @login_required
