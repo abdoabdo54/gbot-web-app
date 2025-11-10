@@ -1,57 +1,37 @@
 """
 DNS Manager Module for GBot Web App
-Handles Namecheap API integration and Google Site Verification
+Production-ready Namecheap API integration and Google Site Verification
 """
 
 import os
 import json
 import xml.etree.ElementTree as ET
 import requests
-from typing import Dict, List, Optional, Tuple
-from urllib.parse import urlencode
-import logging
-from googleapiclient.discovery import build
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import Flow
 import time
+import logging
+from typing import Dict, List, Optional, Tuple, Union
+from urllib.parse import urlencode
+from googleapiclient.discovery import build
+from google.oauth2 import service_account
+from google.auth.transport.requests import Request
 
 # Configure logging
-logger = logging.getLogger('dns_module')
-logger.setLevel(logging.INFO)
-# Add file handler for DNS module logs
-try:
-    import os as _os
-    _log_dir = _os.path.join(_os.getcwd(), 'logs')
-    _os.makedirs(_log_dir, exist_ok=True)
-    _log_path = _os.path.join(_log_dir, 'dns_module.log')
-    if not any(isinstance(h, logging.FileHandler) and getattr(h, 'baseFilename', '') == _log_path for h in logger.handlers):
-        _fh = logging.FileHandler(_log_path)
-        _fh.setLevel(logging.INFO)
-        _formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
-        _fh.setFormatter(_formatter)
-        logger.addHandler(_fh)
-except Exception as _e:
-    # Fallback to basicConfig if file logger fails
-    logging.basicConfig(level=logging.INFO)
-    logger.warning(f"Failed to initialize DNS file logger: {_e}")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+class NamecheapError(Exception):
+    """Custom exception for Namecheap API errors"""
+    def __init__(self, message: str, error_code: str = None):
+        self.message = message
+        self.error_code = error_code
+        super().__init__(self.message)
 
 
 class NamecheapAPI:
     """
-    Namecheap API client for DNS record management
+    Production-ready Namecheap API client for DNS record management
     """
-    
-    def with_username(self, username: str) -> 'NamecheapAPI':
-        """Return a shallow copy with a different username (for fallback testing)."""
-        copy = NamecheapAPI(
-            api_user=self.api_user,
-            api_key=self.api_key,
-            username=username,
-            client_ip=self.client_ip,
-            sandbox=(self.base_url.endswith('sandbox.namecheap.com/xml.response'))
-        )
-        return copy
     
     def __init__(self, api_user: str, api_key: str, username: str, client_ip: str, 
                  sandbox: bool = False):
@@ -60,10 +40,10 @@ class NamecheapAPI:
         
         Args:
             api_user: Namecheap API user
-            api_key: Namecheap API key
+            api_key: Namecheap API key  
             username: Namecheap username
             client_ip: Whitelisted client IP
-            sandbox: Use sandbox environment for testing
+            sandbox: Use sandbox environment (default: False for production)
         """
         self.api_user = api_user
         self.api_key = api_key
@@ -80,22 +60,24 @@ class NamecheapAPI:
             'ApiUser': self.api_user,
             'ApiKey': self.api_key,
             'UserName': self.username,
-            'ClientIp': self.client_ip or '127.0.0.1'  # Fallback IP if none provided
+            'ClientIp': self.client_ip
         }
+        
+        logger.info(f"Initialized Namecheap API client for user: {self.username}")
     
-    def _make_request(self, command: str, params: Dict = None, use_simple_test: bool = False) -> ET.Element:
+    def _make_request(self, command: str, params: Dict = None) -> ET.Element:
         """
-        Make API request to Namecheap
+        Make authenticated API request to Namecheap
         
         Args:
             command: API command to execute
-            params: Additional parameters
+            params: Additional parameters for the command
             
         Returns:
             XML response as ElementTree.Element
             
         Raises:
-            Exception: If API request fails
+            NamecheapError: If API request fails or returns error
         """
         if params is None:
             params = {}
@@ -103,147 +85,115 @@ class NamecheapAPI:
         # Combine common params with command-specific params
         all_params = {**self.common_params, 'Command': command, **params}
         
-        # Build URL manually to avoid URL encoding issues
-        param_string = '&'.join([f'{k}={v}' for k, v in all_params.items()])
-        url = f"{self.base_url}?{param_string}"
-        
-        logger.info(f"Making Namecheap API request: {command}")
-        logger.info(f"URL: {self.base_url}")
-        logger.info(f"Params: {list(all_params.keys())}")
+        logger.debug(f"Making Namecheap API request: {command}")
         
         try:
-            # Use POST instead of GET for better compatibility
-            response = requests.post(self.base_url, data=all_params, timeout=30)
-            
-            logger.info(f"Response status: {response.status_code}")
-            logger.info(f"Response length: {len(response.content)} bytes")
-            
+            response = requests.get(self.base_url, params=all_params, timeout=30)
             response.raise_for_status()
-            
-            # Log raw response for debugging
-            response_text = response.text[:500] + ('...' if len(response.text) > 500 else '')
-            logger.info(f"Response preview: {response_text}")
             
             # Parse XML response
             try:
                 root = ET.fromstring(response.content)
-            except ET.ParseError as parse_err:
-                logger.error(f"XML parsing failed. Raw response: {response.text}")
-                raise Exception(f"Invalid XML response from Namecheap API: {str(parse_err)}")
+            except ET.ParseError as e:
+                raise NamecheapError(f"Invalid XML response: {str(e)}")
             
-            # Check for API errors
+            # Check API status
             status = root.get('Status')
-            logger.info(f"API Status: {status}")
-            
             if status != 'OK':
-                # Log all error details
                 errors = root.findall('.//Error')
                 if errors:
-                    error_details = []
+                    error_messages = []
                     for error in errors:
-                        error_num = error.get('Number', 'Unknown')
+                        error_code = error.get('Number', 'Unknown')
                         error_text = error.text or 'No error message'
-                        error_details.append(f"#{error_num}: {error_text}")
-                        logger.error(f"Namecheap Error #{error_num}: {error_text}")
+                        error_messages.append(f"#{error_code}: {error_text}")
                     
-                    raise Exception(f"Namecheap API Errors: {'; '.join(error_details)}")
+                    error_msg = '; '.join(error_messages)
+                    raise NamecheapError(error_msg, error_code)
                 else:
-                    logger.error(f"API returned status {status} but no error details found")
-                    # Log full response for debugging
-                    logger.error(f"Full response: {response.text}")
-                    raise Exception(f"Namecheap API returned status: {status}")
+                    raise NamecheapError(f"API returned status: {status}")
             
             return root
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"HTTP request failed: {str(e)}")
-            raise Exception(f"Failed to connect to Namecheap API: {str(e)}")
+            raise NamecheapError(f"HTTP request failed: {str(e)}")
         except Exception as e:
-            if "Namecheap API" in str(e):
-                raise  # Re-raise Namecheap-specific errors
-            logger.error(f"Unexpected error in API request: {str(e)}")
-            raise Exception(f"Unexpected error: {str(e)}")
+            if isinstance(e, NamecheapError):
+                raise
+            raise NamecheapError(f"Unexpected error: {str(e)}")
     
     def test_connection(self) -> Dict:
-        """Test basic API connectivity with domain check instead of balance"""
-        try:
-            # Use domain check as it's simpler and more reliable than balance check
-            root = self._make_request('namecheap.domains.check', {'DomainList': 'google.com'}, use_simple_test=True)
-            
-            # Check for domain check results
-            results = root.findall('.//DomainCheckResult')
-            if results:
-                logger.info(f"Connection test successful - domain check returned {len(results)} results")
-                return {
-                    'success': True,
-                    'test_method': 'domain_check',
-                    'results_count': len(results)
-                }
-            else:
-                logger.warning("Domain check succeeded but no results found")
-                return {
-                    'success': True,
-                    'test_method': 'domain_check',
-                    'results_count': 0
-                }
-        except Exception as e:
-            logger.error(f"Connection test failed: {str(e)}")
-            raise
-
-    def get_balance(self) -> Dict:
-        """Check API authentication by calling users.getBalances"""
-        try:
-            root = self._make_request('namecheap.users.getBalances')
-            result = root.find('.//UserGetBalancesResult')
-            if result is None:
-                raise Exception('Unexpected response from Namecheap: missing balances result')
-            return {
-                'success': True,
-                'available_balance': result.get('AvailableBalance'),
-                'account_balance': result.get('AccountBalance'),
-                'earned_amount': result.get('EarnedAmount')
-            }
-        except Exception as e:
-            logger.error(f"Balance check failed: {str(e)}")
-            raise
-
-    def get_domains(self, page: int = 1, page_size: int = 100, list_type: str = 'ALL', sort_by: str = 'NAME') -> List[str]:
         """
-        Get all domains in the Namecheap account
+        Test API connection and authentication
         
         Returns:
-            List of domain names as strings
+            Dict with test results
+        """
+        try:
+            # Use domain check as a simple test
+            root = self._make_request('namecheap.domains.check', {'DomainList': 'google.com'})
+            
+            results = root.findall('.//DomainCheckResult')
+            return {
+                'success': True,
+                'message': 'Connection successful',
+                'test_domains': len(results)
+            }
+            
+        except NamecheapError as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'error_code': e.error_code
+            }
+    
+    def get_domains_list(self, page: int = 1, page_size: int = 100) -> List[str]:
+        """
+        Get list of domains in account
+        
+        Args:
+            page: Page number (default: 1)
+            page_size: Items per page (default: 100)
+            
+        Returns:
+            List of domain names
         """
         try:
             params = {
                 'Page': page,
                 'PageSize': page_size,
-                'ListType': list_type,
-                'SortBy': sort_by
+                'ListType': 'ALL',
+                'SortBy': 'NAME'
             }
+            
             root = self._make_request('namecheap.domains.getList', params)
+            
             domains = []
-            for d in root.findall('.//Domain'):
-                name = d.get('Name') or d.get('name')
-                if name:
-                    domains.append(name)
+            for domain_elem in root.findall('.//Domain'):
+                domain_name = domain_elem.get('Name')
+                if domain_name:
+                    domains.append(domain_name)
+            
+            logger.info(f"Retrieved {len(domains)} domains from account")
             return domains
-        except Exception as e:
-            logger.error(f"Failed to fetch domains: {str(e)}")
+            
+        except NamecheapError as e:
+            logger.error(f"Failed to get domains list: {str(e)}")
             raise
-
-    def get_hosts(self, sld: str, tld: str) -> List[Dict]:
+    
+    def get_host_records(self, domain: str) -> List[Dict]:
         """
-        Get all DNS records for a domain
+        Get DNS host records for a domain
         
         Args:
-            sld: Second Level Domain (e.g., 'example' from 'example.com')
-            tld: Top Level Domain (e.g., 'com' from 'example.com')
+            domain: Domain name (e.g., 'example.com')
             
         Returns:
-            List of DNS records
+            List of DNS record dictionaries
         """
         try:
+            sld, tld = self._split_domain(domain)
+            
             params = {
                 'SLD': sld,
                 'TLD': tld
@@ -251,182 +201,192 @@ class NamecheapAPI:
             
             root = self._make_request('namecheap.domains.dns.getHosts', params)
             
-            hosts = []
+            records = []
             for host in root.findall('.//host'):
-                hosts.append({
+                record = {
                     'HostId': host.get('HostId'),
-                    'Name': host.get('Name'),
+                    'Name': host.get('Name', '@'),
                     'Type': host.get('Type'),
                     'Address': host.get('Address'),
                     'MXPref': host.get('MXPref'),
-                    'TTL': host.get('TTL')
-                })
+                    'TTL': host.get('TTL', '1800'),
+                    'AssociatedAppTitle': host.get('AssociatedAppTitle'),
+                    'FriendlyName': host.get('FriendlyName')
+                }
+                records.append(record)
             
-            return hosts
+            logger.info(f"Retrieved {len(records)} DNS records for {domain}")
+            return records
             
-        except Exception as e:
-            logger.error(f"Failed to get hosts for {sld}.{tld}: {str(e)}")
+        except NamecheapError as e:
+            logger.error(f"Failed to get host records for {domain}: {str(e)}")
             raise
     
-    def set_hosts(self, sld: str, tld: str, hosts: List[Dict]) -> bool:
+    def set_host_records(self, domain: str, records: List[Dict]) -> bool:
         """
-        Set DNS records for a domain (replaces all records)
+        Set DNS host records for a domain (replaces all existing records)
         
         Args:
-            sld: Second Level Domain
-            tld: Top Level Domain
-            hosts: List of DNS records to set
+            domain: Domain name
+            records: List of DNS record dictionaries
             
         Returns:
             True if successful
         """
         try:
+            sld, tld = self._split_domain(domain)
+            
             params = {
                 'SLD': sld,
                 'TLD': tld
             }
             
             # Add host records to parameters
-            for i, host in enumerate(hosts, 1):
-                params[f'HostName{i}'] = host.get('Name', '@')
-                params[f'RecordType{i}'] = host.get('Type', 'A')
-                params[f'Address{i}'] = host.get('Address', '')
+            for i, record in enumerate(records, 1):
+                params[f'HostName{i}'] = record.get('Name', '@')
+                params[f'RecordType{i}'] = record.get('Type', 'A')
+                params[f'Address{i}'] = record.get('Address', '')
                 
-                if host.get('MXPref'):
-                    params[f'MXPref{i}'] = host.get('MXPref')
-                if host.get('TTL'):
-                    params[f'TTL{i}'] = host.get('TTL')
+                if record.get('TTL'):
+                    params[f'TTL{i}'] = str(record.get('TTL'))
+                
+                if record.get('MXPref') and record.get('Type') == 'MX':
+                    params[f'MXPref{i}'] = str(record.get('MXPref'))
             
             root = self._make_request('namecheap.domains.dns.setHosts', params)
             
-            # Check if operation was successful
+            # Check result
             result = root.find('.//DomainDNSSetHostsResult')
             if result is not None and result.get('IsSuccess') == 'true':
+                logger.info(f"Successfully updated DNS records for {domain}")
                 return True
             else:
-                raise Exception("setHosts operation failed")
+                raise NamecheapError("setHosts operation failed")
                 
-        except Exception as e:
-            logger.error(f"Failed to set hosts for {sld}.{tld}: {str(e)}")
+        except NamecheapError as e:
+            logger.error(f"Failed to set host records for {domain}: {str(e)}")
             raise
     
-    def add_or_update_record(self, domain: str, record_name: str, record_type: str, 
-                           record_value: str, ttl: int = 1800, mx_pref: int = None) -> bool:
+    def add_record(self, domain: str, name: str, record_type: str, value: str, 
+                   ttl: int = 1800, mx_pref: int = None, preserve_existing: bool = True) -> bool:
         """
-        Add or update a single DNS record while preserving existing records
+        Add or update a DNS record while optionally preserving existing records
         
         Args:
-            domain: Full domain name (e.g., 'example.com')
-            record_name: Record name (e.g., 'www', '@' for root)
+            domain: Domain name
+            name: Record name (use '@' for root domain)
             record_type: Record type (A, CNAME, TXT, MX)
-            record_value: Record value
-            ttl: Time to live (default 1800)
+            value: Record value
+            ttl: Time to live in seconds
             mx_pref: MX preference (only for MX records)
+            preserve_existing: Whether to preserve other existing records
             
         Returns:
             True if successful
         """
         try:
-            # Split domain into SLD and TLD
-            sld, tld = self._split_domain(domain)
-            
-            # Get existing records
-            existing_hosts = self.get_hosts(sld, tld)
-            
-            # Find if record already exists
-            record_exists = False
-            for i, host in enumerate(existing_hosts):
-                if (host['Name'] == record_name and 
-                    host['Type'].upper() == record_type.upper()):
-                    # Update existing record
-                    existing_hosts[i] = {
-                        'Name': record_name,
+            if preserve_existing:
+                # Get existing records
+                existing_records = self.get_host_records(domain)
+                
+                # Check if record already exists and update it
+                record_updated = False
+                for i, record in enumerate(existing_records):
+                    if (record['Name'] == name and 
+                        record['Type'].upper() == record_type.upper()):
+                        existing_records[i].update({
+                            'Address': value,
+                            'TTL': str(ttl)
+                        })
+                        if mx_pref and record_type.upper() == 'MX':
+                            existing_records[i]['MXPref'] = str(mx_pref)
+                        record_updated = True
+                        break
+                
+                # Add new record if it doesn't exist
+                if not record_updated:
+                    new_record = {
+                        'Name': name,
                         'Type': record_type,
-                        'Address': record_value,
-                        'TTL': str(ttl),
-                        'MXPref': str(mx_pref) if mx_pref else None
+                        'Address': value,
+                        'TTL': str(ttl)
                     }
-                    record_exists = True
-                    break
-            
-            # Add new record if it doesn't exist
-            if not record_exists:
-                new_record = {
-                    'Name': record_name,
+                    if mx_pref and record_type.upper() == 'MX':
+                        new_record['MXPref'] = str(mx_pref)
+                    
+                    existing_records.append(new_record)
+                
+                # Set all records
+                return self.set_host_records(domain, existing_records)
+            else:
+                # Create single record
+                record = {
+                    'Name': name,
                     'Type': record_type,
-                    'Address': record_value,
+                    'Address': value,
                     'TTL': str(ttl)
                 }
-                if mx_pref:
-                    new_record['MXPref'] = str(mx_pref)
+                if mx_pref and record_type.upper() == 'MX':
+                    record['MXPref'] = str(mx_pref)
                 
-                existing_hosts.append(new_record)
-            
-            # Set all hosts (existing + new/updated)
-            return self.set_hosts(sld, tld, existing_hosts)
-            
-        except Exception as e:
-            logger.error(f"Failed to add/update record {record_name} for {domain}: {str(e)}")
+                return self.set_host_records(domain, [record])
+                
+        except NamecheapError as e:
+            logger.error(f"Failed to add record {name}.{domain}: {str(e)}")
             raise
     
-    def delete_record(self, domain: str, record_name: str, record_type: str = None) -> bool:
+    def delete_record(self, domain: str, name: str, record_type: str = None) -> bool:
         """
         Delete a DNS record while preserving other records
         
         Args:
-            domain: Full domain name
-            record_name: Record name to delete
-            record_type: Record type (optional, if None deletes all records with the name)
+            domain: Domain name
+            name: Record name to delete
+            record_type: Record type (optional filter)
             
         Returns:
             True if successful
         """
         try:
-            # Split domain into SLD and TLD
-            sld, tld = self._split_domain(domain)
-            
-            # Get existing records
-            existing_hosts = self.get_hosts(sld, tld)
+            existing_records = self.get_host_records(domain)
             
             # Filter out records to delete
-            filtered_hosts = []
-            for host in existing_hosts:
-                if host['Name'] == record_name:
-                    if record_type is None or host['Type'].upper() == record_type.upper():
-                        # Skip this record (delete it)
-                        continue
-                filtered_hosts.append(host)
+            filtered_records = []
+            for record in existing_records:
+                if record['Name'] == name:
+                    if record_type is None or record['Type'].upper() == record_type.upper():
+                        continue  # Skip this record (delete it)
+                filtered_records.append(record)
             
-            # Set filtered hosts
-            return self.set_hosts(sld, tld, filtered_hosts)
+            return self.set_host_records(domain, filtered_records)
             
-        except Exception as e:
-            logger.error(f"Failed to delete record {record_name} for {domain}: {str(e)}")
+        except NamecheapError as e:
+            logger.error(f"Failed to delete record {name}.{domain}: {str(e)}")
             raise
     
-    def create_subdomain(self, domain: str, subdomain: str, target_ip: str, 
+    def create_subdomain(self, domain: str, subdomain: str, target: str, 
                         record_type: str = 'A', ttl: int = 1800) -> bool:
         """
         Create a subdomain record
         
         Args:
-            domain: Parent domain (e.g., 'example.com')
-            subdomain: Subdomain name (e.g., 'api')
-            target_ip: Target IP address or CNAME target
-            record_type: Record type (A or CNAME)
+            domain: Parent domain
+            subdomain: Subdomain name
+            target: Target IP address or hostname
+            record_type: Record type (A, CNAME)
             ttl: Time to live
             
         Returns:
             True if successful
         """
-        return self.add_or_update_record(domain, subdomain, record_type, target_ip, ttl)
+        return self.add_record(domain, subdomain, record_type, target, ttl, preserve_existing=True)
     
     def _split_domain(self, domain: str) -> Tuple[str, str]:
         """
-        Split domain into SLD and TLD
+        Split domain into Second Level Domain (SLD) and Top Level Domain (TLD)
         
         Args:
-            domain: Full domain name (e.g., 'example.com')
+            domain: Full domain name
             
         Returns:
             Tuple of (SLD, TLD)
@@ -435,14 +395,22 @@ class NamecheapAPI:
         if len(parts) < 2:
             raise ValueError(f"Invalid domain format: {domain}")
         
-        # Handle common TLDs
+        # Handle common multi-part TLDs
+        if len(parts) >= 3:
+            # Check for known multi-part TLDs
+            possible_tld = '.'.join(parts[-2:])
+            multi_part_tlds = [
+                'co.uk', 'co.za', 'com.au', 'com.br', 'com.mx', 'org.uk', 
+                'net.uk', 'gov.uk', 'edu.au', 'asn.au', 'id.au'
+            ]
+            
+            if possible_tld.lower() in multi_part_tlds:
+                return '.'.join(parts[:-2]), possible_tld
+        
+        # Default case: assume last part is TLD
         if len(parts) == 2:
             return parts[0], parts[1]
-        elif len(parts) == 3 and parts[1] in ['co', 'com', 'org', 'net', 'gov', 'edu']:
-            # Handle domains like example.co.uk
-            return parts[0], '.'.join(parts[1:])
         else:
-            # Default: treat last part as TLD
             return '.'.join(parts[:-1]), parts[-1]
 
 
@@ -451,54 +419,47 @@ class GoogleSiteVerification:
     Google Site Verification API client
     """
     
-    def __init__(self, credentials_path: str = None, credentials_json: Dict = None):
+    def __init__(self, service_account_path: str = None, service_account_info: Dict = None):
         """
         Initialize Google Site Verification client
         
         Args:
-            credentials_path: Path to service account JSON file
-            credentials_json: Service account credentials as dict
+            service_account_path: Path to service account JSON file
+            service_account_info: Service account info as dictionary
         """
-        self.credentials_path = credentials_path
-        self.credentials_json = credentials_json
         self.service = None
-        self._initialize_service()
+        self._initialize_service(service_account_path, service_account_info)
     
-    def _initialize_service(self):
-        """Initialize Google Site Verification service"""
+    def _initialize_service(self, service_account_path: str = None, service_account_info: Dict = None):
+        """Initialize Google Site Verification service with credentials"""
         try:
-            if self.credentials_json:
-                # Use service account credentials from dict
-                from google.oauth2 import service_account
-                
+            scopes = ['https://www.googleapis.com/auth/siteverification']
+            
+            if service_account_info:
                 credentials = service_account.Credentials.from_service_account_info(
-                    self.credentials_json,
-                    scopes=['https://www.googleapis.com/auth/siteverification']
+                    service_account_info, scopes=scopes
                 )
-            elif self.credentials_path and os.path.exists(self.credentials_path):
-                # Use service account credentials from file
-                from google.oauth2 import service_account
-                
+            elif service_account_path and os.path.exists(service_account_path):
                 credentials = service_account.Credentials.from_service_account_file(
-                    self.credentials_path,
-                    scopes=['https://www.googleapis.com/auth/siteverification']
+                    service_account_path, scopes=scopes
                 )
             else:
-                raise Exception("No valid Google credentials provided")
+                raise ValueError("No valid Google service account credentials provided")
             
             self.service = build('siteverification', 'v1', credentials=credentials)
+            logger.info("Initialized Google Site Verification service")
             
         except Exception as e:
-            logger.error(f"Failed to initialize Google Site Verification service: {str(e)}")
+            logger.error(f"Failed to initialize Google Site Verification: {str(e)}")
             raise
     
-    def get_verification_token(self, domain: str, verification_method: str = 'DNS_TXT') -> str:
+    def get_verification_token(self, domain: str, method: str = 'DNS_TXT') -> str:
         """
         Get verification token for domain
         
         Args:
             domain: Domain to verify
-            verification_method: Verification method (DNS_TXT, DNS_CNAME, etc.)
+            method: Verification method (DNS_TXT, DNS_CNAME, FILE, META)
             
         Returns:
             Verification token string
@@ -509,23 +470,26 @@ class GoogleSiteVerification:
                     'type': 'SITE',
                     'identifier': f'http://{domain}'
                 },
-                'verificationMethod': verification_method
+                'verificationMethod': method
             }
             
             result = self.service.webResource().getToken(body=request_body).execute()
-            return result.get('token', '')
+            token = result.get('token', '')
+            
+            logger.info(f"Generated verification token for {domain}")
+            return token
             
         except Exception as e:
             logger.error(f"Failed to get verification token for {domain}: {str(e)}")
             raise
     
-    def verify_domain(self, domain: str, verification_method: str = 'DNS_TXT') -> bool:
+    def verify_domain(self, domain: str, method: str = 'DNS_TXT') -> bool:
         """
         Verify domain ownership
         
         Args:
             domain: Domain to verify
-            verification_method: Verification method
+            method: Verification method
             
         Returns:
             True if verification successful
@@ -536,26 +500,35 @@ class GoogleSiteVerification:
                     'type': 'SITE',
                     'identifier': f'http://{domain}'
                 },
-                'verificationMethod': verification_method
+                'verificationMethod': method
             }
             
             result = self.service.webResource().insert(body=request_body).execute()
-            return result.get('id') is not None
             
+            if result.get('id'):
+                logger.info(f"Successfully verified domain: {domain}")
+                return True
+            else:
+                logger.warning(f"Domain verification returned no ID: {domain}")
+                return False
+                
         except Exception as e:
             logger.error(f"Failed to verify domain {domain}: {str(e)}")
             raise
     
     def list_verified_sites(self) -> List[Dict]:
         """
-        List all verified sites
+        List all verified sites in the account
         
         Returns:
-            List of verified sites
+            List of verified site information
         """
         try:
             result = self.service.webResource().list().execute()
-            return result.get('items', [])
+            sites = result.get('items', [])
+            
+            logger.info(f"Retrieved {len(sites)} verified sites")
+            return sites
             
         except Exception as e:
             logger.error(f"Failed to list verified sites: {str(e)}")
@@ -564,7 +537,7 @@ class GoogleSiteVerification:
 
 class DNSManager:
     """
-    Main DNS management class combining Namecheap and Google Site Verification
+    Unified DNS management class combining Namecheap and Google Site Verification
     """
     
     def __init__(self, namecheap_config: Dict, google_config: Dict = None):
@@ -575,82 +548,73 @@ class DNSManager:
             namecheap_config: Namecheap API configuration
             google_config: Google API configuration (optional)
         """
+        # Initialize Namecheap client
         self.namecheap = NamecheapAPI(**namecheap_config)
         
+        # Initialize Google client if config provided
+        self.google_verification = None
         if google_config:
-            self.google_verification = GoogleSiteVerification(**google_config)
-        else:
-            self.google_verification = None
+            try:
+                self.google_verification = GoogleSiteVerification(**google_config)
+            except Exception as e:
+                logger.warning(f"Failed to initialize Google verification: {str(e)}")
+        
+        logger.info("DNS Manager initialized successfully")
     
-    def create_subdomain_with_records(self, domain: str, subdomain: str, 
-                                    target_ip: str, additional_records: List[Dict] = None) -> Dict:
+    def test_namecheap_connection(self) -> Dict:
+        """Test Namecheap API connection"""
+        return self.namecheap.test_connection()
+    
+    def get_domain_list(self) -> List[str]:
+        """Get list of domains from Namecheap account"""
+        return self.namecheap.get_domains_list()
+    
+    def get_dns_records(self, domain: str) -> List[Dict]:
+        """Get DNS records for a domain"""
+        return self.namecheap.get_host_records(domain)
+    
+    def create_subdomain_record(self, domain: str, subdomain: str, target: str, 
+                              record_type: str = 'A', ttl: int = 1800) -> Dict:
         """
-        Create subdomain with optional additional DNS records
+        Create subdomain with comprehensive error handling
         
         Args:
             domain: Parent domain
             subdomain: Subdomain name
-            target_ip: Target IP for A record
-            additional_records: Additional DNS records to create
+            target: Target IP or hostname
+            record_type: DNS record type
+            ttl: Time to live
             
         Returns:
             Result dictionary with success status and details
         """
         try:
-            results = {
-                'success': True,
-                'subdomain_created': False,
-                'additional_records': [],
-                'errors': []
+            success = self.namecheap.create_subdomain(domain, subdomain, target, record_type, ttl)
+            
+            return {
+                'success': success,
+                'domain': domain,
+                'subdomain': subdomain,
+                'target': target,
+                'record_type': record_type,
+                'ttl': ttl,
+                'message': f'Successfully created {subdomain}.{domain} → {target}'
             }
             
-            # Create main subdomain A record
-            try:
-                self.namecheap.create_subdomain(domain, subdomain, target_ip)
-                results['subdomain_created'] = True
-                logger.info(f"Created subdomain {subdomain}.{domain} -> {target_ip}")
-            except Exception as e:
-                results['success'] = False
-                results['errors'].append(f"Failed to create subdomain: {str(e)}")
-            
-            # Create additional records if provided
-            if additional_records:
-                for record in additional_records:
-                    try:
-                        self.namecheap.add_or_update_record(
-                            domain,
-                            record.get('name', '@'),
-                            record.get('type', 'A'),
-                            record.get('value', ''),
-                            record.get('ttl', 1800),
-                            record.get('mx_pref')
-                        )
-                        results['additional_records'].append({
-                            'name': record.get('name'),
-                            'type': record.get('type'),
-                            'success': True
-                        })
-                        logger.info(f"Created additional record: {record}")
-                    except Exception as e:
-                        results['success'] = False
-                        error_msg = f"Failed to create record {record.get('name', 'unknown')}: {str(e)}"
-                        results['errors'].append(error_msg)
-                        results['additional_records'].append({
-                            'name': record.get('name'),
-                            'type': record.get('type'),
-                            'success': False,
-                            'error': str(e)
-                        })
-            
-            return results
-            
-        except Exception as e:
-            logger.error(f"DNS Manager error: {str(e)}")
+        except NamecheapError as e:
             return {
                 'success': False,
-                'subdomain_created': False,
-                'additional_records': [],
-                'errors': [f"DNS Manager error: {str(e)}"]
+                'error': str(e),
+                'error_code': e.error_code,
+                'domain': domain,
+                'subdomain': subdomain
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Unexpected error: {str(e)}',
+                'domain': domain,
+                'subdomain': subdomain
             }
     
     def verify_domain_with_google(self, domain: str) -> Dict:
@@ -661,102 +625,138 @@ class DNSManager:
             domain: Domain to verify
             
         Returns:
-            Result dictionary with verification details
+            Result dictionary with verification status and details
         """
+        if not self.google_verification:
+            return {
+                'success': False,
+                'error': 'Google Site Verification not configured',
+                'domain': domain
+            }
+        
         try:
-            if not self.google_verification:
-                return {
-                    'success': False,
-                    'error': 'Google Site Verification not configured'
-                }
-            
             # Step 1: Get verification token
             token = self.google_verification.get_verification_token(domain)
             if not token:
                 return {
                     'success': False,
-                    'error': 'Failed to get verification token'
+                    'error': 'Failed to generate verification token',
+                    'domain': domain
                 }
             
             # Step 2: Add TXT record to DNS
-            try:
-                self.namecheap.add_or_update_record(
-                    domain, 
-                    '@', 
-                    'TXT', 
-                    token,
-                    300  # Short TTL for verification
-                )
-                logger.info(f"Added TXT verification record for {domain}")
-            except Exception as e:
+            txt_success = self.namecheap.add_record(
+                domain, '@', 'TXT', token, ttl=300, preserve_existing=True
+            )
+            
+            if not txt_success:
                 return {
                     'success': False,
-                    'error': f'Failed to add TXT record: {str(e)}'
+                    'error': 'Failed to add verification TXT record',
+                    'domain': domain,
+                    'token': token
                 }
             
             # Step 3: Wait for DNS propagation
-            time.sleep(10)
+            logger.info(f"Waiting for DNS propagation for {domain}")
+            time.sleep(15)  # Allow time for DNS propagation
             
-            # Step 4: Verify domain
-            try:
-                verified = self.google_verification.verify_domain(domain)
-                if verified:
-                    return {
-                        'success': True,
-                        'domain': domain,
-                        'verification_token': token,
-                        'message': 'Domain successfully verified with Google'
-                    }
-                else:
-                    return {
-                        'success': False,
-                        'error': 'Domain verification failed'
-                    }
-            except Exception as e:
+            # Step 4: Verify domain with Google
+            verified = self.google_verification.verify_domain(domain)
+            
+            if verified:
+                return {
+                    'success': True,
+                    'domain': domain,
+                    'token': token,
+                    'message': f'Successfully verified {domain} with Google'
+                }
+            else:
                 return {
                     'success': False,
-                    'error': f'Verification failed: {str(e)}'
+                    'error': 'Google verification failed - check DNS propagation',
+                    'domain': domain,
+                    'token': token
                 }
                 
         except Exception as e:
-            logger.error(f"Google verification error: {str(e)}")
+            logger.error(f"Domain verification failed for {domain}: {str(e)}")
             return {
                 'success': False,
-                'error': f'Google verification error: {str(e)}'
+                'error': str(e),
+                'domain': domain
             }
     
-    def get_domain_records(self, domain: str) -> Dict:
+    def add_dns_record(self, domain: str, name: str, record_type: str, value: str, 
+                      ttl: int = 1800, mx_pref: int = None) -> Dict:
         """
-        Get all DNS records for a domain
+        Add DNS record with error handling
         
-        Args:
-            domain: Domain name
-            
         Returns:
-            Dictionary with domain records
+            Result dictionary
         """
         try:
-            sld, tld = self.namecheap._split_domain(domain)
-            hosts = self.namecheap.get_hosts(sld, tld)
+            success = self.namecheap.add_record(
+                domain, name, record_type, value, ttl, mx_pref, preserve_existing=True
+            )
             
             return {
-                'success': True,
+                'success': success,
                 'domain': domain,
-                'records': hosts
+                'record': {
+                    'name': name,
+                    'type': record_type,
+                    'value': value,
+                    'ttl': ttl,
+                    'mx_pref': mx_pref
+                },
+                'message': f'Successfully added {record_type} record for {name}.{domain}'
             }
             
-        except Exception as e:
-            logger.error(f"Failed to get records for {domain}: {str(e)}")
+        except NamecheapError as e:
             return {
                 'success': False,
-                'error': f'Failed to get records: {str(e)}'
+                'error': str(e),
+                'error_code': e.error_code,
+                'domain': domain
             }
-
-    def get_domains(self) -> Dict:
-        """Fetch domains list from Namecheap account"""
-        try:
-            domains = self.namecheap.get_domains(page=1, page_size=100)
-            return {'success': True, 'domains': domains}
         except Exception as e:
-            logger.error(f"Failed to get domains list: {str(e)}")
-            return {'success': False, 'error': str(e)}
+            return {
+                'success': False,
+                'error': f'Unexpected error: {str(e)}',
+                'domain': domain
+            }
+    
+    def delete_dns_record(self, domain: str, name: str, record_type: str = None) -> Dict:
+        """
+        Delete DNS record with error handling
+        
+        Returns:
+            Result dictionary
+        """
+        try:
+            success = self.namecheap.delete_record(domain, name, record_type)
+            
+            return {
+                'success': success,
+                'domain': domain,
+                'deleted_record': {
+                    'name': name,
+                    'type': record_type
+                },
+                'message': f'Successfully deleted {record_type or "all"} record(s) for {name}.{domain}'
+            }
+            
+        except NamecheapError as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'error_code': e.error_code,
+                'domain': domain
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Unexpected error: {str(e)}',
+                'domain': domain
+            }
