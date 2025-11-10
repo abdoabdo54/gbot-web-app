@@ -22,10 +22,12 @@ dns_bp = Blueprint('dns_api', __name__, url_prefix='/api/dns')
 
 
 def login_required(f):
-    """Decorator to require login for API endpoints"""
+    """Decorator to require login for API endpoints (align with app session keys)"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'username' not in session:
+        # In app.py, successful auth sets: session['user'] and session['role']
+        # Emergency admin paths also set session flags. Accept either.
+        if not (session.get('user') or session.get('emergency_access')):
             return jsonify({
                 'success': False,
                 'error': 'Authentication required'
