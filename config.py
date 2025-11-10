@@ -80,6 +80,7 @@ NAMECHEAP_API_USER = os.environ.get('NAMECHEAP_API_USER')
 NAMECHEAP_API_KEY = os.environ.get('NAMECHEAP_API_KEY')
 NAMECHEAP_USERNAME = os.environ.get('NAMECHEAP_USERNAME')
 NAMECHEAP_CLIENT_IP = os.environ.get('NAMECHEAP_CLIENT_IP')
+NAMECHEAP_API_URL = os.environ.get('NAMECHEAP_API_URL', 'https://api.namecheap.com/xml.response')
 NAMECHEAP_SANDBOX = os.environ.get('NAMECHEAP_SANDBOX', 'False').lower() == 'true'
 
 # DNS defaults

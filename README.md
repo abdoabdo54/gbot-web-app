@@ -357,7 +357,7 @@ python3 app.py
 
 ### Production Deployment
 
-## 🆕 DNS Automation Module
+## 🆕 DNS Automation Module (DNS Manager)
 
 ### Features
 - **Namecheap API Integration**: Complete DNS record management
@@ -374,7 +374,37 @@ python3 app.py
 3. **Migrate**: Run `python3 create_dns_tables.py`
 4. **Access**: Use DNS Manager from dashboard
 
-📖 **[Complete Setup Guide](DNS_SETUP_GUIDE.md)**
+## DNS Manager Setup Guide
+
+1) Enable Google Site Verification API
+- In Google Cloud Console, enable "Site Verification API" for your project.
+- Create a Service Account and download its JSON key.
+- Store the path in environment as GOOGLE_SERVICE_ACCOUNT_PATH=/path/to/key.json.
+
+2) Create Namecheap API credentials
+- In Namecheap, enable API access, set ApiUser/UserName, generate ApiKey.
+- Whitelist your server IP in the Namecheap API access page.
+
+3) Configure environment variables (.env)
+- NAMECHEAP_API_USER=
+- NAMECHEAP_API_KEY=
+- NAMECHEAP_USERNAME=
+- NAMECHEAP_CLIENT_IP=
+- NAMECHEAP_API_URL=https://api.namecheap.com/xml.response
+- GOOGLE_SERVICE_ACCOUNT_PATH=/path/to/key.json
+- # !!! PLAIN STORAGE — REPLACE BEFORE PROD
+
+4) Database setup
+- Run: python3 create_dns_tables.py
+
+5) Run the app
+- python3 app.py (dev) or use Gunicorn/Nginx per project docs.
+
+6) Using DNS Manager
+- Open /dns-manager
+- Save Namecheap config, fetch domains, manage DNS records.
+- Use "Generate TXT & Apply" then optionally "Verify Now" to verify domains.
+
 
 ### API Endpoints
 - `POST /api/dns/namecheap/subdomain` → Create subdomain
