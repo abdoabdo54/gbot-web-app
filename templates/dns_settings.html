@@ -57,9 +57,19 @@
             </div>
             <div class="form-group">
               <label><i class="fas fa-list"></i> Existing Domains</label>
-              <div id="namecheap-domains-container" class="p-3 border rounded bg-light">
+              <div id="namecheap-domains-container" class="p-3 border rounded bg-light mb-3">
                 <div id="namecheap-domains-loading" style="display:none;" class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading domains...</div>
                 <div id="namecheap-domains-list"><em class="text-muted">Save and test your API config to list domains.</em></div>
+              </div>
+              <label><i class="fas fa-stream"></i> DNS Module Logs</label>
+              <div id="dns-logs-container" class="p-3 border rounded bg-light">
+                <div class="d-flex mb-2 justify-content-between">
+                  <small class="text-muted">Tail of dns_module.log (last 200 lines)</small>
+                  <div>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" onclick="loadDnsLogs()"><i class="fas fa-sync-alt"></i> Refresh</button>
+                  </div>
+                </div>
+                <pre id="dns-logs" style="white-space: pre-wrap; max-height: 240px; overflow:auto; background:#0f172a; color:#e2e8f0; padding:12px; border-radius:6px;">No logs yet.</pre>
               </div>
             </div>
           </form>
@@ -79,6 +89,8 @@ function displayNamecheapDomains(domains){const list=document.getElementById('na
 
 document.getElementById('namecheap-config-form').addEventListener('submit',async(e)=>{e.preventDefault();const cfg={api_user:document.getElementById('namecheap_api_user').value.trim(),api_key:document.getElementById('namecheap_api_key').value.trim(),username:document.getElementById('namecheap_username').value.trim(),client_ip:document.getElementById('namecheap_client_ip').value.trim(),is_sandbox:document.getElementById('namecheap_sandbox').checked};if(!cfg.api_user||!cfg.api_key||!cfg.username||!cfg.client_ip){return showNamecheapStatus('All fields are required','error')}try{const r=await fetch('/api/dns/namecheap/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});const j=await r.json();if(j.success){showNamecheapStatus('Configuration saved. '+(j.warning||''),'success');document.getElementById('load-domains-btn').disabled=false;setTimeout(loadNamecheapDomains,500)}else{showNamecheapStatus('Failed to save configuration: '+j.error,'error')}}catch(e){showNamecheapStatus('Failed to save configuration: '+e.message,'error')}});
 
-document.addEventListener('DOMContentLoaded',()=>{loadNamecheapConfig()});
+async function loadDnsLogs(){try{const r=await fetch('/api/dns/logs?limit=200');const j=await r.json();if(j.success){document.getElementById('dns-logs').textContent=(j.lines||[]).join('\n')}else{document.getElementById('dns-logs').textContent='Failed to load logs: '+(j.error||'')}}catch(e){document.getElementById('dns-logs').textContent='Failed to load logs: '+e.message}}
+
+document.addEventListener('DOMContentLoaded',()=>{loadNamecheapConfig();loadDnsLogs()});
 </script>
 {% endblock %}

@@ -723,6 +723,22 @@ def get_server_ip():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@dns_bp.route('/logs', methods=['GET'])
+@login_required
+def get_dns_logs():
+    """Return tail of DNS module logs"""
+    try:
+        import os
+        log_path = os.path.join(os.getcwd(), 'logs', 'dns_module.log')
+        limit = int(request.args.get('limit', 200))
+        lines = []
+        if os.path.exists(log_path):
+            with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+                lines = f.readlines()[-limit:]
+        return jsonify({'success': True, 'lines': [l.rstrip('\n') for l in lines], 'count': len(lines)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # Health check endpoint
 @dns_bp.route('/health', methods=['GET'])
 def health_check():

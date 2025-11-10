@@ -17,8 +17,24 @@ from google_auth_oauthlib.flow import Flow
 import time
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('dns_module')
+logger.setLevel(logging.INFO)
+# Add file handler for DNS module logs
+try:
+    import os as _os
+    _log_dir = _os.path.join(_os.getcwd(), 'logs')
+    _os.makedirs(_log_dir, exist_ok=True)
+    _log_path = _os.path.join(_log_dir, 'dns_module.log')
+    if not any(isinstance(h, logging.FileHandler) and getattr(h, 'baseFilename', '') == _log_path for h in logger.handlers):
+        _fh = logging.FileHandler(_log_path)
+        _fh.setLevel(logging.INFO)
+        _formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
+        _fh.setFormatter(_formatter)
+        logger.addHandler(_fh)
+except Exception as _e:
+    # Fallback to basicConfig if file logger fails
+    logging.basicConfig(level=logging.INFO)
+    logger.warning(f"Failed to initialize DNS file logger: {_e}")
 
 
 class NamecheapAPI:
