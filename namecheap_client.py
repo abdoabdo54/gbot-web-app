@@ -24,6 +24,11 @@ class NamecheapAPIError(Exception):
 
 
 class NamecheapClient:
+    last_command: Optional[str] = None
+    last_params_sanitized: Optional[Dict[str, str]] = None
+    last_status: Optional[str] = None
+    last_errors: Optional[str] = None
+    last_response_text: Optional[str] = None
     """Simple Namecheap API client.
 
     Parameters
@@ -57,26 +62,33 @@ class NamecheapClient:
         self.timeout = timeout
 
     def _request(self, command: str, params: Optional[Dict[str, str]] = None) -> ET.Element:
+        # Track last request/response for debugging
+        self.last_command = command
+        self.last_params_sanitized = {}
+        self.last_status = None
+        self.last_errors = None
+        self.last_response_text = None
         data = {
             "ApiUser": self.api_user,
             "ApiKey": self.api_key,
             "UserName": self.username,
             "ClientIp": self.client_ip,
             "Command": command,
+            "ResponseType": "XML",
+            "Version": "1.0",
         }
         if params:
             data.update(params)
 
-        logging.debug(
-            "Namecheap request: %s params=%s",
-            command,
-            {k: v for k, v in data.items() if k != "ApiKey"},
-        )
+        # Keep a sanitized copy for later debugging
+        self.last_params_sanitized = {k: v for k, v in data.items() if k != "ApiKey"}
+        logging.debug("Namecheap request: %s params=%s", command, self.last_params_sanitized)
         try:
             resp = requests.get(self.api_url, params=data, timeout=self.timeout)
         except Exception as e:
             raise NamecheapAPIError(f"Network error calling Namecheap: {e}")
 
+        self.last_response_text = resp.text
         if resp.status_code != 200:
             raise NamecheapAPIError(f"HTTP {resp.status_code} from Namecheap: {resp.text[:200]}")
 
@@ -86,20 +98,53 @@ class NamecheapClient:
             raise NamecheapAPIError(f"Invalid XML from Namecheap: {pe}\nBody: {resp.text[:300]}")
 
         status = root.attrib.get("Status", "ERROR")
+        self.last_status = status
         if status != "OK":
-            # Try to extract error message
             errors = root.findall(".//Errors/Error")
             msg = "; ".join(e.text or "" for e in errors) or "Unknown Namecheap error"
+            self.last_errors = msg
             raise NamecheapAPIError(msg)
 
         return root
+
+    def get_debug_snapshot(self) -> Dict[str, Optional[str]]:
+        """Return sanitized debug info about the last API call."""
+        return {
+            "last_command": self.last_command,
+            "last_status": self.last_status,
+            "last_errors": self.last_errors,
+            "last_params": self.last_params_sanitized,
+            "last_response_snippet": (self.last_response_text[:400] if self.last_response_text else None),
+        }
 
     def get_domains(self) -> List[Dict[str, str]]:
         """Return list of domains with basic info.
 
         Returns a list of dicts: {Domain, Expires, IsOurDNS}
         """
-        root = self._request("namecheap.domains.getList", {"PageSize": "100", "ListType": "ALL", "SortBy": "NAME"})
+        # Fetch all pages up to a safe cap to avoid infinite loops
+        page = 1
+        result: List[Dict[str, str]] = []
+        while True:
+            root = self._request(
+                "namecheap.domains.getList",
+                {"PageSize": "100", "ListType": "ALL", "SortBy": "NAME", "Page": str(page)},
+            )
+            count = 0
+            for d in root.findall(".//DomainGetListResult/Domain"):
+                result.append(
+                    {
+                        "Domain": d.attrib.get("Name", ""),
+                        "Expires": d.attrib.get("Expires", ""),
+                        "IsOurDNS": (d.attrib.get("IsOurDNS", "false").lower() == "true"),
+                    }
+                )
+                count += 1
+            # Stop when no results returned or page unlikely continues
+            if count < 100:
+                break
+            page += 1
+        return result
         result: List[Dict[str, str]] = []
         for d in root.findall(".//DomainGetListResult/Domain"):
             result.append(

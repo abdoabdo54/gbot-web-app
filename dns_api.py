@@ -104,6 +104,7 @@ def namecheap_config_handler():
                         "client_ip": cfg.client_ip,
                         "is_sandbox": cfg.is_sandbox,
                         "api_url": api_url,
+                        "has_api_key": True,
                     },
                 }
             )
@@ -128,20 +129,31 @@ def namecheap_config_handler():
 
     # POST -> save
     data = request.get_json(force=True)
-    required = ["api_user", "api_key", "username", "client_ip"]
+    # api_key can be omitted to keep previous saved key
+    required = ["api_user", "username", "client_ip"]
     missing = [k for k in required if not data.get(k)]
     if missing:
         return jsonify({"success": False, "error": f"Missing fields: {', '.join(missing)}"}), 400
 
     try:
-        # determine sandbox by api_url
+        # determine sandbox by api_url or explicit checkbox
         api_url = str(data.get("api_url", ""))
         is_sandbox = "sandbox" in api_url.lower() or bool(data.get("is_sandbox", False))
+
+        # Preserve previous api_key if omitted
+        prev = (
+            NamecheapConfig.query.filter_by(is_active=True)
+            .order_by(NamecheapConfig.updated_at.desc())
+            .first()
+        )
+        api_key_val = data.get("api_key") if data.get("api_key") else (prev.api_key if prev else None)
+        if not api_key_val:
+            return jsonify({"success": False, "error": "api_key is required on first save"}), 400
 
         NamecheapConfig.query.update({NamecheapConfig.is_active: False})
         cfg = NamecheapConfig(
             api_user=data["api_user"],
-            api_key=data["api_key"],  # !!! PLAIN STORAGE — REPLACE BEFORE PROD
+            api_key=api_key_val,  # !!! PLAIN STORAGE — REPLACE BEFORE PROD
             username=data["username"],
             client_ip=data["client_ip"],
             is_sandbox=is_sandbox,
@@ -179,11 +191,35 @@ def test_connection():
         return jsonify({"success": False, "error": str(e)}), 400
 
 
+@dns_bp.route("/api/dns/namecheap/diagnostics", methods=["GET"]) 
+def diagnostics():
+    try:
+        client = _client()
+        try:
+            client.get_domains()
+        except Exception:
+            pass
+        return jsonify({"success": True, "debug": client.get_debug_snapshot()})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
 @dns_bp.route("/api/dns/namecheap/domains", methods=["GET"])
 def list_domains():
     try:
         client = _client()
         domains = client.get_domains()
+        if len(domains) == 0:
+            # Provide richer diagnostics for administrators
+            msg = "Fetched 0 domains. Check ApiURL (prod vs sandbox), ClientIp whitelist, and ApiUser/UserName."
+            add_log_entry("getList", status="warning", message=msg)
+            # Include some debug hints (sanitized)
+            return jsonify({
+                "success": True,
+                "domains": [],
+                "debug": {
+                    "hint": msg,
+                }
+            })
         add_log_entry("getList", status="success", message=f"Fetched {len(domains)} domains")
         return jsonify({"success": True, "domains": domains})
     except Exception as e:

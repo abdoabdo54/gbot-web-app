@@ -529,6 +529,13 @@
                     <i class="fas fa-sync-alt"></i>
                     Refresh Domains
                 </button>
+                <button type="button" onclick="viewNamecheapDiagnostics()" class="btn btn-outline-warning" id="diagnostics-btn">
+                    <i class="fas fa-bug"></i>
+                    View Diagnostics
+                </button>
+                    <i class="fas fa-sync-alt"></i>
+                    Refresh Domains
+                </button>
             </div>
         </form>
     </div>
@@ -596,7 +603,8 @@
                 Loading current configuration...
             </div>
         </div>
-    </div>
+        <div id="namecheap-diagnostics" style="margin-top: 16px; padding: 12px; border: 1px dashed #d0d7de; border-radius: 6px; background: #fffef2; display: none;"></div>
+   </div>
 
     <!-- Status Messages -->
     <div id="status-messages" style="margin-top: 24px;"></div>
@@ -2060,6 +2068,32 @@ function uploadFileInChunks(file, chunkSize, totalChunks) {
 }
 
 // Namecheap API Configuration Functions
+async function viewNamecheapDiagnostics() {
+    const diagDiv = document.getElementById('namecheap-diagnostics');
+    try {
+        const res = await fetch('/api/dns/namecheap/diagnostics');
+        const data = await res.json();
+        let html = '';
+        if (data.success) {
+            const d = data.debug || {};
+            html += '<div style="font-family: \"Courier New\", monospace; font-size: 12px;">';
+            html += '<div><b>Last Command:</b> ' + (d.last_command || '-') + '</div>';
+            html += '<div><b>Status:</b> ' + (d.last_status || '-') + '</div>';
+            html += '<div><b>Errors:</b> ' + (d.last_errors || '-') + '</div>';
+            html += '<div><b>Params (sanitized):</b><pre style="white-space: pre-wrap;">' + (d.last_params ? JSON.stringify(d.last_params, null, 2) : '-') + '</pre></div>';
+            html += '<div><b>Response snippet:</b><pre style="white-space: pre-wrap;">' + (d.last_response_snippet || '-') + '</pre></div>';
+            html += '</div>';
+        } else {
+            html = '<span style="color: #d1242f;">' + (data.error || 'Diagnostics failed') + '</span>';
+        }
+        diagDiv.innerHTML = html;
+        diagDiv.style.display = 'block';
+        diagDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (e) {
+        diagDiv.innerHTML = '<span style="color: #d1242f;">Diagnostics error: ' + e.message + '</span>';
+        diagDiv.style.display = 'block';
+    }
+}
 function toggleNamecheapPassword() {
     const field = document.getElementById('namecheap_api_key');
     const icon = document.getElementById('namecheap-eye-icon');
@@ -2084,6 +2118,10 @@ async function loadNamecheapConfig() {
             document.getElementById('namecheap_username').value = result.config.username || '';
             document.getElementById('namecheap_client_ip').value = result.config.client_ip || '';
             document.getElementById('namecheap_sandbox').checked = result.config.is_sandbox || false;
+            // Do not force re-entry of API key; leave blank and not required
+            const keyInput = document.getElementById('namecheap_api_key');
+            keyInput.placeholder = result.config.has_api_key ? '•••••••••• (saved)' : 'your_api_key_here';
+            keyInput.required = !result.config.has_api_key;
             
             showNamecheapStatus('Namecheap API configured successfully', 'success');
             document.getElementById('load-domains-btn').disabled = false;
@@ -2141,6 +2179,9 @@ document.getElementById('namecheap-config-form').addEventListener('submit', asyn
 });
 
 async function testNamecheapConnection() {
+    // also clear diagnostics output area if present
+    const diagDiv = document.getElementById('namecheap-diagnostics');
+    if (diagDiv) diagDiv.innerHTML = '';
     const config = {
         api_user: document.getElementById('namecheap_api_user').value.trim(),
         api_key: document.getElementById('namecheap_api_key').value.trim(),
@@ -2178,6 +2219,9 @@ async function testNamecheapConnection() {
 }
 
 async function loadNamecheapDomains() {
+    // hide diagnostics when reloading domains
+    const diagDiv = document.getElementById('namecheap-diagnostics');
+    if (diagDiv) { diagDiv.style.display = 'none'; diagDiv.innerHTML = ''; }
     const loadingDiv = document.getElementById('namecheap-domains-loading');
     const listDiv = document.getElementById('namecheap-domains-list');
     const refreshBtn = document.getElementById('load-domains-btn');
@@ -2188,7 +2232,7 @@ async function loadNamecheapDomains() {
         listDiv.style.display = 'none';
         refreshBtn.disabled = true;
         
-        const response = await fetch('/api/dns/namecheap/domains');
+        const response = await fetch('/api/dns/namecheap/domains?simple=true');
         const result = await response.json();
         
         if (result.success && result.domains) {
@@ -2231,6 +2275,9 @@ function displayNamecheapDomains(domains) {
 }
 
 function showNamecheapStatus(message, type) {
+    // hide diagnostics on new status
+    const diagDiv = document.getElementById('namecheap-diagnostics');
+    if (diagDiv) { diagDiv.style.display = 'none'; diagDiv.innerHTML = ''; }
     const statusDiv = document.getElementById('namecheap-status');
     
     // Map types to styles

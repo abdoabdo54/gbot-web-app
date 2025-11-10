@@ -172,6 +172,9 @@ async function fetchDomains() {
     const data = await res.json();
     const ul = document.getElementById('domains-list');
     ul.innerHTML = '';
+    if (data.debug && data.debug.hint) {
+      console.warn('Namecheap debug:', data.debug.hint);
+    }
     if (data.success && Array.isArray(data.domains)) {
       data.domains.forEach(d => {
         const li = document.createElement('li');
