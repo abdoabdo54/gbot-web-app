@@ -606,7 +606,23 @@ def test_namecheap_connection():
         
         # Attempt light-weight authenticated call to validate credentials
         api = NamecheapAPI(**cfg)
-        balances = api.get_balance()
+        try:
+            balances = api.get_balance()
+            primary_ok = True
+            used_username = cfg.get('username')
+        except Exception as primary_err:
+            # Fallback: some accounts require ApiUser == UserName
+            if cfg.get('api_user') and cfg.get('username') and cfg.get('api_user') != cfg.get('username'):
+                alt_api = api.with_username(cfg.get('api_user'))
+                try:
+                    balances = alt_api.get_balance()
+                    api = alt_api
+                    primary_ok = False
+                    used_username = cfg.get('api_user')
+                except Exception as alt_err:
+                    raise Exception(f"Auth failed with username '{cfg.get('username')}' and also with ApiUser-as-username fallback. Primary error: {primary_err}; Fallback error: {alt_err}")
+            else:
+                raise
         # Fetch domains to confirm account mapping (optional)
         domains = []
         try:
@@ -615,10 +631,12 @@ def test_namecheap_connection():
             pass
         diag = {
             'api_user': cfg.get('api_user'),
-            'username': cfg.get('username'),
+            'username': used_username,
             'client_ip': cfg.get('client_ip'),
             'sandbox': cfg.get('sandbox'),
-            'base_url': api.base_url
+            'base_url': api.base_url,
+            'used_username_equals_api_user': used_username == cfg.get('api_user'),
+            'fallback_used': not primary_ok
         }
         return jsonify({'success': True, 'balances': balances, 'domains': domains, 'count': len(domains), 'diagnostics': diag})
     except Exception as e:

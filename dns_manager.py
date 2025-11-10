@@ -26,6 +26,17 @@ class NamecheapAPI:
     Namecheap API client for DNS record management
     """
     
+    def with_username(self, username: str) -> 'NamecheapAPI':
+        """Return a shallow copy with a different username (for fallback testing)."""
+        copy = NamecheapAPI(
+            api_user=self.api_user,
+            api_key=self.api_key,
+            username=username,
+            client_ip=self.client_ip,
+            sandbox=(self.base_url.endswith('sandbox.namecheap.com/xml.response'))
+        )
+        return copy
+    
     def __init__(self, api_user: str, api_key: str, username: str, client_ip: str, 
                  sandbox: bool = False):
         """
@@ -119,7 +130,7 @@ class NamecheapAPI:
             logger.error(f"Balance check failed: {str(e)}")
             raise
 
-    def get_domains(self) -> List[str]:
+    def get_domains(self, page: int = 1, page_size: int = 100, list_type: str = 'ALL', sort_by: str = 'NAME') -> List[str]:
         """
         Get all domains in the Namecheap account
         
@@ -127,7 +138,13 @@ class NamecheapAPI:
             List of domain names as strings
         """
         try:
-            root = self._make_request('namecheap.domains.getList')
+            params = {
+                'Page': page,
+                'PageSize': page_size,
+                'ListType': list_type,
+                'SortBy': sort_by
+            }
+            root = self._make_request('namecheap.domains.getList', params)
             domains = []
             for d in root.findall('.//Domain'):
                 name = d.get('Name') or d.get('name')
@@ -661,16 +678,8 @@ class DNSManager:
     def get_domains(self) -> Dict:
         """Fetch domains list from Namecheap account"""
         try:
-            params = {}
-            # Use Namecheap API directly via a helper that we will add
-            domains = self.namecheap.get_domains()
-            return {
-                'success': True,
-                'domains': domains
-            }
+            domains = self.namecheap.get_domains(page=1, page_size=100)
+            return {'success': True, 'domains': domains}
         except Exception as e:
             logger.error(f"Failed to get domains list: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            return {'success': False, 'error': str(e)}
