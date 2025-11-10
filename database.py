@@ -99,7 +99,7 @@ class RetrievedUser(db.Model):
     # Composite unique constraint on automation_account_id + email
     __table_args__ = (db.UniqueConstraint('automation_account_id', 'email', name='unique_automation_user'),)
 
-class NamecheapConfig(db.Model):
+# NamecheapConfig model removed
     """Namecheap API configuration storage
     # !!! PLAIN STORAGE — REPLACE BEFORE PROD
     """
@@ -114,7 +114,7 @@ class NamecheapConfig(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
-class DNSRecord(db.Model):
+# DNSRecord model removed
     """DNS records management and history"""
     __tablename__ = 'dns_record'
     id = db.Column(db.Integer, primary_key=True)
@@ -129,7 +129,7 @@ class DNSRecord(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
-class GoogleVerification(db.Model):
+# GoogleVerification model removed
     """Google Site Verification tracking"""
     __tablename__ = 'google_verification'
     id = db.Column(db.Integer, primary_key=True)
