@@ -98,3 +98,40 @@ class RetrievedUser(db.Model):
     
     # Composite unique constraint on automation_account_id + email
     __table_args__ = (db.UniqueConstraint('automation_account_id', 'email', name='unique_automation_user'),)
+
+class NamecheapConfig(db.Model):
+    """Namecheap API configuration storage"""
+    id = db.Column(db.Integer, primary_key=True)
+    api_user = db.Column(db.String(255), nullable=False)
+    api_key = db.Column(db.Text, nullable=False)  # !!! PLAIN STORAGE — REPLACE BEFORE PROD
+    username = db.Column(db.String(255), nullable=False)
+    client_ip = db.Column(db.String(45), nullable=False)
+    is_sandbox = db.Column(db.Boolean, default=True)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+class DNSRecord(db.Model):
+    """DNS records management and history"""
+    id = db.Column(db.Integer, primary_key=True)
+    domain = db.Column(db.String(255), nullable=False)
+    record_name = db.Column(db.String(255), nullable=False)
+    record_type = db.Column(db.String(10), nullable=False)  # A, CNAME, TXT, MX
+    record_value = db.Column(db.Text, nullable=False)
+    ttl = db.Column(db.Integer, default=1800)
+    mx_preference = db.Column(db.Integer)
+    is_active = db.Column(db.Boolean, default=True)
+    created_by = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    
+class GoogleVerification(db.Model):
+    """Google Site Verification tracking"""
+    id = db.Column(db.Integer, primary_key=True)
+    domain = db.Column(db.String(255), unique=True, nullable=False)
+    verification_token = db.Column(db.Text)
+    verification_method = db.Column(db.String(50), default='DNS_TXT')
+    is_verified = db.Column(db.Boolean, default=False)
+    verified_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())

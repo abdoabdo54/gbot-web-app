@@ -1,5 +1,9 @@
 # GBot Web Application
 
+**Enhanced with Production-Ready DNS Automation Module**
+
+A comprehensive Flask-based SaaS platform for Google Workspace management with integrated DNS automation via Namecheap API and Google Site Verification.
+
 A comprehensive Google Workspace administration and automation platform designed to streamline the management of Google Workspace domains, users, and administrative tasks through a web-based interface.
 
 ## 🚀 Features
@@ -352,6 +356,34 @@ python3 app.py
 ```
 
 ### Production Deployment
+
+## 🆕 DNS Automation Module
+
+### Features
+- **Namecheap API Integration**: Complete DNS record management
+- **Google Site Verification**: Automated domain verification workflow
+- **Subdomain Management**: Create and manage subdomains programmatically
+- **RESTful API**: Full REST API for DNS operations
+- **Web Interface**: User-friendly DNS management dashboard
+- **Audit Trail**: Complete history of all DNS changes
+- **Production Ready**: Error handling, logging, and security features
+
+### Quick Start
+1. **Enable APIs**: Namecheap API + Google Site Verification API
+2. **Configure**: Add API credentials to `.env` file
+3. **Migrate**: Run `python3 create_dns_tables.py`
+4. **Access**: Use DNS Manager from dashboard
+
+📖 **[Complete Setup Guide](DNS_SETUP_GUIDE.md)**
+
+### API Endpoints
+- `POST /api/dns/namecheap/subdomain` → Create subdomain
+- `POST /api/dns/namecheap/verify-domain` → Google verification workflow
+- `GET /api/dns/namecheap/records/{domain}` → Get DNS records
+- `POST /api/dns/namecheap/records` → Add/update DNS record
+- `DELETE /api/dns/namecheap/records` → Delete DNS record
+
+---
 
 #### Quick Production Setup
 ```bash

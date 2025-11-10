@@ -64,14 +64,28 @@ MAX_USERS_PER_OPERATION = 50000  # Support up to 50k users
 # Logging
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
 
-# Google API Scopes (updated for admin role management)
+# Google API Scopes (updated for admin role management and site verification)
 SCOPES = [
     'https://www.googleapis.com/auth/admin.directory.user',
     'https://www.googleapis.com/auth/admin.directory.domain',
     'https://www.googleapis.com/auth/admin.directory.rolemanagement',
     'https://www.googleapis.com/auth/admin.directory.orgunit',
-    'https://www.googleapis.com/auth/admin.directory.group'
+    'https://www.googleapis.com/auth/admin.directory.group',
+    'https://www.googleapis.com/auth/siteverification'
 ]
+
+# Namecheap API Configuration
+# !!! PLAIN STORAGE — REPLACE BEFORE PROD WITH ENCRYPTED STORAGE !!!
+NAMECHEAP_API_USER = os.environ.get('NAMECHEAP_API_USER')
+NAMECHEAP_API_KEY = os.environ.get('NAMECHEAP_API_KEY')  # Store encrypted in production
+NAMECHEAP_USERNAME = os.environ.get('NAMECHEAP_USERNAME') 
+NAMECHEAP_CLIENT_IP = os.environ.get('NAMECHEAP_CLIENT_IP')
+NAMECHEAP_SANDBOX = os.environ.get('NAMECHEAP_SANDBOX', 'True').lower() == 'true'
+
+# DNS Management Settings
+DNS_DEFAULT_TTL = int(os.environ.get('DNS_DEFAULT_TTL', '1800'))  # 30 minutes
+DNS_VERIFICATION_TTL = int(os.environ.get('DNS_VERIFICATION_TTL', '300'))  # 5 minutes for verification
+DNS_PROPAGATION_WAIT = int(os.environ.get('DNS_PROPAGATION_WAIT', '10'))  # seconds
 
 # Debug - Check if values are loaded
 if not SECRET_KEY:
@@ -92,6 +106,19 @@ LOG_LEVEL=INFO
 # Google API Configuration
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
+
+# Namecheap API Configuration
+# !!! ENCRYPT THESE VALUES IN PRODUCTION !!!
+NAMECHEAP_API_USER=your_namecheap_api_user
+NAMECHEAP_API_KEY=your_namecheap_api_key
+NAMECHEAP_USERNAME=your_namecheap_username
+NAMECHEAP_CLIENT_IP=your_whitelisted_ip
+NAMECHEAP_SANDBOX=False
+
+# DNS Configuration
+DNS_DEFAULT_TTL=1800
+DNS_VERIFICATION_TTL=300
+DNS_PROPAGATION_WAIT=10
 
 # Production Settings
 FLASK_ENV=production

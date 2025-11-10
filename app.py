@@ -28,7 +28,8 @@ from email.mime.multipart import MIMEMultipart
 import re
 
 from core_logic import google_api
-from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword, AutomationAccount, RetrievedUser
+from database import db, User, WhitelistedIP, UsedDomain, GoogleAccount, GoogleToken, Scope, ServerConfig, UserAppPassword, AutomationAccount, RetrievedUser, NamecheapConfig, DNSRecord, GoogleVerification
+from dns_api import dns_bp
 
 # Progress tracking system for domain changes
 progress_tracker = {}
@@ -138,6 +139,9 @@ app.config['UPLOAD_FOLDER'] = 'backups'
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB
 
 db.init_app(app)
+
+# Register DNS API blueprint
+app.register_blueprint(dns_bp)
 
 # Global concurrency limiter - REMOVED for unlimited concurrent machines
 # No artificial limits - let the server handle as many requests as possible
@@ -305,6 +309,12 @@ def logout():
     session.clear()
     flash('Logged out successfully', 'success')
     return redirect(url_for('login'))
+
+@app.route('/dns-manager')
+@login_required
+def dns_manager():
+    """DNS and Namecheap management interface"""
+    return render_template('dns_manager.html')
 
 @app.route('/test-admin')
 def test_admin():
