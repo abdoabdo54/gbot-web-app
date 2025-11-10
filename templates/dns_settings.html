@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <h4 class="card-title mb-0"><i class="fas fa-cog"></i> DNS Settings & IP Whitelisting</h4>
+          <a href="/dns-manager" class="btn btn-outline-primary btn-sm"><i class="fas fa-globe"></i> Open DNS Manager</a>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-3">Configure Namecheap API, detect your server IP for Namecheap whitelisting, and list available domains.</p>
+          <div id="namecheap-status" class="alert" style="display:none;"></div>
+          <form id="namecheap-config-form">
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label><i class="fas fa-user"></i> API User</label>
+                <input id="namecheap_api_user" class="form-control" placeholder="your_api_user" required>
+              </div>
+              <div class="form-group col-md-6">
+                <label><i class="fas fa-id-card"></i> Username</label>
+                <input id="namecheap_username" class="form-control" placeholder="your_username" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-key"></i> API Key</label>
+              <div class="input-group">
+                <input id="namecheap_api_key" type="password" class="form-control" placeholder="your_api_key_here" required>
+                <div class="input-group-append">
+                  <button class="btn btn-outline-secondary" type="button" onclick="toggleNamecheapPassword()"><i id="namecheap-eye-icon" class="fas fa-eye"></i></button>
+                </div>
+              </div>
+              <small class="text-warning">⚠️ Stored in plain text — do not use in production without encryption.</small>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label><i class="fas fa-network-wired"></i> Client IP</label>
+                <div class="input-group">
+                  <input id="namecheap_client_ip" class="form-control" placeholder="your.server.ip.address" required>
+                  <div class="input-group-append">
+                    <button class="btn btn-outline-info" type="button" onclick="detectServerIp()"><i class="fas fa-satellite-dish"></i> Detect IP</button>
+                  </div>
+                </div>
+                <small class="text-muted">This IP must be whitelisted in your Namecheap API settings.</small>
+              </div>
+              <div class="form-group col-md-6">
+                <div class="form-check mt-4">
+                  <input class="form-check-input" type="checkbox" id="namecheap_sandbox">
+                  <label class="form-check-label" for="namecheap_sandbox">Use Sandbox Environment</label>
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <button class="btn btn-primary" type="submit"><i class="fas fa-save"></i> Save Configuration</button>
+              <button class="btn btn-outline-primary" type="button" onclick="testNamecheapConnection()"><i class="fas fa-plug"></i> Test Connection</button>
+              <button class="btn btn-outline-secondary" type="button" onclick="loadNamecheapDomains()" id="load-domains-btn" disabled><i class="fas fa-sync-alt"></i> Refresh Domains</button>
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-list"></i> Existing Domains</label>
+              <div id="namecheap-domains-container" class="p-3 border rounded bg-light">
+                <div id="namecheap-domains-loading" style="display:none;" class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading domains...</div>
+                <div id="namecheap-domains-list"><em class="text-muted">Save and test your API config to list domains.</em></div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function toggleNamecheapPassword(){const f=document.getElementById('namecheap_api_key');const i=document.getElementById('namecheap-eye-icon');if(f.type==='password'){f.type='text';i.className='fas fa-eye-slash'}else{f.type='password';i.className='fas fa-eye'}}
+function showNamecheapStatus(msg,type){const d=document.getElementById('namecheap-status');const m={success:['alert-success'],error:['alert-danger'],warning:['alert-warning'],info:['alert-info']};d.className='alert '+(m[type]||m.info).join(' ');d.textContent=msg;d.style.display='block';if(type==='success'){setTimeout(()=>d.style.display='none',4000)}}
+async function detectServerIp(){try{const r=await fetch('/api/dns/server-ip');const j=await r.json();if(j.success&&j.public_ip){document.getElementById('namecheap_client_ip').value=j.public_ip;showNamecheapStatus('Detected server IP: '+j.public_ip,'info')}else{showNamecheapStatus('Failed to detect server IP','warning')}}catch(e){showNamecheapStatus('Failed to detect server IP: '+e.message,'error')}}
+async function loadNamecheapConfig(){try{const r=await fetch('/api/dns/namecheap/config');const j=await r.json();if(j.configured){document.getElementById('namecheap_api_user').value=j.config.api_user||'';document.getElementById('namecheap_username').value=j.config.username||'';document.getElementById('namecheap_client_ip').value=j.config.client_ip||'';document.getElementById('namecheap_sandbox').checked=!!j.config.is_sandbox;document.getElementById('load-domains-btn').disabled=false;showNamecheapStatus('Namecheap API configured','success');loadNamecheapDomains()}else{showNamecheapStatus('Namecheap API not configured','warning')}}catch(e){showNamecheapStatus('Failed to load configuration: '+e.message,'error')}}
+async function testNamecheapConnection(){const cfg={api_user:document.getElementById('namecheap_api_user').value.trim(),api_key:document.getElementById('namecheap_api_key').value.trim(),username:document.getElementById('namecheap_username').value.trim(),client_ip:document.getElementById('namecheap_client_ip').value.trim(),is_sandbox:document.getElementById('namecheap_sandbox').checked};if(!cfg.api_user||!cfg.api_key||!cfg.username){return showNamecheapStatus('API User, API Key, and Username are required','error')}try{showNamecheapStatus('Testing connection...','info');const r=await fetch('/api/dns/test-connection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});const j=await r.json();if(j.success){showNamecheapStatus('Connection OK. Domains found: '+j.count,'success');displayNamecheapDomains(j.domains||[])}else{showNamecheapStatus('Connection failed: '+j.error+(j.diagnostics? ' | Diagnostics: '+JSON.stringify(j.diagnostics):''),'error')}}catch(e){showNamecheapStatus('Connection test failed: '+e.message,'error')}}
+async function loadNamecheapDomains(){const loading=document.getElementById('namecheap-domains-loading');const list=document.getElementById('namecheap-domains-list');const btn=document.getElementById('load-domains-btn');try{loading.style.display='block';list.style.display='none';btn.disabled=true;const r=await fetch('/api/dns/namecheap/domains');const j=await r.json();if(j.success){displayNamecheapDomains(j.domains||[])}else{list.innerHTML='<span class="text-danger">Failed to load domains: '+(j.error||'')+'</span>'}}catch(e){list.innerHTML='<span class="text-danger">Network error: '+e.message+'</span>'}finally{loading.style.display='none';list.style.display='block';btn.disabled=false}}
+function displayNamecheapDomains(domains){const list=document.getElementById('namecheap-domains-list');if(!domains||domains.length===0){list.innerHTML='<em class="text-muted">No domains found</em>';return}let html='<div class="d-flex flex-wrap">';domains.forEach(d=>{html+=`<span class="badge badge-info mr-2 mb-2"><i class="fas fa-globe"></i> ${d}</span>`});html+='</div><small class="text-muted d-block mt-1">'+domains.length+' domain(s)</small>';list.innerHTML=html}
+
+document.getElementById('namecheap-config-form').addEventListener('submit',async(e)=>{e.preventDefault();const cfg={api_user:document.getElementById('namecheap_api_user').value.trim(),api_key:document.getElementById('namecheap_api_key').value.trim(),username:document.getElementById('namecheap_username').value.trim(),client_ip:document.getElementById('namecheap_client_ip').value.trim(),is_sandbox:document.getElementById('namecheap_sandbox').checked};if(!cfg.api_user||!cfg.api_key||!cfg.username||!cfg.client_ip){return showNamecheapStatus('All fields are required','error')}try{const r=await fetch('/api/dns/namecheap/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});const j=await r.json();if(j.success){showNamecheapStatus('Configuration saved. '+(j.warning||''),'success');document.getElementById('load-domains-btn').disabled=false;setTimeout(loadNamecheapDomains,500)}else{showNamecheapStatus('Failed to save configuration: '+j.error,'error')}}catch(e){showNamecheapStatus('Failed to save configuration: '+e.message,'error')}});
+
+document.addEventListener('DOMContentLoaded',()=>{loadNamecheapConfig()});
+</script>
+{% endblock %}

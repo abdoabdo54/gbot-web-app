@@ -584,12 +584,12 @@ def test_namecheap_connection():
     try:
         data = request.get_json() or {}
         # Prefer request payload, fallback to saved config
-        if all(k in data for k in ['api_user', 'api_key', 'username', 'client_ip']):
+        if all(k in data for k in ['api_user', 'api_key', 'username']) and ('client_ip' in data or 'client_ip' not in data):
             cfg = {
                 'api_user': data['api_user'],
                 'api_key': data['api_key'],
                 'username': data['username'],
-                'client_ip': data['client_ip'],
+                'client_ip': data.get('client_ip'),
                 'sandbox': data.get('is_sandbox', True)
             }
         else:
@@ -604,6 +604,20 @@ def test_namecheap_connection():
                 'sandbox': namecheap_config.is_sandbox
             }
         
+        # If client_ip is missing or set to 'auto', detect the server's public IP for testing only
+        if not cfg.get('client_ip') or str(cfg.get('client_ip')).strip().lower() == 'auto':
+            try:
+                import requests as _req
+                for _u in ['https://api.ipify.org', 'https://ifconfig.me/ip', 'https://ipinfo.io/ip']:
+                    try:
+                        _r = _req.get(_u, timeout=5)
+                        if _r.ok:
+                            cfg['client_ip'] = _r.text.strip()
+                            break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
         # Attempt light-weight authenticated call to validate credentials
         api = NamecheapAPI(**cfg)
         try:
@@ -688,6 +702,26 @@ def get_verified_domains():
             'error': f'Failed to get verified domains: {str(e)}'
         }), 500
 
+
+@dns_bp.route('/server-ip', methods=['GET'])
+@login_required
+def get_server_ip():
+    """Return server's detected public IP to help Namecheap IP whitelisting"""
+    try:
+        import requests
+        ip = None
+        # Try multiple services to detect public IP
+        for url in ['https://api.ipify.org', 'https://ifconfig.me/ip', 'https://ipinfo.io/ip']:
+            try:
+                r = requests.get(url, timeout=5)
+                if r.ok:
+                    ip = r.text.strip()
+                    break
+            except Exception:
+                continue
+        return jsonify({'success': True, 'public_ip': ip})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # Health check endpoint
 @dns_bp.route('/health', methods=['GET'])

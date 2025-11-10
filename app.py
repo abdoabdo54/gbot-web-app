@@ -313,8 +313,14 @@ def logout():
 @app.route('/dns-manager')
 @login_required
 def dns_manager():
-    """DNS and Namecheap management interface"""
+    """DNS management interface (records, verification)"""
     return render_template('dns_manager.html')
+
+@app.route('/dns-settings')
+@login_required
+def dns_settings():
+    """DNS settings and IP whitelist helper"""
+    return render_template('dns_settings.html')
 
 @app.route('/test-admin')
 def test_admin():
