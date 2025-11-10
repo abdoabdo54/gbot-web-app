@@ -139,7 +139,8 @@
 <script>
 async function safeFetchJson(url, opts) {
   try {
-    const res = await fetch(url, opts);
+    const options = Object.assign({ credentials: 'same-origin' }, opts || {});
+    const res = await fetch(url, options);
     const ct = res.headers.get('content-type') || '';
     if (ct.includes('application/json')) {
       return await res.json();
@@ -159,7 +160,7 @@ function showMsg(el, msg, type) {
 async function loadConfig() {
   const keyInput = document.getElementById('cfg_api_key');
   const data = await safeFetchJson('/api/dns/namecheap/config');
-  if (data.config) {
+  if (data && data.config) {
     document.getElementById('cfg_api_user').value = data.config.api_user || '';
     document.getElementById('cfg_username').value = data.config.username || '';
     document.getElementById('cfg_client_ip').value = data.config.client_ip || '';
@@ -169,7 +170,6 @@ async function loadConfig() {
     if (typeof data.config.has_api_key !== 'undefined') {
       keyInput.placeholder = data.config.has_api_key ? '•••••••••• (saved)' : '';
       if (data.config.has_api_key) keyInput.removeAttribute('required');
-    }
     }
   }
 }
